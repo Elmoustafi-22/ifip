@@ -12,26 +12,36 @@ import {
   HiOutlineClipboardDocumentList,
   HiOutlineClock
 } from "react-icons/hi2";
-import { getLMSModules, LMSModule } from "@/lib/api/services";
+import { getLMSModules, LMSModule, getMyApplication, getCohortConfig } from "@/lib/api/services";
 
 export default function ModulesPage() {
   const [modules, setModules] = useState<LMSModule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userData, setUserData] = useState<any>(null);
+  const [cohortStartDate, setCohortStartDate] = useState("2026-08-31T00:00:00.000Z");
+  const [dashboardViewOverride, setDashboardViewOverride] = useState<string>("default");
 
   useEffect(() => {
-    const fetchModules = async () => {
+    const fetchModulesData = async () => {
       try {
-        const data = await getLMSModules();
-        setModules(data);
+        const [modulesData, profile, config] = await Promise.all([
+          getLMSModules(),
+          getMyApplication(),
+          getCohortConfig()
+        ]);
+        setModules(modulesData);
+        setUserData(profile);
+        setCohortStartDate(config.cohortStartDate);
+        setDashboardViewOverride(config.dashboardViewOverride || "default");
       } catch (err: any) {
-        console.error("Failed to load modules:", err);
-        setError("Unable to retrieve course modules. Please try again later.");
+        console.error("Failed to load modules page parameters:", err);
+        setError("Unable to retrieve coursework parameters. Please try again later.");
       } finally {
         setLoading(false);
       }
     };
-    fetchModules();
+    fetchModulesData();
   }, []);
 
   const getCompletedCount = () => {
@@ -67,6 +77,15 @@ export default function ModulesPage() {
     }
   };
 
+  const getIsLaunched = () => {
+    if (userData?.role === "admin" || userData?.role === "superadmin") return true;
+    if (dashboardViewOverride === "unlocked") return true;
+    if (dashboardViewOverride === "coming_soon") return false;
+    return new Date() >= new Date(cohortStartDate);
+  };
+
+  const isLaunched = getIsLaunched();
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
@@ -89,6 +108,92 @@ export default function ModulesPage() {
         >
           Retry Load
         </button>
+      </div>
+    );
+  }
+
+  if (!isLaunched) {
+    const formatCohortDate = (isoString: string) => {
+      try {
+        const d = new Date(isoString);
+        return d.toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        });
+      } catch {
+        return "August 31, 2026";
+      }
+    };
+
+    const getOrdinalDay = (isoString: string) => {
+      try {
+        const d = new Date(isoString);
+        const day = d.getDate();
+        const month = d.toLocaleDateString("en-US", { month: "long" });
+        const year = d.getFullYear();
+        
+        let suffix = "th";
+        if (day === 1 || day === 21 || day === 31) suffix = "st";
+        else if (day === 2 || day === 22) suffix = "nd";
+        else if (day === 3 || day === 23) suffix = "rd";
+        
+        return `${month} ${day}${suffix}, ${year}`;
+      } catch {
+        return "August 31st, 2026";
+      }
+    };
+
+    return (
+      <div className="flex-grow flex flex-col items-center justify-center py-10 px-4">
+        <div className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200/50 p-6 md:p-12 lg:p-16 flex flex-col items-center text-center mx-auto shadow-sm select-none">
+          {/* Hourglass Icon */}
+          <svg
+            className="w-16 h-16 text-sky-400/70 mb-6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M6 2h12M6 22h12M6 2c0 4 3 6 3 10s-3 6-3 10M18 2c0 4-3 6-3 10s3 6 3 10M9 8h6M10 16h4"
+            />
+          </svg>
+
+          {/* COMING SOON Badge */}
+          <div className="bg-[#000666] text-white rounded-full px-4 py-1.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest select-none mb-6">
+            <HiOutlineClock className="w-3.5 h-3.5" />
+            Coming Soon
+          </div>
+
+          {/* Welcome Heading */}
+          <h1 className="text-3xl md:text-4xl font-display font-black text-[#000666] mb-4">
+            Curriculum Modules
+          </h1>
+
+          {/* Dynamic launch text */}
+          <p className="text-sm text-slate-600 leading-relaxed max-w-lg mb-8 font-medium">
+            The learning curriculum and coursework modules are currently locked. Full access to all units and interactive training files will be granted upon official program commencement on{" "}
+            <strong className="text-[#000666]">{getOrdinalDay(cohortStartDate)}</strong>.
+          </p>
+
+          {/* Launch Date Border Box */}
+          <div className="border border-[#000666]/30 rounded-xl px-8 py-5 max-w-xs w-full mx-auto bg-slate-50/50">
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest block mb-1">
+              Program Launch Date
+            </span>
+            <span className="text-xl font-display font-black text-[#000666]">
+              {formatCohortDate(cohortStartDate)}
+            </span>
+          </div>
+
+          {/* Quote Footer */}
+          <p className="text-xs text-slate-450 italic mt-12 font-medium max-w-md leading-relaxed">
+            "Preparation is the foundation of excellence. We look forward to beginning this journey with you."
+          </p>
+        </div>
       </div>
     );
   }

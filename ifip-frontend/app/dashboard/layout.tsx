@@ -226,7 +226,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Sidebar Layout Navigation Structure matching screen-7.png
   const menuItems = [
     { name: "Dashboard", href: "/dashboard", icon: HiOutlineSquares2X2, disabled: false },
-    { name: "Modules", href: "/dashboard/modules", icon: HiOutlineBookOpen, disabled: !isLaunched },
+    { name: "Modules", href: "/dashboard/modules", icon: HiOutlineBookOpen, disabled: false },
     { name: "Assessments", href: "/dashboard/assessments", icon: HiOutlineClipboardDocumentList, disabled: !isLaunched },
     { name: "Resources", href: "/dashboard/resources", icon: HiOutlineFolderMinus, disabled: !isLaunched },
     { name: "Placement", href: "/dashboard/placement", icon: HiOutlineBriefcase, disabled: !isLaunched },
