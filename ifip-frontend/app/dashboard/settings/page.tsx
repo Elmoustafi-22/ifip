@@ -357,11 +357,11 @@ export default function SettingsPage() {
 
             <div className="flex flex-col gap-2">
               <label htmlFor="phone" className="text-xs font-bold uppercase text-slate-500 tracking-wide">WhatsApp Phone</label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 min-w-0">
                 <select
                   value={dialCode}
                   onChange={(e) => setDialCode(e.target.value)}
-                  className="border border-slate-200 rounded-[6px] px-3 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
+                  className="shrink-0 w-[110px] border border-slate-200 rounded-[6px] px-2 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
                 >
                   {POPULAR_COUNTRIES.map((c) => (
                     <option key={c.code} value={c.dialCode}>
@@ -374,7 +374,7 @@ export default function SettingsPage() {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                  className="flex-1 border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
+                  className="flex-1 min-w-0 border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
                   placeholder="50 123 4567"
                 />
               </div>

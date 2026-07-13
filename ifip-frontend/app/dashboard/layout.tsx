@@ -306,18 +306,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main Workspace Frame */}
-      <div className="flex-1 flex flex-col min-h-screen overflow-y-auto">
+      <div className="flex-1 flex flex-col min-h-screen md:h-screen md:overflow-y-auto">
         {/* Top Header Navbar */}
-        <header className="bg-white border-b border-slate-200/50 py-3 md:py-5 px-4 md:px-12 flex items-center justify-between shadow-sm select-none shrink-0">
+        <header className="sticky top-0 z-40 bg-white border-b border-slate-200/50 py-3 md:py-5 px-4 md:px-12 flex items-center justify-between shadow-sm select-none shrink-0">
           {/* Logo — shown only on mobile (sidebar hidden) */}
           <div className="flex md:hidden items-center">
-            <Image
-              src="/images/logos/logo-full-color.png"
-              alt="IFIP Logo"
-              width={110}
-              height={30}
-              className="h-7 w-auto object-contain"
-            />
+            <Link href="/">
+              <Image
+                src="/images/logos/logo-full-color.png"
+                alt="IFIP Logo"
+                width={110}
+                height={30}
+                className="h-7 w-auto object-contain"
+              />
+            </Link>
           </div>
           {/* Title — shown only on desktop */}
           <div className="hidden md:flex flex-col gap-0.5">
