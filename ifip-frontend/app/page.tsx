@@ -39,7 +39,7 @@ export default function Home() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [activePlacementsTab, setActivePlacementsTab] = useState<"opportunities" | "jobs">("opportunities");
   const [isNigeria, setIsNigeria] = useState<boolean | null>(null);
-  const [cohortName, setCohortName] = useState("September 2026");
+  const [cohortName, setCohortName] = useState("");
 
   useEffect(() => {
     const detectIp = async () => {
@@ -280,8 +280,12 @@ export default function Home() {
             {/* Card Footer Bar */}
             <div className="bg-white p-4 border-t border-outline-variant/20 flex justify-between items-center font-sans">
               <div>
-                <span className="text-xs uppercase font-bold text-on-surface-variant tracking-wider block">Next Cohort Session</span>
-                <span className="font-semibold text-primary text-sm">{cohortName}</span>
+                {cohortName && (
+                  <>
+                    <span className="text-xs uppercase font-bold text-on-surface-variant tracking-wider block">Next Cohort Session</span>
+                    <span className="font-semibold text-primary text-sm">{cohortName}</span>
+                  </>
+                )}
               </div>
               <Link
                 href="/apply"
