@@ -1173,7 +1173,7 @@ export default function ApplyPage() {
 
             {/* Title & Subtitle */}
             <div className="flex flex-col gap-3">
-              <h1 className="text-4xl font-display font-black text-primary leading-tight">
+              <h1 className="text-2xl sm:text-4xl font-display font-black text-primary leading-tight">
                 {cohortName || "The Current Cohort"} is Now <span className="text-[#FF9800]">Full</span>
               </h1>
               <p className="text-sm md:text-base text-on-surface-variant max-w-2xl leading-relaxed mt-2 font-medium">
@@ -1359,7 +1359,7 @@ export default function ApplyPage() {
                 >
                   {s.num < step ? "✓" : s.num}
                 </button>
-                <span className={`text-[10px] uppercase font-bold tracking-wider ${s.num === step ? "text-primary font-black" : "text-on-surface-variant/80"
+                <span className={`text-[10px] uppercase font-bold tracking-wider hidden sm:block ${s.num === step ? "text-primary font-black" : "text-on-surface-variant/80"
                   }`}>
                   {s.label}
                 </span>
@@ -1377,7 +1377,7 @@ export default function ApplyPage() {
         )}
 
         {/* Stateful Card Wrapper */}
-        <div className="bg-white border border-outline-variant/30 rounded-[16px] shadow-md p-8 md:p-12 relative">
+        <div className="bg-white border border-outline-variant/30 rounded-[16px] shadow-md p-4 sm:p-8 md:p-12 relative">
 
           {/* STEP 1: VERIFY */}
           {step === 1 && (
@@ -1398,7 +1398,7 @@ export default function ApplyPage() {
                   <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant block mb-2">
                     Email Address
                   </label>
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <input
                       id="email"
                       type="email"
@@ -1415,7 +1415,7 @@ export default function ApplyPage() {
                     <button
                       onClick={handleSendCode}
                       disabled={loading || !email}
-                      className="bg-primary hover:bg-primary/95 text-white font-bold text-sm px-6 rounded-[6px] transition-all cursor-pointer whitespace-nowrap disabled:bg-slate-300"
+                      className="bg-primary hover:bg-primary/95 text-white font-bold text-sm px-6 py-3 rounded-[6px] transition-all cursor-pointer whitespace-nowrap disabled:bg-slate-300"
                     >
                       {loading ? "Sending..." : otpSent ? "Resend Code" : "Send Code"}
                     </button>
@@ -1532,7 +1532,7 @@ export default function ApplyPage() {
 
                   {/* Flag List Dropdown Menu */}
                   {flagDropdownOpen && (
-                    <div className="absolute top-[calc(100%+4px)] left-0 mt-1 bg-white border border-outline-variant/30 rounded-xl shadow-xl z-[999] w-72 flex flex-col overflow-hidden">
+                    <div className="absolute top-[calc(100%+4px)] left-0 mt-1 bg-white border border-outline-variant/30 rounded-xl shadow-xl z-[999] w-[min(288px,90vw)] flex flex-col overflow-hidden">
                       {/* Search Box */}
                       <div className="p-2 border-b border-outline-variant/20 bg-slate-50/50">
                         <input
@@ -1735,10 +1735,10 @@ export default function ApplyPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between border-t border-outline-variant/20 pt-8 mt-6">
+              <div className="flex flex-wrap items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
                 <button
                   onClick={() => setStep(1)}
-                  className="border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-6 py-3 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all"
+                  className="border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-4 py-2.5 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all"
                 >
                   <HiOutlineChevronLeft className="w-4 h-4" />
                   Back
@@ -1746,7 +1746,7 @@ export default function ApplyPage() {
                 <button
                   onClick={() => saveAllData(3)}
                   disabled={loading || !fullName || !phone || !dob || !gender || !stateCity}
-                  className="bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300"
+                  className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300"
                 >
                   {loading ? "Saving..." : "Save & Continue →"}
                 </button>
@@ -1879,10 +1879,10 @@ export default function ApplyPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between border-t border-outline-variant/20 pt-8 mt-6">
+              <div className="flex flex-wrap items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
                 <button
                   onClick={() => setStep(2)}
-                  className="border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-6 py-3 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all"
+                  className="border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-4 py-2.5 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all"
                 >
                   <HiOutlineChevronLeft className="w-4 h-4" />
                   Back
@@ -1890,7 +1890,7 @@ export default function ApplyPage() {
                 <button
                   onClick={() => saveAllData(4)}
                   disabled={loading || !academicStatus || !institution || !fieldOfStudy || !qualification}
-                  className="bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300"
+                  className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300"
                 >
                   {loading ? "Saving..." : "Save & Continue →"}
                 </button>
@@ -1957,10 +1957,10 @@ export default function ApplyPage() {
                 <span className="text-[10px] text-on-surface-variant/80 mt-1 block">Choosing a secondary area helps us understand the breadth of your profile.</span>
               </div>
 
-              <div className="flex items-center justify-between border-t border-outline-variant/20 pt-8 mt-6">
+              <div className="flex flex-wrap items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
                 <button
                   onClick={() => setStep(3)}
-                  className="border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-6 py-3 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all"
+                  className="border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-4 py-2.5 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all"
                 >
                   <HiOutlineChevronLeft className="w-4 h-4" />
                   Back
@@ -1968,7 +1968,7 @@ export default function ApplyPage() {
                 <button
                   onClick={() => saveAllData(5)}
                   disabled={loading || primaryInterest.length === 0}
-                  className="bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300"
+                  className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300"
                 >
                   {loading ? "Saving..." : "Save & Continue →"}
                 </button>
@@ -2211,10 +2211,10 @@ export default function ApplyPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between border-t border-outline-variant/20 pt-8 mt-6">
+              <div className="flex flex-wrap items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
                 <button
                   onClick={() => setStep(4)}
-                  className="border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-6 py-3 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all"
+                  className="border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-4 py-2.5 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all"
                 >
                   <HiOutlineChevronLeft className="w-4 h-4" />
                   Back
@@ -2222,7 +2222,7 @@ export default function ApplyPage() {
                 <button
                   onClick={() => saveAllData(6)}
                   disabled={loading || !whyApplying || !careerGoals || (!cvFile && !cvUrl)}
-                  className="bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300"
+                  className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300"
                 >
                   {loading ? "Saving..." : "Save & Continue →"}
                 </button>
@@ -2283,7 +2283,7 @@ export default function ApplyPage() {
                       type="button"
                       onClick={handlePayRedirect}
                       disabled={loading}
-                      className="w-full bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-sm py-4 rounded-[6px] shadow-md hover-lift transition-all flex items-center justify-center gap-2 cursor-pointer disabled:bg-slate-300"
+                      className="w-full bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-[13px] sm:text-sm py-4 rounded-[6px] shadow-md hover-lift transition-all flex items-center justify-center gap-2 cursor-pointer disabled:bg-slate-300"
                     >
                       {loading ? "Initializing Secure Payment..." : `Pay Commitment Levy (${country === "Nigeria" ? "₦20,000" : "$30"})`}
                     </button>
@@ -2369,10 +2369,10 @@ export default function ApplyPage() {
                 )}
 
                 {/* Back and Action Buttons */}
-                <div className="flex items-center justify-between border-t border-outline-variant/20 pt-8 mt-6">
+                <div className="flex flex-wrap items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
                   <button
                     onClick={() => setStep(5)}
-                    className="border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-6 py-3 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all"
+                    className="border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-4 py-2.5 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all"
                   >
                     <HiOutlineChevronLeft className="w-4 h-4" />
                     Back
@@ -2381,7 +2381,7 @@ export default function ApplyPage() {
                     <button
                       onClick={handleSubmitApplication}
                       disabled={loading || !declarationConfirmed || !signature}
-                      className="bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300"
+                      className="flex-1 sm:flex-none bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300"
                     >
                       {loading ? "Submitting..." : "Submit Application ✓"}
                     </button>

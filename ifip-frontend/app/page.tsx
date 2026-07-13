@@ -212,9 +212,9 @@ export default function Home() {
       {/* Hero Section */}
       <section className="py-12 md:py-20 max-w-[1280px] mx-auto px-4 md:px-8 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
         <div className="lg:col-span-7 flex flex-col gap-6">
-          <div className="inline-flex items-center gap-2.5 bg-[#e8e8ed] px-4 py-2 rounded-full w-max text-sm font-semibold text-primary font-sans">
-            <HiOutlineShieldCheck className="w-5 h-5 text-primary stroke-[2]" />
-            Islamic Finance Internship Preparatory and Placement Program
+          <div className="inline-flex items-center gap-2.5 bg-[#e8e8ed] px-4 py-2 rounded-full max-w-full text-sm font-semibold text-primary font-sans">
+            <HiOutlineShieldCheck className="w-5 h-5 text-primary stroke-[2] shrink-0" />
+            <span>Islamic Finance Internship Preparatory and Placement Program</span>
           </div>
 
           <h1 className="text-display-lg text-primary leading-tight text-3xl sm:text-5xl lg:text-6xl font-bold font-display">
@@ -247,7 +247,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mt-2 font-sans">
             <Link
               href="/apply"
-              className="bg-impact-orange hover:bg-impact-orange/90 text-white font-semibold text-base py-4 px-8 rounded-[4px] text-center shadow-level1 hover-lift flex items-center justify-center gap-2 transition-all"
+              className="bg-impact-orange hover:bg-impact-orange/90 text-white font-semibold text-sm sm:text-base py-3 sm:py-4 px-6 sm:px-8 rounded-[4px] text-center shadow-level1 hover-lift flex items-center justify-center gap-2 transition-all"
             >
               Apply for Program
               <HiArrowRight className="w-5 h-5" />
@@ -256,7 +256,7 @@ export default function Home() {
               href="/documents/IFIP_Program_Guide.pdf"
               target="_blank"
               rel="noopener noreferrer"
-              className="border border-primary text-primary hover:bg-primary/5 font-semibold text-base py-4 px-8 rounded-[4px] text-center hover-lift flex items-center justify-center gap-2 transition-all bg-white"
+              className="border border-primary text-primary hover:bg-primary/5 font-semibold text-sm sm:text-base py-3 sm:py-4 px-6 sm:px-8 rounded-[4px] text-center hover-lift flex items-center justify-center gap-2 transition-all bg-white"
             >
               Download Program Guide
             </a>
@@ -310,7 +310,7 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Card 1: Foundational Knowledge */}
-            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-8 shadow-level1 hover-lift transition-all flex flex-col gap-6">
+            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 shadow-level1 hover-lift transition-all flex flex-col gap-6">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-primary/5 rounded-[8px] text-primary">
                   <TbBook className="w-6 h-6" />
@@ -333,7 +333,7 @@ export default function Home() {
             </div>
 
             {/* Card 2: Professional Identity */}
-            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-8 shadow-level1 hover-lift transition-all flex flex-col gap-6">
+            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 shadow-level1 hover-lift transition-all flex flex-col gap-6">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-primary/5 rounded-[8px] text-primary">
                   <TbUserCog className="w-6 h-6" />
@@ -356,7 +356,7 @@ export default function Home() {
             </div>
 
             {/* Card 3: Practical Execution */}
-            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-8 shadow-level1 hover-lift transition-all flex flex-col gap-6">
+            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 shadow-level1 hover-lift transition-all flex flex-col gap-6">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-primary/5 rounded-[8px] text-primary">
                   <TbBriefcase className="w-6 h-6" />
@@ -394,10 +394,10 @@ export default function Home() {
 
           {/* Interactive Tabs Header */}
           <div className="flex justify-center mb-12 font-sans">
-            <div className="bg-[#e8e8ed] p-1.5 rounded-full inline-flex items-center gap-1.5 shadow-sm border border-outline-variant/20">
+            <div className="bg-[#e8e8ed] p-1.5 rounded-full inline-flex flex-wrap items-center gap-1.5 shadow-sm border border-outline-variant/20 max-w-full">
               <button
                 onClick={() => setActivePlacementsTab("opportunities")}
-                className={`px-6 py-2.5 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer ${activePlacementsTab === "opportunities"
+                className={`px-4 sm:px-6 py-2.5 rounded-full text-[11px] sm:text-xs font-bold transition-all duration-300 cursor-pointer ${activePlacementsTab === "opportunities"
                     ? "bg-white text-primary shadow-sm"
                     : "text-on-surface-variant/80 hover:text-primary"
                   }`}
@@ -406,7 +406,7 @@ export default function Home() {
               </button>
               <button
                 onClick={() => setActivePlacementsTab("jobs")}
-                className={`px-6 py-2.5 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer ${activePlacementsTab === "jobs"
+                className={`px-4 sm:px-6 py-2.5 rounded-full text-[11px] sm:text-xs font-bold transition-all duration-300 cursor-pointer ${activePlacementsTab === "jobs"
                     ? "bg-white text-primary shadow-sm"
                     : "text-on-surface-variant/80 hover:text-primary"
                   }`}
@@ -591,7 +591,7 @@ export default function Home() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {/* Students Card */}
-            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-8 hover:shadow-lg hover-lift transition-all flex flex-col items-center text-center gap-4">
+            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 hover:shadow-lg hover-lift transition-all flex flex-col items-center text-center gap-4">
               <div className="p-3 bg-primary/5 rounded-full text-primary">
                 <HiAcademicCap className="w-8 h-8" />
               </div>
@@ -604,7 +604,7 @@ export default function Home() {
             </div>
 
             {/* Graduates Card */}
-            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-8 hover:shadow-lg hover-lift transition-all flex flex-col items-center text-center gap-4">
+            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 hover:shadow-lg hover-lift transition-all flex flex-col items-center text-center gap-4">
               <div className="p-3 bg-primary/5 rounded-full text-primary">
                 <TbAward className="w-8 h-8" />
               </div>
@@ -617,7 +617,7 @@ export default function Home() {
             </div>
 
             {/* Professionals Card */}
-            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-8 hover:shadow-lg hover-lift transition-all flex flex-col items-center text-center gap-4">
+            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 hover:shadow-lg hover-lift transition-all flex flex-col items-center text-center gap-4">
               <div className="p-3 bg-primary/5 rounded-full text-primary">
                 <HiArrowTrendingUp className="w-8 h-8" />
               </div>
@@ -630,7 +630,7 @@ export default function Home() {
             </div>
 
             {/* Aspiring Card */}
-            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-8 hover:shadow-lg hover-lift transition-all flex flex-col items-center text-center gap-4">
+            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 hover:shadow-lg hover-lift transition-all flex flex-col items-center text-center gap-4">
               <div className="p-3 bg-primary/5 rounded-full text-primary">
                 <HiSparkles className="w-8 h-8" />
               </div>
@@ -645,7 +645,7 @@ export default function Home() {
 
           {/* Ineligible Bar */}
           <div className="max-w-[1280px] w-full mx-auto mt-12">
-            <div className="bg-[#000666] text-white p-4 rounded-[8px] flex items-center justify-between text-left gap-4 font-sans">
+            <div className="bg-[#000666] text-white p-4 rounded-[8px] flex flex-col sm:flex-row items-start sm:items-center gap-3 text-left font-sans">
               <span className="text-sm font-semibold leading-relaxed">
                 <strong>Who is not eligible?</strong> Applications from individuals who do not meet our entry requirements or target profile will not be processed.
               </span>
@@ -954,7 +954,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 z-10 w-full sm:w-auto mt-4">
             <Link
               href="/apply"
-              className="bg-impact-orange hover:bg-impact-orange/90 text-white font-semibold py-4 px-8 rounded-[4px] shadow-lg hover-lift transition-all text-center"
+              className="bg-impact-orange hover:bg-impact-orange/90 text-white font-semibold text-sm sm:text-base py-3 sm:py-4 px-6 sm:px-8 rounded-[4px] shadow-lg hover-lift transition-all text-center"
             >
               Apply for Program
             </Link>
@@ -962,7 +962,7 @@ export default function Home() {
               href="/documents/IFIP_Program_Guide.pdf"
               target="_blank"
               rel="noopener noreferrer"
-              className="border border-white/20 hover:bg-white/10 text-white font-semibold py-4 px-8 rounded-[4px] hover-lift transition-all text-center flex items-center justify-center gap-2"
+              className="border border-white/20 hover:bg-white/10 text-white font-semibold text-sm sm:text-base py-3 sm:py-4 px-6 sm:px-8 rounded-[4px] hover-lift transition-all text-center flex items-center justify-center gap-2"
             >
               <HiArrowDownTray className="w-5 h-5" />
               Download Program Guide
@@ -973,7 +973,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer id="contact" className="bg-academic-cream border-t border-outline-variant/30 py-16 mt-auto">
-        <div className="max-w-[1280px] mx-auto px-4 md:px-8 grid grid-cols-1 md:grid-cols-12 gap-12">
+        <div className="max-w-[1280px] mx-auto px-4 md:px-8 grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12">
           {/* Brand Col */}
           <div className="md:col-span-5 flex flex-col gap-4">
             <Image
