@@ -149,7 +149,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return (
       <div className="min-h-screen bg-[#FDFBF7] flex flex-col justify-between font-sans">
         {/* Header */}
-        <header className="bg-white border-b border-slate-100 py-5 px-8 flex items-center justify-between">
+        <header className="bg-white border-b border-slate-100 py-3 md:py-5 px-4 md:px-8 flex items-center justify-between">
           <Image
             src="/images/logos/logo-full-color.png"
             alt="IFIP Logo"
@@ -168,13 +168,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Content body */}
-        <main className="flex-1 max-w-xl w-full mx-auto px-6 py-16 flex flex-col items-center text-center justify-center gap-8">
+        <main className="flex-1 max-w-xl w-full mx-auto px-4 md:px-6 py-10 md:py-16 flex flex-col items-center text-center justify-center gap-8">
           <div className="w-20 h-20 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-red-600 mb-2">
             <HiOutlineExclamationTriangle className="w-12 h-12" />
           </div>
 
           <div className="flex flex-col gap-3">
-            <h1 className="text-3xl font-display font-black text-[#000666]">Access Blocked</h1>
+            <h1 className="text-2xl md:text-3xl font-display font-black text-[#000666]">Access Blocked</h1>
             <h2 className="text-sm font-bold text-red-700 uppercase tracking-widest bg-red-50 border border-red-100 rounded-full px-4 py-1.5 inline-block mx-auto mt-2">
               Application Withdrawn
             </h2>
@@ -194,7 +194,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </main>
 
         {/* Footer */}
-        <footer className="bg-white border-t border-slate-100 py-6 text-center text-[10px] text-slate-400">
+        <footer className="hidden md:block bg-white border-t border-slate-100 py-6 text-center text-[10px] text-slate-400">
           © {new Date().getFullYear()} IFIP. All rights reserved. Ethical Finance Education.
         </footer>
       </div>
@@ -237,8 +237,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen flex font-sans bg-[#FDFBF7]">
-      {/* Sidebar Shell */}
-      <aside className="w-68 bg-[#0E1B5D] text-white flex flex-col justify-between shrink-0 select-none border-r border-[#000666]/10">
+      {/* Sidebar Shell — hidden on mobile, visible on md+ */}
+      <aside className="hidden md:flex w-68 bg-[#0E1B5D] text-white flex-col justify-between shrink-0 select-none border-r border-[#000666]/10">
         <div className="flex flex-col">
           {/* Header Logo */}
           <div className="p-6 pb-4 border-b border-white/5 flex flex-col gap-1.5">
@@ -307,9 +307,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main Workspace Frame */}
       <div className="flex-1 flex flex-col min-h-screen overflow-y-auto">
-        {/* Top Header Navbar matching screen.png top layout but standard */}
-        <header className="bg-white border-b border-slate-200/50 py-5 px-8 md:px-12 flex items-center justify-between shadow-sm select-none shrink-0">
-          <div className="flex flex-col gap-0.5">
+        {/* Top Header Navbar */}
+        <header className="bg-white border-b border-slate-200/50 py-3 md:py-5 px-4 md:px-12 flex items-center justify-between shadow-sm select-none shrink-0">
+          {/* Logo — shown only on mobile (sidebar hidden) */}
+          <div className="flex md:hidden items-center">
+            <Image
+              src="/images/logos/logo-full-color.png"
+              alt="IFIP Logo"
+              width={110}
+              height={30}
+              className="h-7 w-auto object-contain"
+            />
+          </div>
+          {/* Title — shown only on desktop */}
+          <div className="hidden md:flex flex-col gap-0.5">
             <h1 className="text-xl md:text-2xl font-display font-black text-[#000666]">
               {getDashboardTitle()}
             </h1>
@@ -336,7 +347,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {bellOpen && (
                 <>
                   <div className="fixed inset-0 z-40 cursor-default" onClick={() => setBellOpen(false)}></div>
-                  <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200/80 rounded-xl shadow-lg z-50 py-3 font-sans animate-fadeIn text-xs text-slate-700">
+                  <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 bg-white border border-slate-200/80 rounded-xl shadow-lg z-50 py-3 font-sans animate-fadeIn text-xs text-slate-700">
                     <div className="px-4 pb-2 border-b border-slate-100 flex justify-between items-center">
                       <span className="font-bold text-[#000666]">Notifications</span>
                       {unreadCount > 0 && (
@@ -450,12 +461,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Content Body */}
-        <main className="flex-1 p-8 md:p-12 max-w-5xl w-full mx-auto flex flex-col gap-8">
+        <main className="flex-1 p-4 md:p-8 lg:p-12 max-w-5xl w-full mx-auto flex flex-col gap-6 md:gap-8 pb-24 md:pb-8">
           {children}
         </main>
 
-        {/* Portal Footer */}
-        <footer className="bg-white border-t border-slate-200/50 py-6 px-12 text-xs text-slate-400 flex items-center justify-between font-sans shrink-0">
+        {/* Portal Footer — hidden on mobile (bottom tab bar replaces) */}
+        <footer className="hidden md:flex bg-white border-t border-slate-200/50 py-6 px-12 text-xs text-slate-400 items-center justify-between font-sans shrink-0">
           <span>© {new Date().getFullYear()} IFIP. All rights reserved. Ethical Finance Education.</span>
           <div className="flex gap-4">
             <a href="#" className="hover:underline">Terms of Service</a>
@@ -463,6 +474,37 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <a href="#" className="hover:underline">Program FAQs</a>
           </div>
         </footer>
+      </div>
+
+      {/* Mobile Bottom Tab Bar — replaces sidebar on small screens */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#0E1B5D] border-t border-white/10 flex items-center justify-around px-1 py-1.5 shadow-xl">
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          const active = pathname === item.href;
+          if (item.disabled) {
+            return (
+              <div
+                key={item.name}
+                className="flex flex-col items-center gap-0.5 px-1 py-1 text-white/25 cursor-not-allowed min-w-0 flex-1"
+              >
+                <Icon className="w-5 h-5 shrink-0" />
+                <span className="text-[8px] font-bold tracking-wide truncate w-full text-center">{item.name}</span>
+              </div>
+            );
+          }
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className={`flex flex-col items-center gap-0.5 px-1 py-1 transition-colors min-w-0 flex-1 ${
+                active ? "text-sky-400" : "text-white/60 hover:text-white"
+              }`}
+            >
+              <Icon className="w-5 h-5 shrink-0" />
+              <span className="text-[8px] font-bold tracking-wide truncate w-full text-center">{item.name}</span>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

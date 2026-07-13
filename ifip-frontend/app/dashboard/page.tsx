@@ -91,7 +91,7 @@ export default function DashboardHome() {
   if (!isLaunched) {
     return (
       <div className="flex-grow flex flex-col items-center justify-center py-10 px-4">
-        <div className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200/50 p-12 md:p-16 flex flex-col items-center text-center mx-auto shadow-sm select-none">
+        <div className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200/50 p-6 md:p-12 lg:p-16 flex flex-col items-center text-center mx-auto shadow-sm select-none">
           {/* Hourglass Icon */}
           <svg
             className="w-16 h-16 text-sky-400/70 mb-6"
@@ -114,7 +114,7 @@ export default function DashboardHome() {
           </div>
 
           {/* Welcome Heading */}
-          <h1 className="text-4xl font-display font-black text-[#000666] mb-4">
+          <h1 className="text-3xl md:text-4xl font-display font-black text-[#000666] mb-4">
             Welcome to IFIP
           </h1>
 
@@ -150,7 +150,7 @@ export default function DashboardHome() {
       {/* Header Greeting */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/60 pb-6">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-display font-black text-[#000666]">
+          <h1 className="text-xl md:text-2xl font-display font-black text-[#000666]">
             Welcome Back, {userData?.fullName || "Candidate"}
           </h1>
           <p className="text-xs text-slate-500 font-semibold tracking-wide uppercase">
