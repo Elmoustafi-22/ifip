@@ -82,6 +82,10 @@ app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/placements', placementRoutes);
 app.use('/api/v1/partners', partnerRoutes);
 
+app.get('/', (_req, res) => {
+    res.json({ message: 'IFIP Backend API is running. Check /api/v1/health for status.' });
+});
+
 app.get('/api/v1/health', (_req, res) => res.json({ status: 'ok' }));
 
 app.use(errorHandler);
