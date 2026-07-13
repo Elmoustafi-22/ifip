@@ -1035,36 +1035,15 @@ export default function ApplyPage() {
       {/* Navigation Header — mirrors landing page */}
       <header className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-outline-variant/30">
         <div className="max-w-[1280px] mx-auto px-4 md:px-8 h-20 flex items-center justify-between">
-          {/* Mobile-only Left: Hamburger and Logo */}
-          <div className="flex md:hidden items-center gap-3">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 text-on-surface hover:text-primary"
-              aria-label="Toggle Menu"
-            >
-              {mobileMenuOpen ? <HiXMark className="w-6 h-6" /> : <HiBars3 className="w-6 h-6" />}
-            </button>
-            <Link href="/" className="flex items-center">
-              <Image
-                src="/images/logos/logo-full-color.png"
-                alt="IFIP Logo"
-                width={120}
-                height={33}
-                priority
-                className="h-8 w-auto object-contain"
-              />
-            </Link>
-          </div>
-
-          {/* Desktop-only Left: Logo */}
-          <Link href="/" className="hidden md:flex items-center gap-3">
+          {/* Left: Logo (Mobile & Desktop) */}
+          <Link href="/" className="flex items-center gap-3">
             <Image
               src="/images/logos/logo-full-color.png"
               alt="IFIP Logo"
               width={160}
               height={44}
               priority
-              className="h-10 w-auto object-contain"
+              className="h-8 md:h-10 w-auto object-contain"
             />
           </Link>
 
@@ -1089,15 +1068,15 @@ export default function ApplyPage() {
             </Link>
           </div>
 
-          {/* Mobile-only Right: User Profile Avatar */}
+          {/* Mobile-only Right: Hamburger menu button */}
           <div className="flex md:hidden items-center">
-            <Link href="/login" aria-label="User Profile">
-              <div className="w-9 h-9 rounded-full bg-[#000666]/10 border border-[#000666]/20 flex items-center justify-center text-primary font-bold text-sm hover:bg-[#000666]/20 transition-colors">
-                <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-            </Link>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 text-on-surface hover:text-primary"
+              aria-label="Toggle Menu"
+            >
+              {mobileMenuOpen ? <HiXMark className="w-6 h-6" /> : <HiBars3 className="w-6 h-6" />}
+            </button>
           </div>
         </div>
       </header>

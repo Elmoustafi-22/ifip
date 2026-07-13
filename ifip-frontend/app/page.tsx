@@ -92,36 +92,15 @@ export default function Home() {
       {/* Navigation Header */}
       <header className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-outline-variant/30">
         <div className="max-w-[1280px] mx-auto px-4 md:px-8 h-20 flex items-center justify-between">
-          {/* Mobile-only Left: Hamburger and Logo */}
-          <div className="flex md:hidden items-center gap-3">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 text-on-surface hover:text-primary"
-              aria-label="Toggle Menu"
-            >
-              {mobileMenuOpen ? <HiXMark className="w-6 h-6" /> : <HiBars3 className="w-6 h-6" />}
-            </button>
-            <Link href="/" className="flex items-center">
-              <Image
-                src="/images/logos/logo-full-color.png"
-                alt="IFIP Logo"
-                width={120}
-                height={33}
-                priority
-                className="h-8 w-auto object-contain"
-              />
-            </Link>
-          </div>
-
-          {/* Desktop-only Left: Logo */}
-          <Link href="/" className="hidden md:flex items-center gap-3">
+          {/* Left: Logo (Mobile & Desktop) */}
+          <Link href="/" className="flex items-center gap-3">
             <Image
               src="/images/logos/logo-full-color.png"
               alt="IFIP Logo"
               width={160}
               height={44}
               priority
-              className="h-10 w-auto object-contain"
+              className="h-8 md:h-10 w-auto object-contain"
             />
           </Link>
 
@@ -146,15 +125,15 @@ export default function Home() {
             </Link>
           </div>
 
-          {/* Mobile-only Right: User Profile Avatar */}
+          {/* Mobile-only Right: Hamburger menu button */}
           <div className="flex md:hidden items-center">
-            <Link href="/login" aria-label="User Profile">
-              <div className="w-9 h-9 rounded-full bg-[#000666]/10 border border-[#000666]/20 flex items-center justify-center text-primary font-bold text-sm hover:bg-[#000666]/20 transition-colors">
-                <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-            </Link>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 text-on-surface hover:text-primary"
+              aria-label="Toggle Menu"
+            >
+              {mobileMenuOpen ? <HiXMark className="w-6 h-6" /> : <HiBars3 className="w-6 h-6" />}
+            </button>
           </div>
         </div>
       </header>
@@ -210,9 +189,9 @@ export default function Home() {
       )}
 
       {/* Hero Section */}
-      <section className="py-12 md:py-20 max-w-[1280px] mx-auto px-4 md:px-8 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+      <section className="pt-4 pb-12 md:py-20 max-w-[1280px] mx-auto px-4 md:px-8 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
         <div className="lg:col-span-7 flex flex-col gap-6">
-          <div className="inline-flex items-center gap-2.5 bg-[#e8e8ed] px-4 py-2 rounded-full max-w-full text-sm font-semibold text-primary font-sans">
+          <div className="hidden sm:inline-flex items-center gap-2.5 bg-[#e8e8ed] px-4 py-2 rounded-full max-w-full text-sm font-semibold text-primary font-sans">
             <HiOutlineShieldCheck className="w-5 h-5 text-primary stroke-[2] shrink-0" />
             <span>Islamic Finance Internship Preparatory and Placement Program</span>
           </div>
@@ -393,20 +372,20 @@ export default function Home() {
           </div>
 
           {/* Interactive Tabs Header */}
-          <div className="flex justify-center mb-12 font-sans">
-            <div className="bg-[#e8e8ed] p-1.5 rounded-full inline-flex flex-wrap items-center gap-1.5 shadow-sm border border-outline-variant/20 max-w-full">
+          <div className="flex justify-center mb-12 font-sans px-4">
+            <div className="bg-[#e8e8ed] p-1.5 rounded-full grid grid-cols-2 w-full max-w-sm sm:flex sm:w-auto items-center gap-1 shadow-sm border border-outline-variant/20">
               <button
                 onClick={() => setActivePlacementsTab("opportunities")}
-                className={`px-4 sm:px-6 py-2.5 rounded-full text-[11px] sm:text-xs font-bold transition-all duration-300 cursor-pointer ${activePlacementsTab === "opportunities"
+                className={`px-3 sm:px-6 py-2.5 rounded-full text-[11px] sm:text-xs font-bold transition-all duration-300 cursor-pointer text-center whitespace-nowrap ${activePlacementsTab === "opportunities"
                     ? "bg-white text-primary shadow-sm"
                     : "text-on-surface-variant/80 hover:text-primary"
                   }`}
               >
-                Placement Opportunities
+                Opportunities
               </button>
               <button
                 onClick={() => setActivePlacementsTab("jobs")}
-                className={`px-4 sm:px-6 py-2.5 rounded-full text-[11px] sm:text-xs font-bold transition-all duration-300 cursor-pointer ${activePlacementsTab === "jobs"
+                className={`px-3 sm:px-6 py-2.5 rounded-full text-[11px] sm:text-xs font-bold transition-all duration-300 cursor-pointer text-center whitespace-nowrap ${activePlacementsTab === "jobs"
                     ? "bg-white text-primary shadow-sm"
                     : "text-on-surface-variant/80 hover:text-primary"
                   }`}
