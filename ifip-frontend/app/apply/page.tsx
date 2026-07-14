@@ -34,6 +34,7 @@ import {
   TbHeartHandshake,
   TbAward
 } from "react-icons/tb";
+import { motion, AnimatePresence } from "framer-motion";
 
 import {
   startApplication,
@@ -60,34 +61,7 @@ import {
   step6DeclarationSchema,
 } from "@/lib/validation/applySchemas";
 
-const INTEREST_OPTIONS = [
-  "Islamic Banking Operations",
-  "Islamic Finance Advisory",
-  "Shariah Advisory Support",
-  "Investment & Wealth Management",
-  "Risk Management (Takaful)",
-  "Compliance & Governance",
-  "Capital Markets (Sukuk & Structured Finance)",
-  "Financial Analysis",
-  "Research & Policy Development",
-  "Fintech / Islamic Fintech Operations",
-  "Venture Building / Startups",
-  "Business Development",
-  "Product Development",
-  "Customer Experience & Relations",
-  "Marketing & Growth Strategy",
-  "Digital Marketing",
-  "Content Creation & Media",
-  "Graphic Design",
-  "UI/UX Design",
-  "Video Editing & Creative Production",
-  "Technical Writing & Documentation",
-  "Data Analysis",
-  "Project Management",
-  "Community & Program Management",
-  "Administrative & Operations Support",
-  "Other (Specify)"
-];
+import { useFormOptions } from "@/lib/hooks/useFormOptions";
 
 interface CountryDialCode {
   code: string;
@@ -313,7 +287,19 @@ const parsePhoneNumber = (fullPhone: string, list: CountryDialCode[]) => {
   };
 };
 
+const STATUS_DESCS: Record<string, string> = {
+  "University Student": "Early Years",
+  "Penultimate Year Student": "Year before final",
+  "Final Year Student": "Graduating 2026",
+  "Recent Graduate": "Post-university",
+  "NYSC Participant": "Current service",
+  "Early-Career Professional": "0-2 years exp",
+};
+
 export default function ApplyPage() {
+  const { options: interestOptions, loading: loadingInterests } = useFormOptions("placement_interests");
+  const { options: statusOptions, loading: loadingStatus } = useFormOptions("academic_status");
+
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -1307,13 +1293,9 @@ export default function ApplyPage() {
               Complete the details below to join the Batch 2026-A Islamic Finance Program.
             </p>
             {step < 6 && (
-              <div className="mt-2 bg-vibrant-blue/5 border border-vibrant-blue/15 px-4 py-2 rounded-lg text-xs text-vibrant-blue font-medium flex items-center gap-2">
-                <HiOutlineShieldCheck className="w-4 h-4 shrink-0" />
-                {geoDetecting || !country ? (
-                  <span className="animate-pulse">Your data is saved temporarily. Final submission requires the commitment levy.</span>
-                ) : (
-                  <span>Your data is saved temporarily. Final submission requires the <strong>{country === "Nigeria" ? "₦20,000" : "$30"}</strong> commitment levy.</span>
-                )}
+              <div className="mt-2 bg-emerald-500/5 border border-emerald-500/15 px-4 py-2 rounded-lg text-xs text-emerald-600 font-semibold flex items-center gap-2">
+                <HiOutlineShieldCheck className="w-4 h-4 shrink-0 text-emerald-500" />
+                <span>Your application progress is automatically saved as you fill out each section.</span>
               </div>
             )}
           </div>
@@ -1362,10 +1344,17 @@ export default function ApplyPage() {
         )}
 
         {/* Stateful Card Wrapper */}
-        <div className="bg-white border border-outline-variant/30 rounded-[16px] shadow-md p-4 sm:p-8 md:p-12 relative">
-
-          {/* STEP 1: VERIFY */}
-          {step === 1 && (
+        <div className="bg-white border border-outline-variant/30 rounded-[16px] shadow-md p-4 sm:p-8 md:p-12 relative overflow-hidden">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step}
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -16 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+            >
+              {/* STEP 1: VERIFY */}
+              {step === 1 && (
             <div className="flex flex-col items-center text-center gap-6 max-w-md mx-auto">
               <div className="w-16 h-16 rounded-full bg-primary/5 border border-primary/10 flex items-center justify-center text-primary mb-2">
                 <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -1504,7 +1493,7 @@ export default function ApplyPage() {
                     <input
                       id="phone"
                       type="tel"
-                      placeholder="811 202 1272"
+                      placeholder="800 000 0000"
                       value={phone}
                       onChange={(e) => handleInputChange("phone", e.target.value, setPhone)}
                       className="flex-1 min-w-0 bg-transparent px-3 py-3 text-sm focus:outline-none focus:ring-0 placeholder:text-on-surface-variant/50"
@@ -1705,7 +1694,7 @@ export default function ApplyPage() {
                   <input
                     id="stateCity"
                     type="text"
-                    placeholder="e.g. Lagos, Nigeria"
+                    placeholder="e.g. Your City, Region"
                     value={stateCity}
                     onChange={(e) => handleInputChange("stateCity", e.target.value, setStateCity)}
                     className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
@@ -1753,26 +1742,28 @@ export default function ApplyPage() {
               <div>
                 <label className="text-xs font-bold uppercase text-primary block mb-3">Current Academic Status</label>
                 <div id="academicStatus" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {[
-                    { key: "University Student", desc: "Early Years" },
-                    { key: "Penultimate Year Student", desc: "Year before final" },
-                    { key: "Final Year Student", desc: "Graduating 2026" },
-                    { key: "Recent Graduate", desc: "Post-university" },
-                    { key: "NYSC Participant", desc: "Current service" },
-                    { key: "Early-Career Professional", desc: "0-2 years exp" }
-                  ].map((status) => (
-                    <button
-                      key={status.key}
-                      onClick={() => handleInputChange("academicStatus", status.key, setAcademicStatus)}
-                      className={`p-4 border rounded-xl text-left flex flex-col gap-1 cursor-pointer transition-all ${academicStatus === status.key
-                        ? "border-vibrant-blue bg-vibrant-blue/5 shadow-sm"
-                        : "border-outline-variant/30 bg-white hover:bg-slate-50"
-                        }`}
-                    >
-                      <span className="text-sm font-bold text-primary">{status.key}</span>
-                      <span className="text-[10px] text-on-surface-variant font-medium">({status.desc})</span>
-                    </button>
-                  ))}
+                  {loadingStatus ? (
+                    <div className="col-span-full py-4 text-center text-xs text-slate-400 animate-pulse font-medium">
+                      Loading academic status options...
+                    </div>
+                  ) : (
+                    statusOptions.map((status) => {
+                      const desc = STATUS_DESCS[status.label] || "Applicant status";
+                      return (
+                        <button
+                          key={status.value}
+                          onClick={() => handleInputChange("academicStatus", status.label, setAcademicStatus)}
+                          className={`p-4 border rounded-xl text-left flex flex-col gap-1 cursor-pointer transition-all ${academicStatus === status.label
+                            ? "border-vibrant-blue bg-vibrant-blue/5 shadow-sm"
+                            : "border-outline-variant/30 bg-white hover:bg-slate-50"
+                            }`}
+                        >
+                          <span className="text-sm font-bold text-primary">{status.label}</span>
+                          <span className="text-[10px] text-on-surface-variant font-medium">({desc})</span>
+                        </button>
+                      );
+                    })
+                  )}
                 </div>
                 {errors.academicStatus && (
                   <span className="text-red-500 text-xs mt-2 block">{errors.academicStatus}</span>
@@ -1785,7 +1776,7 @@ export default function ApplyPage() {
                   <input
                     id="institution"
                     type="text"
-                    placeholder="e.g. University of Lagos"
+                    placeholder="e.g. Your University or College"
                     value={institution}
                     onChange={(e) => handleInputChange("institution", e.target.value, setInstitution)}
                     className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
@@ -1812,7 +1803,7 @@ export default function ApplyPage() {
                     }`}
                   >
                     <option value="">Select Graduation Year (if applicable)</option>
-                    {["2022", "2023", "2024", "2025", "2026", "2027", "2028", "2029", "2030", "2031", "2032", "2033", "2034", "2035"].map(year => (
+                    {Array.from({ length: 2035 - 2010 + 1 }, (_, i) => String(2010 + i)).map(year => (
                       <option key={year} value={year}>{year}</option>
                     ))}
                   </select>
@@ -1917,10 +1908,15 @@ export default function ApplyPage() {
                       : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
                   }`}
                 >
-                  <option value="">Select Primary Area of Interest...</option>
-                  {INTEREST_OPTIONS.map((option) => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
+                  <option value="">
+                    {loadingInterests ? "Loading options..." : "Select Primary Area of Interest..."}
+                  </option>
+                  {!loadingInterests &&
+                    interestOptions.map((option) => (
+                      <option key={option.value} value={option.label}>
+                        {option.label}
+                      </option>
+                    ))}
                 </select>
                 {errors.primaryInterest && (
                   <span className="text-red-500 text-xs mt-1 block">{errors.primaryInterest}</span>
@@ -1934,10 +1930,15 @@ export default function ApplyPage() {
                   onChange={(e) => setSecondaryInterest(e.target.value)}
                   className="w-full border border-outline-variant/40 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-primary bg-slate-50/50"
                 >
-                  <option value="">Select an optional second focus...</option>
-                  {INTEREST_OPTIONS.map((option) => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
+                  <option value="">
+                    {loadingInterests ? "Loading options..." : "Select an optional second focus..."}
+                  </option>
+                  {!loadingInterests &&
+                    interestOptions.map((option) => (
+                      <option key={option.value} value={option.label}>
+                        {option.label}
+                      </option>
+                    ))}
                 </select>
                 <span className="text-[10px] text-on-surface-variant/80 mt-1 block">Choosing a secondary area helps us understand the breadth of your profile.</span>
               </div>
@@ -2239,7 +2240,7 @@ export default function ApplyPage() {
                   </div>
 
                   <p className="text-[10px] text-on-surface-variant/85 leading-relaxed">
-                    * The Commitment Levy is a non-refundable administrative fee ensuring high-quality module delivery and placement support.
+                    * The Commitment Levy is a non-refundable administrative fee ensuring high-quality module delivery and program administration.
                   </p>
                 </div>
 
@@ -2325,7 +2326,7 @@ export default function ApplyPage() {
                         <input
                           id="signature"
                           type="text"
-                          placeholder="e.g. Abdullahi Yusuf"
+                          placeholder="Type your full legal name"
                           value={signature}
                           onChange={(e) => handleInputChange("signature", e.target.value, setSignature)}
                           className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
@@ -2444,7 +2445,8 @@ export default function ApplyPage() {
               </div>
             </div>
           )}
-
+            </motion.div>
+          </AnimatePresence>
         </div>
           </>
         )}

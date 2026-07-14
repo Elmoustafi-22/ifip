@@ -165,7 +165,7 @@ export default function LoginPage() {
                   id="login-email"
                   type="email"
                   autoComplete="email"
-                  placeholder="e.g. omar.ali@university.edu"
+                  placeholder="e.g. your.email@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-outline-variant/40 rounded-[6px] text-sm bg-slate-50/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
@@ -276,7 +276,7 @@ export default function LoginPage() {
               className="h-10 w-auto object-contain self-start"
             />
             <p className="text-xs text-on-surface-variant max-w-sm leading-relaxed mt-2">
-              The Islamic Finance Internship Program (IFIP) provides rigorous academic training and professional placement for ethical finance leaders.
+              The Islamic Finance Internship Program (IFIP) develops industry-ready talent through professional training, practical simulations, and structured internship placement across the ethical finance ecosystem.
             </p>
             <div className="flex items-center gap-3 mt-4 text-on-surface-variant">
               <a href="#" className="p-2 bg-primary/5 hover:bg-primary/10 rounded-full transition-colors" aria-label="Social Share">

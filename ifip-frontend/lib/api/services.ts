@@ -464,3 +464,199 @@ export const deletePartnerV2 = async (id: string): Promise<any> => {
   return data;
 };
 
+// ─── Form Options Services ───────────────────────────────────────────────────
+
+export interface FormOption {
+  _id?: string;
+  group: string;
+  label: string;
+  value: string;
+  order: number;
+  isActive: boolean;
+}
+
+export const getFormOptions = async (group: string): Promise<{ label: string; value: string }[]> => {
+  const { data } = await apiClient.get<{ group: string; options: { label: string; value: string }[] }>(
+    `/form-options?group=${group}`
+  );
+  return data.options;
+};
+
+export const adminGetFormOptions = async (group: string): Promise<FormOption[]> => {
+  const { data } = await authClient.get<{ group: string; options: FormOption[] }>(
+    `/admin/form-options?group=${group}`
+  );
+  return data.options;
+};
+
+export const adminCreateFormOption = async (payload: {
+  group: string;
+  label: string;
+  value?: string;
+  order?: number;
+}): Promise<FormOption> => {
+  const { data } = await authClient.post<{ message: string; option: FormOption }>(
+    "/admin/form-options",
+    payload
+  );
+  return data.option;
+};
+
+export const adminUpdateFormOption = async (
+  id: string,
+  payload: {
+    label?: string;
+    value?: string;
+    order?: number;
+    isActive?: boolean;
+  }
+): Promise<FormOption> => {
+  const { data } = await authClient.patch<{ message: string; option: FormOption }>(
+    `/admin/form-options/${id}`,
+    payload
+  );
+  return data.option;
+};
+
+export const adminDeleteFormOption = async (id: string): Promise<void> => {
+  await authClient.delete(`/admin/form-options/${id}`);
+};
+
+export const adminReorderFormOptions = async (
+  updates: { id: string; order: number }[]
+): Promise<void> => {
+  await authClient.post("/admin/form-options/reorder", updates);
+};
+
+// ─── Active Openings Services ────────────────────────────────────────────────
+
+export interface ActiveOpening {
+  _id?: string;
+  title: string;
+  department: string;
+  workMode: "Remote" | "Hybrid" | "On-site";
+  location: string;
+  isActive: boolean;
+  order: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const getActiveOpenings = async (): Promise<ActiveOpening[]> => {
+  const { data } = await apiClient.get<{ openings: ActiveOpening[] }>("/active-openings");
+  return data.openings;
+};
+
+export const adminGetActiveOpenings = async (): Promise<ActiveOpening[]> => {
+  const { data } = await authClient.get<{ openings: ActiveOpening[] }>("/admin/active-openings");
+  return data.openings;
+};
+
+export const adminCreateActiveOpening = async (payload: {
+  title: string;
+  department: string;
+  workMode: "Remote" | "Hybrid" | "On-site";
+  location: string;
+  order?: number;
+}): Promise<ActiveOpening> => {
+  const { data } = await authClient.post<{ message: string; opening: ActiveOpening }>(
+    "/admin/active-openings",
+    payload
+  );
+  return data.opening;
+};
+
+export const adminUpdateActiveOpening = async (
+  id: string,
+  payload: {
+    title?: string;
+    department?: string;
+    workMode?: "Remote" | "Hybrid" | "On-site";
+    location?: string;
+    order?: number;
+    isActive?: boolean;
+  }
+): Promise<ActiveOpening> => {
+  const { data } = await authClient.patch<{ message: string; opening: ActiveOpening }>(
+    `/admin/active-openings/${id}`,
+    payload
+  );
+  return data.opening;
+};
+
+export const adminDeleteActiveOpening = async (id: string): Promise<void> => {
+  await authClient.delete(`/admin/active-openings/${id}`);
+};
+
+export const adminReorderActiveOpenings = async (
+  updates: { id: string; order: number }[]
+): Promise<void> => {
+  await authClient.post("/admin/active-openings/reorder", updates);
+};
+
+// ─── Placement Opportunities Services ────────────────────────────────────────
+
+export interface PlacementOpportunity {
+  _id?: string;
+  category: string;
+  roles: string[];
+  icon: string;
+  isActive: boolean;
+  order: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const getOpportunities = async (): Promise<PlacementOpportunity[]> => {
+  const { data } = await apiClient.get<{ opportunities: PlacementOpportunity[] }>("/placement-opportunities");
+  return data.opportunities;
+};
+
+export const adminGetOpportunities = async (): Promise<PlacementOpportunity[]> => {
+  const { data } = await authClient.get<{ opportunities: PlacementOpportunity[] }>("/admin/placement-opportunities");
+  return data.opportunities;
+};
+
+export const adminCreateOpportunity = async (payload: {
+  category: string;
+  roles: string[];
+  icon: string;
+  order?: number;
+}): Promise<PlacementOpportunity> => {
+  const { data } = await authClient.post<{ message: string; opportunity: PlacementOpportunity }>(
+    "/admin/placement-opportunities",
+    payload
+  );
+  return data.opportunity;
+};
+
+export const adminUpdateOpportunity = async (
+  id: string,
+  payload: {
+    category?: string;
+    roles?: string[];
+    icon?: string;
+    order?: number;
+    isActive?: boolean;
+  }
+): Promise<PlacementOpportunity> => {
+  const { data } = await authClient.patch<{ message: string; opportunity: PlacementOpportunity }>(
+    `/admin/placement-opportunities/${id}`,
+    payload
+  );
+  return data.opportunity;
+};
+
+export const adminDeleteOpportunity = async (id: string): Promise<void> => {
+  await authClient.delete(`/admin/placement-opportunities/${id}`);
+};
+
+export const adminReorderOpportunities = async (
+  updates: { id: string; order: number }[]
+): Promise<void> => {
+  await authClient.post("/admin/placement-opportunities/reorder", updates);
+};
+
+
+
+

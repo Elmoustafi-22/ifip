@@ -214,6 +214,12 @@ export default function AdminDashboardPage() {
             Modules Editor
           </Link>
           <Link 
+            href="/admin/opportunities"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs tracking-wider uppercase px-5 py-3.5 rounded-xl shadow-sm transition-all"
+          >
+            Opportunities Editor
+          </Link>
+          <Link 
             href="/admin/placements"
             className="bg-[#00B0FF] hover:bg-[#00B0FF]/90 text-white font-bold text-xs tracking-wider uppercase px-5 py-3.5 rounded-xl shadow-sm transition-all"
           >
@@ -224,6 +230,18 @@ export default function AdminDashboardPage() {
             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs tracking-wider uppercase px-5 py-3.5 rounded-xl shadow-sm transition-all"
           >
             Manage Partners
+          </Link>
+          <Link 
+            href="/admin/form-options"
+            className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs tracking-wider uppercase px-5 py-3.5 rounded-xl shadow-sm transition-all"
+          >
+            Form Options
+          </Link>
+          <Link 
+            href="/admin/openings"
+            className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-xs tracking-wider uppercase px-5 py-3.5 rounded-xl shadow-sm transition-all"
+          >
+            Openings Manager
           </Link>
           <Link 
             href="/"

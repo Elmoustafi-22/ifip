@@ -89,7 +89,7 @@ export const sendOtpEmail = async (to: string, otp: string) => {
             <!-- Simple Footer Banner -->
             <div style="background-color: #EDE7DE; padding: 16px; text-align: center; border-top: 1px solid #C6C5D4;">
                 <p style="font-size: 11px; font-style: italic; color: #767683; margin: 0; font-weight: bold;">
-                    Ethical Progress Through Educational Rigor
+                    Ethical Progress Through Professional Excellence
                 </p>
             </div>
         </div>

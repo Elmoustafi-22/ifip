@@ -30,31 +30,13 @@ const POPULAR_COUNTRIES = [
   { code: "BH", dialCode: "+973", flag: "🇧🇭", name: "Bahrain" }
 ];
 
-const STATUS_OPTIONS = [
-  "Undergraduate Student",
-  "Final Year Undergraduate",
-  "Graduate / Seeking Placement",
-  "Postgraduate Student",
-  "Working Professional",
-  "Other"
-];
-
-const INTEREST_OPTIONS = [
-  "Shariah-Compliant Asset Management",
-  "Islamic Banking Operations",
-  "Islamic Finance Advisory",
-  "Shariah Advisory Support",
-  "Investment & Wealth Management",
-  "Risk Management (Takaful)",
-  "Compliance & Governance",
-  "Capital Markets (Sukuk & Structured Finance)",
-  "Ethical FinTech",
-  "Research & Policy Development",
-  "Other"
-];
+import { useFormOptions } from "@/lib/hooks/useFormOptions";
 
 export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { options: interestOptions, loading: loadingInterests } = useFormOptions("placement_interests");
+  const { options: statusOptions, loading: loadingStatus } = useFormOptions("academic_status");
 
   // Profile Form States
   const [fullName, setFullName] = useState("");
@@ -339,7 +321,7 @@ export default function SettingsPage() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 className="w-full border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
-                placeholder="Ahmad Al-Farsi"
+                placeholder="Your Full Name"
               />
             </div>
 
@@ -351,7 +333,7 @@ export default function SettingsPage() {
                 value={email}
                 disabled
                 className="w-full border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none bg-slate-100/60 text-slate-400 font-medium cursor-not-allowed"
-                placeholder="ahmad.farsi@university.edu"
+                placeholder="your.email@example.com"
               />
             </div>
 
@@ -375,7 +357,7 @@ export default function SettingsPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
                   className="flex-1 min-w-0 border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
-                  placeholder="50 123 4567"
+                  placeholder="800 000 0000"
                 />
               </div>
             </div>
@@ -416,10 +398,15 @@ export default function SettingsPage() {
                 onChange={(e) => setAcademicStatus(e.target.value)}
                 className="w-full border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
               >
-                <option value="">Select Academic Status</option>
-                {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
+                <option value="">
+                  {loadingStatus ? "Loading options..." : "Select Academic Status"}
+                </option>
+                {!loadingStatus &&
+                  statusOptions.map((opt) => (
+                    <option key={opt.value} value={opt.label}>
+                      {opt.label}
+                    </option>
+                  ))}
               </select>
             </div>
 
@@ -431,7 +418,7 @@ export default function SettingsPage() {
                 value={institution}
                 onChange={(e) => setInstitution(e.target.value)}
                 className="w-full border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
-                placeholder="Zayed University"
+                placeholder="Your University or Institution"
               />
             </div>
 
@@ -443,7 +430,7 @@ export default function SettingsPage() {
                 value={fieldOfStudy}
                 onChange={(e) => setFieldOfStudy(e.target.value)}
                 className="w-full border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
-                placeholder="Islamic Finance & Economics"
+                placeholder="e.g. Finance & Economics"
               />
             </div>
 
@@ -455,7 +442,7 @@ export default function SettingsPage() {
                 value={graduationYear}
                 onChange={(e) => setGraduationYear(e.target.value)}
                 className="w-full border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
-                placeholder="2026"
+                placeholder="YYYY"
               />
             </div>
           </div>
@@ -482,10 +469,15 @@ export default function SettingsPage() {
                     onChange={(e) => setPrimaryInterest(e.target.value)}
                     className="w-full border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
                   >
-                    <option value="">Select Primary Track</option>
-                    {INTEREST_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
+                    <option value="">
+                      {loadingInterests ? "Loading options..." : "Select Primary Track"}
+                    </option>
+                    {!loadingInterests &&
+                      interestOptions.map((opt) => (
+                        <option key={opt.value} value={opt.label}>
+                          {opt.label}
+                        </option>
+                      ))}
                   </select>
                 </div>
 
@@ -497,10 +489,15 @@ export default function SettingsPage() {
                     onChange={(e) => setSecondaryInterest(e.target.value)}
                     className="w-full border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
                   >
-                    <option value="">Select Secondary Track</option>
-                    {INTEREST_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
+                    <option value="">
+                      {loadingInterests ? "Loading options..." : "Select Secondary Track"}
+                    </option>
+                    {!loadingInterests &&
+                      interestOptions.map((opt) => (
+                        <option key={opt.value} value={opt.label}>
+                          {opt.label}
+                        </option>
+                      ))}
                   </select>
                 </div>
 

@@ -434,7 +434,7 @@ export default function AdminPlacementsPage() {
                   type="text" 
                   value={newPartnerName}
                   onChange={(e) => setNewPartnerName(e.target.value)}
-                  placeholder="e.g. Islamic Development Bank"
+                  placeholder="e.g. Partner Organization Name"
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500 text-xs"
                   required
                 />

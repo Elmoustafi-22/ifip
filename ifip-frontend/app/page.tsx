@@ -32,8 +32,29 @@ import {
   TbDeviceLaptop
 } from "react-icons/tb";
 import apiClient from "@/lib/api/client";
-import { getActivePartners } from "@/lib/api/services";
+import { getActivePartners, getActiveOpenings, ActiveOpening, getOpportunities, PlacementOpportunity } from "@/lib/api/services";
 import { getAccessToken } from "@/lib/api/auth";
+import * as TbIcons from "react-icons/tb";
+import { motion, AnimatePresence } from "framer-motion";
+
+const fadeInUp = {
+  initial: { opacity: 0, y: 25 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" as const } }
+};
+
+const staggerContainer = {
+  initial: {},
+  animate: {
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+function resolveOpportunityIcon(iconName: string): React.ComponentType<any> {
+  const Icon = (TbIcons as any)[iconName];
+  return Icon || TbIcons.TbBriefcase;
+}
 
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -42,6 +63,10 @@ export default function Home() {
   const [isNigeria, setIsNigeria] = useState<boolean | null>(null);
   const [cohortName, setCohortName] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [openings, setOpenings] = useState<ActiveOpening[]>([]);
+  const [openingsLoading, setOpeningsLoading] = useState(true);
+  const [opportunities, setOpportunities] = useState<PlacementOpportunity[]>([]);
+  const [opportunitiesLoading, setOpportunitiesLoading] = useState(true);
 
   useEffect(() => {
     setIsLoggedIn(!!getAccessToken());
@@ -78,7 +103,7 @@ export default function Home() {
     };
     fetchCohortName();
   }, []);
-  
+
   const [partners, setPartners] = useState<{ name: string; logoUrl?: string; website?: string }[]>([]);
 
   useEffect(() => {
@@ -93,11 +118,41 @@ export default function Home() {
     fetchPartners();
   }, []);
 
+  useEffect(() => {
+    const fetchOpenings = async () => {
+      try {
+        setOpeningsLoading(true);
+        const data = await getActiveOpenings();
+        setOpenings(data);
+      } catch (err) {
+        console.error("Failed to fetch active openings:", err);
+      } finally {
+        setOpeningsLoading(false);
+      }
+    };
+    fetchOpenings();
+  }, []);
+
+  useEffect(() => {
+    const fetchOpportunities = async () => {
+      try {
+        setOpportunitiesLoading(true);
+        const data = await getOpportunities();
+        setOpportunities(data);
+      } catch (err) {
+        console.error("Failed to fetch placement opportunities:", err);
+      } finally {
+        setOpportunitiesLoading(false);
+      }
+    };
+    fetchOpportunities();
+  }, []);
+
   return (
     <div className="min-h-screen bg-background font-sans text-on-surface flex flex-col pb-16 md:pb-0">
       {/* Navigation Header */}
       <header className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-outline-variant/30">
-        <div className="max-w-[1280px] mx-auto px-4 md:px-8 h-20 flex items-center justify-between">
+        <div className="max-w-[1280px] mx-auto px-3 md:px-8 h-20 flex items-center justify-between">
           {/* Left: Logo (Mobile & Desktop) */}
           <Link href="/" className="flex items-center gap-3">
             <Image
@@ -106,7 +161,7 @@ export default function Home() {
               width={160}
               height={44}
               priority
-              className="h-8 md:h-10 w-auto object-contain"
+              className="h-10 md:h-12 w-auto object-contain"
             />
           </Link>
 
@@ -195,25 +250,41 @@ export default function Home() {
       )}
 
       {/* Hero Section */}
-      <section className="pt-4 pb-12 md:py-20 max-w-[1280px] mx-auto px-4 md:px-8 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-        <div className="lg:col-span-7 flex flex-col gap-6">
-          <div className="hidden sm:inline-flex items-center gap-2.5 bg-[#e8e8ed] px-4 py-2 rounded-full max-w-full text-sm font-semibold text-primary font-sans">
+      <section className="pt-10 pb-12 md:py-20 max-w-[1280px] mx-auto px-4 md:px-8 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+        <motion.div
+          className="lg:col-span-7 flex flex-col gap-5"
+          initial="initial"
+          animate="animate"
+          variants={staggerContainer}
+        >
+          <motion.div
+            className="hidden sm:inline-flex items-center gap-2.5 bg-[#e8e8ed] px-4 py-2 rounded-full max-w-full text-sm font-semibold text-primary font-sans w-fit"
+            variants={fadeInUp}
+          >
             <HiOutlineShieldCheck className="w-5 h-5 text-primary stroke-[2] shrink-0" />
             <span>Islamic Finance Internship Preparatory and Placement Program</span>
-          </div>
+          </motion.div>
 
-          <h1 className="text-display-lg text-primary leading-tight text-3xl sm:text-5xl lg:text-6xl font-bold font-display">
-            Master & Practice<br />
-            Islamic Finance.<br />
-            <span className="text-vibrant-blue italic font-serif">Put your talent into action.</span>
-          </h1>
+          <motion.h1
+            className="text-display-lg text-primary leading-tight text-4xl sm:text-5xl lg:text-6xl font-bold font-display tracking-tight"
+            variants={fadeInUp}
+          >
+            Master & Practice<br className="hidden md:inline" /> Islamic Finance.<br className="hidden md:inline" />{" "}
+            <span className="text-vibrant-blue italic font-serif block mt-1.5 md:inline md:mt-0">Put your talent into action.</span>
+          </motion.h1>
 
-          <p className="text-body-lg text-on-surface-variant max-w-xl">
+          <motion.p
+            className="text-body-lg text-on-surface-variant max-w-xl"
+            variants={fadeInUp}
+          >
             Join our intensive program designed to equip you with the essential skills, knowledge, and hands-on experience to excel in the global Islamic finance and ethical business ecosystem.
-          </p>
+          </motion.p>
 
           {/* Mobile Hero Checklist */}
-          <div className="flex md:hidden flex-col gap-3 bg-[#e8e8ed]/40 border border-[#e8e8ed] rounded-xl p-4 w-full font-sans text-sm font-semibold text-primary">
+          <motion.div
+            className="flex md:hidden flex-col gap-3 bg-vibrant-blue/5 border border-vibrant-blue/10 rounded-xl p-5 w-full font-sans text-sm font-semibold text-[#000666]"
+            variants={fadeInUp}
+          >
             {[
               "4-Week Intensive Training",
               "Workplace Professionalism",
@@ -227,9 +298,12 @@ export default function Home() {
                 <span>{item}</span>
               </div>
             ))}
-          </div>
+          </motion.div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mt-2 font-sans">
+          <motion.div
+            className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mt-2 font-sans"
+            variants={fadeInUp}
+          >
             <Link
               href="/apply"
               className="bg-impact-orange hover:bg-impact-orange/90 text-white font-semibold text-sm sm:text-base py-3 sm:py-4 px-6 sm:px-8 rounded-[4px] text-center shadow-level1 hover-lift flex items-center justify-center gap-2 transition-all"
@@ -245,11 +319,16 @@ export default function Home() {
             >
               Download Program Guide
             </a>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
         {/* Right side Video/Media Card */}
-        <div className="lg:col-span-5 relative flex justify-center lg:justify-end">
+        <motion.div
+          className="lg:col-span-5 relative flex justify-center lg:justify-end"
+          initial={{ opacity: 0, scale: 0.95, x: 30 }}
+          animate={{ opacity: 1, scale: 1, x: 0 }}
+          transition={{ duration: 0.8, delay: 0.25, type: "spring", stiffness: 60 }}
+        >
           <div className="relative w-full max-w-[460px] bg-white border border-outline-variant/30 rounded-2xl shadow-level1 hover-lift overflow-hidden flex flex-col group transition-all">
             {/* Gray Video Placeholder */}
             <div className="w-full aspect-[16/10] bg-slate-100/60 flex items-center justify-center p-4 relative">
@@ -281,21 +360,36 @@ export default function Home() {
               </Link>
             </div>
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* Comprehensive Core Training Section */}
-      <section id="curriculum" className="py-24 bg-white border-y border-outline-variant/10">
+      <section id="curriculum" className="py-12 md:py-24 bg-white border-y border-outline-variant/10">
         <div className="max-w-[1280px] mx-auto px-4 md:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <span className="text-label-md text-vibrant-blue uppercase tracking-widest block mb-2">Curriculum</span>
+          <motion.div
+            className="text-center max-w-2xl mx-auto mb-16"
+            initial={{ opacity: 0, y: 15 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.5 }}
+          >
             <h2 className="text-headline-lg text-primary font-display text-3xl md:text-4xl mb-4 font-bold">Comprehensive Core Training</h2>
             <p className="text-body-md text-on-surface-variant">Our rigorous curriculum ensures you are fully prepared for the most demanding roles.</p>
-          </div>
+          </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <motion.div
+            className="grid grid-cols-1 md:grid-cols-3 gap-8"
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, margin: "-80px" }}
+            variants={staggerContainer}
+          >
             {/* Card 1: Foundational Knowledge */}
-            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 shadow-level1 hover-lift transition-all flex flex-col gap-6">
+            <motion.div
+              variants={fadeInUp}
+              whileHover={{ y: -6, transition: { duration: 0.2 } }}
+              className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 shadow-level1 hover:shadow-md transition-all flex flex-col gap-6"
+            >
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-primary/5 rounded-[8px] text-primary">
                   <TbBook className="w-6 h-6" />
@@ -315,10 +409,14 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </motion.div>
 
             {/* Card 2: Professional Identity */}
-            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 shadow-level1 hover-lift transition-all flex flex-col gap-6">
+            <motion.div
+              variants={fadeInUp}
+              whileHover={{ y: -6, transition: { duration: 0.2 } }}
+              className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 shadow-level1 hover:shadow-md transition-all flex flex-col gap-6"
+            >
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-primary/5 rounded-[8px] text-primary">
                   <TbUserCog className="w-6 h-6" />
@@ -338,10 +436,14 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </motion.div>
 
             {/* Card 3: Practical Execution */}
-            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 shadow-level1 hover-lift transition-all flex flex-col gap-6">
+            <motion.div
+              variants={fadeInUp}
+              whileHover={{ y: -6, transition: { duration: 0.2 } }}
+              className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 shadow-level1 hover:shadow-md transition-all flex flex-col gap-6"
+            >
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-primary/5 rounded-[8px] text-primary">
                   <TbBriefcase className="w-6 h-6" />
@@ -361,30 +463,41 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
       </section>
 
       {/* Placements & Opportunities Section */}
-      <section id="sectors" className="py-24 bg-background border-b border-outline-variant/10">
+      <section id="sectors" className="py-12 md:py-24 bg-background border-b border-outline-variant/10">
         <div className="max-w-[1280px] mx-auto px-4 md:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="text-label-md text-vibrant-blue uppercase tracking-widest block mb-2">Placements</span>
+          <motion.div
+            className="text-center max-w-2xl mx-auto mb-12"
+            initial={{ opacity: 0, y: 15 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.5 }}
+          >
             <h2 className="text-headline-lg text-primary font-display text-3xl md:text-4xl mb-4 font-bold">Internships & Active Openings</h2>
             <p className="text-body-md text-on-surface-variant font-sans">
-              Explore internship pathways and currently active role openings across our partner network.
+              Explore internship pathways and discover current openings across our partner network.
             </p>
-          </div>
+          </motion.div>
 
           {/* Interactive Tabs Header */}
-          <div className="flex justify-center mb-12 font-sans px-4">
+          <motion.div
+            className="flex justify-center mb-12 font-sans px-4"
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4 }}
+          >
             <div className="bg-[#e8e8ed] p-1.5 rounded-full grid grid-cols-2 w-full max-w-sm sm:flex sm:w-auto items-center gap-1 shadow-sm border border-outline-variant/20">
               <button
                 onClick={() => setActivePlacementsTab("opportunities")}
                 className={`px-3 sm:px-6 py-2.5 rounded-full text-[11px] sm:text-xs font-bold transition-all duration-300 cursor-pointer text-center whitespace-nowrap ${activePlacementsTab === "opportunities"
-                    ? "bg-white text-primary shadow-sm"
-                    : "text-on-surface-variant/80 hover:text-primary"
+                  ? "bg-white text-primary shadow-sm"
+                  : "text-on-surface-variant/80 hover:text-primary"
                   }`}
               >
                 Opportunities
@@ -392,191 +505,210 @@ export default function Home() {
               <button
                 onClick={() => setActivePlacementsTab("jobs")}
                 className={`px-3 sm:px-6 py-2.5 rounded-full text-[11px] sm:text-xs font-bold transition-all duration-300 cursor-pointer text-center whitespace-nowrap ${activePlacementsTab === "jobs"
-                    ? "bg-white text-primary shadow-sm"
-                    : "text-on-surface-variant/80 hover:text-primary"
+                  ? "bg-white text-primary shadow-sm"
+                  : "text-on-surface-variant/80 hover:text-primary"
                   }`}
               >
                 Active Openings
               </button>
             </div>
-          </div>
+          </motion.div>
 
           {/* Active Tab Content */}
-          {activePlacementsTab === "opportunities" ? (
-            <div>
-              {/* Opportunities Header Text */}
-              <div className="text-center mb-8 font-sans">
-                <p className="text-sm font-semibold text-primary/80">Opportunities across a wide range of industries for selected and high-performing participants.</p>
-              </div>
+          <AnimatePresence mode="wait">
+            {activePlacementsTab === "opportunities" ? (
+              <motion.div
+                key="opportunities-tab"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.25 }}
+              >
 
-              {/* 11 Categories grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[
-                  {
-                    category: "Islamic Finance & Investment",
-                    roles: ["Islamic Finance Analyst", "Investment Research Assistant", "Sukuk Research Intern", "Wealth Management Support Intern"],
-                    icon: TbActivity
-                  },
-                  {
-                    category: "Shariah, Advisory & Legal",
-                    roles: ["Shariah Advisory Support Intern", "Compliance Support Intern", "Legal & Compliance Intern"],
-                    icon: TbScale
-                  },
-                  {
-                    category: "Business & Strategy",
-                    roles: ["Business Development Intern", "Strategy Support Intern", "Operations Intern"],
-                    icon: TbBriefcase
-                  },
-                  {
-                    category: "Customer & Client Services",
-                    roles: ["Customer Support Intern", "Client Relationship Intern"],
-                    icon: TbUserCog
-                  },
-                  {
-                    category: "Marketing & Communications",
-                    roles: ["Digital Marketing Intern", "Social Media Manager Intern", "Brand Communications Intern"],
-                    icon: TbMessage
-                  },
-                  {
-                    category: "Content & Media",
-                    roles: ["Content Writer Intern", "Copywriting Intern", "Editorial Assistant Intern"],
-                    icon: TbWriting
-                  },
-                  {
-                    category: "Creative Design",
-                    roles: ["Graphic Design Intern", "UI/UX Design Support Intern", "Visual Content Creator Intern", "Product Design Intern"],
-                    icon: TbSearch
-                  },
-                  {
-                    category: "Technology & Product",
-                    roles: ["Fintech Product Support Intern", "Product Research Intern", "Data Support Intern"],
-                    icon: TbDeviceLaptop
-                  },
-                  {
-                    category: "Research & Policy",
-                    roles: ["Research Assistant Intern", "Policy & Industry Research Intern"],
-                    icon: TbSearch
-                  },
-                  {
-                    category: "Human Capital",
-                    roles: ["HR Support Intern", "Talent Coordination Intern"],
-                    icon: TbUserCog
-                  },
-                  {
-                    category: "Events & Community",
-                    roles: ["Event Coordination Intern", "Community Engagement Intern"],
-                    icon: TbHeartHandshake
-                  }
-                ].map((opp, i) => {
-                  const IconComponent = opp.icon;
-                  return (
-                    <div
-                      key={i}
-                      className="bg-white border border-outline-variant/20 rounded-[12px] p-6 hover:shadow-md hover-lift transition-all flex flex-col items-start gap-4 text-left font-sans"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="p-3 bg-primary rounded-full text-white shrink-0">
-                          <IconComponent className="w-5 h-5" />
-                        </div>
-                        <h3 className="text-base font-bold text-primary font-display">{opp.category}</h3>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 mt-2 w-full">
-                        {opp.roles.map((role, idx) => (
-                          <span
-                            key={idx}
-                            className="px-2.5 py-1 bg-primary/5 text-primary text-[11px] font-bold rounded-full border border-primary/10 transition-colors hover:bg-primary hover:text-white"
-                          >
-                            {role}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
-            <div>
-              {/* Active Jobs Header Text */}
-              <div className="text-center mb-8 font-sans">
-                <p className="text-sm font-semibold text-primary/80">Active internship and full-time vacancies currently open with our ecosystem partners.</p>
-              </div>
-
-              {/* Jobs grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-sans">
-                {[
-                  { dept: "Marketing & Communications", pos: "Digital Marketing Intern", mode: "Hybrid", loc: "Hybrid" },
-                  { dept: "Marketing & Communications", pos: "Social Media Manager Intern", mode: "Hybrid", loc: "Kano" },
-                  { dept: "Marketing & Communications", pos: "Community Manager (Full-time)", mode: "Remote", loc: "Lagos" },
-                  { dept: "Marketing & Communications", pos: "Brand Communications Intern", mode: "Remote", loc: "Remote" },
-                  { dept: "Creative Design", pos: "Graphic Design Intern", mode: "Hybrid", loc: "Kano" },
-                  { dept: "Creative Design", pos: "UI/UX Design Support Intern", mode: "Remote", loc: "Remote" },
-                  { dept: "Creative Design", pos: "Visual Content Creator Intern", mode: "Hybrid", loc: "Hybrid" },
-                  { dept: "Creative Design", pos: "Product Design Intern", mode: "Remote", loc: "Remote" },
-                  { dept: "Fund Management", pos: "Investment Research Intern", mode: "Remote", loc: "Lagos" },
-                  { dept: "Legal & Shariah", pos: "Legal and Compliance Intern", mode: "On-site", loc: "Lagos & Abuja" }
-                ].map((job, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-white border border-outline-variant/30 rounded-xl p-6 flex flex-col justify-between hover:shadow-md hover-lift transition-all"
-                  >
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-vibrant-blue tracking-wider block mb-2">{job.dept}</span>
-                      <h3 className="text-base font-bold text-primary font-display mb-4 min-h-[48px] flex items-center">{job.pos}</h3>
-                    </div>
-
-                    <div className="flex items-center justify-between border-t border-outline-variant/10 pt-4 mt-2">
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${job.mode === "Remote" ? "bg-sky-500/10 text-sky-600" :
-                            job.mode === "Hybrid" ? "bg-emerald-500/10 text-emerald-600" :
-                              "bg-amber-500/10 text-amber-600"
-                          }`}>
-                          {job.mode}
-                        </span>
-                        {job.loc && job.loc !== "-" && (
-                          <span className="text-xs text-on-surface-variant font-medium">{job.loc}</span>
-                        )}
-                      </div>
-
-                      <Link
-                        href="/apply"
-                        className="text-xs font-bold text-primary hover:text-vibrant-blue transition-colors flex items-center gap-1"
+                {/* Opportunities categories grid */}
+                {opportunitiesLoading ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-sans">
+                    {Array.from({ length: 6 }).map((_, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-white border border-outline-variant/20 rounded-[12px] p-6 flex flex-col gap-4 animate-pulse"
                       >
-                        Apply via Program &rarr;
-                      </Link>
-                    </div>
+                        <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 bg-slate-200 rounded-full shrink-0"></div>
+                          <div className="h-5 w-2/3 bg-slate-200 rounded"></div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-2 w-full">
+                          <div className="h-5 w-20 bg-slate-200 rounded-full"></div>
+                          <div className="h-5 w-24 bg-slate-200 rounded-full"></div>
+                          <div className="h-5 w-16 bg-slate-200 rounded-full"></div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                ) : opportunities.length === 0 ? (
+                  <div className="text-center py-12 text-on-surface-variant/80 font-sans font-medium text-sm">
+                    No opportunities listed currently. Please check back later.
+                  </div>
+                ) : (
+                  <motion.div
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                    initial="initial"
+                    animate="animate"
+                    variants={staggerContainer}
+                  >
+                    {opportunities.map((opp) => {
+                      const IconComponent = resolveOpportunityIcon(opp.icon);
+                      return (
+                        <motion.div
+                          key={opp._id}
+                          variants={fadeInUp}
+                          whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                          className="bg-white border border-outline-variant/20 rounded-[12px] p-6 hover:shadow-md transition-all flex flex-col items-start gap-4 text-left font-sans"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="p-3 bg-primary rounded-full text-white shrink-0">
+                              <IconComponent className="w-5 h-5" />
+                            </div>
+                            <h3 className="text-base font-bold text-primary font-display">{opp.category}</h3>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2 mt-2 w-full">
+                            {opp.roles.map((role, idx) => (
+                              <span
+                                key={idx}
+                                className="px-2.5 py-1 bg-primary/5 text-primary text-[11px] font-bold rounded-full border border-primary/10 transition-colors hover:bg-primary hover:text-white"
+                              >
+                                {role}
+                              </span>
+                            ))}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="jobs-tab"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.25 }}
+              >
+
+                {/* Jobs grid */}
+                {openingsLoading ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-sans">
+                    {Array.from({ length: 6 }).map((_, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-white border border-outline-variant/30 rounded-xl p-6 flex flex-col justify-between h-44 animate-pulse"
+                      >
+                        <div>
+                          <div className="h-3 w-24 bg-slate-200 rounded mb-2"></div>
+                          <div className="h-6 w-3/4 bg-slate-200 rounded"></div>
+                        </div>
+                        <div className="flex items-center justify-between border-t border-outline-variant/10 pt-4 mt-2">
+                          <div className="h-4 w-16 bg-slate-200 rounded-full"></div>
+                          <div className="h-4 w-24 bg-slate-200 rounded"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : openings.length === 0 ? (
+                  <div className="text-center py-12 text-on-surface-variant/80 font-sans font-medium text-sm">
+                    No active openings currently listed. Please check back later or apply to waitlist.
+                  </div>
+                ) : (
+                  <motion.div
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-sans"
+                    initial="initial"
+                    animate="animate"
+                    variants={staggerContainer}
+                  >
+                    {openings.map((job) => (
+                      <motion.div
+                        key={job._id}
+                        variants={fadeInUp}
+                        whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                        className="bg-white border border-outline-variant/30 rounded-xl p-6 flex flex-col justify-between hover:shadow-md transition-all"
+                      >
+                        <div>
+                          <span className="text-[10px] uppercase font-bold text-vibrant-blue tracking-wider block mb-2">{job.department}</span>
+                          <h3 className="text-base font-bold text-primary font-display mb-4 min-h-[48px] flex items-center">{job.title}</h3>
+                        </div>
+
+                        <div className="flex items-center justify-between border-t border-outline-variant/10 pt-4 mt-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${job.workMode === "Remote" ? "bg-sky-500/10 text-sky-600" :
+                              job.workMode === "Hybrid" ? "bg-emerald-500/10 text-emerald-600" :
+                                "bg-amber-500/10 text-amber-600"
+                              }`}>
+                              {job.workMode}
+                            </span>
+                            {job.location && job.location !== "-" && (
+                              <span className="text-xs text-on-surface-variant font-medium">{job.location}</span>
+                            )}
+                          </div>
+
+                          <Link
+                            href="/apply"
+                            className="text-xs font-bold text-primary hover:text-vibrant-blue transition-colors flex items-center gap-1"
+                          >
+                            Apply via Program &rarr;
+                          </Link>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </section>
 
       {/* Who Can Apply Section */}
-      <section className="py-24 bg-white relative flex flex-col items-center border-b border-outline-variant/10">
+      <section className="py-12 md:py-24 bg-white relative flex flex-col items-center border-b border-outline-variant/10">
         {/* Overlapping Badge */}
         <div className="absolute -top-6 left-1/2 -translate-x-1/2">
           <Link
             href="#curriculum"
-            className="inline-flex items-center justify-center bg-white border border-vibrant-blue/20 hover:border-vibrant-blue text-vibrant-blue font-semibold text-sm px-6 py-2.5 rounded-[4px] shadow-sm hover-lift transition-all"
+            className="inline-flex items-center justify-center bg-white border border-vibrant-blue/20 hover:border-vibrant-blue text-vibrant-blue font-semibold text-sm px-6 py-2.5 rounded-[4px] shadow-sm hover-lift transition-all whitespace-nowrap"
           >
             Learn More About Our Mission
           </Link>
         </div>
 
         <div className="max-w-[1280px] mx-auto px-4 md:px-8 w-full text-center mt-6">
-          <h2 className="text-headline-lg text-primary font-display text-3xl md:text-4xl mb-4 font-bold">
-            Who Can Apply?
-          </h2>
-          <p className="text-body-md text-on-surface-variant max-w-2xl mx-auto mb-16 leading-relaxed">
-            IFIP is open to ambitious individuals looking to make a career impact in the ethical finance and business ecosystem.
-          </p>
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
+            <h2 className="text-headline-lg text-primary font-display text-3xl md:text-4xl mb-4 font-bold">
+              Who Can Apply?
+            </h2>
+            <p className="text-body-md text-on-surface-variant max-w-2xl mx-auto mb-16 leading-relaxed">
+              The program welcomes ambitious minds from anywhere in the world looking to make a career impact in the ethical finance and business ecosystem. You are welcome to apply if you belong to one of these groups:
+            </p>
+          </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          <motion.div
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8"
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, margin: "-80px" }}
+            variants={staggerContainer}
+          >
             {/* Students Card */}
-            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 hover:shadow-lg hover-lift transition-all flex flex-col items-center text-center gap-4">
+            <motion.div
+              variants={fadeInUp}
+              whileHover={{ y: -6, transition: { duration: 0.2 } }}
+              className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 hover:shadow-lg transition-all flex flex-col items-center text-center gap-4"
+            >
               <div className="p-3 bg-primary/5 rounded-full text-primary">
                 <HiAcademicCap className="w-8 h-8" />
               </div>
@@ -586,10 +718,14 @@ export default function Home() {
               <p className="text-sm text-on-surface-variant leading-relaxed">
                 Current undergraduate and postgraduate students enrolled in recognized institutions preparing for career opportunities.
               </p>
-            </div>
+            </motion.div>
 
             {/* Graduates Card */}
-            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 hover:shadow-lg hover-lift transition-all flex flex-col items-center text-center gap-4">
+            <motion.div
+              variants={fadeInUp}
+              whileHover={{ y: -6, transition: { duration: 0.2 } }}
+              className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 hover:shadow-lg transition-all flex flex-col items-center text-center gap-4"
+            >
               <div className="p-3 bg-primary/5 rounded-full text-primary">
                 <TbAward className="w-8 h-8" />
               </div>
@@ -599,10 +735,14 @@ export default function Home() {
               <p className="text-sm text-on-surface-variant leading-relaxed">
                 Graduates from recognized institutions seeking to develop relevant knowledge, skills, and career pathways in ethical industries.
               </p>
-            </div>
+            </motion.div>
 
             {/* Professionals Card */}
-            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 hover:shadow-lg hover-lift transition-all flex flex-col items-center text-center gap-4">
+            <motion.div
+              variants={fadeInUp}
+              whileHover={{ y: -6, transition: { duration: 0.2 } }}
+              className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 hover:shadow-lg transition-all flex flex-col items-center text-center gap-4"
+            >
               <div className="p-3 bg-primary/5 rounded-full text-primary">
                 <HiArrowTrendingUp className="w-8 h-8" />
               </div>
@@ -610,12 +750,16 @@ export default function Home() {
                 Professionals
               </h3>
               <p className="text-sm text-on-surface-variant leading-relaxed">
-                Early-career professionals looking to enhance their expertise or transition into Islamic finance, fintech, and other ethical sectors.
+                Working professionals seeking to deepen their Shariah finance expertise, expand their network, and secure advanced roles in premium ethical institutions.
               </p>
-            </div>
+            </motion.div>
 
             {/* Aspiring Card */}
-            <div className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 hover:shadow-lg hover-lift transition-all flex flex-col items-center text-center gap-4">
+            <motion.div
+              variants={fadeInUp}
+              whileHover={{ y: -6, transition: { duration: 0.2 } }}
+              className="bg-white border border-outline-variant/30 rounded-[12px] p-5 md:p-8 hover:shadow-lg transition-all flex flex-col items-center text-center gap-4"
+            >
               <div className="p-3 bg-primary/5 rounded-full text-primary">
                 <HiSparkles className="w-8 h-8" />
               </div>
@@ -623,31 +767,34 @@ export default function Home() {
                 Aspiring
               </h3>
               <p className="text-sm text-on-surface-variant leading-relaxed">
-                Individuals interested in exploring career opportunities within Islamic finance and related ethical economy industries.
+                Individuals from non-finance backgrounds (such as Tech, Law, or Administration) looking to pivot their existing skills into the ethical finance and fintech ecosystem.
               </p>
-            </div>
-          </div>
-
-          {/* Ineligible Bar */}
-          <div className="max-w-[1280px] w-full mx-auto mt-12">
-            <div className="bg-[#000666] text-white p-4 rounded-[8px] flex flex-col sm:flex-row items-start sm:items-center gap-3 text-left font-sans">
-              <span className="text-sm font-semibold leading-relaxed">
-                <strong>Who is not eligible?</strong> Applications from individuals who do not meet our entry requirements or target profile will not be processed.
-              </span>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
       </section>
       {/* Program Fee Section */}
-      <section className="py-24 bg-background border-b border-outline-variant/10">
+      <section className="py-12 md:py-24 bg-background border-b border-outline-variant/10">
         <div className="max-w-[1280px] mx-auto px-4 md:px-8 text-center w-full">
-          <span className="text-label-md text-impact-orange uppercase tracking-widest block mb-2">Registration</span>
-          <h2 className="text-headline-lg text-primary font-display text-3xl md:text-4xl mb-4 font-bold">Program Fee</h2>
-          <p className="text-body-md text-on-surface-variant max-w-2xl mx-auto mb-16 leading-relaxed font-sans">
-            To become part of the Islamic Finance Internship Program, applicants are required to complete the registration fee as part of the admission process.
-          </p>
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
+            <h2 className="text-headline-lg text-primary font-display text-3xl md:text-4xl mb-4 font-bold">Program Fee</h2>
+            <p className="text-body-md text-on-surface-variant max-w-2xl mx-auto mb-16 leading-relaxed font-sans">
+              To become part of the Islamic Finance Internship Program, applicants are required to complete the registration fee as part of the admission process.
+            </p>
+          </motion.div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-8 max-w-3xl mx-auto w-full font-sans">
+          <motion.div
+            className="flex flex-col sm:flex-row items-center justify-center gap-8 max-w-3xl mx-auto w-full font-sans"
+            initial={{ opacity: 0, scale: 0.96 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
             {isNigeria === null ? (
               <div className="bg-white border border-outline-variant/30 rounded-2xl p-8 flex-1 w-full max-w-sm flex flex-col items-center justify-center min-h-[220px]">
                 <div className="animate-pulse flex flex-col items-center gap-4 w-full">
@@ -662,8 +809,8 @@ export default function Home() {
               <div className="bg-white border border-outline-variant/30 rounded-2xl p-8 flex-1 w-full max-w-sm hover:shadow-md hover-lift transition-all flex flex-col items-center">
                 <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Program Commitment Levy</span>
                 <span className="text-4xl font-display font-black text-primary mb-6">₦20,000</span>
-                <p className="text-xs text-on-surface-variant leading-relaxed text-center">
-                  Grants full access to the complete program experience, including training, simulations, assessment, and internship placement opportunities.
+                <p className="text-xs text-on-surface-variant leading-relaxed text-center font-sans">
+                  Grants full access to the complete preparatory program experience, including learning modules, practical simulations, and final assessment.
                 </p>
               </div>
             ) : (
@@ -671,19 +818,25 @@ export default function Home() {
               <div className="bg-white border border-outline-variant/30 rounded-2xl p-8 flex-1 w-full max-w-sm hover:shadow-md hover-lift transition-all flex flex-col items-center">
                 <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Program Commitment Levy</span>
                 <span className="text-4xl font-display font-black text-primary mb-6">$30</span>
-                <p className="text-xs text-on-surface-variant leading-relaxed text-center">
-                  Grants full access to the complete program experience, including training, simulations, assessment, and internship placement opportunities.
+                <p className="text-xs text-on-surface-variant leading-relaxed text-center font-sans">
+                  Grants full access to the complete preparatory program experience, including learning modules, practical simulations, and final assessment.
                 </p>
               </div>
             )}
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* Bridge the Gap Section Banner */}
-      <section className="py-20 bg-academic-cream">
+      <section className="py-10 md:py-20 bg-academic-cream">
         <div className="max-w-[1280px] mx-auto px-4 md:px-8">
-          <div className="bg-vibrant-blue text-white rounded-[24px] px-6 py-12 md:py-16 text-center shadow-lg relative overflow-hidden flex flex-col items-center">
+          <motion.div
+            className="bg-vibrant-blue text-white rounded-[24px] px-6 py-12 md:py-16 text-center shadow-lg relative overflow-hidden flex flex-col items-center"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
             {/* Subtle background overlay */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.05),transparent_50%)]"></div>
 
@@ -695,8 +848,14 @@ export default function Home() {
             </p>
 
             {/* Three Core Values Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl justify-center items-start z-10">
-              <div className="flex flex-col items-center gap-4 text-center">
+            <motion.div
+              className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl justify-center items-start z-10"
+              initial="initial"
+              whileInView="animate"
+              viewport={{ once: true }}
+              variants={staggerContainer}
+            >
+              <motion.div className="flex flex-col items-center gap-4 text-center" variants={fadeInUp}>
                 <div className="p-4 bg-white/10 rounded-full border border-white/20 hover:scale-105 transition-transform flex items-center justify-center">
                   <TbUserCog className="w-8 h-8 text-white" />
                 </div>
@@ -706,9 +865,9 @@ export default function Home() {
                 <p className="text-xs text-white/80 leading-relaxed font-sans max-w-[220px]">
                   Identifying and nurturing promising minds passionate about Shariah-compliant finance and ethical economy.
                 </p>
-              </div>
+              </motion.div>
 
-              <div className="flex flex-col items-center gap-4 text-center">
+              <motion.div className="flex flex-col items-center gap-4 text-center" variants={fadeInUp}>
                 <div className="p-4 bg-white/10 rounded-full border border-white/20 hover:scale-105 transition-transform flex items-center justify-center">
                   <TbRefresh className="w-8 h-8 text-white" />
                 </div>
@@ -718,9 +877,9 @@ export default function Home() {
                 <p className="text-xs text-white/80 leading-relaxed font-sans max-w-[220px]">
                   Providing rigorous core training, professional identity workshops, simulations, and career readiness.
                 </p>
-              </div>
+              </motion.div>
 
-              <div className="flex flex-col items-center gap-4 text-center">
+              <motion.div className="flex flex-col items-center gap-4 text-center" variants={fadeInUp}>
                 <div className="p-4 bg-white/10 rounded-full border border-white/20 hover:scale-105 transition-transform flex items-center justify-center">
                   <TbBriefcase className="w-8 h-8 text-white" />
                 </div>
@@ -730,22 +889,33 @@ export default function Home() {
                 <p className="text-xs text-white/80 leading-relaxed font-sans max-w-[220px]">
                   Connecting qualified graduates and professionals with premier partner institutions for real-world internship exposure.
                 </p>
-              </div>
-            </div>
-          </div>
+              </motion.div>
+            </motion.div>
+          </motion.div>
         </div>
       </section>
 
       {/* Application & Placement Journey Section */}
-      <section id="process" className="py-24 bg-white border-y border-outline-variant/10">
+      <section id="process" className="py-12 md:py-24 bg-white border-y border-outline-variant/10">
         <div className="max-w-[1280px] mx-auto px-4 md:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <span className="text-label-md text-vibrant-blue uppercase tracking-widest block mb-2">Process</span>
+          <motion.div
+            className="text-center max-w-2xl mx-auto mb-16"
+            initial={{ opacity: 0, y: 15 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
             <h2 className="text-headline-lg text-primary font-display text-3xl md:text-4xl mb-4 font-bold">Application & Placement Journey</h2>
             <p className="text-body-md text-on-surface-variant">Our step-by-step selection and placement process.</p>
-          </div>
+          </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+          <motion.div
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6"
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, margin: "-80px" }}
+            variants={staggerContainer}
+          >
             {[
               {
                 step: "1",
@@ -759,7 +929,7 @@ export default function Home() {
               },
               {
                 step: "3",
-                title: "Ready Evaluation",
+                title: "Evaluation",
                 desc: "Participants undergo an assessment to evaluate Shariah knowledge, readiness, and suitability for placement."
               },
               {
@@ -773,9 +943,11 @@ export default function Home() {
                 desc: "Participants begin their internship journey, gaining practical workplace exposure and applying their knowledge."
               }
             ].map((journey, i) => (
-              <div
+              <motion.div
                 key={i}
-                className="bg-white border border-outline-variant/30 rounded-[12px] p-6 flex flex-col items-start gap-4 hover:shadow-md hover-lift transition-all text-left font-sans"
+                variants={fadeInUp}
+                whileHover={{ y: -6, transition: { duration: 0.2 } }}
+                className="bg-white border border-outline-variant/30 rounded-[12px] p-6 flex flex-col items-start gap-4 hover:shadow-md transition-all text-left font-sans"
               >
                 <div className="w-10 h-10 bg-[#000666] text-white font-bold flex items-center justify-center rounded-[4px] text-lg">
                   {journey.step}
@@ -784,20 +956,31 @@ export default function Home() {
                   <h3 className="text-base font-bold text-primary font-display mb-2">{journey.title}</h3>
                   <p className="text-xs text-on-surface-variant leading-relaxed">{journey.desc}</p>
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* Institutional Partners for Placement Section */}
-      <section id="partners" className="py-24 max-w-[1280px] mx-auto px-4 md:px-8">
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <span className="text-label-md text-impact-orange uppercase tracking-widest block mb-2">Ecosystem</span>
+      <section id="partners" className="py-12 md:py-24 max-w-[1280px] mx-auto px-4 md:px-8">
+        <motion.div
+          className="text-center max-w-2xl mx-auto mb-16"
+          initial={{ opacity: 0, y: 15 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+        >
           <h2 className="text-headline-lg text-primary font-display text-3xl">Institutional Partners for Placement</h2>
-        </div>
+        </motion.div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8 items-center justify-items-center">
+        <motion.div
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8 items-center justify-items-center"
+          initial="initial"
+          whileInView="animate"
+          viewport={{ once: true, margin: "-100px" }}
+          variants={staggerContainer}
+        >
           {partners.map((partner, i) => {
             const CardContent = (
               <div className="w-full max-w-[220px] min-h-[150px] bg-white border border-outline-variant/20 rounded-[8px] p-5 flex flex-col items-center justify-between shadow-sm hover:shadow-md hover-lift transition-all group text-center h-full">
@@ -822,35 +1005,160 @@ export default function Home() {
               </div>
             );
 
-            if (partner.website) {
-              return (
-                <a
-                  key={i}
-                  href={partner.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full max-w-[220px] block cursor-pointer"
-                >
-                  {CardContent}
-                </a>
-              );
-            }
-
             return (
-              <div key={i} className="w-full max-w-[220px]">
-                {CardContent}
-              </div>
+              <motion.div
+                key={i}
+                variants={fadeInUp}
+                className="w-full max-w-[220px]"
+              >
+                {partner.website ? (
+                  <a
+                    href={partner.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full max-w-[220px] block cursor-pointer"
+                  >
+                    {CardContent}
+                  </a>
+                ) : (
+                  CardContent
+                )}
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       </section>
-      {/* Program Details & FAQs Section */}
-      <section id="faq" className="py-24 bg-white border-t border-outline-variant/10">
-        <div className="max-w-[800px] mx-auto px-4 md:px-8">
-          <div className="text-center mb-16">
-            <span className="text-label-md text-vibrant-blue uppercase tracking-widest block mb-2">Information</span>
-            <h2 className="text-headline-lg text-primary font-display text-3xl md:text-4xl mb-4 font-bold">Frequently Asked Questions</h2>
+
+      {/* Become a Partner CTA Section */}
+      <section className="py-8 pb-12 md:pb-24 max-w-[1280px] mx-auto px-4 md:px-8">
+        <motion.div
+          className="relative rounded-[20px] overflow-hidden bg-primary shadow-2xl"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.6 }}
+        >
+          {/* Radial glow accents */}
+          <div className="absolute top-0 left-0 w-[480px] h-[480px] rounded-full bg-[radial-gradient(circle,rgba(128,216,255,0.12),transparent_65%)] pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-[360px] h-[360px] rounded-full bg-[radial-gradient(circle,rgba(255,111,45,0.10),transparent_60%)] pointer-events-none" />
+
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-0">
+            {/* Left — Copy */}
+            <div className="flex flex-col justify-center px-8 py-14 md:px-14 md:py-16 lg:pr-8">
+              <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-impact-orange mb-4 block">
+                Partner With Us
+              </span>
+
+              <h2 className="text-3xl md:text-4xl font-black text-white leading-tight mb-5" style={{ fontFamily: "Georgia, serif" }}>
+                Grow the next generation of Islamic finance talent&nbsp;— with&nbsp;us.
+              </h2>
+
+              <p className="text-sky-100/80 text-sm md:text-base leading-relaxed mb-8 max-w-md">
+                Partner organizations gain access to a curated pool of pre-trained, Shariah-literate interns who are job-ready from day one. Whether you're a bank, advisory firm, or fintech — IFIP makes it effortless.
+              </p>
+
+              {/* Benefit bullets */}
+              <ul className="flex flex-col gap-3 mb-10">
+                {[
+                  "Pre-screened, program-certified candidates",
+                  "Zero recruitment overhead on your end",
+                  "Flexible internship structures to suit your firm",
+                ].map((benefit, i) => (
+                  <li key={i} className="flex items-start gap-3 text-sm text-white/90">
+                    <span className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-impact-orange/20 border border-impact-orange/40 flex items-center justify-center">
+                      <svg className="w-3 h-3 text-impact-orange" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </span>
+                    <span>{benefit}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* CTA buttons */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <Link
+                  href="/partners/apply"
+                  className="inline-flex items-center justify-center gap-2 bg-impact-orange hover:bg-impact-orange/90 text-white font-bold text-sm px-7 py-3.5 rounded-[6px] shadow-lg hover-lift transition-all"
+                >
+                  Become a Partner
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </Link>
+                <a
+                  href="mailto:partnerships@ifip.ng"
+                  className="inline-flex items-center justify-center gap-2 border border-white/20 hover:bg-white/10 text-white font-semibold text-sm px-7 py-3.5 rounded-[6px] transition-all"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Get in Touch
+                </a>
+              </div>
+            </div>
+
+            {/* Right — Decorative card panel */}
+            <div className="hidden lg:flex items-center justify-center px-10 py-16 border-l border-white/10">
+              <div className="flex flex-col gap-6 w-full max-w-sm">
+                {/* Highlight stat cards */}
+                {[
+                  {
+                    icon: (
+                      <svg className="w-5 h-5 text-impact-orange" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-5-3.87M9 20H4v-2a4 4 0 015-3.87M16 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                    ),
+                    label: "Curated Talent Pool",
+                    desc: "Interns vetted through a rigorous 4-week preparatory program and readiness assessment.",
+                  },
+                  {
+                    icon: (
+                      <svg className="w-5 h-5 text-impact-orange" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                    ),
+                    label: "Shariah-Literate Professionals",
+                    desc: "Graduates who understand the principles of Islamic finance, ethics, and compliance.",
+                  },
+                  {
+                    icon: (
+                      <svg className="w-5 h-5 text-impact-orange" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    ),
+                    label: "Fast-Track Onboarding",
+                    desc: "Our placement team handles matching, briefing, and handoff — so you start on day one.",
+                  },
+                ].map((card, i) => (
+                  <div key={i} className="flex items-start gap-4 bg-white/8 border border-white/10 rounded-[12px] px-5 py-4 backdrop-blur-sm hover:bg-white/12 transition-colors">
+                    <span className="flex-shrink-0 w-9 h-9 bg-impact-orange/15 border border-impact-orange/25 rounded-[8px] flex items-center justify-center mt-0.5">
+                      {card.icon}
+                    </span>
+                    <div>
+                      <p className="text-white font-bold text-sm mb-0.5">{card.label}</p>
+                      <p className="text-white/60 text-xs leading-relaxed">{card.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
+        </motion.div>
+      </section>
+
+      {/* Program Details & FAQs Section */}
+      <section id="faq" className="py-12 md:py-24 bg-white border-t border-outline-variant/10">
+        <div className="max-w-[800px] mx-auto px-4 md:px-8">
+          <motion.div
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 15 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
+            <h2 className="text-headline-lg text-primary font-display text-3xl md:text-4xl mb-4 font-bold">Frequently Asked Questions</h2>
+          </motion.div>
 
           <div className="flex flex-col gap-4 font-sans">
             {[
@@ -881,13 +1189,21 @@ export default function Home() {
               {
                 q: "Do you have international partners?",
                 a: "Yes. We are currently finalizing partnerships with international organizations, which will be onboarded and announced in due course. All confirmed partners will be updated on the website."
+              },
+              {
+                q: "Why is there a program fee?",
+                a: "The program fee supports the delivery of the four-week preparatory program, including sessions facilitated by industry experts, professional development, workplace simulations, and participant support. It ensures every participant receives the practical preparation and industry exposure needed for a seamless transition into internship and the professional workplace."
+              },
+              {
+                q: "Is it compulsory to complete the IFIP preparatory program before being considered for internship placement?",
+                a: "Yes. Internship placement through IFIP is exclusively available to participants who complete the preparatory program. This enables us to assess each participant’s professional readiness, industry skills, workplace ethics, and performance through our simulations and assessments. It also ensures that the talents we recommend to partner organizations meet the standard of quality, competence, and professionalism expected by the industry."
               }
             ].map((faq, index) => {
               const isOpen = openFaq === index;
               return (
                 <div
                   key={index}
-                  className="bg-white border border-outline-variant/30 rounded-[8px] overflow-hidden transition-all duration-200"
+                  className="bg-white border border-outline-variant/30 rounded-[8px] overflow-hidden shadow-sm"
                 >
                   <button
                     onClick={() => setOpenFaq(isOpen ? null : index)}
@@ -907,14 +1223,22 @@ export default function Home() {
                     </span>
                   </button>
 
-                  <div
-                    className={`transition-all duration-200 ease-in-out overflow-hidden ${isOpen ? "max-h-[500px] border-t border-outline-variant/10" : "max-h-0"
-                      }`}
-                  >
-                    <div className="px-6 py-5 text-sm md:text-base text-on-surface-variant leading-relaxed">
-                      {faq.a}
-                    </div>
-                  </div>
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.28, ease: "easeInOut" }}
+                        className="border-t border-outline-variant/10 overflow-hidden bg-slate-50/10"
+                        style={{ backfaceVisibility: "hidden", transform: "translateZ(0)", willChange: "transform, opacity" }}
+                      >
+                        <div className="px-6 py-5 text-sm md:text-base text-on-surface-variant leading-relaxed">
+                          {faq.a}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               );
             })}
@@ -923,8 +1247,14 @@ export default function Home() {
       </section>
 
       {/* Call to Action Callout Box */}
-      <section className="pb-24 max-w-[1280px] mx-auto px-4 md:px-8">
-        <div className="bg-primary text-white rounded-[16px] p-8 md:p-12 lg:p-16 text-center flex flex-col items-center gap-6 relative overflow-hidden shadow-xl">
+      <section className="pb-12 md:pb-24 max-w-[1280px] mx-auto px-4 md:px-8">
+        <motion.div
+          className="bg-primary text-white rounded-[16px] p-8 md:p-12 lg:p-16 text-center flex flex-col items-center gap-6 relative overflow-hidden shadow-xl"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.6 }}
+        >
           {/* Subtle background graphic */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(128,216,255,0.1),transparent_40%)]"></div>
 
@@ -932,8 +1262,8 @@ export default function Home() {
             Begin Your Journey
           </h2>
 
-          <p className="text-body-md text-sky-blue/80 max-w-xl z-10">
-            This program is more than training—it is a bridge into real opportunities, industry exposure, and career development in Islamic finance and the ethical economy.
+          <p className="text-body-md text-sky-blue/80 max-w-2xl z-10 leading-relaxed">
+            We encourage more individuals looking to build a career in Shariah Compliance and Advisory to apply. This is a great opportunity to grow in the field, and we’d love to have you join us.
           </p>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 z-10 w-full sm:w-auto mt-4">
@@ -941,7 +1271,7 @@ export default function Home() {
               href="/apply"
               className="bg-impact-orange hover:bg-impact-orange/90 text-white font-semibold text-sm sm:text-base py-3 sm:py-4 px-6 sm:px-8 rounded-[4px] shadow-lg hover-lift transition-all text-center"
             >
-              Apply for Program
+              Join the Next Cohort
             </Link>
             <a
               href="/documents/IFIP_Program_Guide.pdf"
@@ -953,7 +1283,7 @@ export default function Home() {
               Download Program Guide
             </a>
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* Footer */}
@@ -969,7 +1299,7 @@ export default function Home() {
               className="h-10 w-auto object-contain self-start"
             />
             <p className="text-xs text-on-surface-variant max-w-sm leading-relaxed mt-2">
-              The Islamic Finance Internship Program (IFIP) provides rigorous academic training and professional placement for ethical finance leaders.
+              The Islamic Finance Internship Program (IFIP) develops industry-ready talent through professional training, practical simulations, and structured internship placement across the ethical finance ecosystem.
             </p>
             <div className="flex items-center gap-3 mt-4 text-on-surface-variant">
               <a href="#" className="p-2 bg-primary/5 hover:bg-primary/10 rounded-full transition-colors" aria-label="Social Share">
@@ -987,7 +1317,8 @@ export default function Home() {
             <ul className="flex flex-col gap-3 text-sm text-on-surface-variant">
               <li><a href="#curriculum" className="hover:text-primary transition-colors">Curriculum</a></li>
               <li><a href="#partners" className="hover:text-primary transition-colors">Placement Partners</a></li>
-              <li><a href="#curriculum" className="hover:text-primary transition-colors">Program FAQs</a></li>
+              <li><a href="#faq" className="hover:text-primary transition-colors">Program FAQs</a></li>
+              <li><Link href="/partners/apply" className="hover:text-primary transition-colors">Become a Partner</Link></li>
             </ul>
           </div>
 
@@ -997,7 +1328,6 @@ export default function Home() {
             <ul className="flex flex-col gap-3 text-sm text-on-surface-variant">
               <li><a href="#" className="hover:text-primary transition-colors">Terms of Service</a></li>
               <li><a href="#" className="hover:text-primary transition-colors">Privacy Policy</a></li>
-              <li><a href="/login" className="hover:text-primary transition-colors">Partner Login</a></li>
             </ul>
           </div>
         </div>

@@ -28,7 +28,7 @@ export const step2ProfileSchema = z.object({
 export const step3AcademicSchema = z.object({
   academicStatus: z.string().min(1, "Academic status is required"),
   institution: z.string().min(1, "Institution name is required"),
-  graduationYear: z.string().optional().refine(val => !val || (Number(val) >= 2022 && Number(val) <= 2035), "Year must be between 2022 and 2035"),
+  graduationYear: z.string().optional().refine(val => !val || (Number(val) >= 2010 && Number(val) <= 2035), "Year must be between 2010 and 2035"),
   fieldOfStudy: z.string().min(1, "Field of study is required"),
   qualification: z.string().min(1, "Qualification is required"),
 });

@@ -562,7 +562,7 @@ export default function AdminPartnersPage() {
               <div className="flex flex-col gap-1.5">
                 <label className="font-bold text-slate-700">Organization Name *</label>
                 <input type="text" required value={name} onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600" placeholder="e.g. Stecs" />
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600" placeholder="e.g. Organization Name" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="font-bold text-slate-700">Description</label>
@@ -574,7 +574,7 @@ export default function AdminPartnersPage() {
                 <label className="font-bold text-slate-700">Website URL</label>
                 <input type="url" value={website} onChange={(e) => setWebsite(e.target.value)}
                   className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600"
-                  placeholder="e.g. https://stecs.ng/" />
+                  placeholder="e.g. https://yourorganization.com" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">

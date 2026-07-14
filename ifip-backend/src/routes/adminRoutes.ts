@@ -22,6 +22,27 @@ import {
     updatePartnerOrg,
     deletePartnerOrg,
 } from '../controllers/partnerController.js';
+import {
+    adminListOptions,
+    adminCreateOption,
+    adminUpdateOption,
+    adminDeleteOption,
+    adminReorderOptions,
+} from '../controllers/formOptionController.js';
+import {
+    adminListOpenings,
+    adminCreateOpening,
+    adminUpdateOpening,
+    adminDeleteOpening,
+    adminReorderOpenings,
+} from '../controllers/activeOpeningController.js';
+import {
+    adminListOpportunities,
+    adminCreateOpportunity,
+    adminUpdateOpportunity,
+    adminDeleteOpportunity,
+    adminReorderOpportunities,
+} from '../controllers/placementOpportunityController.js';
 
 const router = Router();
 
@@ -56,5 +77,26 @@ router.delete('/partners/:id',   authorize('superadmin'), deletePartnerOrg);
 router.get('/partners/applications',          authorize('superadmin'), getPartnerApplications);
 router.get('/partners/applications/:id',      authorize('superadmin'), getPartnerApplicationById);
 router.patch('/partners/applications/:id',    authorize('superadmin'), reviewPartnerApplication);
+
+// ─── Superadmin Only — Form Options CRUD ──────────────────────────────────────
+router.get('/form-options',          authorize('superadmin'), adminListOptions);
+router.post('/form-options',         authorize('superadmin'), adminCreateOption);
+router.post('/form-options/reorder', authorize('superadmin'), adminReorderOptions);
+router.patch('/form-options/:id',    authorize('superadmin'), adminUpdateOption);
+router.delete('/form-options/:id',   authorize('superadmin'), adminDeleteOption);
+
+// ─── Superadmin Only — Active Openings CRUD ───────────────────────────────────
+router.get('/active-openings',          authorize('superadmin'), adminListOpenings);
+router.post('/active-openings',         authorize('superadmin'), adminCreateOpening);
+router.post('/active-openings/reorder', authorize('superadmin'), adminReorderOpenings);
+router.patch('/active-openings/:id',    authorize('superadmin'), adminUpdateOpening);
+router.delete('/active-openings/:id',   authorize('superadmin'), adminDeleteOpening);
+
+// ─── Superadmin Only — Placement Opportunities CRUD ───────────────────────────
+router.get('/placement-opportunities',          authorize('superadmin'), adminListOpportunities);
+router.post('/placement-opportunities',         authorize('superadmin'), adminCreateOpportunity);
+router.post('/placement-opportunities/reorder', authorize('superadmin'), adminReorderOpportunities);
+router.patch('/placement-opportunities/:id',    authorize('superadmin'), adminUpdateOpportunity);
+router.delete('/placement-opportunities/:id',   authorize('superadmin'), adminDeleteOpportunity);
 
 export default router;
