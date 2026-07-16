@@ -184,7 +184,7 @@ export default function DashboardHome() {
                 Islamic Finance Program Commencement Update
               </h2>
               <p className="text-xs text-slate-300 leading-relaxed font-medium mt-1">
-                Your academic placement and commitment levy verification are complete. The Batch 2026 Fall-A preparatory portal and learning modules will unlock sequentially upon official cohort kickoff.
+                Your academic placement and commitment levy verification are complete. The Batch 2026 Fall-A preparatory platform and learning modules will unlock sequentially upon official cohort kickoff.
               </p>
             </div>
           </div>

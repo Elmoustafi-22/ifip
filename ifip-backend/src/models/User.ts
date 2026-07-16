@@ -14,6 +14,9 @@ export interface IUser extends Document {
     gender?: string;
     country?: string;
     stateCity?: string;
+    title?: string;
+    mfaEnabled: boolean;
+    mfaSecret?: string;
     comparePassword(candidate: string): Promise<boolean>;
 }
 
@@ -29,6 +32,9 @@ const userSchema = new Schema<IUser>(
         gender: { type: String },
         country: { type: String },
         stateCity: { type: String },
+        title: { type: String },
+        mfaEnabled: { type: Boolean, default: false },
+        mfaSecret: { type: String },
     },
     { timestamps: true }
 );

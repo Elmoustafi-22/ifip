@@ -7,7 +7,7 @@ import { Application } from '../models/Application.js';
 import { User } from '../models/User.js';
 import { Cohort } from '../models/Cohort.js';
 import * as paystackService from '../services/paystackService.js';
-import { sendSetPasswordEmail, sendPaymentSuccessEmail } from '../services/emailService.js';
+import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { generateResumeToken } from '../services/tokenService.js';
 import { signSetPasswordToken, signPollingToken, verifyPollingToken } from '../utils/jwt.js';
 import { paymentInitiateSchema } from '../validators/applicantValidators.js';
@@ -169,11 +169,7 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
                     applicant.expiresAt = undefined;
                     await applicant.save();
 
-                    try {
-                        await sendPaymentSuccessEmail(applicant.email, resumeTokenRaw, applicant.country);
-                    } catch (emailError) {
-                        console.error('[PaymentStatus] Failed to send payment success email:', emailError);
-                    }
+                    notificationEmitter.emit('payment.success', { email: applicant.email, resumeToken: resumeTokenRaw, country: applicant.country });
                 }
             } else if (verified.status === 'failed' || verified.status === 'abandoned') {
                 payment.status = 'failed';
@@ -243,11 +239,7 @@ export const handlePaystackWebhook = async (req: Request, res: Response) => {
         applicant.expiresAt = undefined;
         await applicant.save();
 
-        try {
-            await sendPaymentSuccessEmail(applicant.email, resumeTokenRaw, applicant.country);
-        } catch (emailError) {
-            console.error('[Webhook] Failed to send payment success email:', emailError);
-        }
+        notificationEmitter.emit('payment.success', { email: applicant.email, resumeToken: resumeTokenRaw, country: applicant.country });
     }
 
     res.status(200).end();

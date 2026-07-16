@@ -12,7 +12,22 @@ import {
     createModule,
     updateModule,
     deleteModule,
+    getAdminUsers,
+    broadcastCustomNotification,
+    inviteAdmin,
 } from '../controllers/adminController.js';
+import {
+    getAssessments,
+    getAssessmentById,
+    createAssessment,
+    updateAssessment,
+    publishAssessment,
+    archiveAssessment,
+    deleteAssessment,
+    getAssessmentSubmissions,
+    gradeSubmission,
+    resetAttempts,
+} from '../controllers/assessmentController.js';
 import {
     getPartnerApplications,
     getPartnerApplicationById,
@@ -53,9 +68,12 @@ router.use(authenticate);
 router.use(authorize('admin', 'superadmin'));
 
 router.get('/stats', getDashboardStats);
+router.get('/users', getAdminUsers);
+router.post('/users/invite', authorize('superadmin'), inviteAdmin);
 router.get('/applications', getAdminApplications);
 router.patch('/applications/:id/cohort', assignApplicationCohort);
 router.patch('/applications/:id/withdraw', withdrawApplication);
+router.post('/notifications/broadcast', broadcastCustomNotification);
 
 router.get('/cohorts', getCohorts);
 router.post('/cohorts', createCohort);
@@ -65,6 +83,18 @@ router.delete('/cohorts/:id', deleteCohort);
 router.post('/modules', createModule);
 router.patch('/modules/:id', updateModule);
 router.delete('/modules/:id', deleteModule);
+
+// ─── Admin + Superadmin — Assessment Operations ──────────────────────────────
+router.get('/assessments', getAssessments);
+router.get('/assessments/:id', getAssessmentById);
+router.post('/assessments', createAssessment);
+router.patch('/assessments/:id', updateAssessment);
+router.patch('/assessments/:id/publish', publishAssessment);
+router.patch('/assessments/:id/archive', archiveAssessment);
+router.delete('/assessments/:id', deleteAssessment);
+router.get('/assessments/:id/submissions', getAssessmentSubmissions);
+router.patch('/assessments/:id/submissions/:subId/grade', gradeSubmission);
+router.post('/assessments/:id/submissions/reset', resetAttempts);
 
 // ─── Superadmin Only — Partner Management ─────────────────────────────────────
 // Partner Organizations (direct CRUD)

@@ -1,5 +1,8 @@
 import bcrypt from 'bcryptjs';
 import type { Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
+import { generateSecret, generateURI, verifySync } from 'otplib';
+import QRCode from 'qrcode';
 import { User } from '../models/User.js';
 import {
     signAccessToken,
@@ -17,16 +20,21 @@ import type {
     ResetPasswordInput,
 } from '../validators/authValidators.js';
 import { sendPasswordResetEmail } from '../services/emailService.js';
+import { notificationEmitter } from '../services/notificationBroadcast.js';
 
 // ── Shared helper: issue tokens + set refresh cookie ──────────────────
 const issueTokens = (res: Response, userId: string, role: 'applicant' | 'participant' | 'admin' | 'superadmin') => {
     const accessToken = signAccessToken(userId, role);
-    const refreshToken = signRefreshToken(userId);
+    const isAdmin = role === 'admin' || role === 'superadmin';
+    const refreshExpiry = isAdmin ? '24h' : '7d';
+    const cookieMaxAge = isAdmin ? 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
+
+    const refreshToken = signRefreshToken(userId, refreshExpiry);
     res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
         secure: env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        maxAge: cookieMaxAge,
     });
     return { accessToken, refreshToken };
 };
@@ -85,6 +93,16 @@ export const login = async (req: Request<{}, {}, LoginInput>, res: Response) => 
 
     if (!user || !(await user.comparePassword(password))) {
         res.status(401).json({ message: 'Invalid credentials.' });
+        return;
+    }
+
+    if (user.mfaEnabled) {
+        const mfaToken = jwt.sign(
+            { sub: user.id, purpose: 'mfa-verify' },
+            env.JWT_ACCESS_SECRET,
+            { expiresIn: '3m' }
+        );
+        res.json({ mfaRequired: true, mfaToken });
         return;
     }
 
@@ -162,6 +180,7 @@ export const resetPassword = async (req: Request<{}, {}, ResetPasswordInput>, re
 
     user.passwordHash = await bcrypt.hash(password, 12);
     await user.save();
+    notificationEmitter.emit('auth.password_changed', { user });
 
     // Log the user in immediately after resetting
     const { accessToken } = issueTokens(res, user.id, user.role);
@@ -196,6 +215,188 @@ export const changePassword = async (req: Request, res: Response) => {
 
     user.passwordHash = await bcrypt.hash(newPassword, 12);
     await user.save();
+    notificationEmitter.emit('auth.password_changed', { user });
 
     res.json({ message: 'Password updated successfully.' });
+};
+
+// ── POST /api/v1/auth/login/mfa-verify ────────────────────────────────
+export const loginMfaVerify = async (req: Request, res: Response) => {
+    try {
+        const { mfaToken, code } = req.body;
+        if (!mfaToken || !code) {
+            res.status(400).json({ message: 'mfaToken and code are required.' });
+            return;
+        }
+
+        let decoded: any;
+        try {
+            decoded = jwt.verify(mfaToken, env.JWT_ACCESS_SECRET);
+            if (decoded.purpose !== 'mfa-verify') {
+                throw new Error('Invalid token purpose');
+            }
+        } catch (err) {
+            res.status(401).json({ message: 'Invalid or expired login session.' });
+            return;
+        }
+
+        const user = await User.findById(decoded.sub);
+        if (!user || !user.mfaEnabled || !user.mfaSecret) {
+            res.status(400).json({ message: 'MFA is not enabled for this user.' });
+            return;
+        }
+
+        const verifiedResult = verifySync({
+            token: code,
+            secret: user.mfaSecret
+        });
+
+        if (!verifiedResult || !verifiedResult.valid) {
+            res.status(401).json({ message: 'Invalid verification code.' });
+            return;
+        }
+
+        const { accessToken } = issueTokens(res, user.id, user.role);
+        res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error verifying code.', error: e.message });
+    }
+};
+
+// ── GET /api/v1/auth/mfa/setup ────────────────────────────────────────
+export const mfaSetup = async (req: Request, res: Response) => {
+    try {
+        const userId = req.user!.id;
+        const user = await User.findById(userId);
+        if (!user) {
+            res.status(404).json({ message: 'User not found.' });
+            return;
+        }
+
+        const tempSecret = generateSecret();
+        const otpauthUrl = generateURI({
+            label: user.email,
+            issuer: 'IFIP Platform',
+            secret: tempSecret
+        });
+
+        const qrCodeUrl = await QRCode.toDataURL(otpauthUrl);
+
+        res.json({
+            secret: tempSecret,
+            qrCode: qrCodeUrl
+        });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error setting up MFA.', error: e.message });
+    }
+};
+
+// ── POST /api/v1/auth/mfa/enable ──────────────────────────────────────
+export const mfaEnable = async (req: Request, res: Response) => {
+    try {
+        const userId = req.user!.id;
+        const { secret, code } = req.body;
+
+        if (!secret || !code) {
+            res.status(400).json({ message: 'secret and code are required.' });
+            return;
+        }
+
+        const verifiedResult = verifySync({
+            token: code,
+            secret
+        });
+
+        if (!verifiedResult || !verifiedResult.valid) {
+            res.status(400).json({ message: 'Invalid verification code.' });
+            return;
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            res.status(404).json({ message: 'User not found.' });
+            return;
+        }
+
+        user.mfaSecret = secret;
+        user.mfaEnabled = true;
+        await user.save();
+
+        res.json({ message: 'MFA enabled successfully.' });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error enabling MFA.', error: e.message });
+    }
+};
+
+// ── POST /api/v1/auth/mfa/disable ─────────────────────────────────────
+export const mfaDisable = async (req: Request, res: Response) => {
+    try {
+        const userId = req.user!.id;
+        const { code } = req.body;
+
+        if (!code) {
+            res.status(400).json({ message: 'Verification code is required to disable MFA.' });
+            return;
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            res.status(404).json({ message: 'User not found.' });
+            return;
+        }
+
+        if (!user.mfaEnabled || !user.mfaSecret) {
+            res.status(400).json({ message: 'MFA is not enabled.' });
+            return;
+        }
+
+        const verifiedResult = verifySync({
+            token: code,
+            secret: user.mfaSecret
+        });
+
+        if (!verifiedResult || !verifiedResult.valid) {
+            res.status(400).json({ message: 'Invalid verification code.' });
+            return;
+        }
+
+        user.mfaSecret = undefined;
+        user.mfaEnabled = false;
+        await user.save();
+
+        res.json({ message: 'MFA disabled successfully.' });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error disabling MFA.', error: e.message });
+    }
+};
+
+// ── PATCH /api/v1/auth/profile ────────────────────────────────────────
+export const updateProfile = async (req: Request, res: Response) => {
+    try {
+        const userId = req.user!.id;
+        const { fullName, title } = req.body;
+
+        const user = await User.findById(userId);
+        if (!user) {
+            res.status(404).json({ message: 'User not found.' });
+            return;
+        }
+
+        if (fullName !== undefined) user.fullName = fullName;
+        if (title !== undefined) user.title = title;
+        await user.save();
+
+        res.json({
+            message: 'Profile updated successfully.',
+            user: {
+                id: user.id,
+                email: user.email,
+                fullName: user.fullName,
+                title: user.title,
+                role: user.role
+            }
+        });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error updating profile.', error: e.message });
+    }
 };

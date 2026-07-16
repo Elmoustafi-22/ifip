@@ -7,6 +7,11 @@ import {
     resetPassword,
     getTokenInfo,
     changePassword,
+    loginMfaVerify,
+    mfaSetup,
+    mfaEnable,
+    mfaDisable,
+    updateProfile,
 } from '../controllers/authController.js';
 import { validate } from '../middleware/validate.js';
 import { authenticate } from '../middleware/auth.js';
@@ -28,6 +33,9 @@ router.get('/token-info', getTokenInfo);
 // Standard credential login for returning participants/admins
 router.post('/login', validate(loginSchema), login);
 
+// MFA second-step verification
+router.post('/login/mfa-verify', loginMfaVerify);
+
 // Refresh access token using the httpOnly refreshToken cookie
 router.post('/refresh', refresh);
 
@@ -39,5 +47,13 @@ router.post('/reset-password', validate(resetPasswordSchema), resetPassword);
 
 // Change password (internal update)
 router.post('/change-password', authenticate, changePassword);
+
+// Update user profile info (name, title)
+router.patch('/profile', authenticate, updateProfile);
+
+// MFA setup (authenticated)
+router.get('/mfa/setup', authenticate, mfaSetup);
+router.post('/mfa/enable', authenticate, mfaEnable);
+router.post('/mfa/disable', authenticate, mfaDisable);
 
 export default router;

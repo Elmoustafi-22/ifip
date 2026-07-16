@@ -11,7 +11,8 @@ import {
   HiOutlineCalendarDays,
   HiOutlineClipboardDocumentCheck,
   HiOutlineSparkles,
-  HiOutlineChevronRight
+  HiOutlineChevronRight,
+  HiOutlineAcademicCap
 } from "react-icons/hi2";
 import { 
   getAdminStats, 
@@ -21,12 +22,20 @@ import {
   createPlacementMatch, 
   updatePlacementStatus, 
   createPartner,
+  getAdminCohorts,
+  uploadLogo,
   AdminStats, 
   Cohort, 
   PartnerOrganization, 
   Placement 
 } from "@/lib/api/services";
 import { AdminCohortContext } from "../layout";
+
+const COHORT_STATUS_COLORS: Record<string, string> = {
+  active: "bg-emerald-100 text-emerald-700",
+  upcoming: "bg-blue-100 text-blue-700",
+  completed: "bg-slate-100 text-slate-500",
+};
 
 export default function AdminPlacementsPage() {
   const { selectedCohortId } = useContext(AdminCohortContext);
@@ -50,17 +59,24 @@ export default function AdminPlacementsPage() {
   const [newPartnerDesc, setNewPartnerDesc] = useState("");
   const [newPartnerSlots, setNewPartnerSlots] = useState(5);
   const [newPartnerTags, setNewPartnerTags] = useState("");
+  const [newPartnerWebsite, setNewPartnerWebsite] = useState("");
+  const [newPartnerLogoUrl, setNewPartnerLogoUrl] = useState("");
+  const [newPartnerLogoFile, setNewPartnerLogoFile] = useState<File | null>(null);
+  const [newPartnerCohorts, setNewPartnerCohorts] = useState<string[]>([]);
+  const [cohorts, setCohorts] = useState<{ _id: string; name: string; status: string }[]>([]);
   const [creatingPartner, setCreatingPartner] = useState(false);
 
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [activeTab, setActiveTab] = useState("candidates"); // candidates, partners
 
   const fetchPlacementsData = async () => {
     try {
-      const [statsData, appsData, partnersData, placementsData] = await Promise.all([
+      const [statsData, appsData, partnersData, placementsData, cohortsData] = await Promise.all([
         getAdminStats(selectedCohortId || undefined),
         getAdminApplications(undefined, undefined, selectedCohortId || undefined),
         getPartners(),
-        getAdminPlacements()
+        getAdminPlacements(),
+        getAdminCohorts()
       ]);
       setStats(statsData);
       
@@ -71,11 +87,18 @@ export default function AdminPlacementsPage() {
       
       setPartners(partnersData);
       setPlacements(placementsData);
+      setCohorts(cohortsData);
     } catch (err) {
       console.error("Failed to load placement cockpit:", err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleCohort = (cohortId: string) => {
+    setNewPartnerCohorts((prev) =>
+      prev.includes(cohortId) ? prev.filter((id) => id !== cohortId) : [...prev, cohortId]
+    );
   };
 
   useEffect(() => {
@@ -129,18 +152,37 @@ export default function AdminPlacementsPage() {
     if (!newPartnerName || creatingPartner) return;
     
     setCreatingPartner(true);
+    let finalLogoUrl = newPartnerLogoUrl;
     try {
+      if (newPartnerLogoFile) {
+        try {
+          const uploadRes = await uploadLogo(newPartnerLogoFile);
+          finalLogoUrl = uploadRes.url;
+        } catch {
+          alert("Logo upload failed. Please verify it is a valid image file.");
+          setCreatingPartner(false);
+          return;
+        }
+      }
+      const sectorTags = newPartnerTags ? newPartnerTags.split(",").map((t) => t.trim()).filter((t) => t.length > 0) : [];
       await createPartner({
         name: newPartnerName,
         description: newPartnerDesc || undefined,
         activeSlots: newPartnerSlots,
-        sectorTags: newPartnerTags ? newPartnerTags.split(",").map(t => t.trim()) : []
+        sectorTags,
+        logoUrl: finalLogoUrl || undefined,
+        website: newPartnerWebsite || undefined,
+        cohorts: newPartnerCohorts
       });
       alert("Partner Organization registered successfully!");
       setNewPartnerName("");
       setNewPartnerDesc("");
       setNewPartnerSlots(5);
       setNewPartnerTags("");
+      setNewPartnerWebsite("");
+      setNewPartnerLogoUrl("");
+      setNewPartnerLogoFile(null);
+      setNewPartnerCohorts([]);
       setPartnerModalOpen(false);
       fetchPlacementsData();
     } catch (err) {
@@ -148,6 +190,32 @@ export default function AdminPlacementsPage() {
       alert("Failed to create partner.");
     } finally {
       setCreatingPartner(false);
+    }
+  };
+
+  const calculateMatchScore = (app: any, partner: PartnerOrganization) => {
+    if (!app || !partner) return { score: 20, rating: "Alternative Pool", badgeColor: "bg-slate-50 text-slate-500 border-slate-200", matches: [] };
+    
+    const candidateInterests = app.programInterest?.primary || [];
+    const candidateSkills = app.skills?.relevantSkills || [];
+    const partnerSectors = partner.sectorTags || [];
+
+    const matches: string[] = [];
+
+    partnerSectors.forEach((sector: string) => {
+      const isInterest = candidateInterests.some((interest: string) => interest.toLowerCase().trim() === sector.toLowerCase().trim());
+      const isSkill = candidateSkills.some((skill: string) => skill.toLowerCase().trim() === sector.toLowerCase().trim());
+      if (isInterest || isSkill) {
+        matches.push(sector);
+      }
+    });
+
+    if (matches.length >= 2) {
+      return { score: 100, rating: "Strong Match", badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-100", matches };
+    } else if (matches.length === 1) {
+      return { score: 60, rating: "Good Match", badgeColor: "bg-indigo-50 text-indigo-700 border-indigo-100", matches };
+    } else {
+      return { score: 20, rating: "Alternative Pool", badgeColor: "bg-slate-50 text-slate-500 border-slate-200", matches };
     }
   };
 
@@ -193,16 +261,37 @@ export default function AdminPlacementsPage() {
         </div>
       </div>
 
+      {/* Mobile view tab buttons */}
+      <div className="flex lg:hidden bg-slate-100 p-1 rounded-xl mb-6">
+        <button
+          onClick={() => setActiveTab("candidates")}
+          className={`flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all ${
+            activeTab === "candidates" ? "bg-white text-[#000666] shadow-xs" : "text-slate-500"
+          }`}
+        >
+          Candidates ({applications.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("partners")}
+          className={`flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all ${
+            activeTab === "partners" ? "bg-white text-[#000666] shadow-xs" : "text-slate-500"
+          }`}
+        >
+          Partners ({partners.length})
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Placements Matching Queue (Col-span 2) */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className={`${activeTab === "candidates" ? "block" : "hidden"} lg:block lg:col-span-2 space-y-6`}>
           <div className="bg-white border border-[#E7E2D8] rounded-2xl overflow-hidden shadow-sm">
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
               <h2 className="font-bold text-[#000666] text-base">Eligible Candidates</h2>
               <span className="text-xs text-slate-400 font-bold">{applications.length} Candidates Eligible</span>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Desktop Candidates Table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-100 text-sm text-left">
                 <thead className="bg-slate-50 text-[10px] font-bold uppercase text-slate-400 tracking-wider">
                   <tr>
@@ -281,11 +370,81 @@ export default function AdminPlacementsPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Candidates Cards List */}
+            <div className="block md:hidden divide-y divide-slate-100 bg-white">
+              {applications.length === 0 ? (
+                <p className="px-6 py-12 text-center text-slate-400 text-xs italic">
+                  No active or completed candidates found.
+                </p>
+              ) : (
+                applications.map((app) => {
+                  const match = getUserPlacement(app.userId?._id || app.userId);
+                  return (
+                    <div key={app._id} className="p-4 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="font-bold text-[#000666] text-sm">{app.fullName}</div>
+                          <div className="text-slate-400 text-[11px] mt-0.5">{app.userId?.email}</div>
+                        </div>
+                        <div>
+                          {match ? (
+                            <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 text-[10px] font-bold px-2 py-0.5 rounded">
+                              Matched
+                            </span>
+                          ) : (
+                            <span className="bg-slate-50 text-slate-400 border border-slate-200 text-[10px] font-bold px-2 py-0.5 rounded">
+                              Talent Pool
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-50 rounded-xl p-3 space-y-2 text-xs">
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400 font-medium">Assigned Partner:</span>
+                          <span className="font-bold text-slate-700 truncate max-w-[150px]">
+                            {match ? (match.partnerOrgId?.name || "Partner Org") : "None"}
+                          </span>
+                        </div>
+                        {match && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-400 font-medium">Match Status:</span>
+                            <select
+                              value={match.status}
+                              onChange={(e) => handleUpdateStatus(match._id, e.target.value)}
+                              className="text-[10px] font-bold px-2 py-0.5 rounded-md border focus:outline-none bg-white cursor-pointer"
+                            >
+                              <option value="matched">Matched</option>
+                              <option value="interviewing">Interviewing</option>
+                              <option value="placed">Placed</option>
+                              <option value="declined">Declined</option>
+                            </select>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex justify-end pt-1">
+                        <button
+                          onClick={() => {
+                            setSelectedApp(app);
+                            setMatchModalOpen(true);
+                          }}
+                          className="text-xs font-bold text-sky-600 hover:underline flex items-center"
+                        >
+                          {match ? "Rematch &rarr;" : "Match &rarr;"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
 
         {/* Partners Sidebar slots tracker (Col-span 1) */}
-        <div className="space-y-6">
+        <div className={`${activeTab === "partners" ? "block" : "hidden"} lg:block space-y-6`}>
           <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 shadow-sm">
             <h2 className="font-bold text-[#000666] text-base mb-4 pb-2 border-b border-slate-100">
               Partner Capacities
@@ -318,9 +477,9 @@ export default function AdminPlacementsPage() {
 
       {/* Matchmaking Modal Overlay */}
       {matchModalOpen && selectedApp && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E7E2D8] w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="bg-[#000666] text-white py-4 px-6 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white border border-[#E7E2D8] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-h-none flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+            <div className="bg-[#000666] text-white py-4 px-6 flex items-center justify-between shrink-0">
               <h3 className="font-bold text-base flex items-center gap-1.5">
                 <HiOutlineSparkles className="w-5 h-5 text-[#FF9800]" /> Match Candidate
               </h3>
@@ -335,11 +494,52 @@ export default function AdminPlacementsPage() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateMatch} className="p-6 space-y-4 text-xs sm:text-sm">
+            <form onSubmit={handleCreateMatch} className="p-6 space-y-4 text-xs sm:text-sm overflow-y-auto">
               <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Matching Student</span>
                 <span className="font-bold text-[#000666] text-sm">{selectedApp.fullName}</span>
               </div>
+
+              {/* Recommendations list */}
+              {(() => {
+                const partnerScores = partners
+                  .map((p) => ({ partner: p, result: calculateMatchScore(selectedApp, p) }))
+                  .filter((item) => item.partner.activeSlots > 0)
+                  .sort((a, b) => b.result.score - a.result.score);
+                
+                const topPicks = partnerScores.slice(0, 3);
+                if (topPicks.length === 0) return null;
+                
+                return (
+                  <div className="bg-sky-50/30 border border-sky-100 rounded-xl p-4 space-y-2">
+                    <span className="text-[10px] uppercase font-black tracking-wider text-sky-700 flex items-center gap-1.5 mb-1.5">
+                      <HiOutlineSparkles className="w-3.5 h-3.5 text-[#FF9800]" /> Recommended Employers
+                    </span>
+                    <div className="space-y-2 text-xs">
+                      {topPicks.map(({ partner, result }) => (
+                        <div key={partner._id} className="flex items-center justify-between border-b border-sky-100/30 pb-1.5 last:border-b-0 last:pb-0">
+                          <div>
+                            <span className="font-bold text-[#000666]">{partner.name}</span>
+                            <div className="text-[10px] text-slate-500 mt-0.5">
+                              {result.matches.length > 0 
+                                ? `Matches: ${result.matches.join(", ")}` 
+                                : "General compatibility placement"}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded border bg-white shadow-2xs font-mono">
+                              Slots: {partner.activeSlots}
+                            </span>
+                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded border ${result.badgeColor}`}>
+                              {result.rating}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div>
                 <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">
@@ -352,11 +552,14 @@ export default function AdminPlacementsPage() {
                   required
                 >
                   <option value="">Choose employer...</option>
-                  {partners.map((partner) => (
-                    <option key={partner._id} value={partner._id} disabled={partner.activeSlots <= 0}>
-                      {partner.name} ({partner.activeSlots} slots left)
-                    </option>
-                  ))}
+                  {partners
+                    .map((p) => ({ partner: p, result: calculateMatchScore(selectedApp, p) }))
+                    .sort((a, b) => b.result.score - a.result.score)
+                    .map(({ partner, result }) => (
+                      <option key={partner._id} value={partner._id} disabled={partner.activeSlots <= 0}>
+                        {result.score >= 60 ? "⭐ " : ""}{partner.name} ({partner.activeSlots} slots) &mdash; {result.rating}
+                      </option>
+                    ))}
                 </select>
               </div>
 
@@ -385,7 +588,7 @@ export default function AdminPlacementsPage() {
                 />
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+              <div className="pt-4 border-t border-slate-100 flex justify-end gap-3 shrink-0">
                 <button
                   type="button"
                   onClick={() => {
@@ -411,89 +614,98 @@ export default function AdminPlacementsPage() {
 
       {/* Partner Modal Overlay */}
       {partnerModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E7E2D8] w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="bg-[#000666] text-white py-4 px-6 flex items-center justify-between">
-              <h3 className="font-bold text-base flex items-center gap-1.5">
-                <HiOutlinePlus className="w-5 h-5" /> Register Partner Org
-              </h3>
-              <button 
-                onClick={() => setPartnerModalOpen(false)}
-                className="text-white/80 hover:text-white"
-              >
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden">
+            <div className="border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+              <h2 className="font-black text-[#000666] text-lg">
+                Register Partner Organization
+              </h2>
+              <button onClick={() => setPartnerModalOpen(false)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600">
                 <HiOutlineXMark className="w-5 h-5" />
               </button>
             </div>
-
-            <form onSubmit={handleCreatePartner} className="p-6 space-y-4 text-xs sm:text-sm">
-              <div>
-                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">
-                  Organization Title
-                </label>
-                <input 
-                  type="text" 
-                  value={newPartnerName}
-                  onChange={(e) => setNewPartnerName(e.target.value)}
-                  placeholder="e.g. Partner Organization Name"
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500 text-xs"
-                  required
-                />
+            <form onSubmit={handleCreatePartner} className="p-6 flex flex-col gap-4 font-sans text-sm max-h-[80vh] overflow-y-auto">
+              <div className="flex flex-col gap-1.5">
+                <label className="font-bold text-slate-700">Organization Name *</label>
+                <input type="text" required value={newPartnerName} onChange={(e) => setNewPartnerName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600" placeholder="e.g. Organization Name" />
               </div>
-
-              <div>
-                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">
-                  Description
-                </label>
-                <textarea 
-                  value={newPartnerDesc}
-                  onChange={(e) => setNewPartnerDesc(e.target.value)}
-                  placeholder="Corporate description..."
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500 text-xs h-20"
-                />
+              <div className="flex flex-col gap-1.5">
+                <label className="font-bold text-slate-700">Description</label>
+                <textarea value={newPartnerDesc} onChange={(e) => setNewPartnerDesc(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600 min-h-[72px]"
+                  placeholder="Briefly describe the partner organization..." />
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">
-                    Available Slots
-                  </label>
-                  <input 
-                    type="number"
-                    value={newPartnerSlots}
-                    onChange={(e) => setNewPartnerSlots(Number(e.target.value))}
-                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500 text-xs bg-white"
-                    min={1}
-                    required
-                  />
+              <div className="flex flex-col gap-1.5">
+                <label className="font-bold text-slate-700">Website URL</label>
+                <input type="url" value={newPartnerWebsite} onChange={(e) => setNewPartnerWebsite(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600"
+                  placeholder="e.g. https://yourorganization.com" />
+              </div>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-bold text-slate-700">Placement Slots *</label>
+                  <input type="number" required min={0} value={newPartnerSlots} onChange={(e) => setNewPartnerSlots(Number(e.target.value))}
+                    className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600" />
                 </div>
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">
-                    Sectors (comma separated)
-                  </label>
-                  <input 
-                    type="text"
-                    value={newPartnerTags}
-                    onChange={(e) => setNewPartnerTags(e.target.value)}
-                    placeholder="FinTech, Banking"
-                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500 text-xs bg-white"
-                  />
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-bold text-slate-700">Sector Tags <span className="font-normal text-slate-400">(comma-separated)</span></label>
+                  <input type="text" value={newPartnerTags} onChange={(e) => setNewPartnerTags(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600"
+                    placeholder="e.g. Finance, Advisory" />
                 </div>
               </div>
-
-              <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setPartnerModalOpen(false)}
-                  className="text-slate-500 hover:text-slate-700 font-bold px-4 py-2"
-                >
+              <div className="flex flex-col gap-2 border-t border-slate-100 pt-4">
+                <label className="font-bold text-slate-700 flex items-center gap-1.5">
+                  <HiOutlineAcademicCap className="w-4 h-4 text-[#000666]" /> Assign to Cohort(s)
+                </label>
+                {cohorts.length === 0 ? (
+                  <p className="text-xs text-slate-400">No cohorts available. Create a cohort first in the admin panel.</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {cohorts.map((cohort) => (
+                      <label key={cohort._id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/40 cursor-pointer transition-all">
+                        <input type="checkbox" checked={newPartnerCohorts.includes(cohort._id)} onChange={() => toggleCohort(cohort._id)}
+                          className="w-4 h-4 accent-emerald-600 cursor-pointer" />
+                        <span className="flex-1 text-sm font-medium text-slate-700">{cohort.name}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${COHORT_STATUS_COLORS[cohort.status] || "bg-slate-100 text-slate-500"}`}>
+                          {cohort.status}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-4">
+                <label className="font-bold text-slate-700">Organization Logo</label>
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-slate-400 font-medium">Upload Logo File (Recommended):</span>
+                    <input type="file" accept="image/*" onChange={(e) => setNewPartnerLogoFile(e.target.files ? e.target.files[0] : null)}
+                      className="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-slate-400 font-medium">Or enter image URL manually:</span>
+                    <input type="text" value={newPartnerLogoUrl} onChange={(e) => setNewPartnerLogoUrl(e.target.value)}
+                      className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600 text-xs disabled:bg-slate-50 disabled:text-slate-400"
+                      placeholder="e.g. https://res.cloudinary.com/..." disabled={!!newPartnerLogoFile} />
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 mt-2 border-t border-slate-100 pt-4">
+                <button type="button" onClick={() => setPartnerModalOpen(false)}
+                  className="px-5 py-2.5 border border-[#E7E2D8] rounded-xl text-slate-600 font-bold hover:bg-slate-50 cursor-pointer">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={creatingPartner}
-                  className="bg-[#FF9800] hover:bg-[#FF9800]/95 text-white font-bold px-6 py-2.5 rounded-xl shadow-sm transition-all"
-                >
-                  {creatingPartner ? "Creating..." : "Save Partner"}
+                <button type="submit" disabled={creatingPartner}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm disabled:bg-slate-300 flex items-center gap-2 cursor-pointer">
+                  {creatingPartner && (
+                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  )}
+                  Register Partner
                 </button>
               </div>
             </form>

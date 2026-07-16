@@ -1,11 +1,7 @@
 import { Request, Response } from 'express';
 import { PartnerApplication } from '../models/PartnerApplication.js';
 import { PartnerOrganization } from '../models/PartnerOrganization.js';
-import {
-    sendPartnerApplicationReceived,
-    sendPartnerApplicationApproved,
-    sendPartnerApplicationDeclined,
-} from '../services/emailService.js';
+import { notificationEmitter } from '../services/notificationBroadcast.js';
 
 // ─── PUBLIC ───────────────────────────────────────────────────────────────────
 
@@ -48,9 +44,7 @@ export const submitPartnerApplication = async (req: Request, res: Response) => {
         });
 
         // Send confirmation email (non-blocking — failure must not reject the API response)
-        sendPartnerApplicationReceived(contactEmail, companyName, contactPerson).catch((err) =>
-            console.error('Partner confirmation email failed:', err)
-        );
+        notificationEmitter.emit('partner.applied', { email: contactEmail, companyName, contactPerson });
 
         res.status(201).json({
             message: 'Partnership application submitted successfully. You will hear from us within 3–5 business days.',
@@ -171,12 +165,13 @@ export const reviewPartnerApplication = async (req: Request, res: Response) => {
             application.status = 'approved';
             await application.save();
 
-            // Send approval email (non-blocking)
-            sendPartnerApplicationApproved(
-                application.contactEmail,
-                application.companyName,
-                application.contactPerson
-            ).catch((err) => console.error('Partner approval email failed:', err));
+            notificationEmitter.emit('partner.reviewed', {
+                email: application.contactEmail,
+                companyName: application.companyName,
+                contactPerson: application.contactPerson,
+                status: 'approved',
+                adminNotes
+            });
 
             res.json({
                 message: `${application.companyName} has been approved and added as an active partner.`,
@@ -187,13 +182,13 @@ export const reviewPartnerApplication = async (req: Request, res: Response) => {
             application.status = 'declined';
             await application.save();
 
-            // Send decline email (non-blocking)
-            sendPartnerApplicationDeclined(
-                application.contactEmail,
-                application.companyName,
-                application.contactPerson,
+            notificationEmitter.emit('partner.reviewed', {
+                email: application.contactEmail,
+                companyName: application.companyName,
+                contactPerson: application.contactPerson,
+                status: 'declined',
                 adminNotes
-            ).catch((err) => console.error('Partner decline email failed:', err));
+            });
 
             res.json({ message: `${application.companyName}'s application has been declined.` });
         }

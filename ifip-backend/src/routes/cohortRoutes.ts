@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { CohortConfig } from '../models/CohortConfig.js';
 import { env } from '../config/env.js';
 import { getActiveRegistrationCohort, checkCohortCapacity } from '../controllers/paymentController.js';
+import { authenticate, authorize } from '../middleware/auth.js';
+import { notificationEmitter } from '../services/notificationBroadcast.js';
 
 const router = Router();
 
@@ -27,7 +29,7 @@ router.get('/registration-status', async (req, res) => {
     }
 });
 
-router.get('/active', async (req, res) => {
+router.get('/active', authenticate, async (req, res) => {
     try {
         const config = await CohortConfig.findOne();
         if (!config) {
@@ -48,7 +50,7 @@ router.get('/active', async (req, res) => {
     }
 });
 
-router.post('/active', async (req, res) => {
+router.post('/active', authenticate, authorize('admin', 'superadmin'), async (req, res) => {
     try {
         const { startDate, cohortCap, dashboardViewOverride } = req.body;
         if (!startDate && cohortCap === undefined && !dashboardViewOverride) {
@@ -62,6 +64,8 @@ router.post('/active', async (req, res) => {
         }
 
         let config = await CohortConfig.findOne();
+        let overrideChanged = false;
+
         if (!config) {
             const start = startDate ? new Date(startDate) : new Date(env.COHORT_START_DATE);
             const cap = cohortCap !== undefined ? Number(cohortCap) : Number(env.COHORT_CAP || 100);
@@ -77,6 +81,7 @@ router.post('/active', async (req, res) => {
                 cohortCap: cap,
                 dashboardViewOverride: viewOverride
             });
+            overrideChanged = viewOverride !== 'default';
         } else {
             if (startDate) {
                 const dateObj = new Date(startDate);
@@ -90,12 +95,18 @@ router.post('/active', async (req, res) => {
                 config.cohortCap = Number(cohortCap);
             }
             if (dashboardViewOverride) {
+                overrideChanged = config.dashboardViewOverride !== dashboardViewOverride;
                 config.dashboardViewOverride = dashboardViewOverride;
             }
             config.updatedAt = new Date();
         }
 
         await config.save();
+
+        if (overrideChanged) {
+            notificationEmitter.emit('cohort.override_changed', { override: config.dashboardViewOverride });
+        }
+
         res.json({
             message: 'Cohort config updated successfully.',
             cohortStartDate: config.cohortStartDate.toISOString(),

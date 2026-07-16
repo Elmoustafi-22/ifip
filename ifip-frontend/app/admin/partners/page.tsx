@@ -576,7 +576,7 @@ export default function AdminPartnersPage() {
                   className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600"
                   placeholder="e.g. https://yourorganization.com" />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="font-bold text-slate-700">Placement Slots *</label>
                   <input type="number" required min={0} value={activeSlots} onChange={(e) => setActiveSlots(Number(e.target.value))}

@@ -53,6 +53,7 @@ export interface Applicant {
   levyAcknowledged?: boolean;
   declaration?: DeclarationInfo;
   currentStep: number;
+  isPaid?: boolean;
 }
 
 export interface StartApplicationResponse {
@@ -103,10 +104,11 @@ export interface AuthUser {
   role: "applicant" | "participant" | "admin" | "superadmin";
 }
 
-/** Returned by login, set-password, and reset-password */
 export interface AuthResponse {
-  accessToken: string;
-  user: AuthUser;
+  accessToken?: string;
+  user?: AuthUser;
+  mfaRequired?: boolean;
+  mfaToken?: string;
 }
 
 export interface ForgotPasswordResponse {

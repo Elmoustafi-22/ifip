@@ -80,7 +80,7 @@ export default function AdminApplicationsPage() {
   };
 
   const handleWithdraw = async (appId: string) => {
-    if (!confirm("Are you sure you want to withdraw this participant from the portal?") || updating) return;
+    if (!confirm("Are you sure you want to withdraw this participant?") || updating) return;
     
     setUpdating(true);
     try {
@@ -110,7 +110,7 @@ export default function AdminApplicationsPage() {
 
   return (
     <div className="max-w-6xl mx-auto py-10 px-4 sm:px-6 lg:px-8 font-sans bg-[#FDFBF7]">
-      {/* Back to standard portal link */}
+      {/* Back to standard admin dashboard links */}
       <div className="mb-6 flex justify-between items-center">
         <div className="flex items-center gap-3">
           <Link 
@@ -128,7 +128,7 @@ export default function AdminApplicationsPage() {
           </Link>
         </div>
         <span className="bg-orange-100 text-[#FF9800] text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full border border-orange-200">
-          Admin Portal
+          Admin Panel
         </span>
       </div>
 
@@ -139,8 +139,8 @@ export default function AdminApplicationsPage() {
 
       {/* Stats Grid */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+        <div className="flex md:grid md:grid-cols-4 overflow-x-auto md:overflow-x-visible snap-x snap-mandatory gap-4 pb-4 md:pb-0 scrollbar-hide mb-8">
+          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 snap-center bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-xs font-bold uppercase tracking-wider">Total Paid</span>
               <HiOutlineClipboardDocumentCheck className="w-5 h-5 text-[#00B0FF]" />
@@ -148,7 +148,7 @@ export default function AdminApplicationsPage() {
             <div className="text-2xl font-black text-[#000666]">{stats.totalPaid}</div>
           </div>
 
-          <div className="bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 snap-center bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-xs font-bold uppercase tracking-wider">Active</span>
               <HiOutlineUsers className="w-5 h-5 text-indigo-500" />
@@ -156,7 +156,7 @@ export default function AdminApplicationsPage() {
             <div className="text-2xl font-black text-[#000666]">{stats.activeParticipants}</div>
           </div>
 
-          <div className="bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 snap-center bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-xs font-bold uppercase tracking-wider">Completed</span>
               <HiOutlineCheckCircle className="w-5 h-5 text-emerald-500" />
@@ -164,7 +164,7 @@ export default function AdminApplicationsPage() {
             <div className="text-2xl font-black text-[#000666]">{stats.completedCount}</div>
           </div>
 
-          <div className="bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 snap-center bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-xs font-bold uppercase tracking-wider">Waitlist</span>
               <HiOutlineInboxStack className="w-5 h-5 text-rose-500" />
@@ -203,7 +203,9 @@ export default function AdminApplicationsPage() {
 
       {/* Applications Table */}
       <div className="bg-white border border-[#E7E2D8] rounded-2xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+        
+        {/* Desktop View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-100 text-sm text-left">
             <thead className="bg-slate-50 text-[10px] font-bold uppercase text-slate-400 tracking-wider">
               <tr>
@@ -270,12 +272,72 @@ export default function AdminApplicationsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Card List View */}
+        <div className="block md:hidden divide-y divide-slate-100 bg-white">
+          {applications.length === 0 ? (
+            <p className="px-6 py-12 text-center text-slate-400 text-xs italic">
+              No paid applications found matching parameters.
+            </p>
+          ) : (
+            applications.map((app) => (
+              <div key={app._id} className="p-4 space-y-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-bold text-[#000666] text-sm">{app.fullName || "Draft Profile"}</h4>
+                    <p className="text-slate-400 text-xs mt-0.5">{app.userId?.email || "No Email"}</p>
+                  </div>
+                  <div>
+                    {app.status === "payment_confirmed" && (
+                      <span className="bg-amber-50 border border-amber-100 text-amber-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded">
+                        Paid
+                      </span>
+                    )}
+                    {app.status === "active" && (
+                      <span className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded">
+                        Active
+                      </span>
+                    )}
+                    {app.status === "completed" && (
+                      <span className="bg-emerald-50 border border-emerald-100 text-emerald-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded">
+                        Completed
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Interests</span>
+                  <div className="flex flex-wrap gap-1">
+                    {app.programInterest?.primary?.map((track: string, index: number) => (
+                      <span key={index} className="bg-slate-100 text-slate-600 text-[9px] font-medium px-2 py-0.5 rounded-full">
+                        {track}
+                      </span>
+                    )) || <span className="text-slate-300 text-xs italic">None</span>}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-50 flex justify-end">
+                  <button
+                    onClick={() => {
+                      setSelectedApp(app);
+                      setAssigningCohortId(app.cohortId || "");
+                    }}
+                    className="bg-[#000666] hover:bg-[#000666]/90 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-sm"
+                  >
+                    Review Profile &rarr;
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {/* Selected Applicant Profile Overlay Modal */}
       {selectedApp && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E7E2D8] w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white border border-[#E7E2D8] w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-h-[85vh] flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="bg-[#000666] text-white py-4 px-6 flex items-center justify-between shrink-0">
               <div>

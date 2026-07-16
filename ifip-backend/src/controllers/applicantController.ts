@@ -1,9 +1,10 @@
 import type { Request, Response } from 'express';
 import { Applicant } from '../models/Applicants.js';
-import { generateOtp, verifyOtp, checkOtpSendAllowed } from '../services/otpServices.js';
+import { generateOtp, verifyOtp } from '../services/otpServices.js';
 import { generateResumeToken, hashToken } from '../services/tokenService.js';
-import { sendOtpEmail, sendResumeLinkEmail, sendSetPasswordEmail } from '../services/emailService.js';
+import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { signApplicantSessionToken, signSetPasswordToken } from '../utils/jwt.js';
+import { redisClient } from '../services/redisService.js';
 import { User } from '../models/User.js';
 import { Application } from '../models/Application.js';
 import { Payment } from '../models/Payments.js';
@@ -52,38 +53,54 @@ export const startApplication = async (req: Request, res: Response) => {
         return;
     }
 
-    let applicant = await Applicant.findOne({ email });
-    if (!applicant) {
-        applicant = new Applicant({ email });
-        applicant.refreshExpiry();
+    // Redis Rate Limiting Check
+    const now = Date.now();
+    const rateKey = `otp_rate:${email.toLowerCase()}`;
+    const rateDataRaw = await redisClient.get(rateKey);
+    let rateData = rateDataRaw 
+        ? JSON.parse(rateDataRaw) 
+        : { sendCount: 0, windowStart: now, lastSentTime: 0 };
+
+    const windowMs = 24 * 60 * 60 * 1000;
+    const windowExpired = (now - rateData.windowStart) > windowMs;
+    if (windowExpired) {
+        rateData.sendCount = 0;
+        rateData.windowStart = now;
     }
 
-    const rateLimitCheck = checkOtpSendAllowed(applicant);
-    if (!rateLimitCheck.allowed) {
+    const cooldownSeconds = 60;
+    const secondsSinceLastSend = (now - rateData.lastSentTime) / 1000;
+    if (rateData.sendCount > 0 && secondsSinceLastSend < cooldownSeconds) {
         res.status(429).json({
-            message: rateLimitCheck.reason,
-            retryAfterSeconds: rateLimitCheck.retryAfterSeconds,
+            message: 'Please wait before requesting another code.',
+            retryAfterSeconds: Math.ceil(cooldownSeconds - secondsSinceLastSend),
         });
         return;
     }
 
-    const now = Date.now();
-    const windowMs = 24 * 60 * 60 * 1000;
-    const windowExpired = (now - (applicant.otpWindowStart?.getTime() ?? 0)) > windowMs;
-
-    if (windowExpired) {
-        applicant.otpSendCount = 1;
-        applicant.otpWindowStart = new Date();
-    } else {
-        applicant.otpSendCount += 1;
+    const maxPerWindow = 5;
+    if (rateData.sendCount >= maxPerWindow) {
+        res.status(429).json({
+            message: 'Too many verification codes requested. Please try again later.'
+        });
+        return;
     }
 
-    const { code, hash, expiry } = generateOtp();
-    applicant.otpCodeHash = hash;
-    applicant.otpExpiry = expiry;
-    await applicant.save();
+    // Increment count & timestamp
+    rateData.sendCount += 1;
+    rateData.lastSentTime = now;
 
-    await sendOtpEmail(email, code);
+    const { code, hash } = generateOtp();
+    const otpExpiryMinutes = Number(env.OTP_EXPIRY_MINUTES || 10);
+    const otpKey = `pending_otp:${email.toLowerCase()}`;
+
+    // Save values in Redis concurrently
+    await Promise.all([
+        redisClient.set(otpKey, hash, { EX: otpExpiryMinutes * 60 }),
+        redisClient.set(rateKey, JSON.stringify(rateData), { EX: 24 * 60 * 60 })
+    ]);
+
+    notificationEmitter.emit('otp.requested', { email, otp: code });
 
     res.json({ message: 'Verification code sent. Please check your email.' });
 };
@@ -91,32 +108,36 @@ export const startApplication = async (req: Request, res: Response) => {
 export const verifyApplicantOtp = async (req: Request, res: Response) => {
     const { email, otp } = req.body;
 
-    const applicant = await Applicant.findOne({ email });
-    if (!applicant || !applicant.otpCodeHash || !applicant.otpExpiry) {
-        res.status(400).json({ message: 'No verification pending for this email.' });
+    const otpKey = `pending_otp:${email.toLowerCase()}`;
+    const cachedHash = await redisClient.get(otpKey);
+
+    if (!cachedHash) {
+        res.status(400).json({ message: 'No verification pending or code expired. Please request a new one.' });
         return;
     }
 
-    if (applicant.otpExpiry < new Date()) {
-        res.status(400).json({ message: 'Verification code expired. Please request a new one.' });
-        return;
-    }
-
-    if (!verifyOtp(otp, applicant.otpCodeHash)) {
+    if (!verifyOtp(otp, cachedHash)) {
         res.status(400).json({ message: 'Incorrect verification code.' });
         return;
     }
 
-    applicant.emailVerified = true;
-    applicant.otpCodeHash = undefined;
-    applicant.otpExpiry = undefined;
+    // Create or update Applicant document in MongoDB upon verification
+    let applicant = await Applicant.findOne({ email });
+    if (!applicant) {
+        applicant = new Applicant({ email, emailVerified: true });
+    } else {
+        applicant.emailVerified = true;
+    }
 
     const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
     applicant.resumeTokenHash = resumeTokenHash;
     applicant.refreshExpiry();
     await applicant.save();
 
-    await sendResumeLinkEmail(email, resumeTokenRaw, applicant.isPaid);
+    // Clean up OTP key in Redis
+    await redisClient.del(otpKey);
+
+    notificationEmitter.emit('applicant.resume', { email, token: resumeTokenRaw, isPaid: applicant.isPaid });
 
     const sessionToken = signApplicantSessionToken(applicant.id);
     res.json({ sessionToken, applicant });
@@ -155,7 +176,24 @@ export const updateMyApplicant = async (req: Request, res: Response) => {
         return;
     }
 
-    Object.assign(applicant, req.body);
+    // --- Strict field whitelist (mass-assignment protection) ---
+    // Only form-step fields may be written via this endpoint.
+    // System-controlled fields (isPaid, cohortId, checkoutStartedAt, expiresAt,
+    // emailVerified, resumeTokenHash, email) are never
+    // accepted from the request body — any attempt to send them is silently ignored.
+    const ALLOWED_FIELDS = [
+        'fullName', 'phone', 'dob', 'gender', 'country', 'stateCity',
+        'academicInfo', 'programInterest', 'skills', 'motivation',
+        'cvUrl', 'linkedinUrl', 'portfolioUrl', 'leadSource',
+        'levyAcknowledged', 'declaration', 'currentStep',
+    ] as const;
+
+    for (const field of ALLOWED_FIELDS) {
+        if (req.body[field] !== undefined) {
+            (applicant as any)[field] = req.body[field];
+        }
+    }
+
     applicant.refreshExpiry();
     await applicant.save();
 
@@ -223,11 +261,8 @@ export const submitApplication = async (req: Request, res: Response) => {
     await payment.save();
 
     const setPasswordToken = signSetPasswordToken(user.id, user.email);
-    try {
-        await sendSetPasswordEmail(applicant.email, setPasswordToken, applicant.country);
-    } catch (emailError) {
-        console.error('Failed to send set-password email during submission:', emailError);
-    }
+    notificationEmitter.emit('application.submitted', { email: applicant.email, setPasswordToken, country: applicant.country });
+    notificationEmitter.emit('application.enrolled', { user, application });
 
     await Applicant.deleteOne({ _id: applicant._id });
 

@@ -14,9 +14,9 @@ export const signAccessToken = (userId: string, role: UserRole): string =>
         expiresIn: env.JWT_ACCESS_EXPIRY,
     } as jwt.SignOptions);
 
-export const signRefreshToken = (userId: string): string =>
+export const signRefreshToken = (userId: string, expiresIn: string = env.JWT_REFRESH_EXPIRY): string =>
     jwt.sign({ sub: userId } as RefreshPayload, env.JWT_REFRESH_SECRET, {
-        expiresIn: env.JWT_REFRESH_EXPIRY,
+        expiresIn,
     } as jwt.SignOptions);
 
 export const verifyAccessToken = (token: string): AccessPayload =>

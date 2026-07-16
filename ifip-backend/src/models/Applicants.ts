@@ -4,10 +4,6 @@ import { env } from '../config/env.js';
 export interface IApplicant extends Document {
     email: string;
     emailVerified: boolean;
-    otpCodeHash?: string;
-    otpExpiry?: Date;
-    otpSendCount: number;
-    otpWindowStart: Date;
     resumeTokenHash?: string;
     fullName?: string;
     phone?: string;
@@ -51,10 +47,6 @@ const applicantSchema = new Schema<IApplicant>(
     {
         email: { type: String, required: true, lowercase: true, trim: true, index: true },
         emailVerified: { type: Boolean, default: false },
-        otpCodeHash: String,
-        otpExpiry: Date,
-        otpSendCount: { type: Number, default: 0 },
-        otpWindowStart: { type: Date, default: Date.now },
         resumeTokenHash: String,
         fullName: String,
         phone: String,

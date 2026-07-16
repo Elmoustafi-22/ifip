@@ -122,6 +122,8 @@ export interface LMSModule {
   body?: string;
   estimatedDuration: number;
   status: 'locked' | 'in_progress' | 'completed';
+  assessmentId?: string;
+  assessmentStatus?: string;
 }
 
 export const getLMSModules = async (): Promise<LMSModule[]> => {
@@ -159,6 +161,58 @@ export const getAdminStats = async (cohortId?: string): Promise<AdminStats> => {
   const { data } = await authClient.get<AdminStats>("/admin/stats", { params });
   return data;
 };
+
+export interface AdminUser {
+  _id: string;
+  email: string;
+  fullName?: string;
+  role: 'applicant' | 'participant' | 'admin' | 'superadmin';
+  country?: string;
+  title?: string;
+  createdAt: string;
+  application?: {
+    status: string;
+    submittedAt: string;
+    cohortId?: string;
+    fullName?: string;
+    country?: string;
+    academicInfo?: {
+      institution?: string;
+      fieldOfStudy?: string;
+      qualification?: string;
+      gradYear?: string;
+    };
+    programInterest?: {
+      primary?: string[];
+    };
+    skills?: {
+      relevantSkills?: string[];
+    };
+    motivation?: {
+      whyApplying?: string;
+    };
+    cvUrl?: string;
+  };
+}
+
+export interface AdminUsersResponse {
+  users: AdminUser[];
+  total: number;
+  page: number;
+  pages: number;
+  roleBreakdown: Record<string, number>;
+}
+
+export const getAdminUsers = async (params?: {
+  role?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<AdminUsersResponse> => {
+  const { data } = await authClient.get<AdminUsersResponse>("/admin/users", { params });
+  return data;
+};
+
 
 export const getAdminApplications = async (status?: string, search?: string, cohortId?: string): Promise<any[]> => {
   const params: any = {};
@@ -656,6 +710,101 @@ export const adminReorderOpportunities = async (
 ): Promise<void> => {
   await authClient.post("/admin/placement-opportunities/reorder", updates);
 };
+
+// ─── Participant Assessment APIs ──────────────────────────────────────────────
+
+export const getAssessmentForParticipant = async (moduleId: string): Promise<any> => {
+  const { data } = await authClient.get(`/lms/modules/${moduleId}/assessment`);
+  return data;
+};
+
+export const startAssessment = async (moduleId: string): Promise<any> => {
+  const { data } = await authClient.post(`/lms/modules/${moduleId}/assessment/start`);
+  return data;
+};
+
+export const submitAssessment = async (
+  moduleId: string,
+  payload: { startedAt: string; answers: any[] }
+): Promise<any> => {
+  const { data } = await authClient.post(`/lms/modules/${moduleId}/assessment/submit`, payload);
+  return data;
+};
+
+export const getLatestAssessmentResult = async (moduleId: string): Promise<any> => {
+  const { data } = await authClient.get(`/lms/modules/${moduleId}/assessment/result`);
+  return data;
+};
+
+// ─── Admin Assessment APIs ───────────────────────────────────────────────────
+
+export const adminGetAssessments = async (): Promise<any[]> => {
+  const { data } = await authClient.get<any[]>("/admin/assessments");
+  return data;
+};
+
+export const adminGetAssessmentById = async (id: string): Promise<any> => {
+  const { data } = await authClient.get(`/admin/assessments/${id}`);
+  return data;
+};
+
+export const adminCreateAssessment = async (payload: any): Promise<any> => {
+  const { data } = await authClient.post("/admin/assessments", payload);
+  return data;
+};
+
+export const adminUpdateAssessment = async (id: string, payload: any): Promise<any> => {
+  const { data } = await authClient.patch(`/admin/assessments/${id}`, payload);
+  return data;
+};
+
+export const adminPublishAssessment = async (id: string): Promise<any> => {
+  const { data } = await authClient.patch(`/admin/assessments/${id}/publish`);
+  return data;
+};
+
+export const adminArchiveAssessment = async (id: string): Promise<any> => {
+  const { data } = await authClient.patch(`/admin/assessments/${id}/archive`);
+  return data;
+};
+
+export const adminDeleteAssessment = async (id: string): Promise<void> => {
+  await authClient.delete(`/admin/assessments/${id}`);
+};
+
+export const adminGetAssessmentSubmissions = async (id: string): Promise<any[]> => {
+  const { data } = await authClient.get<any[]>(`/admin/assessments/${id}/submissions`);
+  return data;
+};
+
+export const adminGradeSubmission = async (
+  id: string,
+  submissionId: string,
+  grades: { questionId: string; isCorrect: boolean; pointsAwarded: number }[]
+): Promise<any> => {
+  const { data } = await authClient.patch(
+    `/admin/assessments/${id}/submissions/${submissionId}/grade`,
+    { grades }
+  );
+  return data;
+};
+
+export const adminResetAttempts = async (id: string, userId: string): Promise<any> => {
+  const { data } = await authClient.post(`/admin/assessments/${id}/submissions/reset`, { userId });
+  return data;
+};
+
+export const inviteAdmin = async (payload: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: 'admin' | 'superadmin';
+  title: string;
+}): Promise<{ message: string }> => {
+  const { data } = await authClient.post<{ message: string }>("/admin/users/invite", payload);
+  return data;
+};
+
 
 
 

@@ -2,7 +2,8 @@ import type { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import { Placement } from '../models/Placement.js';
 import { PartnerOrganization } from '../models/PartnerOrganization.js';
-import { Notification } from '../models/Notification.js';
+import { User } from '../models/User.js';
+import { notificationEmitter } from '../services/notificationBroadcast.js';
 
 // --- Student Endpoints ---
 export const getMyPlacement = async (req: Request, res: Response) => {
@@ -80,14 +81,18 @@ export const createMatch = async (req: Request, res: Response) => {
         partner.activeSlots -= 1;
         await partner.save();
 
-        // Notify student
-        await Notification.create({
-            userId: new Types.ObjectId(userId),
-            title: 'Internship Placement Matched',
-            message: `Congratulations! You have been matched with "${partner.name}" for your internship placement. Check your placement workspace for onboarding steps.`,
-            type: 'success',
-            link: '/dashboard/placement'
-        });
+        // Notify student via event emitter
+        const studentUser = await User.findById(userId);
+        if (studentUser) {
+            notificationEmitter.emit('placement.matched', {
+                userId,
+                userEmail: studentUser.email,
+                userFullName: studentUser.fullName,
+                partner,
+                area: areaOfInterest,
+                notes
+            });
+        }
 
         res.json({ message: 'Placement match registered successfully.', placement });
     } catch (e: any) {
@@ -120,14 +125,17 @@ export const updateMatchStatus = async (req: Request, res: Response) => {
             await PartnerOrganization.findByIdAndUpdate(placement.partnerOrgId, { $inc: { activeSlots: -1 } });
         }
 
-        // Send update notification
-        await Notification.create({
-            userId: placement.userId,
-            title: 'Placement Status Updated',
-            message: `Your internship placement status with "${partnerName}" has been updated to "${status}".`,
-            type: 'info',
-            link: '/dashboard/placement'
-        });
+        // Send update notification via event emitter
+        const studentUser = await User.findById(placement.userId);
+        if (studentUser) {
+            notificationEmitter.emit('placement.status_updated', {
+                userId: placement.userId,
+                userEmail: studentUser.email,
+                userFullName: studentUser.fullName,
+                partnerName,
+                status
+            });
+        }
 
         res.json({ message: 'Placement status updated successfully.', placement });
     } catch (e: any) {

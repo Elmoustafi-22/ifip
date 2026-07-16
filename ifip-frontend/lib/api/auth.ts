@@ -55,7 +55,9 @@ export const login = async (
     email,
     password,
   });
-  storeAccessToken(data.accessToken, rememberMe);
+  if (!data.mfaRequired && data.accessToken) {
+    storeAccessToken(data.accessToken, rememberMe);
+  }
   return data;
 };
 
@@ -71,7 +73,9 @@ export const setPassword = async (
     token,
     password,
   });
-  storeAccessToken(data.accessToken);
+  if (data.accessToken) {
+    storeAccessToken(data.accessToken);
+  }
   return data;
 };
 
@@ -91,7 +95,9 @@ export const getTokenInfo = async (token: string): Promise<{ email: string }> =>
  */
 export const refreshAccessToken = async (): Promise<AuthResponse> => {
   const { data } = await authClient.post<AuthResponse>("/auth/refresh");
-  storeAccessToken(data.accessToken);
+  if (data.accessToken) {
+    storeAccessToken(data.accessToken);
+  }
   return data;
 };
 
@@ -121,7 +127,9 @@ export const resetPassword = async (
     token,
     password,
   });
-  storeAccessToken(data.accessToken);
+  if (data.accessToken) {
+    storeAccessToken(data.accessToken);
+  }
   return data;
 };
 
@@ -147,6 +155,47 @@ export const changePassword = async (
   const { data } = await authClient.post<{ message: string }>("/auth/change-password", {
     currentPassword,
     newPassword,
+  });
+  return data;
+};
+
+export const loginMfaVerify = async (
+  mfaToken: string,
+  code: string,
+  rememberMe = false
+): Promise<AuthResponse> => {
+  const { data } = await authClient.post<AuthResponse>("/auth/login/mfa-verify", {
+    mfaToken,
+    code,
+  });
+  if (data.accessToken) {
+    storeAccessToken(data.accessToken, rememberMe);
+  }
+  return data;
+};
+
+export const mfaSetup = async (): Promise<{ secret: string; qrCode: string }> => {
+  const { data } = await authClient.get<{ secret: string; qrCode: string }>("/auth/mfa/setup");
+  return data;
+};
+
+export const mfaEnable = async (secret: string, code: string): Promise<{ message: string }> => {
+  const { data } = await authClient.post<{ message: string }>("/auth/mfa/enable", { secret, code });
+  return data;
+};
+
+export const mfaDisable = async (code: string): Promise<{ message: string }> => {
+  const { data } = await authClient.post<{ message: string }>("/auth/mfa/disable", { code });
+  return data;
+};
+
+export const updateProfile = async (
+  fullName: string,
+  title?: string
+): Promise<{ message: string; user: any }> => {
+  const { data } = await authClient.patch<{ message: string; user: any }>("/auth/profile", {
+    fullName,
+    title,
   });
   return data;
 };

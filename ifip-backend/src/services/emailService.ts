@@ -570,3 +570,307 @@ export const sendPartnerApplicationDeclined = async (to: string, companyName: st
     `;
     await send(to, 'Partnership Application Update — IFIP', html);
 };
+
+export const sendWaitlistEmail = async (to: string, cohortName: string) => {
+    const html = `
+    <div style="${wrapperStyle}">
+        <div style="${cardStyle}">
+            <div style="padding: 40px 32px 0 32px; text-align: center;">
+                <img src="${LOGO_HEADER_URL}" style="height: 64px; max-height: 64px; width: auto; display: block; margin: 0 auto;" alt="IFIP Logo">
+                <div style="width: 80px; height: 4px; background-color: #000666; margin: 24px auto 0 auto; border-radius: 2px;"></div>
+            </div>
+            <div style="${contentContainerStyle}">
+                <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 16px 0;">Waitlist Confirmation</h1>
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    Hello,
+                </p>
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    We have successfully received your request to join the waitlist for <strong>${cohortName}</strong>. 
+                </p>
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 24px 0;">
+                    When registration capacity opens up or details for the next intake are finalized, you will be the first to know.
+                </p>
+                <p style="font-size: 14px; color: #767683; line-height: 1.6; margin: 0;">
+                    Thank you for your interest in our program.
+                </p>
+            </div>
+            <div style="background-color: #FDFBF7; padding: 32px 24px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <h3 style="font-family: Georgia, serif; font-size: 18px; font-weight: bold; color: #000666; margin: 0 0 8px 0;">Islamic Finance Internship Program</h3>
+                <p style="font-size: 11px; color: #767683; margin: 0;">© 2026 Islamic Finance Academy. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+    `;
+    await send(to, 'Waitlist Registered Confirmation — IFIP', html);
+};
+
+export const sendCohortWelcomeEmail = async (to: string, fullName: string, cohortName: string, kickoffDate: string) => {
+    const html = `
+    <div style="${wrapperStyle}">
+        <div style="${cardStyle}">
+            <div style="padding: 40px 32px 0 32px; text-align: center;">
+                <img src="${LOGO_HEADER_URL}" style="height: 64px; max-height: 64px; width: auto; display: block; margin: 0 auto;" alt="IFIP Logo">
+                <div style="width: 80px; height: 4px; background-color: #000666; margin: 24px auto 0 auto; border-radius: 2px;"></div>
+            </div>
+            <div style="${contentContainerStyle}">
+                <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 16px 0;">Welcome to ${cohortName}!</h1>
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    Dear <strong>${fullName}</strong>,
+                </p>
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    We are thrilled to welcome you to <strong>${cohortName}</strong> of the Islamic Finance Internship Program. Your training dashboard has been fully unlocked.
+                </p>
+                <div style="background-color: #F0FFF4; border-left: 4px solid #16a34a; border-radius: 4px; padding: 16px 20px; margin: 0 0 24px 0;">
+                    <p style="font-size: 14px; color: #15803d; margin: 0; font-weight: 600;">Program Details</p>
+                    <p style="font-size: 14px; color: #454652; margin: 8px 0 0 0; line-height: 1.6;">
+                        <strong>Kickoff Date:</strong> ${new Date(kickoffDate).toLocaleDateString()}<br/>
+                        <strong>Workspace:</strong> <a href="${env.CLIENT_URL}/dashboard" style="color: #000666; font-weight: bold; text-decoration: underline;">Access Dashboard</a>
+                    </p>
+                </div>
+                <p style="font-size: 14px; color: #767683; line-height: 1.6; margin: 0;">
+                    We look forward to seeing you excel in the course!
+                </p>
+            </div>
+            <div style="background-color: #FDFBF7; padding: 32px 24px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <h3 style="font-family: Georgia, serif; font-size: 18px; font-weight: bold; color: #000666; margin: 0 0 8px 0;">Islamic Finance Internship Program</h3>
+                <p style="font-size: 11px; color: #767683; margin: 0;">© 2026 Islamic Finance Academy. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+    `;
+    await send(to, `Welcome to ${cohortName} — IFIP`, html);
+};
+
+export const sendAssessmentGradedEmail = async (to: string, fullName: string, assessmentTitle: string, score: number, passed: boolean, attemptsRemaining: number) => {
+    const statusText = passed ? 'Passed' : 'Failed';
+    const statusColor = passed ? '#16a34a' : '#dc2626';
+    const html = `
+    <div style="${wrapperStyle}">
+        <div style="${cardStyle}">
+            <div style="padding: 40px 32px 0 32px; text-align: center;">
+                <img src="${LOGO_HEADER_URL}" style="height: 64px; max-height: 64px; width: auto; display: block; margin: 0 auto;" alt="IFIP Logo">
+                <div style="width: 80px; height: 4px; background-color: #000666; margin: 24px auto 0 auto; border-radius: 2px;"></div>
+            </div>
+            <div style="${contentContainerStyle}">
+                <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 16px 0;">Assessment Results Released</h1>
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    Dear <strong>${fullName}</strong>,
+                </p>
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    Your assessment submission for <strong>${assessmentTitle}</strong> has been graded.
+                </p>
+                <div style="background-color: #FDFBF7; border: 1px solid #E7E2D8; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                    <p style="font-size: 14px; margin: 0; line-height: 1.6;">
+                        <strong>Score:</strong> ${score}%<br/>
+                        <strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">${statusText}</span><br/>
+                        ${!passed ? `<strong>Attempts Remaining:</strong> ${attemptsRemaining}` : ''}
+                    </p>
+                </div>
+                <p style="font-size: 14px; color: #767683; line-height: 1.6; margin: 0;">
+                    Visit your dashboard to view detailed feedback or retake where applicable.
+                </p>
+            </div>
+            <div style="background-color: #FDFBF7; padding: 32px 24px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <h3 style="font-family: Georgia, serif; font-size: 18px; font-weight: bold; color: #000666; margin: 0 0 8px 0;">Islamic Finance Internship Program</h3>
+                <p style="font-size: 11px; color: #767683; margin: 0;">© 2026 Islamic Finance Academy. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+    `;
+    await send(to, `Assessment Graded: ${assessmentTitle} — IFIP`, html);
+};
+
+export const sendPlacementMatchedEmail = async (to: string, fullName: string, partnerName: string, area: string, onboardingNotes?: string) => {
+    const html = `
+    <div style="${wrapperStyle}">
+        <div style="${cardStyle}">
+            <div style="padding: 40px 32px 0 32px; text-align: center;">
+                <img src="${LOGO_HEADER_URL}" style="height: 64px; max-height: 64px; width: auto; display: block; margin: 0 auto;" alt="IFIP Logo">
+                <div style="width: 80px; height: 4px; background-color: #000666; margin: 24px auto 0 auto; border-radius: 2px;"></div>
+            </div>
+            <div style="${contentContainerStyle}">
+                <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 16px 0;">Internship Placement Matched!</h1>
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    Dear <strong>${fullName}</strong>,
+                </p>
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    We are pleased to inform you that you have been matched with <strong>${partnerName}</strong> for your internship placement.
+                </p>
+                <div style="background-color: #F0F4FF; border-left: 4px solid #000666; border-radius: 4px; padding: 16px 20px; margin: 0 0 24px 0;">
+                    <p style="font-size: 14px; color: #000666; margin: 0; font-weight: 600;">Match details</p>
+                    <p style="font-size: 14px; color: #454652; margin: 8px 0 0 0; line-height: 1.6;">
+                        <strong>Organization:</strong> ${partnerName}<br/>
+                        <strong>Area of Interest:</strong> ${area || 'Ethical Finance'}
+                    </p>
+                </div>
+                ${onboardingNotes ? `
+                <div style="background-color: #FDFBF7; border: 1px solid #E7E2D8; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+                    <h4 style="font-size: 12px; font-weight: bold; color: #000666; margin: 0 0 8px 0;">Onboarding / Interview Notes:</h4>
+                    <p style="font-size: 13px; color: #454652; margin: 0; font-style: italic;">"${onboardingNotes}"</p>
+                </div>` : ''}
+                <p style="font-size: 14px; color: #767683; line-height: 1.6; margin: 0;">
+                    Please check your dashboard placements tab for further guidelines and next steps.
+                </p>
+            </div>
+            <div style="background-color: #FDFBF7; padding: 32px 24px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <h3 style="font-family: Georgia, serif; font-size: 18px; font-weight: bold; color: #000666; margin: 0 0 8px 0;">Islamic Finance Internship Program</h3>
+                <p style="font-size: 11px; color: #767683; margin: 0;">© 2026 Islamic Finance Academy. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+    `;
+    await send(to, `Placement Match: ${partnerName} — IFIP`, html);
+};
+
+export const sendPasswordChangedAlert = async (to: string, email: string) => {
+    const html = `
+    <div style="${wrapperStyle}">
+        <div style="${cardStyle}">
+            <div style="padding: 40px 32px 0 32px; text-align: center;">
+                <img src="${LOGO_HEADER_URL}" style="height: 64px; max-height: 64px; width: auto; display: block; margin: 0 auto;" alt="IFIP Logo">
+                <div style="width: 80px; height: 4px; background-color: #000666; margin: 24px auto 0 auto; border-radius: 2px;"></div>
+            </div>
+            <div style="${contentContainerStyle}">
+                <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: bold; color: #dc2626; text-align: center; margin: 0 0 16px 0;">Security Alert: Password Changed</h1>
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    Hello,
+                </p>
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    This email is to notify you that the password for your IFIP account associated with <strong>${email}</strong> has been changed.
+                </p>
+                <div style="background-color: #FFF7ED; border-left: 4px solid #ea580c; border-radius: 4px; padding: 16px 20px; margin: 0 0 24px 0;">
+                    <p style="font-size: 13px; color: #c2410c; margin: 0; line-height: 1.6;">
+                        If you performed this action, no further steps are required. If you did not make this change, please reset your password immediately or contact administration.
+                    </p>
+                </div>
+            </div>
+            <div style="background-color: #FDFBF7; padding: 32px 24px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <h3 style="font-family: Georgia, serif; font-size: 18px; font-weight: bold; color: #000666; margin: 0 0 8px 0;">Islamic Finance Internship Program</h3>
+                <p style="font-size: 11px; color: #767683; margin: 0;">© 2026 Islamic Finance Academy. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+    `;
+    await send(to, 'Security Alert: Password Changed — IFIP', html);
+};
+
+export const sendAdminEnrollmentDigest = async (to: string, newStudentCount: number) => {
+    const html = `
+    <div style="${wrapperStyle}">
+        <div style="${cardStyle}">
+            <div style="padding: 40px 32px 0 32px; text-align: center;">
+                <img src="${LOGO_HEADER_URL}" style="height: 64px; max-height: 64px; width: auto; display: block; margin: 0 auto;" alt="IFIP Logo">
+                <div style="width: 80px; height: 4px; background-color: #000666; margin: 24px auto 0 auto; border-radius: 2px;"></div>
+            </div>
+            <div style="${contentContainerStyle}">
+                <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 16px 0;">Daily Enrollment Digest</h1>
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    Hello Administrator,
+                </p>
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 24px 0;">
+                    This is your enrollment notification checklist. There are <strong>${newStudentCount}</strong> newly submitted, paid applications awaiting cohort assignments.
+                </p>
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <a href="${env.CLIENT_URL}/admin/applications" style="display: inline-block; background-color: #000666; color: #FFFFFF; font-size: 12px; font-weight: bold; text-decoration: none; padding: 14px 30px; border-radius: 4px; text-transform: uppercase; letter-spacing: 1px;">
+                        Open Admissions Queue
+                    </a>
+                </div>
+            </div>
+            <div style="background-color: #FDFBF7; padding: 32px 24px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <h3 style="font-family: Georgia, serif; font-size: 18px; font-weight: bold; color: #000666; margin: 0 0 8px 0;">Islamic Finance Internship Program</h3>
+                <p style="font-size: 11px; color: #767683; margin: 0;">© 2026 Islamic Finance Academy. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+    `;
+    await send(to, 'Admin Notice: New Enrollments Logged — IFIP', html);
+};
+
+export const sendCustomBroadcastEmail = async (to: string, title: string, message: string) => {
+    const html = `
+    <div style="${wrapperStyle}">
+        <div style="${cardStyle}">
+            <div style="padding: 40px 32px 0 32px; text-align: center;">
+                <img src="${LOGO_HEADER_URL}" style="height: 64px; max-height: 64px; width: auto; display: block; margin: 0 auto;" alt="IFIP Logo">
+                <div style="width: 80px; height: 4px; background-color: #000666; margin: 24px auto 0 auto; border-radius: 2px;"></div>
+            </div>
+            <div style="${contentContainerStyle}">
+                <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 16px 0;">Announcement: ${title}</h1>
+                <div style="font-size: 15px; color: #454652; line-height: 1.7; margin: 24px 0;">
+                    ${message.replace(/\n/g, '<br/>')}
+                </div>
+                <p style="font-size: 13px; color: #767683; text-align: center; margin: 32px 0 0 0; border-top: 1px solid #E7E2D8; padding-top: 16px;">
+                    Please check your dashboard notifications panel for other details.
+                </p>
+            </div>
+            <div style="background-color: #FDFBF7; padding: 32px 24px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <h3 style="font-family: Georgia, serif; font-size: 18px; font-weight: bold; color: #000666; margin: 0 0 8px 0;">Islamic Finance Internship Program</h3>
+                <p style="font-size: 11px; color: #767683; margin: 0;">© 2026 Islamic Finance Academy. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+    `;
+    await send(to, `Announcement: ${title} — IFIP`, html);
+};
+
+export const sendAdminInvitationEmail = async (to: string, name: string, role: string, title: string, token: string) => {
+    const setupUrl = `${env.CLIENT_URL}/set-password?token=${token}`;
+    const roleLabel = role === 'superadmin' ? 'Super Administrator' : 'System Administrator';
+
+    const html = `
+    <div style="${wrapperStyle}">
+        <div style="${cardStyle}">
+            <div style="padding: 40px 32px 0 32px; text-align: center;">
+                <img src="${LOGO_HEADER_URL}" style="height: 64px; max-height: 64px; width: auto; display: block; margin: 0 auto;" alt="IFIP Logo">
+                <div style="width: 80px; height: 4px; background-color: #000666; margin: 24px auto 0 auto; border-radius: 2px;"></div>
+            </div>
+            
+            <div style="${contentContainerStyle}">
+                <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 16px 0;">You've Been Invited</h1>
+                
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 16px 0;">
+                    Hello ${name},
+                </p>
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 24px 0;">
+                    You have been invited to join the Islamic Finance Internship Preparatory & Placement Program (IFIP) administrative panel. 
+                </p>
+
+                <!-- Invitation details box -->
+                <div style="background-color: #FDFBF7; border: 1px solid #E7E2D8; border-radius: 8px; padding: 20px; margin-bottom: 28px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
+                        <tr>
+                            <td style="padding: 4px 0; color: #767683; font-weight: bold; width: 120px;">System Role:</td>
+                            <td style="padding: 4px 0; color: #000666; font-weight: bold;">${roleLabel}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 4px 0; color: #767683; font-weight: bold;">Startup Position:</td>
+                            <td style="padding: 4px 0; color: #000666; font-weight: bold;">${title}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 28px 0;">
+                    Please click the button below to set up your password and activate your administrative access:
+                </p>
+                
+                <div style="text-align: center; margin-bottom: 32px;">
+                    <a href="${setupUrl}" style="display: inline-block; background-color: #000666; color: #FFFFFF; font-size: 12px; font-weight: bold; text-decoration: none; padding: 14px 30px; border-radius: 4px; text-transform: uppercase; letter-spacing: 1px;">
+                        Set Up Password & Login
+                    </a>
+                </div>
+
+                <p style="font-size: 12px; color: #767683; line-height: 1.5; margin: 0;">
+                    If the button above does not work, copy and paste this URL into your web browser:<br/>
+                    <a href="${setupUrl}" style="color: #000666; text-decoration: underline; word-break: break-all;">${setupUrl}</a>
+                </p>
+            </div>
+            
+            <div style="background-color: #FDFBF7; padding: 32px 24px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <h3 style="font-family: Georgia, serif; font-size: 18px; font-weight: bold; color: #000666; margin: 0 0 8px 0;">Islamic Finance Internship Program</h3>
+                <p style="font-size: 11px; color: #767683; margin: 0;">© 2026 Islamic Finance Academy. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+    `;
+    await send(to, 'Invitation to join IFIP Admin Panel', html);
+};

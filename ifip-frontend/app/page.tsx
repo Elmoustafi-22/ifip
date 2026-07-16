@@ -29,7 +29,8 @@ import {
   TbMessage,
   TbWriting,
   TbActivity,
-  TbDeviceLaptop
+  TbDeviceLaptop,
+  TbBrandLinkedin
 } from "react-icons/tb";
 import apiClient from "@/lib/api/client";
 import { getActivePartners, getActiveOpenings, ActiveOpening, getOpportunities, PlacementOpportunity } from "@/lib/api/services";
@@ -311,14 +312,12 @@ export default function Home() {
               Apply for Program
               <HiArrowRight className="w-5 h-5" />
             </Link>
-            <a
-              href="/documents/IFIP_Program_Guide.pdf"
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href="/partners/apply"
               className="border border-primary text-primary hover:bg-primary/5 font-semibold text-sm sm:text-base py-3 sm:py-4 px-6 sm:px-8 rounded-[4px] text-center hover-lift flex items-center justify-center gap-2 transition-all bg-white"
             >
-              Download Program Guide
-            </a>
+              Become a Partner
+            </Link>
           </motion.div>
         </motion.div>
 
@@ -1302,8 +1301,14 @@ export default function Home() {
               The Islamic Finance Internship Program (IFIP) develops industry-ready talent through professional training, practical simulations, and structured internship placement across the ethical finance ecosystem.
             </p>
             <div className="flex items-center gap-3 mt-4 text-on-surface-variant">
-              <a href="#" className="p-2 bg-primary/5 hover:bg-primary/10 rounded-full transition-colors" aria-label="Social Share">
-                <HiShare className="w-4 h-4" />
+              <a
+                href="https://www.linkedin.com/company/islamic-finance-internship-program/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 bg-primary/5 hover:bg-primary/10 rounded-full transition-colors"
+                aria-label="LinkedIn"
+              >
+                <TbBrandLinkedin className="w-4 h-4" />
               </a>
               <a href="https://ifip.ng" target="_blank" rel="noopener noreferrer" className="p-2 bg-primary/5 hover:bg-primary/10 rounded-full transition-colors" aria-label="Website">
                 <HiGlobeAlt className="w-4 h-4" />
@@ -1319,6 +1324,16 @@ export default function Home() {
               <li><a href="#partners" className="hover:text-primary transition-colors">Placement Partners</a></li>
               <li><a href="#faq" className="hover:text-primary transition-colors">Program FAQs</a></li>
               <li><Link href="/partners/apply" className="hover:text-primary transition-colors">Become a Partner</Link></li>
+              <li>
+                <a
+                  href="https://www.linkedin.com/company/islamic-finance-internship-program/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-primary transition-colors"
+                >
+                  LinkedIn
+                </a>
+              </li>
             </ul>
           </div>
 
@@ -1338,7 +1353,7 @@ export default function Home() {
             © {new Date().getFullYear()} IFIP. All rights reserved. Ethical Finance Education.
           </div>
           <div>
-            Headquarters: Financial District, Lagos
+            Headquarters: Financial District, Abuja
           </div>
         </div>
       </footer>

@@ -12,7 +12,7 @@ import {
   HiOutlineExclamationTriangle
 } from "react-icons/hi2";
 import { getMyApplication, updateMyApplication, uploadCvAuth } from "@/lib/api/services";
-import { changePassword } from "@/lib/api/auth";
+import { changePassword, mfaSetup, mfaEnable, mfaDisable } from "@/lib/api/auth";
 
 // Common country list for dial codes & location matching screen-7.png
 const POPULAR_COUNTRIES = [
@@ -71,6 +71,69 @@ export default function SettingsPage() {
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
 
+  // MFA States
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [showMfaSetup, setShowMfaSetup] = useState(false);
+  const [mfaQrCode, setMfaQrCode] = useState("");
+  const [mfaSecret, setMfaSecret] = useState("");
+  const [mfaSetupCode, setMfaSetupCode] = useState("");
+  const [mfaLoading, setMfaLoading] = useState(false);
+  const [mfaError, setMfaError] = useState("");
+  const [mfaSuccess, setMfaSuccess] = useState("");
+
+  const handleMfaSetupStart = async () => {
+    setMfaLoading(true);
+    setMfaError("");
+    setMfaSuccess("");
+    try {
+      const data = await mfaSetup();
+      setMfaSecret(data.secret);
+      setMfaQrCode(data.qrCode);
+      setShowMfaSetup(true);
+    } catch (err: any) {
+      setMfaError(err?.response?.data?.message || err.message || "Failed to initiate MFA setup.");
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const handleMfaEnableSubmit = async () => {
+    if (!mfaSetupCode) {
+      setMfaError("Please enter the verification code.");
+      return;
+    }
+    setMfaLoading(true);
+    setMfaError("");
+    try {
+      await mfaEnable(mfaSecret, mfaSetupCode);
+      setMfaEnabled(true);
+      setShowMfaSetup(false);
+      setMfaSuccess("MFA has been successfully enabled on your account.");
+      setMfaSetupCode("");
+    } catch (err: any) {
+      setMfaError(err?.response?.data?.message || err.message || "Failed to enable MFA.");
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const handleMfaDisableSubmit = async () => {
+    const code = prompt("Please enter the 6-digit verification code from your authenticator app to disable MFA:");
+    if (!code) return;
+    setMfaLoading(true);
+    setMfaError("");
+    setMfaSuccess("");
+    try {
+      await mfaDisable(code);
+      setMfaEnabled(false);
+      setMfaSuccess("MFA has been successfully disabled.");
+    } catch (err: any) {
+      setMfaError(err?.response?.data?.message || err.message || "Failed to disable MFA. Incorrect code.");
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
   // Global Page States
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -122,6 +185,7 @@ export default function SettingsPage() {
           if (data.skills?.availability) {
             setAvailability(data.skills.availability);
           }
+          setMfaEnabled(data.mfaEnabled || false);
         }
       } catch (err) {
         console.error("Failed to load settings profile:", err);
@@ -622,7 +686,7 @@ export default function SettingsPage() {
               <div className="flex flex-col gap-0.5 text-left">
                 <h4 className="text-xs font-bold text-slate-800">Change Account Password</h4>
                 <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                  Ensure your candidate portal remains secure with a strong password.
+                  Ensure your candidate account remains secure with a strong password.
                 </p>
               </div>
               {!showSecurity && (
@@ -706,6 +770,110 @@ export default function SettingsPage() {
                   >
                     Cancel
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* Divider */}
+            <div className="border-t border-slate-100/80 my-2" />
+
+            {/* MFA Section */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex flex-col gap-0.5 text-left">
+                <h4 className="text-xs font-bold text-slate-800">Two-Factor Authentication (MFA)</h4>
+                <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                  Add an extra layer of security to your account using an authenticator app.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {mfaEnabled ? (
+                  <button
+                    type="button"
+                    onClick={handleMfaDisableSubmit}
+                    disabled={mfaLoading}
+                    className="border border-red-200 hover:bg-red-50 text-red-700 font-bold text-xs px-5 py-3 rounded-[6px] shadow-sm transition-colors cursor-pointer self-start sm:self-auto"
+                  >
+                    Disable MFA
+                  </button>
+                ) : (
+                  !showMfaSetup && (
+                    <button
+                      type="button"
+                      onClick={handleMfaSetupStart}
+                      disabled={mfaLoading}
+                      className="border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs px-5 py-3 rounded-[6px] shadow-sm transition-colors cursor-pointer self-start sm:self-auto"
+                    >
+                      Set Up Authenticator
+                    </button>
+                  )
+                )}
+              </div>
+            </div>
+
+            {mfaError && (
+              <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 font-semibold text-left">
+                {mfaError}
+              </div>
+            )}
+            {mfaSuccess && (
+              <div className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 font-semibold text-left">
+                {mfaSuccess}
+              </div>
+            )}
+
+            {/* MFA Setup QR & Verification Code Input Form */}
+            {showMfaSetup && (
+              <div className="border-t border-slate-100 pt-6 mt-2 flex flex-col sm:flex-row gap-6 animate-slideDown">
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex items-center justify-center shrink-0">
+                  {mfaQrCode ? (
+                    <img src={mfaQrCode} alt="MFA QR Code" className="w-40 h-40 object-contain" />
+                  ) : (
+                    <div className="w-40 h-40 flex items-center justify-center text-xs text-slate-400 font-medium animate-pulse">
+                      Generating QR...
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 flex flex-col gap-4 max-w-sm text-left">
+                  <h5 className="text-xs font-bold text-slate-800">Scan QR Code</h5>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    1. Scan the QR code with your authenticator app (Google Authenticator, Duo, or Microsoft Authenticator).<br/>
+                    2. Or enter the manual key: <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded text-[10px] font-mono break-all">{mfaSecret}</code>
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="mfa-verify-code" className="text-[10px] uppercase font-bold text-slate-500 tracking-wide">
+                      Enter Verification Code
+                    </label>
+                    <input
+                      id="mfa-verify-code"
+                      type="text"
+                      maxLength={6}
+                      value={mfaSetupCode}
+                      onChange={(e) => setMfaSetupCode(e.target.value.replace(/\D/g, ''))}
+                      className="w-full border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20 tracking-[0.2em] font-bold"
+                      placeholder="000000"
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={handleMfaEnableSubmit}
+                      disabled={mfaLoading}
+                      className="flex-1 bg-[#0E1B5D] hover:bg-[#0E1B5D]/95 text-white font-bold text-xs py-3 rounded-[6px] transition-colors cursor-pointer text-center"
+                    >
+                      {mfaLoading ? "Verifying..." : "Verify & Enable"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMfaSetup(false);
+                        setMfaError("");
+                        setMfaSuccess("");
+                      }}
+                      className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs py-3 rounded-[6px] transition-colors cursor-pointer text-center"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

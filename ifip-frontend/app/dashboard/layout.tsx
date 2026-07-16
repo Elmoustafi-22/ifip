@@ -18,15 +18,8 @@ import {
   HiOutlineBell
 } from "react-icons/hi2";
 import { getAccessToken, clearAuth } from "@/lib/api/auth";
-import { 
-  getMyApplication, 
-  getCohortConfig, 
-  getNotifications, 
-  markNotificationRead, 
-  markAllNotificationsRead, 
-  deleteNotification, 
-  AppNotification 
-} from "@/lib/api/services";
+import { getMyApplication, getCohortConfig } from "@/lib/api/services";
+import NotificationBell from "@/components/NotificationBell";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -39,45 +32,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [dashboardViewOverride, setDashboardViewOverride] = useState<string>("default");
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  // Notifications state
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [bellOpen, setBellOpen] = useState(false);
 
-  const fetchNotificationsList = async () => {
-    try {
-      const data = await getNotifications();
-      setNotifications(data);
-    } catch (err) {
-      console.error("Failed to load notifications:", err);
-    }
-  };
-
-  const handleMarkRead = async (id: string) => {
-    try {
-      await markNotificationRead(id);
-      fetchNotificationsList();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleMarkAllRead = async () => {
-    try {
-      await markAllNotificationsRead();
-      fetchNotificationsList();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleDeleteNotification = async (id: string) => {
-    try {
-      await deleteNotification(id);
-      fetchNotificationsList();
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   // Authenticate user & check placement status
   useEffect(() => {
@@ -100,7 +55,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           setCohortStartDate(config.cohortStartDate);
           setDashboardViewOverride(config.dashboardViewOverride || "default");
           setIsAuthorized(true);
-          fetchNotificationsList();
+
 
           // Auto-redirect admin to admin control panel
           const role = application.role;
@@ -233,7 +188,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: "Settings", href: "/dashboard/settings", icon: HiOutlineCog6Tooth, disabled: false }
   ];
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+
 
   return (
     <div className="min-h-screen flex font-sans bg-[#FDFBF7]">
@@ -332,65 +287,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Bell notification dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setBellOpen(!bellOpen)}
-                className="relative p-1.5 text-slate-400 hover:text-[#000666] transition-colors cursor-pointer focus:outline-none"
-              >
-                <HiOutlineBell className="w-5.5 h-5.5" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 bg-rose-500 text-white font-bold text-[8px] h-4 w-4 flex items-center justify-center rounded-full border border-white">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-
-              {bellOpen && (
-                <>
-                  <div className="fixed inset-0 z-40 cursor-default" onClick={() => setBellOpen(false)}></div>
-                  <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 bg-white border border-slate-200/80 rounded-xl shadow-lg z-50 py-3 font-sans animate-fadeIn text-xs text-slate-700">
-                    <div className="px-4 pb-2 border-b border-slate-100 flex justify-between items-center">
-                      <span className="font-bold text-[#000666]">Notifications</span>
-                      {unreadCount > 0 && (
-                        <button onClick={handleMarkAllRead} className="text-[10px] font-bold text-sky-600 hover:underline">
-                          Mark all read
-                        </button>
-                      )}
-                    </div>
-                    <div className="max-h-60 overflow-y-auto divide-y divide-slate-50">
-                      {notifications.length === 0 ? (
-                        <div className="py-8 text-center text-slate-400">
-                          No notifications found.
-                        </div>
-                      ) : (
-                        notifications.map((n) => (
-                          <div key={n._id} className={`p-3 transition-colors hover:bg-slate-50 flex gap-2 justify-between items-start ${!n.read ? 'bg-indigo-50/30' : ''}`}>
-                            <div className="flex-1">
-                              <div className="font-bold text-slate-800 flex items-center gap-1.5">
-                                <span className={`w-1.5 h-1.5 rounded-full ${n.type === 'success' ? 'bg-emerald-500' : n.type === 'warning' ? 'bg-amber-500' : n.type === 'alert' ? 'bg-rose-500' : 'bg-sky-500'}`}></span>
-                                {n.title}
-                              </div>
-                              <p className="text-slate-500 text-[11px] mt-0.5 leading-relaxed">{n.message}</p>
-                            </div>
-                            <div className="flex flex-col gap-1 items-end shrink-0">
-                              {!n.read && (
-                                <button onClick={() => handleMarkRead(n._id)} className="text-[9px] font-bold text-sky-600 hover:underline">
-                                  Mark read
-                                </button>
-                              )}
-                              <button onClick={() => handleDeleteNotification(n._id)} className="text-[9px] text-rose-500 hover:underline">
-                                Dismiss
-                              </button>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+            <NotificationBell />
 
             {/* Vertical separator */}
             <div className="w-px h-8 bg-slate-200"></div>
@@ -467,7 +364,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
 
-        {/* Portal Footer — hidden on mobile (bottom tab bar replaces) */}
+        {/* Platform Footer — hidden on mobile (bottom tab bar replaces) */}
         <footer className="hidden md:flex bg-white border-t border-slate-200/50 py-6 px-12 text-xs text-slate-400 items-center justify-between font-sans shrink-0">
           <span>© {new Date().getFullYear()} IFIP. All rights reserved. Ethical Finance Education.</span>
           <div className="flex gap-4">

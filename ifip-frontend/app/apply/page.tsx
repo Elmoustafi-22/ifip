@@ -663,7 +663,13 @@ export default function ApplyPage() {
         if (applicant.portfolioUrl) setPortfolioUrl(applicant.portfolioUrl);
         if (applicant.leadSource) setLeadSource(applicant.leadSource);
         if (applicant.levyAcknowledged !== undefined) setLevyAcknowledged(applicant.levyAcknowledged);
- 
+
+        // Restore payment-verified state from server — critical for users who
+        // paid but closed the browser before clicking "Submit Application".
+        // Without this, isPaid=true applicants would see the "Pay Now" button
+        // again and risk being charged a second time.
+        if (applicant.isPaid) setPaymentVerified(true);
+
         // Move to the step retrieved from the backend (fall back to step 2 if none)
         const savedStep = applicant.currentStep || 2;
         setStep(savedStep);
@@ -731,6 +737,11 @@ export default function ApplyPage() {
         if (data.portfolioUrl) setPortfolioUrl(data.portfolioUrl);
         if (data.leadSource) setLeadSource(data.leadSource);
         if (data.levyAcknowledged !== undefined) setLevyAcknowledged(data.levyAcknowledged);
+
+        // Restore payment-verified state from server — same fix as handleResumeApplication.
+        // Handles the case where the applicantToken is still valid in localStorage
+        // and the page auto-loads a paid applicant's record on mount.
+        if (data.isPaid) setPaymentVerified(true);
 
         if (data.currentStep) setStep(data.currentStep);
       }

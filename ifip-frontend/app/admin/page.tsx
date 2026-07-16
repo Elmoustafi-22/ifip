@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { 
   HiOutlineUsers, 
   HiOutlineCheckCircle, 
@@ -27,14 +26,22 @@ import {
 
 export default function AdminDashboardPage() {
   const { selectedCohortId, cohorts } = useContext(AdminCohortContext);
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("cohorts"); // cohorts, system, acquisition
+
   const getCohortScopeName = () => {
     if (selectedCohortId === "") return "Global Scope (All Cohorts)";
     if (selectedCohortId === "unassigned") return "Awaiting Cohort Assignment";
     const matched = cohorts.find(c => c._id === selectedCohortId);
     return matched ? matched.name : "Selected Cohort";
   };
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const getTopChannel = () => {
+    if (!stats?.leadSources || stats.leadSources.length === 0) return { source: "None", count: 0 };
+    return [...stats.leadSources].sort((a, b) => b.count - a.count)[0];
+  };
+
+  const topChannel = getTopChannel();
 
   // Active Cohort Config Form state
   const [configDate, setConfigDate] = useState("");
@@ -89,7 +96,7 @@ export default function AdminDashboardPage() {
         cohortCap: configCap,
         dashboardViewOverride: configOverride
       });
-      alert("System portal configuration saved successfully!");
+      alert("System configuration saved successfully!");
       fetchAdminDashboard();
     } catch (err) {
       console.error("Failed to save config overrides:", err);
@@ -189,73 +196,21 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-10 px-4 sm:px-6 lg:px-8 font-sans bg-[#FDFBF7]">
-      {/* Top Header Block */}
-      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight mb-1 flex items-center gap-2">
-            <HiOutlineCog6Tooth className="w-8 h-8 text-[#FF9800]" /> Operational Control Cockpit
-          </h1>
-          <p className="text-slate-500 text-sm">
-            Reviewing: <strong className="text-primary">{getCohortScopeName()}</strong> &bull; Configure kickoff milestones, stats, and gating bounds.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <Link 
-            href="/admin/applications"
-            className="bg-[#000666] hover:bg-[#000666]/90 text-white font-bold text-xs tracking-wider uppercase px-5 py-3.5 rounded-xl shadow-sm transition-all"
-          >
-            Review Applications
-          </Link>
-          <Link 
-            href="/admin/modules"
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs tracking-wider uppercase px-5 py-3.5 rounded-xl shadow-sm transition-all"
-          >
-            Modules Editor
-          </Link>
-          <Link 
-            href="/admin/opportunities"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs tracking-wider uppercase px-5 py-3.5 rounded-xl shadow-sm transition-all"
-          >
-            Opportunities Editor
-          </Link>
-          <Link 
-            href="/admin/placements"
-            className="bg-[#00B0FF] hover:bg-[#00B0FF]/90 text-white font-bold text-xs tracking-wider uppercase px-5 py-3.5 rounded-xl shadow-sm transition-all"
-          >
-            Matching Desk
-          </Link>
-          <Link 
-            href="/admin/partners"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs tracking-wider uppercase px-5 py-3.5 rounded-xl shadow-sm transition-all"
-          >
-            Manage Partners
-          </Link>
-          <Link 
-            href="/admin/form-options"
-            className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs tracking-wider uppercase px-5 py-3.5 rounded-xl shadow-sm transition-all"
-          >
-            Form Options
-          </Link>
-          <Link 
-            href="/admin/openings"
-            className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-xs tracking-wider uppercase px-5 py-3.5 rounded-xl shadow-sm transition-all"
-          >
-            Openings Manager
-          </Link>
-          <Link 
-            href="/"
-            className="border border-[#E7E2D8] bg-white hover:bg-slate-50 text-slate-600 font-bold text-xs px-5 py-3.5 rounded-xl transition-all"
-          >
-            View Public Site
-          </Link>
-        </div>
+    <div className="max-w-5xl mx-auto py-8 px-5 sm:px-8 font-sans">
+      {/* Page Header */}
+      <div className="mb-8">
+        <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight mb-1 flex items-center gap-2">
+          <HiOutlineCog6Tooth className="w-7 h-7 text-[#FF9800]" /> Overview
+        </h1>
+        <p className="text-slate-500 text-sm">
+          Reviewing: <strong className="text-[#000666]">{getCohortScopeName()}</strong> &bull; Configure kickoff milestones, stats, and gating bounds.
+        </p>
       </div>
 
       {/* KPI Stats widgets */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
+        <div className="flex md:grid md:grid-cols-4 overflow-x-auto md:overflow-x-visible snap-x snap-mandatory gap-4 pb-4 md:pb-0 scrollbar-hide mb-8">
+          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 snap-center bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-[10px] font-bold uppercase tracking-wider">Total Paid</span>
               <HiOutlineClipboardDocumentCheck className="w-5 h-5 text-[#00B0FF]" />
@@ -263,7 +218,7 @@ export default function AdminDashboardPage() {
             <div className="text-2xl font-black text-[#000666]">{stats.totalPaid}</div>
           </div>
 
-          <div className="bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
+          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 snap-center bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-[10px] font-bold uppercase tracking-wider">Active Learning</span>
               <HiOutlineUsers className="w-5 h-5 text-indigo-500" />
@@ -271,7 +226,7 @@ export default function AdminDashboardPage() {
             <div className="text-2xl font-black text-[#000666]">{stats.activeParticipants}</div>
           </div>
 
-          <div className="bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
+          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 snap-center bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-[10px] font-bold uppercase tracking-wider">Completed</span>
               <HiOutlineCheckCircle className="w-5 h-5 text-emerald-500" />
@@ -279,7 +234,7 @@ export default function AdminDashboardPage() {
             <div className="text-2xl font-black text-[#000666]">{stats.completedCount}</div>
           </div>
 
-          <div className="bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
+          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 snap-center bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-[10px] font-bold uppercase tracking-wider">Waitlisted Users</span>
               <HiOutlineInboxStack className="w-5 h-5 text-rose-500" />
@@ -289,12 +244,40 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
+      {/* Mobile view tab buttons */}
+      <div className="flex lg:hidden bg-slate-100 p-1 rounded-xl mb-6">
+        <button
+          onClick={() => setActiveTab("cohorts")}
+          className={`flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all ${
+            activeTab === "cohorts" ? "bg-white text-[#000666] shadow-xs" : "text-slate-500"
+          }`}
+        >
+          Cohorts
+        </button>
+        <button
+          onClick={() => setActiveTab("system")}
+          className={`flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all ${
+            activeTab === "system" ? "bg-white text-[#000666] shadow-xs" : "text-slate-500"
+          }`}
+        >
+          System Config
+        </button>
+        <button
+          onClick={() => setActiveTab("acquisition")}
+          className={`flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all ${
+            activeTab === "acquisition" ? "bg-white text-[#000666] shadow-xs" : "text-slate-500"
+          }`}
+        >
+          Acquisition
+        </button>
+      </div>
+
       {/* Main split grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* 1. Sidebar Configurations and Acquisition Desk (Col-span 1) */}
-        <div className="flex flex-col gap-6">
-          {/* Global Portal Settings Panel */}
-          <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 shadow-sm h-fit">
+        {/* 1. Sidebar Configurations (Col-span 1 on Desktop, controlled by activeTab on mobile) */}
+        <div className={`${activeTab === "system" ? "block" : "hidden"} lg:block`}>
+          {/* Global System Settings Panel */}
+          <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 shadow-sm">
             <h2 className="text-base font-bold text-[#000666] mb-4 pb-2 border-b border-slate-100">
               System Launch Configurations
             </h2>
@@ -328,7 +311,7 @@ export default function AdminDashboardPage() {
 
               <div>
                 <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">
-                  Portal View Override Mode
+                  Platform View Override Mode
                 </label>
                 <select
                   value={configOverride}
@@ -351,37 +334,84 @@ export default function AdminDashboardPage() {
               </button>
             </form>
           </div>
+        </div>
+
+        {/* 2. Acquisition Desk (Col-span 1 on Desktop, controlled by activeTab on mobile) */}
+        <div className={`${activeTab === "acquisition" ? "block" : "hidden"} lg:block lg:col-span-1 space-y-6`}>
+          {/* Visual KPI Cards */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white border border-[#E7E2D8] rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+              <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Total Finalized</span>
+              <div className="mt-2">
+                <span className="text-xl font-display font-black text-[#000666]">{stats?.totalPaid || 0}</span>
+                <span className="text-[10px] text-slate-500 font-bold block mt-0.5">Paid Applicants</span>
+              </div>
+            </div>
+
+            <div className="bg-white border border-[#E7E2D8] rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+              <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Waitlist Volume</span>
+              <div className="mt-2">
+                <span className="text-xl font-display font-black text-amber-600">{stats?.waitlistCount || 0}</span>
+                <span className="text-[10px] text-slate-500 font-bold block mt-0.5">Inquiries</span>
+              </div>
+            </div>
+
+            <div className="col-span-2 bg-white border border-[#E7E2D8] rounded-2xl p-4 shadow-sm flex items-center justify-between">
+              <div>
+                <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Top Source</span>
+                <span className="text-sm font-bold text-[#000666] block mt-1">{topChannel.source}</span>
+              </div>
+              <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-1 text-center shrink-0">
+                <span className="text-xs font-mono font-bold text-indigo-700">{topChannel.count} leads</span>
+              </div>
+            </div>
+          </div>
 
           {/* Lead Acquisition Channels Panel */}
-          <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 shadow-sm h-fit">
+          <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 shadow-sm">
             <h2 className="text-base font-bold text-[#000666] mb-4 pb-2 border-b border-slate-100">
-              Lead Acquisition Channels
+              Registration Channel Ratios
             </h2>
-            <div className="space-y-3.5">
+            <div className="space-y-4">
               {!stats?.leadSources || stats.leadSources.length === 0 ? (
                 <p className="text-slate-400 text-xs italic text-center py-4">No registration channels captured.</p>
               ) : (
-                stats.leadSources.map((ls, idx) => (
-                  <div key={idx} className="text-xs">
-                    <div className="flex justify-between font-bold text-slate-700 mb-1">
-                      <span>{ls.source}</span>
-                      <span className="font-mono">{ls.count} leads</span>
+                stats.leadSources.map((ls, idx) => {
+                  const percentage = stats.totalPaid > 0 ? Math.round((ls.count / stats.totalPaid) * 100) : 0;
+                  const colors = [
+                    "bg-[#00B0FF]", 
+                    "bg-indigo-500", 
+                    "bg-emerald-500", 
+                    "bg-amber-500", 
+                    "bg-purple-500", 
+                  ];
+                  const barColor = colors[idx % colors.length];
+
+                  return (
+                    <div key={idx} className="text-xs">
+                      <div className="flex justify-between font-bold text-slate-700 mb-1.5 items-center">
+                        <span className="flex items-center gap-1.5">
+                          <span className={`w-2 h-2 rounded-full ${barColor}`}></span>
+                          {ls.source}
+                        </span>
+                        <span className="font-mono text-slate-500">{ls.count} leads ({percentage}%)</span>
+                      </div>
+                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                        <div 
+                          className={`${barColor} h-full rounded-full transition-all duration-500`}
+                          style={{ width: `${percentage}%` }}
+                        ></div>
+                      </div>
                     </div>
-                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                      <div 
-                        className="bg-indigo-500 h-full rounded-full"
-                        style={{ width: `${stats.totalPaid > 0 ? (ls.count / stats.totalPaid) * 100 : 0}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
         </div>
 
-        {/* 2. Cohort/Intake Intake Manager Table (Col-span 2) */}
-        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 shadow-sm lg:col-span-2 flex flex-col justify-between">
+        {/* 3. Cohort/Intake Intake Manager Table (Col-span 2 on Desktop, controlled by activeTab on mobile) */}
+        <div className={`${activeTab === "cohorts" ? "block" : "hidden"} lg:block bg-white border border-[#E7E2D8] rounded-2xl p-6 shadow-sm lg:col-span-2 flex flex-col justify-between`}>
           <div>
             <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
               <h2 className="text-base font-bold text-[#000666]">
@@ -395,7 +425,8 @@ export default function AdminDashboardPage() {
               </button>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Desktop Cohort Table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-100 text-xs sm:text-sm text-left">
                 <thead className="bg-slate-50 text-[9px] font-bold uppercase text-slate-400 tracking-wider">
                   <tr>
@@ -452,15 +483,63 @@ export default function AdminDashboardPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Cohorts Card List */}
+            <div className="block md:hidden divide-y divide-slate-100">
+              {cohorts.length === 0 ? (
+                <p className="text-slate-400 text-xs italic text-center py-6">
+                  No intake cohorts registered.
+                </p>
+              ) : (
+                cohorts.map((cohort) => (
+                  <div key={cohort._id} className="py-4 flex flex-col gap-2">
+                    <div className="flex justify-between items-start">
+                      <span className="font-bold text-[#000666] text-sm">{cohort.name}</span>
+                      <span className={`inline-block font-bold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded ${
+                        cohort.status === "active"
+                          ? "bg-indigo-50 text-indigo-700"
+                          : cohort.status === "completed"
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-amber-50 text-amber-700"
+                      }`}>
+                        {cohort.status}
+                      </span>
+                    </div>
+                    <div className="space-y-1 text-slate-500 text-xs mt-1">
+                      <div>
+                        <span className="text-slate-400 font-medium">Registration:</span>{" "}
+                        {formatDate(cohort.registrationStartDate)} &mdash; {formatDate(cohort.registrationEndDate)}
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-medium">Training:</span>{" "}
+                        {formatDate(cohort.startDate)} &mdash; {formatDate(cohort.endDate)}
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-medium">Capacity:</span>{" "}
+                        <strong className="text-slate-700 font-mono">{cohort.cohortCap || 100} slots</strong>
+                      </div>
+                    </div>
+                    <div className="pt-2 border-t border-slate-50 flex justify-end">
+                      <button
+                        onClick={() => openEditModal(cohort)}
+                        className="inline-flex items-center gap-1 text-slate-500 hover:text-[#000666] transition-colors py-1.5 px-3 rounded-lg hover:bg-slate-50 text-xs font-bold"
+                      >
+                        <HiOutlinePencilSquare className="w-4 h-4" /> Edit details
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Cohort Modal Overlay */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E7E2D8] w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="bg-[#000666] text-white py-4 px-6 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white border border-[#E7E2D8] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-h-none flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+            <div className="bg-[#000666] text-white py-4 px-6 flex items-center justify-between shrink-0">
               <h3 className="font-bold text-base flex items-center gap-1.5">
                 <HiOutlineCalendarDays className="w-5 h-5" /> {editingCohortItem ? "Edit Intake Cohort" : "Add Intake Cohort"}
               </h3>
@@ -472,7 +551,7 @@ export default function AdminDashboardPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmitCohort} className="p-6 space-y-4 text-xs sm:text-sm">
+            <form onSubmit={handleSubmitCohort} className="p-6 space-y-4 text-xs sm:text-sm overflow-y-auto">
               <div>
                 <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">
                   Cohort Name / Intake Code

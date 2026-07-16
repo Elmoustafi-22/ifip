@@ -14,7 +14,7 @@ import {
   HiShare,
   HiGlobeAlt,
 } from "react-icons/hi2";
-import { login as loginApi, getAccessToken } from "@/lib/api/auth";
+import { login as loginApi, getAccessToken, loginMfaVerify } from "@/lib/api/auth";
 import { useEffect } from "react";
 
 export default function LoginPage() {
@@ -25,11 +25,37 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaToken, setMfaToken] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [sessionMsg, setSessionMsg] = useState("");
 
   useEffect(() => {
     setIsLoggedIn(!!getAccessToken());
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const session = params.get("session");
+      if (session === "expired") {
+        setSessionMsg("Your session has expired. Please log in again.");
+      } else if (session === "idle") {
+        setSessionMsg("You have been logged out due to inactivity.");
+      }
+    }
   }, []);
   const [error, setError] = useState("");
+
+  const handlePostLoginRedirect = (token: string) => {
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      if (payload.role === "admin" || payload.role === "superadmin") {
+        window.location.href = "/admin";
+        return;
+      }
+    } catch (tokenErr) {
+      console.error("Token parse failed:", tokenErr);
+    }
+    window.location.href = "/dashboard";
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,18 +67,36 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const res = await loginApi(email, password, rememberMe);
-      try {
-        const payload = JSON.parse(atob(res.accessToken.split(".")[1]));
-        if (payload.role === "admin" || payload.role === "superadmin") {
-          window.location.href = "/admin";
-          return;
-        }
-      } catch (tokenErr) {
-        console.error("Token parse failed:", tokenErr);
+      if (res.mfaRequired && res.mfaToken) {
+        setMfaRequired(true);
+        setMfaToken(res.mfaToken);
+        setLoading(false);
+        return;
       }
-      window.location.href = "/dashboard";
+      if (res.accessToken) {
+        handlePostLoginRedirect(res.accessToken);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Invalid credentials. Please try again.");
+      setLoading(false);
+    }
+  };
+
+  const handleMfaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (!otpCode) {
+      setError("Please enter the 6-digit verification code.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await loginMfaVerify(mfaToken, otpCode, rememberMe);
+      if (res.accessToken) {
+        handlePostLoginRedirect(res.accessToken);
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err.message || "Invalid verification code. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -141,9 +185,16 @@ export default function LoginPage() {
                 className="w-14 h-14 object-contain"
               />
             </div>
-            <h1 className="text-headline-md text-primary text-center">Program Portal</h1>
+            <h1 className="text-headline-md text-primary text-center">Program Platform</h1>
             <p className="text-sm text-on-surface-variant text-center mt-1">Islamic Finance Prep &amp; Placement</p>
           </div>
+
+          {/* Session message */}
+          {sessionMsg && !error && (
+            <div className="mb-5 bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg text-center font-medium">
+              ⚠️ {sessionMsg}
+            </div>
+          )}
 
           {/* Error message */}
           {error && (
@@ -152,94 +203,156 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
-
-            {/* Email */}
-            <div>
-              <label htmlFor="login-email" className="block text-xs font-bold uppercase text-primary mb-2 tracking-wide">
-                Email Address
-              </label>
-              <div className="relative">
-                <HiEnvelope className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/60 pointer-events-none" />
-                <input
-                  id="login-email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="e.g. your.email@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-outline-variant/40 rounded-[6px] text-sm bg-slate-50/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
-                />
-              </div>
-            </div>
-
-            {/* Password */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label htmlFor="login-password" className="text-xs font-bold uppercase text-primary tracking-wide">
-                  Password
+          {mfaRequired ? (
+            <form onSubmit={handleMfaSubmit} noValidate className="flex flex-col gap-5">
+              <div>
+                <label htmlFor="mfa-code" className="block text-xs font-bold uppercase text-primary mb-2 tracking-wide">
+                  6-Digit Verification Code
                 </label>
-                <Link href="/forgot-password" className="text-xs text-vibrant-blue font-semibold hover:underline">
-                  Forgot Password?
-                </Link>
+                <div className="relative">
+                  <HiLockClosed className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/60 pointer-events-none" />
+                  <input
+                    id="mfa-code"
+                    type="text"
+                    required
+                    maxLength={6}
+                    placeholder="e.g. 123456"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    className="w-full pl-10 pr-4 py-3 border border-outline-variant/40 rounded-[6px] text-sm bg-slate-50/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors tracking-[0.25em] text-center font-bold"
+                  />
+                </div>
+                <p className="text-xs text-on-surface-variant/70 mt-2 leading-relaxed text-left">
+                  Enter the 6-digit verification code from your authenticator app to complete login.
+                </p>
               </div>
-              <div className="relative">
-                <HiLockClosed className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/60 pointer-events-none" />
+
+              {/* Submit */}
+              <button
+                id="mfa-submit"
+                type="submit"
+                disabled={loading}
+                className="w-full bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-white font-semibold text-sm py-3.5 px-6 rounded-[6px] flex items-center justify-center gap-2 shadow-sm hover-lift transition-all mt-1"
+              >
+                {loading ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Verifying…
+                  </>
+                ) : (
+                  <>
+                    Verify &amp; Continue
+                    <HiArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMfaRequired(false);
+                  setMfaToken("");
+                  setOtpCode("");
+                  setError("");
+                }}
+                className="text-xs text-center text-vibrant-blue font-semibold hover:underline cursor-pointer"
+              >
+                &larr; Back to password login
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
+
+              {/* Email */}
+              <div>
+                <label htmlFor="login-email" className="block text-xs font-bold uppercase text-primary mb-2 tracking-wide">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <HiEnvelope className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/60 pointer-events-none" />
+                  <input
+                    id="login-email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="e.g. your.email@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-outline-variant/40 rounded-[6px] text-sm bg-slate-50/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label htmlFor="login-password" className="text-xs font-bold uppercase text-primary tracking-wide">
+                    Password
+                  </label>
+                  <Link href="/forgot-password" className="text-xs text-vibrant-blue font-semibold hover:underline">
+                    Forgot Password?
+                  </Link>
+                </div>
+                <div className="relative">
+                  <HiLockClosed className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/60 pointer-events-none" />
+                  <input
+                    id="login-password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-10 pr-12 py-3 border border-outline-variant/40 rounded-[6px] text-sm bg-slate-50/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant/60 hover:text-primary transition-colors"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <HiEyeSlash className="w-5 h-5" /> : <HiEye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Remember me */}
+              <label className="flex items-center gap-3 cursor-pointer select-none">
                 <input
-                  id="login-password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-12 py-3 border border-outline-variant/40 rounded-[6px] text-sm bg-slate-50/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
+                  id="remember-me"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded border-outline-variant/40 text-primary accent-primary"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant/60 hover:text-primary transition-colors"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <HiEyeSlash className="w-5 h-5" /> : <HiEye className="w-5 h-5" />}
-                </button>
-              </div>
-            </div>
+                <span className="text-sm text-on-surface-variant">Remember me</span>
+              </label>
 
-            {/* Remember me */}
-            <label className="flex items-center gap-3 cursor-pointer select-none">
-              <input
-                id="remember-me"
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded border-outline-variant/40 text-primary accent-primary"
-              />
-              <span className="text-sm text-on-surface-variant">Remember me</span>
-            </label>
-
-            {/* Submit */}
-            <button
-              id="login-submit"
-              type="submit"
-              disabled={loading}
-              className="w-full bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-white font-semibold text-sm py-3.5 px-6 rounded-[6px] flex items-center justify-center gap-2 shadow-sm hover-lift transition-all mt-1"
-            >
-              {loading ? (
-                <>
-                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Signing in…
-                </>
-              ) : (
-                <>
-                  Login to Dashboard
-                  <HiArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-          </form>
+              {/* Submit */}
+              <button
+                id="login-submit"
+                type="submit"
+                disabled={loading}
+                className="w-full bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-white font-semibold text-sm py-3.5 px-6 rounded-[6px] flex items-center justify-center gap-2 shadow-sm hover-lift transition-all mt-1"
+              >
+                {loading ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Signing in…
+                  </>
+                ) : (
+                  <>
+                    Login to Dashboard
+                    <HiArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+          )}
 
           {/* Divider */}
           <div className="my-6 border-t border-outline-variant/20" />
@@ -313,7 +426,7 @@ export default function LoginPage() {
         {/* Bottom bar */}
         <div className="max-w-[1280px] mx-auto px-4 md:px-8 border-t border-outline-variant/30 mt-12 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-on-surface-variant">
           <div>© {new Date().getFullYear()} IFIP. All rights reserved. Ethical Finance Education.</div>
-          <div>Headquarters: Financial District, Lagos</div>
+          <div>Headquarters: Financial District, Abuja</div>
         </div>
       </footer>
 

@@ -6,6 +6,63 @@ import { Waitlist } from '../models/Waitlist.js';
 import { Cohort } from '../models/Cohort.js';
 import { Notification } from '../models/Notification.js';
 import { Module } from '../models/Module.js';
+import { notificationEmitter } from '../services/notificationBroadcast.js';
+import { signSetPasswordToken } from '../utils/jwt.js';
+import { sendAdminInvitationEmail } from '../services/emailService.js';
+
+// ── GET /api/v1/admin/users ────────────────────────────────────────────────────
+// Returns all platform users with optional ?role=&search=&page=&limit= filtering.
+// Enriches each user with their linked Application status via a $lookup.
+export const getAdminUsers = async (req: Request, res: Response) => {
+    try {
+        const { role, search, page = '1', limit = '50' } = req.query;
+
+        const pageNum = Math.max(1, parseInt(page as string, 10));
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
+        const skip = (pageNum - 1) * limitNum;
+
+        const match: any = {};
+        if (role && role !== 'all') {
+            match.role = role;
+        }
+        if (search) {
+            const regex = new RegExp(search as string, 'i');
+            match.$or = [{ email: regex }, { fullName: regex }];
+        }
+
+        const enrichPipeline: any[] = [
+            { $match: match },
+            {
+                $lookup: {
+                    from: 'applications',
+                    localField: '_id',
+                    foreignField: 'userId',
+                    as: 'application',
+                    pipeline: [{ $project: { status: 1, submittedAt: 1, cohortId: 1, country: 1, fullName: 1, academicInfo: 1, programInterest: 1, skills: 1, motivation: 1, cvUrl: 1 } }],
+                }
+            },
+            { $addFields: { application: { $arrayElemAt: ['$application', 0] } } },
+            { $project: { passwordHash: 0 } },
+            { $sort: { createdAt: -1 } },
+        ];
+
+        const [countResult, users, roleCounts] = await Promise.all([
+            User.aggregate([{ $match: match }, { $count: 'total' }]),
+            User.aggregate([...enrichPipeline, { $skip: skip }, { $limit: limitNum }]),
+            User.aggregate([{ $group: { _id: '$role', count: { $sum: 1 } } }]),
+        ]);
+
+        const total = countResult[0]?.total ?? 0;
+        const roleBreakdown = Object.fromEntries(
+            (roleCounts as any[]).map((r) => [r._id, r.count])
+        );
+
+        res.json({ users, total, page: pageNum, pages: Math.ceil(total / limitNum), roleBreakdown });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error retrieving users.', error: e.message });
+    }
+};
+
 
 export const getDashboardStats = async (req: Request, res: Response) => {
     try {
@@ -107,13 +164,10 @@ export const assignApplicationCohort = async (req: Request, res: Response) => {
         await User.findByIdAndUpdate(app.userId, { role: 'participant' });
 
         // Trigger in-app notification for the student
-        await Notification.create({
-            userId: app.userId,
-            title: 'Cohort Intake Assigned',
-            message: `Congratulations! You have been assigned to cohort "${cohort.name}". The learning portal is now active.`,
-            type: 'success',
-            link: '/dashboard/modules'
-        });
+        const linkedUser = await User.findById(app.userId);
+        if (linkedUser) {
+            notificationEmitter.emit('cohort.assigned', { user: linkedUser, cohort });
+        }
         
         res.json({ message: 'Cohort assigned successfully.', application: app });
     } catch (e: any) {
@@ -236,10 +290,12 @@ export const createModule = async (req: Request, res: Response) => {
             contentUrl,
             body,
             estimatedDuration: estimatedDuration || 15,
-            cohortId: cohortId ? new Types.ObjectId(cohortId) : undefined
+            cohortId: cohortId ? new Types.ObjectId(cohortId) : undefined,
+            createdBy: req.user ? new Types.ObjectId(req.user.id) : undefined
         });
         
         await newModule.save();
+        notificationEmitter.emit('module.published', { moduleTitle: newModule.title });
         res.status(201).json({ message: 'LMS Module created successfully.', module: newModule });
     } catch (e: any) {
         res.status(500).json({ message: 'Error creating module.', error: e.message });
@@ -286,5 +342,73 @@ export const deleteModule = async (req: Request, res: Response) => {
         res.json({ message: 'Module deleted successfully.' });
     } catch (e: any) {
         res.status(500).json({ message: 'Error deleting module.', error: e.message });
+    }
+};
+
+export const broadcastCustomNotification = async (req: Request, res: Response) => {
+    try {
+        const { targetType, targetUserId, title, message, notificationType, link } = req.body;
+        if (!title || !message) {
+            res.status(400).json({ message: 'title and message are required.' });
+            return;
+        }
+        if (targetType === 'individual' && !targetUserId) {
+            res.status(400).json({ message: 'targetUserId is required for targetType: individual.' });
+            return;
+        }
+
+        notificationEmitter.emit('admin.broadcast', {
+            targetType,
+            targetUserId,
+            title,
+            message,
+            notificationType,
+            link
+        });
+
+        res.json({ message: 'Notification broadcast queued successfully.' });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error broadcasting notification.', error: e.message });
+    }
+};
+
+export const inviteAdmin = async (req: Request, res: Response) => {
+    try {
+        const { firstName, lastName, email, role, title } = req.body;
+
+        if (!firstName || !lastName || !email || !role || !title) {
+            res.status(400).json({ message: 'firstName, lastName, email, role, and title are required.' });
+            return;
+        }
+
+        const roleLower = role.toLowerCase();
+        if (roleLower !== 'admin' && roleLower !== 'superadmin') {
+            res.status(400).json({ message: 'Invalid role. Must be admin or superadmin.' });
+            return;
+        }
+
+        const existingUser = await User.findOne({ email: email.toLowerCase() });
+        if (existingUser) {
+            res.status(400).json({ message: 'A user with this email address already exists.' });
+            return;
+        }
+
+        const fullName = `${firstName.trim()} ${lastName.trim()}`;
+        const newUser = new User({
+            email: email.toLowerCase(),
+            role: roleLower,
+            title: title.trim(),
+            fullName,
+            emailVerified: false,
+        });
+
+        await newUser.save();
+
+        const token = signSetPasswordToken(newUser.id, newUser.email);
+        await sendAdminInvitationEmail(newUser.email, fullName, roleLower, title.trim(), token);
+
+        res.status(201).json({ message: 'Administrator invited successfully.' });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error inviting administrator.', error: e.message });
     }
 };

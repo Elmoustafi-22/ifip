@@ -10,7 +10,7 @@ const sora = Sora({
 
 export const metadata: Metadata = {
   title: "IFIP — Islamic Finance Internship Program",
-  description: "Islamic Finance Internship Program — Application Portal",
+  description: "Islamic Finance Internship Program — Application Platform",
 };
 
 export default function RootLayout({

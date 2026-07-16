@@ -7,6 +7,7 @@ declare global {
             userEmail?: string;
             rawBody?: Buffer;
             applicant?: { id: string };
+            application?: any;
         }
     }
 }

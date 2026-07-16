@@ -20,7 +20,7 @@ export const uploadCv = async (req: Request, res: Response) => {
 
     const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
-            { resource_type: 'raw', folder: 'ifipp/cvs' },
+            { resource_type: 'image', folder: 'ifipp/cvs' },
             (error, result) => (error || !result ? reject(error) : resolve(result as { secure_url: string }))
         );
         stream.end(req.file!.buffer);
@@ -53,7 +53,7 @@ export const uploadCvAuth = async (req: Request, res: Response) => {
 
     const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
-            { resource_type: 'raw', folder: 'ifipp/cvs' },
+            { resource_type: 'image', folder: 'ifipp/cvs' },
             (error, result) => (error || !result ? reject(error) : resolve(result as { secure_url: string }))
         );
         stream.end(req.file!.buffer);

@@ -5,7 +5,7 @@ import { Application } from '../models/Application.js';
 export const purgeOrphanedCvs = async () => {
     const { resources } = await cloudinary.api.resources({
         type: 'upload',
-        resource_type: 'raw',
+        resource_type: 'image',
         prefix: 'ifipp/cvs/',
         max_results: 500,
     });
@@ -17,7 +17,7 @@ export const purgeOrphanedCvs = async () => {
 
     for (const resource of resources) {
         if (!activeCvUrls.has(resource.secure_url)) {
-            await cloudinary.uploader.destroy(resource.public_id, { resource_type: 'raw' });
+            await cloudinary.uploader.destroy(resource.public_id, { resource_type: 'image' });
             console.log(`Purged orphaned CV: ${resource.public_id}`);
         }
     }
