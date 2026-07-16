@@ -55,7 +55,7 @@ export default function SettingsPage() {
   // Preferences States
   const [primaryInterest, setPrimaryInterest] = useState("");
   const [secondaryInterest, setSecondaryInterest] = useState("");
-  const [availability, setAvailability] = useState("Immediate");
+  const [availability, setAvailability] = useState("Immediately");
 
   // CV PDF upload States
   const [cvUrl, setCvUrl] = useState("");
@@ -567,28 +567,16 @@ export default function SettingsPage() {
 
                 <div className="flex flex-col gap-2">
                   <label className="text-xs font-bold uppercase text-slate-500 tracking-wide">Availability</label>
-                  <div className="flex items-center gap-6 mt-1 text-sm font-semibold">
-                    <label className="flex items-center gap-2 text-slate-700 cursor-pointer select-none">
-                      <input
-                        type="radio"
-                        value="Immediate"
-                        checked={availability === "Immediate"}
-                        onChange={(e) => setAvailability(e.target.value)}
-                        className="text-[#0E1B5D] focus:ring-[#0E1B5D]"
-                      />
-                      Immediate
-                    </label>
-                    <label className="flex items-center gap-2 text-slate-700 cursor-pointer select-none">
-                      <input
-                        type="radio"
-                        value="Q3 2026"
-                        checked={availability === "Q3 2026"}
-                        onChange={(e) => setAvailability(e.target.value)}
-                        className="text-[#0E1B5D] focus:ring-[#0E1B5D]"
-                      />
-                      Q3 2026
-                    </label>
-                  </div>
+                  <select
+                    value={availability}
+                    onChange={(e) => setAvailability(e.target.value)}
+                    className="w-full border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20 font-semibold text-slate-700"
+                  >
+                    <option value="Immediately">Immediately (Ready to start)</option>
+                    <option value="Within 1 week">Within 1 week</option>
+                    <option value="Within 2 weeks">Within 2 weeks</option>
+                    <option value="Within 3 weeks">Within 3 weeks</option>
+                  </select>
                 </div>
               </div>
             </div>

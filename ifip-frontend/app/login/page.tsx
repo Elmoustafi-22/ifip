@@ -191,15 +191,15 @@ export default function LoginPage() {
 
           {/* Session message */}
           {sessionMsg && !error && (
-            <div className="mb-5 bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg text-center font-medium">
+            <div role="status" aria-live="polite" className="mb-5 bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg text-center font-medium">
               ⚠️ {sessionMsg}
             </div>
           )}
 
           {/* Error message */}
           {error && (
-            <div className="mb-5 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
-              {error}
+            <div role="alert" id="login-error-alert" className="mb-5 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg font-medium">
+              ⚠️ {error}
             </div>
           )}
 
@@ -219,6 +219,8 @@ export default function LoginPage() {
                     placeholder="e.g. 123456"
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "login-error-alert" : undefined}
                     className="w-full pl-10 pr-4 py-3 border border-outline-variant/40 rounded-[6px] text-sm bg-slate-50/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors tracking-[0.25em] text-center font-bold"
                   />
                 </div>
@@ -280,6 +282,8 @@ export default function LoginPage() {
                     placeholder="e.g. your.email@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "login-error-alert" : undefined}
                     className="w-full pl-10 pr-4 py-3 border border-outline-variant/40 rounded-[6px] text-sm bg-slate-50/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
                   />
                 </div>
@@ -304,6 +308,8 @@ export default function LoginPage() {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "login-error-alert" : undefined}
                     className="w-full pl-10 pr-12 py-3 border border-outline-variant/40 rounded-[6px] text-sm bg-slate-50/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
                   />
                   <button

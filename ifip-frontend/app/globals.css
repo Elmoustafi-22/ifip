@@ -172,3 +172,9 @@
   }
 }
 
+/* WCAG Focus Indicators */
+:focus-visible {
+  outline: 3px solid #00A0E3; /* Vibrant blue focus ring */
+  outline-offset: 3px;
+}
+

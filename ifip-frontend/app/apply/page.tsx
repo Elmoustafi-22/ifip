@@ -2064,10 +2064,10 @@ export default function ApplyPage() {
                     onChange={(e) => setAvailability(e.target.value)}
                     className="w-full border border-outline-variant/40 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-primary bg-slate-50/50"
                   >
-                    <option value="Immediately">Immediately</option>
-                    <option value="Within 1-3 months">Within 1–3 months</option>
-                    <option value="Flexible">Flexible</option>
-                    <option value="Physical/ virtual">Physical/ virtual</option>
+                    <option value="Immediately">Immediately (Ready to start)</option>
+                    <option value="Within 1 week">Within 1 week</option>
+                    <option value="Within 2 weeks">Within 2 weeks</option>
+                    <option value="Within 3 weeks">Within 3 weeks</option>
                   </select>
                 </div>
 

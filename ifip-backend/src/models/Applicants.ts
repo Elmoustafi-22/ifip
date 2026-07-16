@@ -63,7 +63,7 @@ const applicantSchema = new Schema<IApplicant>(
             relevantSkills: [String], tools: [String],
             hasPriorInternship: Boolean, priorInternshipDesc: String,
             commSkillLevel: { type: String, enum: ['Beginner', 'Intermediate', 'Advanced', 'Native'] },
-            availability: { type: String, enum: ['Immediately', 'Within 1-3 months', 'Flexible', 'Physical/ virtual'] },
+            availability: { type: String, enum: ['Immediately', 'Within 1 week', 'Within 2 weeks', 'Within 3 weeks'] },
         },
         motivation: { whyApplying: String, careerGoals: String },
         cvUrl: String,

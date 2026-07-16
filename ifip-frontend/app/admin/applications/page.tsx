@@ -365,6 +365,35 @@ export default function AdminApplicationsPage() {
                 </span>
               </div>
 
+              {/* Demographic & Contact Details */}
+              <div>
+                <h4 className="font-bold text-[#000666] border-b border-slate-100 pb-2 mb-3 flex items-center gap-1">
+                  <HiOutlineUser className="w-4 h-4" /> Contact & Demographic Information
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-[10px] uppercase text-slate-400 font-medium">Phone Number</span>
+                    <div className="font-bold text-slate-700">{selectedApp.phone || "N/A"}</div>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase text-slate-400 font-medium">Location</span>
+                    <div className="font-bold text-slate-700">
+                      {selectedApp.stateCity ? `${selectedApp.stateCity}, ` : ""}{selectedApp.country || "N/A"}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase text-slate-400 font-medium">Date of Birth</span>
+                    <div className="font-bold text-slate-700">
+                      {selectedApp.dob ? new Date(selectedApp.dob).toLocaleDateString() : "N/A"}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase text-slate-400 font-medium">Gender</span>
+                    <div className="font-bold text-slate-700">{selectedApp.gender || "N/A"}</div>
+                  </div>
+                </div>
+              </div>
+
               {/* Academic Info */}
               <div>
                 <h4 className="font-bold text-[#000666] border-b border-slate-100 pb-2 mb-3 flex items-center gap-1">
@@ -416,35 +445,117 @@ export default function AdminApplicationsPage() {
                       )) || <span className="text-slate-400">None</span>}
                     </div>
                   </div>
+                  <div>
+                    <span className="text-[10px] uppercase text-slate-400 font-medium">Internship Start Availability</span>
+                    <div className="font-bold text-slate-700 mt-1">
+                      {selectedApp.skills?.availability || "N/A"}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Candidate Motivation */}
-              {selectedApp.motivation?.whyApplying && (
+              {/* Professional Links & Attachments */}
+              <div>
+                <h4 className="font-bold text-[#000666] border-b border-slate-100 pb-2 mb-3 flex items-center gap-1">
+                  <HiOutlineBriefcase className="w-4 h-4" /> Professional Links & CV
+                </h4>
+                <div className="flex flex-col gap-3">
+                  {selectedApp.cvUrl && (
+                    <div>
+                      <span className="text-[10px] uppercase text-slate-400 font-medium block mb-1">Curriculum Vitae (CV)</span>
+                      <a 
+                        href={selectedApp.cvUrl} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs text-[#00B0FF] font-bold hover:underline"
+                      >
+                        📄 View PDF Attachment &rarr;
+                      </a>
+                    </div>
+                  )}
+                  {selectedApp.linkedinUrl && (
+                    <div>
+                      <span className="text-[10px] uppercase text-slate-400 font-medium block mb-1">LinkedIn Profile</span>
+                      <a 
+                        href={selectedApp.linkedinUrl} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs text-[#00B0FF] font-bold hover:underline"
+                      >
+                        🔗 {selectedApp.linkedinUrl}
+                      </a>
+                    </div>
+                  )}
+                  {selectedApp.portfolioUrl && (
+                    <div>
+                      <span className="text-[10px] uppercase text-slate-400 font-medium block mb-1">Portfolio Website</span>
+                      <a 
+                        href={selectedApp.portfolioUrl} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs text-[#00B0FF] font-bold hover:underline"
+                      >
+                        🌐 {selectedApp.portfolioUrl}
+                      </a>
+                    </div>
+                  )}
+                  {!selectedApp.cvUrl && !selectedApp.linkedinUrl && !selectedApp.portfolioUrl && (
+                    <span className="text-slate-400 text-xs italic">No professional attachments or profiles provided.</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Candidate Motivation & Sourcing */}
+              {(selectedApp.motivation?.whyApplying || selectedApp.motivation?.careerGoals || selectedApp.leadSource) && (
                 <div>
                   <h4 className="font-bold text-[#000666] border-b border-slate-100 pb-2 mb-3 flex items-center gap-1">
-                    <HiOutlineUser className="w-4 h-4" /> Personal Motivation
+                    <HiOutlineSparkles className="w-4 h-4" /> Sourcing & Motivation
                   </h4>
-                  <div className="bg-slate-50 rounded-xl p-4 text-xs text-slate-600 italic leading-relaxed">
-                    "{selectedApp.motivation.whyApplying}"
+                  <div className="space-y-4">
+                    {selectedApp.motivation?.whyApplying && (
+                      <div>
+                        <span className="text-[10px] uppercase text-slate-400 font-medium">Why Applying?</span>
+                        <div className="bg-slate-50 rounded-xl p-4 text-xs text-slate-600 italic leading-relaxed mt-1">
+                          "{selectedApp.motivation.whyApplying}"
+                        </div>
+                      </div>
+                    )}
+                    {selectedApp.motivation?.careerGoals && (
+                      <div>
+                        <span className="text-[10px] uppercase text-slate-400 font-medium">Career Goals</span>
+                        <div className="bg-slate-50 rounded-xl p-4 text-xs text-slate-600 italic leading-relaxed mt-1">
+                          "{selectedApp.motivation.careerGoals}"
+                        </div>
+                      </div>
+                    )}
+                    {selectedApp.leadSource && (
+                      <div>
+                        <span className="text-[10px] uppercase text-slate-400 font-medium">How they found IFIP</span>
+                        <div className="font-bold text-slate-700 mt-0.5">{selectedApp.leadSource}</div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* CV File Link */}
-              {selectedApp.cvUrl && (
+              {/* Signed Declaration */}
+              {selectedApp.declaration && (
                 <div>
                   <h4 className="font-bold text-[#000666] border-b border-slate-100 pb-2 mb-3 flex items-center gap-1">
-                    <HiOutlineBriefcase className="w-4 h-4" /> Curriculum Vitae (CV)
+                    <HiOutlineClipboardDocumentCheck className="w-4 h-4" /> Signed Declaration
                   </h4>
-                  <a 
-                    href={selectedApp.cvUrl} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs text-[#00B0FF] font-bold hover:underline"
-                  >
-                    📄 View PDF Attachment &rarr;
-                  </a>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-[10px] uppercase text-slate-400 font-medium">Signature</span>
+                      <div className="font-bold text-slate-700 font-mono italic">{selectedApp.declaration.signature || "N/A"}</div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase text-slate-400 font-medium">Signed Date</span>
+                      <div className="font-bold text-slate-700">
+                        {selectedApp.declaration.date ? new Date(selectedApp.declaration.date).toLocaleDateString() : "N/A"}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 

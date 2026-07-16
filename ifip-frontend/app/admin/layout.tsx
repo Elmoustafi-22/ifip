@@ -278,7 +278,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <>
                 <Image
                   src="/images/logos/logo-white-wordmark.png"
-                  alt="IFIP"
+                  alt="IFIP Logo"
                   width={110}
                   height={30}
                   priority
@@ -330,6 +330,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               onClick={toggleCollapsed}
               className={`w-full flex items-center gap-3 rounded-xl text-xs font-semibold text-white/35 hover:text-white hover:bg-white/10 transition-all
                 ${!isExpanded ? "justify-center p-2.5" : "px-3 py-2.5"}`}
+              aria-label={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
+              aria-expanded={isExpanded}
             >
               {!isExpanded
                 ? <HiOutlineChevronRight className="w-4 h-4 shrink-0" />
@@ -354,7 +356,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="h-[60px] px-5 flex items-center justify-between border-b border-white/10 shrink-0">
             <Image
               src="/images/logos/logo-white-wordmark.png"
-              alt="IFIP"
+              alt="IFIP Logo"
               width={110}
               height={30}
               priority
@@ -363,6 +365,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <button
               onClick={() => setMobileOpen(false)}
               className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+              aria-label="Close navigation"
             >
               <HiOutlineXMark className="w-5 h-5" />
             </button>
@@ -411,6 +414,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 className="lg:hidden p-2 -ml-1 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
                 onClick={() => setMobileOpen(true)}
                 aria-label="Open navigation"
+                aria-expanded={mobileOpen}
               >
                 <HiOutlineBars3 className="w-5 h-5" />
               </button>
@@ -423,6 +427,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <select
                     value={selectedCohortId}
                     onChange={(e) => handleSetCohort(e.target.value)}
+                    aria-label="Select active cohort"
                     className="appearance-none pl-3 pr-7 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#000666]/30 bg-slate-50 cursor-pointer hover:border-slate-300 transition-colors max-w-[150px] sm:max-w-none truncate"
                   >
                     <option value="">All Cohorts</option>

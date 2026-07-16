@@ -188,14 +188,14 @@ export default function AdminSettingsPage() {
       </div>
 
       {successMsg && (
-        <div className="mb-6 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs px-4 py-3 rounded-lg flex items-center gap-2 font-semibold">
+        <div role="status" aria-live="polite" className="mb-6 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs px-4 py-3 rounded-lg flex items-center gap-2 font-semibold">
           <HiOutlineCheck className="w-4 h-4 shrink-0" />
           {successMsg}
         </div>
       )}
 
       {errorMsg && (
-        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 text-xs px-4 py-3 rounded-lg flex items-center gap-2 font-semibold">
+        <div role="alert" className="mb-6 bg-red-50 border border-red-200 text-red-700 text-xs px-4 py-3 rounded-lg flex items-center gap-2 font-semibold">
           <HiOutlineExclamationTriangle className="w-4 h-4 shrink-0" />
           {errorMsg}
         </div>
@@ -300,12 +300,12 @@ export default function AdminSettingsPage() {
             {showSecurity && (
               <div className="border-t border-slate-100 pt-6 mt-2 flex flex-col gap-5 animate-slideDown max-w-md w-full">
                 {passwordError && (
-                  <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 font-semibold">
+                  <div role="alert" className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 font-semibold">
                     {passwordError}
                   </div>
                 )}
                 {passwordSuccess && (
-                  <div className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 font-semibold">
+                  <div role="status" aria-live="polite" className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 font-semibold">
                     {passwordSuccess}
                   </div>
                 )}
@@ -407,12 +407,12 @@ export default function AdminSettingsPage() {
             </div>
 
             {mfaError && (
-              <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 font-semibold text-left">
+              <div role="alert" className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 font-semibold text-left">
                 {mfaError}
               </div>
             )}
             {mfaSuccess && (
-              <div className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 font-semibold text-left">
+              <div role="status" aria-live="polite" className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 font-semibold text-left">
                 {mfaSuccess}
               </div>
             )}
