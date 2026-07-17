@@ -64,7 +64,7 @@ export const verifyTransaction = async (transactionId: string | number): Promise
 };
 
 export const verifyTransactionByRef = async (txRef: string): Promise<VerifyResponse> => {
-    const { data } = await flutterwaveApi.get(`/transactions/find_by_tx_ref?tx_ref=${txRef}`);
+    const { data } = await flutterwaveApi.get(`/transactions/verify_by_reference?tx_ref=${txRef}`);
     if (data.status !== 'success') {
         throw new Error(data.message || 'Flutterwave find by reference failed');
     }
