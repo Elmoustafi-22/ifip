@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import cloudinary from '../config/cloudinary.js';
 import { Applicant } from '../models/Applicants.js';
+import { CohortConfig } from '../models/CohortConfig.js';
 
 export const uploadCv = async (req: Request, res: Response) => {
     if (!req.file) {
@@ -87,5 +88,42 @@ export const uploadLogo = async (req: Request, res: Response) => {
         res.json({ url: uploadResult.secure_url });
     } catch (err: any) {
         res.status(500).json({ message: 'Logo upload failed', error: err.message });
+    }
+};
+
+export const uploadBrochure = async (req: Request, res: Response) => {
+    if (!req.file) {
+        res.status(400).json({ message: 'No file uploaded' });
+        return;
+    }
+    if (req.file.mimetype !== 'application/pdf') {
+        res.status(400).json({ message: 'Only PDF files are accepted' });
+        return;
+    }
+
+    try {
+        const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+                { resource_type: 'image', folder: 'ifipp/brochures' },
+                (error, result) => (error || !result ? reject(error) : resolve(result as { secure_url: string }))
+            );
+            stream.end(req.file!.buffer);
+        });
+
+        let config = await CohortConfig.findOne();
+        if (!config) {
+            config = new CohortConfig({
+                cohortStartDate: new Date(),
+                cohortCap: 100,
+                dashboardViewOverride: 'default'
+            });
+        }
+        config.brochureUrl = uploadResult.secure_url;
+        config.updatedAt = new Date();
+        await config.save();
+
+        res.json({ brochureUrl: config.brochureUrl });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Brochure upload failed', error: err.message });
     }
 };

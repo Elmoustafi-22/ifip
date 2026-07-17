@@ -20,6 +20,7 @@ import {
   createCohort, 
   updateCohort,
   updateCohortConfig, 
+  uploadBrochure,
   AdminStats, 
   Cohort 
 } from "@/lib/api/services";
@@ -47,6 +48,8 @@ export default function AdminDashboardPage() {
   const [configDate, setConfigDate] = useState("");
   const [configCap, setConfigCap] = useState(100);
   const [configOverride, setConfigOverride] = useState("default");
+  const [brochureUrl, setBrochureUrl] = useState("");
+  const [uploadingBrochure, setUploadingBrochure] = useState(false);
   const [updatingConfig, setUpdatingConfig] = useState(false);
 
   // Cohort Modal form state
@@ -75,6 +78,7 @@ export default function AdminDashboardPage() {
       }
       setConfigCap(configData.cohortCap || 100);
       setConfigOverride(configData.dashboardViewOverride || "default");
+      setBrochureUrl(configData.brochureUrl || "");
     } catch (err) {
       console.error("Failed to load dashboard parameters:", err);
     } finally {
@@ -85,6 +89,28 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     fetchAdminDashboard();
   }, [selectedCohortId]);
+
+  const handleBrochureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    if (file.type !== "application/pdf") {
+      alert("Please upload a PDF file only.");
+      return;
+    }
+    setUploadingBrochure(true);
+    try {
+      const data = await uploadBrochure(file);
+      if (data.brochureUrl) {
+        setBrochureUrl(data.brochureUrl);
+        alert("Curriculum brochure uploaded and updated successfully!");
+      }
+    } catch (err: any) {
+      console.error("Brochure upload failed:", err);
+      alert("Failed to upload brochure. Please verify permissions and file size.");
+    } finally {
+      setUploadingBrochure(false);
+    }
+  };
 
   const handleUpdateConfig = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -323,6 +349,34 @@ export default function AdminDashboardPage() {
                   <option value="coming_soon">Force Coming Soon Pre-Launch</option>
                   <option value="unlocked">Force Unlocked Curriculum Dashboard</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">
+                  Curriculum Brochure PDF
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handleBrochureUpload}
+                    disabled={uploadingBrochure}
+                    className="text-xs w-full file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                  />
+                </div>
+                {uploadingBrochure && (
+                  <span className="text-[10px] text-primary font-semibold mt-1 block">Uploading PDF to Cloudinary...</span>
+                )}
+                {brochureUrl && !uploadingBrochure && (
+                  <a
+                    href={brochureUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-blue-600 hover:underline mt-1 block font-bold"
+                  >
+                    View Current Brochure PDF →
+                  </a>
+                )}
               </div>
 
               <button

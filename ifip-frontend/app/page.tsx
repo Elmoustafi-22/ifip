@@ -63,6 +63,7 @@ export default function Home() {
   const [activePlacementsTab, setActivePlacementsTab] = useState<"opportunities" | "jobs">("opportunities");
   const [isNigeria, setIsNigeria] = useState<boolean | null>(null);
   const [cohortName, setCohortName] = useState("");
+  const [brochureUrl, setBrochureUrl] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [openings, setOpenings] = useState<ActiveOpening[]>([]);
   const [openingsLoading, setOpeningsLoading] = useState(true);
@@ -95,11 +96,16 @@ export default function Home() {
     const fetchCohortName = async () => {
       try {
         const { data } = await apiClient.get("/cohort/registration-status");
-        if (data && data.hasActiveCohort && data.cohortName) {
-          setCohortName(data.cohortName);
+        if (data) {
+          if (data.hasActiveCohort && data.cohortName) {
+            setCohortName(data.cohortName);
+          }
+          if (data.brochureUrl) {
+            setBrochureUrl(data.brochureUrl);
+          }
         }
       } catch (err) {
-        console.error("Failed to fetch registration status name:", err);
+        console.error("Failed to fetch registration status config:", err);
       }
     };
     fetchCohortName();
@@ -374,6 +380,19 @@ export default function Home() {
           >
             <h2 className="text-headline-lg text-primary font-display text-3xl md:text-4xl mb-4 font-bold">Comprehensive Core Training</h2>
             <p className="text-body-md text-on-surface-variant">Our rigorous curriculum ensures you are fully prepared for the most demanding roles.</p>
+            {brochureUrl && (
+              <div className="mt-6 flex justify-center">
+                <a
+                  href={brochureUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-impact-orange hover:bg-impact-orange/95 text-white font-semibold text-sm px-6 py-3 rounded-[6px] shadow-md hover-lift transition-all inline-flex items-center gap-2 cursor-pointer font-sans"
+                >
+                  <HiArrowDownTray className="w-4 h-4" />
+                  Download Curriculum Brochure
+                </a>
+              </div>
+            )}
           </motion.div>
 
           <motion.div

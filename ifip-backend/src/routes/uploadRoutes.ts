@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { authenticateApplicant } from '../middleware/applicantAuth.js';
 import { authenticate, authorize } from '../middleware/auth.js';
-import { uploadCv, uploadCvAuth, uploadLogo } from '../controllers/uploadController.js';
+import { uploadCv, uploadCvAuth, uploadLogo, uploadBrochure } from '../controllers/uploadController.js';
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -14,5 +14,6 @@ const router = Router();
 router.post('/cv', authenticateApplicant, upload.single('cv'), uploadCv);
 router.post('/cv-auth', authenticate, upload.single('cv'), uploadCvAuth);
 router.post('/logo', authenticate, authorize('admin', 'superadmin'), upload.single('logo'), uploadLogo);
+router.post('/brochure', authenticate, authorize('admin', 'superadmin'), upload.single('brochure'), uploadBrochure);
 
 export default router;

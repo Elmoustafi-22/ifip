@@ -16,13 +16,15 @@ router.get('/registration-status', async (req, res) => {
         }
 
         const capacity = await checkCohortCapacity(cohort._id);
+        const config = await CohortConfig.findOne();
         res.json({
             hasActiveCohort: true,
             isFull: capacity.isFull,
             cohortName: cohort.name,
             registrationEndDate: cohort.registrationEndDate.toISOString(),
             cap: capacity.cap,
-            count: capacity.count
+            count: capacity.count,
+            brochureUrl: config?.brochureUrl
         });
     } catch (e: any) {
         res.status(500).json({ message: 'Error checking cohort registration status.', error: e.message });
@@ -43,7 +45,8 @@ router.get('/active', authenticate, async (req, res) => {
         res.json({
             cohortStartDate: config.cohortStartDate.toISOString(),
             cohortCap: config.cohortCap,
-            dashboardViewOverride: config.dashboardViewOverride || 'default'
+            dashboardViewOverride: config.dashboardViewOverride || 'default',
+            brochureUrl: config.brochureUrl
         });
     } catch (e: any) {
         res.status(500).json({ message: 'Error retrieving active cohort configuration.', error: e.message });

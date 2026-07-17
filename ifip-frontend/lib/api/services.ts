@@ -105,6 +105,7 @@ export interface CohortConfigResponse {
   cohortStartDate: string;
   cohortCap: number;
   dashboardViewOverride: 'default' | 'coming_soon' | 'unlocked';
+  brochureUrl?: string;
 }
 
 export const getCohortConfig = async (): Promise<CohortConfigResponse> => {
@@ -271,6 +272,7 @@ export interface RegistrationStatus {
   registrationEndDate?: string;
   cap?: number;
   count?: number;
+  brochureUrl?: string;
 }
 
 export const getRegistrationStatus = async (): Promise<RegistrationStatus> => {
@@ -392,6 +394,17 @@ export const updatePartner = async (id: string, payload: { name?: string; logoUr
 
 export const deletePartner = async (id: string): Promise<any> => {
   const { data } = await authClient.delete(`/placements/admin/partners/${id}`);
+  return data;
+};
+
+export const uploadBrochure = async (file: File): Promise<{ brochureUrl: string }> => {
+  const formData = new FormData();
+  formData.append("brochure", file);
+  const { data } = await authClient.post<{ brochureUrl: string }>("/uploads/brochure", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
   return data;
 };
 
