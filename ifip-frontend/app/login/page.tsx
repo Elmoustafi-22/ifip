@@ -76,8 +76,12 @@ export default function LoginPage() {
       if (res.accessToken) {
         handlePostLoginRedirect(res.accessToken);
       }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Invalid credentials. Please try again.");
+    } catch (err: any) {
+      if (err.status === 400 || err.status === 401) {
+        setError("Incorrect credentials.");
+      } else {
+        setError(err.message || "An error occurred on the server.");
+      }
       setLoading(false);
     }
   };

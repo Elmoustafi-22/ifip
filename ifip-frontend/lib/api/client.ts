@@ -35,7 +35,19 @@ apiClient.interceptors.response.use(
     let isNetworkError = false;
 
     if (error.response) {
-      errorMessage = error.response.data?.message ?? `Server responded with status ${error.response.status}`;
+      const data = error.response.data;
+      if (data?.message === "Validation failed" && data.errors?.fieldErrors) {
+        const messages: string[] = [];
+        Object.entries(data.errors.fieldErrors).forEach(([field, msgs]) => {
+          if (Array.isArray(msgs) && msgs.length > 0) {
+            const readableField = field.charAt(0).toUpperCase() + field.slice(1);
+            messages.push(`${readableField} (${msgs.join(", ")})`);
+          }
+        });
+        errorMessage = messages.length > 0 ? messages.join("; ") : "Validation failed.";
+      } else {
+        errorMessage = data?.message ?? `Server responded with status ${error.response.status}`;
+      }
     } else if (error.request) {
       isNetworkError = true;
       errorMessage = "Network error. Please check your internet connection and try again.";
@@ -157,7 +169,19 @@ authClient.interceptors.response.use(
     let isNetworkError = false;
 
     if (error.response) {
-      errorMessage = error.response.data?.message ?? `Server responded with status ${error.response.status}`;
+      const data = error.response.data;
+      if (data?.message === "Validation failed" && data.errors?.fieldErrors) {
+        const messages: string[] = [];
+        Object.entries(data.errors.fieldErrors).forEach(([field, msgs]) => {
+          if (Array.isArray(msgs) && msgs.length > 0) {
+            const readableField = field.charAt(0).toUpperCase() + field.slice(1);
+            messages.push(`${readableField} (${msgs.join(", ")})`);
+          }
+        });
+        errorMessage = messages.length > 0 ? messages.join("; ") : "Validation failed.";
+      } else {
+        errorMessage = data?.message ?? `Server responded with status ${error.response.status}`;
+      }
     } else if (error.request) {
       isNetworkError = true;
       errorMessage = "Network error. Please check your internet connection and try again.";
