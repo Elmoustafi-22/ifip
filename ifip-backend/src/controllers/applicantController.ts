@@ -63,7 +63,7 @@ export const startApplication = async (req: Request, res: Response) => {
         ? JSON.parse(rateDataRaw) 
         : { sendCount: 0, windowStart: now, lastSentTime: 0 };
 
-    const windowMs = 24 * 60 * 60 * 1000;
+    const windowMs = 1 * 60 * 60 * 1000;
     const windowExpired = (now - rateData.windowStart) > windowMs;
     if (windowExpired) {
         rateData.sendCount = 0;
@@ -83,7 +83,7 @@ export const startApplication = async (req: Request, res: Response) => {
     const maxPerWindow = 5;
     if (rateData.sendCount >= maxPerWindow) {
         res.status(429).json({
-            message: 'Too many verification codes requested. Please try again later.'
+            message: 'Too many verification codes requested. Please try again in an hour.'
         });
         return;
     }
@@ -99,7 +99,7 @@ export const startApplication = async (req: Request, res: Response) => {
     // Save values in Redis concurrently
     await Promise.all([
         redisClient.set(otpKey, hash, { EX: otpExpiryMinutes * 60 }),
-        redisClient.set(rateKey, JSON.stringify(rateData), { EX: 24 * 60 * 60 })
+        redisClient.set(rateKey, JSON.stringify(rateData), { EX: 1 * 60 * 60 })
     ]);
 
     notificationEmitter.emit('otp.requested', { email, otp: code });
