@@ -175,7 +175,6 @@ export default function ForgotPasswordPage() {
             <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
             <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
             <a href="#" className="hover:text-primary transition-colors">Program FAQs</a>
-            <Link href="/login" className="hover:text-primary transition-colors">Partner Login</Link>
           </div>
         </div>
       </footer>

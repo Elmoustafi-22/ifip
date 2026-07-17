@@ -87,7 +87,7 @@ const jsonLd = {
   ],
   "contactPoint": {
     "@type": "ContactPoint",
-    "email": "partnerships@ifip.ng",
+    "email": "ifip.program@gmail.com",
     "contactType": "partnerships"
   }
 };

@@ -690,7 +690,7 @@ export default function Home() {
         {/* Overlapping Badge */}
         <div className="absolute -top-6 left-1/2 -translate-x-1/2">
           <Link
-            href="#curriculum"
+            href="/about"
             className="inline-flex items-center justify-center bg-white border border-vibrant-blue/20 hover:border-vibrant-blue text-vibrant-blue font-semibold text-sm px-6 py-2.5 rounded-[4px] shadow-sm hover-lift transition-all whitespace-nowrap"
           >
             Learn More About Our Mission
@@ -1103,7 +1103,7 @@ export default function Home() {
                   </svg>
                 </Link>
                 <a
-                  href="mailto:partnerships@ifip.ng"
+                  href="mailto:ifip.program@gmail.com"
                   className="inline-flex items-center justify-center gap-2 border border-white/20 hover:bg-white/10 text-white font-semibold text-sm px-7 py-3.5 rounded-[6px] transition-all"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
