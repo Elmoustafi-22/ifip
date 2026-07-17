@@ -1495,39 +1495,76 @@ export default function ApplyPage() {
                 Enter your email to receive a 6-digit verification code. No password required to apply.
               </p>
 
-              <div className="w-full flex flex-col gap-4 text-left font-sans mt-4">
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant block mb-2">
-                    Email Address
-                  </label>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <input
-                      id="email"
-                      type="email"
-                      placeholder="name@example.com"
-                      value={email}
-                      onChange={(e) => handleInputChange("email", e.target.value, setEmail)}
-                      disabled={otpSent}
-                      className={`flex-1 border rounded-[6px] px-4 py-3 text-sm focus:outline-none transition-colors ${
-                        errors.email
-                          ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                          : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                      }`}
-                    />
-                    <button
-                      onClick={handleSendCode}
-                      disabled={loading || !email}
-                      className="bg-primary hover:bg-primary/95 text-white font-bold text-sm px-6 py-3 rounded-[6px] transition-all cursor-pointer whitespace-nowrap disabled:bg-slate-300"
-                    >
-                      {loading ? "Sending..." : otpSent ? "Resend Code" : "Send Code"}
-                    </button>
+              {!otpSent ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSendCode();
+                  }}
+                  className="w-full flex flex-col gap-4 text-left font-sans mt-4"
+                >
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant block mb-2">
+                      Email Address
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <input
+                        id="email"
+                        type="email"
+                        placeholder="name@example.com"
+                        value={email}
+                        onChange={(e) => handleInputChange("email", e.target.value, setEmail)}
+                        className={`flex-1 border rounded-[6px] px-4 py-3 text-sm focus:outline-none transition-colors ${
+                          errors.email
+                            ? "border-red-300 focus:border-red-500 bg-red-50/10"
+                            : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
+                        }`}
+                      />
+                      <button
+                        type="submit"
+                        disabled={loading || !email}
+                        className="bg-primary hover:bg-primary/95 text-white font-bold text-sm px-6 py-3 rounded-[6px] transition-all cursor-pointer whitespace-nowrap disabled:bg-slate-300"
+                      >
+                        {loading ? "Sending..." : "Send Code"}
+                      </button>
+                    </div>
+                    {errors.email && (
+                      <span className="text-red-500 text-xs mt-1 block">{errors.email}</span>
+                    )}
                   </div>
-                  {errors.email && (
-                    <span className="text-red-500 text-xs mt-1 block">{errors.email}</span>
-                  )}
-                </div>
+                </form>
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleVerifyOtp();
+                  }}
+                  className="w-full flex flex-col gap-4 text-left font-sans mt-4"
+                >
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant block mb-2">
+                      Email Address
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <input
+                        id="email"
+                        type="email"
+                        placeholder="name@example.com"
+                        value={email}
+                        disabled
+                        className="flex-1 border border-outline-variant/40 rounded-[6px] px-4 py-3 text-sm focus:outline-none bg-slate-100 text-on-surface-variant cursor-not-allowed"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSendCode}
+                        disabled={loading}
+                        className="bg-primary hover:bg-primary/95 text-white font-bold text-sm px-6 py-3 rounded-[6px] transition-all cursor-pointer whitespace-nowrap disabled:bg-slate-300"
+                      >
+                        {loading ? "Sending..." : "Resend Code"}
+                      </button>
+                    </div>
+                  </div>
 
-                {otpSent && (
                   <div>
                     <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant block mb-2">
                       6-Digit OTP Code
@@ -1549,17 +1586,15 @@ export default function ApplyPage() {
                       <span className="text-red-500 text-xs mt-1 block text-center tracking-normal font-sans">{errors.otp}</span>
                     )}
                   </div>
-                )}
-              </div>
 
-              {otpSent && (
-                <button
-                  onClick={handleVerifyOtp}
-                  disabled={loading || otp.length < 6}
-                  className="w-full bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-base py-4 rounded-[6px] shadow-md hover-lift transition-all cursor-pointer mt-6 disabled:bg-slate-300"
-                >
-                  {loading ? "Verifying..." : "Verify & Continue"}
-                </button>
+                  <button
+                    type="submit"
+                    disabled={loading || otp.length < 6}
+                    className="w-full bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-base py-4 rounded-[6px] shadow-md hover-lift transition-all cursor-pointer mt-2 disabled:bg-slate-300"
+                  >
+                    {loading ? "Verifying..." : "Verify & Continue"}
+                  </button>
+                </form>
               )}
             </div>
           )}
