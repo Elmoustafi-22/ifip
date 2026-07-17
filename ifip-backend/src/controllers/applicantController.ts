@@ -9,6 +9,7 @@ import { redisClient } from '../services/redisService.js';
 import { User } from '../models/User.js';
 import { Application } from '../models/Application.js';
 import { Payment } from '../models/Payments.js';
+import { Cohort } from '../models/Cohort.js';
 import { paymentReadySchema } from '../validators/applicantValidators.js';
 import { env } from '../config/env.js';
 import { CohortConfig } from '../models/CohortConfig.js';
@@ -245,14 +246,23 @@ export const executeApplicationSubmission = async (applicantId: Types.ObjectId |
         levyAcknowledged: applicant.levyAcknowledged,
         declaration: applicant.declaration,
         cohortId: applicant.cohortId,
-        status: 'payment_confirmed',
+        status: 'active',
     });
+
+    user.role = 'participant';
+    await user.save();
 
     payment.applicationId = application._id as any;
     await payment.save();
 
     const setPasswordToken = signSetPasswordToken(user.id, user.email);
     notificationEmitter.emit('application.submitted', { email: applicant.email, setPasswordToken, country: applicant.country });
+    
+    const cohort = await Cohort.findById(applicant.cohortId);
+    if (cohort) {
+        notificationEmitter.emit('cohort.assigned', { user, cohort });
+    }
+
     notificationEmitter.emit('application.enrolled', { user, application });
 
     await Applicant.deleteOne({ _id: applicant._id });

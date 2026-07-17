@@ -465,7 +465,7 @@ export default function ApplyPage() {
         break;
       case 6:
         schema = step6DeclarationSchema;
-        dataToValidate = { levyAcknowledged, declarationConfirmed, signature };
+        dataToValidate = { levyAcknowledged: true, declarationConfirmed, signature };
         break;
       default:
         return true;
@@ -2507,37 +2507,37 @@ export default function ApplyPage() {
                 </div>
 
                 {/* Back and Action Buttons */}
-                <div className="flex flex-wrap items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
+                <div className="flex items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
                   <button
                     onClick={() => setStep(5)}
-                    className="border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-4 py-2.5 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all"
+                    className="border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-4 py-2.5 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all shrink-0"
                   >
                     <HiOutlineChevronLeft className="w-4 h-4" />
                     Back
                   </button>
                   {!paymentVerified ? (
-                    <div className="flex-1 sm:flex-none flex flex-col items-stretch sm:items-end gap-1">
-                      <button
-                        onClick={handlePayRedirect}
-                        disabled={loading || !declarationConfirmed || !signature}
-                        className="w-full sm:w-auto bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300"
-                      >
-                        {loading ? "Processing..." : `Submit & Pay Commitment Levy (${country === "Nigeria" ? "₦20,000" : "$30"})`}
-                      </button>
-                      {errorMsg && (
-                        <span className="text-red-500 text-xs mt-1 block text-center sm:text-right font-bold max-w-xs">{errorMsg}</span>
-                      )}
-                    </div>
+                    <button
+                      onClick={handlePayRedirect}
+                      disabled={loading || !declarationConfirmed || !signature}
+                      className="bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-sm px-6 py-2.5 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap shrink-0 font-sans"
+                    >
+                      {loading ? "Processing..." : "Submit & Pay"}
+                    </button>
                   ) : (
                     <button
                       onClick={handleSubmitApplication}
                       disabled={loading || !declarationConfirmed || !signature}
-                      className="flex-1 sm:flex-none bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300"
+                      className="bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-sm px-6 py-2.5 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap shrink-0 font-sans"
                     >
-                      {loading ? "Submitting..." : "Submit Application ✓"}
+                      {loading ? "Submitting..." : "Submit Application"}
                     </button>
                   )}
                 </div>
+                {errorMsg && (
+                  <div className="mt-4 text-center sm:text-right">
+                    <span className="text-red-500 text-xs font-bold inline-block max-w-md">{errorMsg}</span>
+                  </div>
+                )}
               </div>
             </div>
           )}

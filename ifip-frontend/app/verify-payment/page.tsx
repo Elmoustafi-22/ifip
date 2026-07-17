@@ -14,9 +14,9 @@ function VerifyPaymentContent() {
   const [message, setMessage] = useState("Verifying your payment, please wait…");
 
   useEffect(() => {
-    // Paystack appends ?reference= and ?trxref= to the callback URL
+    // Paystack/Flutterwave appends ?reference=, ?trxref=, or ?tx_ref= to the callback URL
     const referenceFromUrl =
-      searchParams.get("reference") || searchParams.get("trxref");
+      searchParams.get("reference") || searchParams.get("trxref") || searchParams.get("tx_ref");
 
     // Retrieve the polling token we saved before redirecting to Paystack
     const pollingToken = localStorage.getItem("paymentPollingToken");

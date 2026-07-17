@@ -21,22 +21,28 @@ export default function ModulesPage() {
   const [userData, setUserData] = useState<any>(null);
   const [cohortStartDate, setCohortStartDate] = useState("2026-08-31T00:00:00.000Z");
   const [dashboardViewOverride, setDashboardViewOverride] = useState<string>("default");
+  const [isAwaitingAssignment, setIsAwaitingAssignment] = useState(false);
 
   useEffect(() => {
     const fetchModulesData = async () => {
       try {
-        const [modulesData, profile, config] = await Promise.all([
-          getLMSModules(),
+        const [profile, config] = await Promise.all([
           getMyApplication(),
           getCohortConfig()
         ]);
-        setModules(modulesData);
         setUserData(profile);
         setCohortStartDate(config.cohortStartDate);
         setDashboardViewOverride(config.dashboardViewOverride || "default");
+
+        const modulesData = await getLMSModules();
+        setModules(modulesData);
       } catch (err: any) {
         console.error("Failed to load modules page parameters:", err);
-        setError("Unable to retrieve coursework parameters. Please try again later.");
+        if (err.apiCode === "AWAITING_COHORT_ASSIGNMENT") {
+          setIsAwaitingAssignment(true);
+        } else {
+          setError(err.message || "Unable to retrieve coursework parameters. Please try again later.");
+        }
       } finally {
         setLoading(false);
       }
@@ -94,6 +100,43 @@ export default function ModulesPage() {
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
         <p className="text-slate-500 font-medium text-sm">Loading curriculum modules...</p>
+      </div>
+    );
+  }
+
+  if (isAwaitingAssignment) {
+    return (
+      <div className="flex-grow flex flex-col items-center justify-center py-10 px-4 font-sans select-none">
+        <div className="w-full max-w-xl bg-white rounded-2xl border border-slate-200/60 p-8 md:p-12 text-center mx-auto shadow-sm">
+          <div className="relative w-20 h-20 mx-auto mb-6 flex items-center justify-center bg-blue-50 rounded-full text-[#000666]">
+            <svg className="w-10 h-10 animate-pulse text-[#000666]/85" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+
+          <span className="text-[10px] uppercase font-bold text-[#000666] tracking-widest block mb-2">Enrollment Status: Confirmed</span>
+          <h1 className="text-2xl md:text-3xl font-display font-black text-[#000666] mb-4">
+            Awaiting Cohort Assignment
+          </h1>
+          
+          <p className="text-sm text-slate-600 leading-relaxed font-medium mb-6">
+            Welcome, <strong>{userData?.fullName || "Candidate"}</strong>! Your commitment levy has been successfully received and verified. 
+          </p>
+
+          <div className="bg-[#000666]/5 rounded-xl p-4 text-xs text-[#000666] leading-relaxed font-semibold max-w-md mx-auto mb-8 border border-[#000666]/10 text-left">
+            <span className="font-bold text-[10px] uppercase tracking-wider block mb-1">Admissions Notice</span>
+            Our team is currently finalizing your student account parameters. You will receive an automated email confirmation with your course schedules as soon as an administrator assigns your training cohort.
+          </div>
+
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => window.location.reload()}
+              className="border border-[#000666]/20 hover:bg-slate-55 text-[#000666] font-bold text-xs px-6 py-2.5 rounded-xl transition-all"
+            >
+              Refresh Status
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

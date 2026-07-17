@@ -47,6 +47,7 @@ apiClient.interceptors.response.use(
     (customError as any).isNetworkError = isNetworkError;
     (customError as any).status = error.response?.status;
     (customError as any).code = error.code;
+    (customError as any).apiCode = error.response?.data?.code;
 
     return Promise.reject(customError);
   }
@@ -160,6 +161,7 @@ authClient.interceptors.response.use(
     (customError as any).isNetworkError = isNetworkError;
     (customError as any).status = error.response?.status;
     (customError as any).code = error.code;
+    (customError as any).apiCode = error.response?.data?.code;
 
     return Promise.reject(customError);
   }

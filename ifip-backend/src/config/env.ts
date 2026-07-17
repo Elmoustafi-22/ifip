@@ -29,6 +29,10 @@ const envSchema = z.object({
     COHORT_CAP: z.string().default('100'),
     COHORT_START_DATE: z.string().default('2026-08-31T00:00:00.000Z'),
     REDIS_URL: z.string().default('redis://127.0.0.1:6379'),
+    FLUTTERWAVE_SECRET_KEY: z.string().min(1),
+    FLUTTERWAVE_CALLBACK_URL: z.string().min(1),
+    FLUTTERWAVE_WEBHOOK_HASH: z.string().min(1),
+    LEVY_AMOUNT_USD: z.string().default('30'),
 });
 
 const parsed = envSchema.safeParse(process.env);
