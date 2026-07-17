@@ -297,8 +297,19 @@ const STATUS_DESCS: Record<string, string> = {
 };
 
 export default function ApplyPage() {
-  const { options: interestOptions, loading: loadingInterests } = useFormOptions("placement_interests");
-  const { options: statusOptions, loading: loadingStatus } = useFormOptions("academic_status");
+  const { 
+    options: interestOptions, 
+    loading: loadingInterests,
+    error: interestError,
+    retry: retryInterests
+  } = useFormOptions("placement_interests");
+
+  const { 
+    options: statusOptions, 
+    loading: loadingStatus,
+    error: statusError,
+    retry: retryStatus
+  } = useFormOptions("academic_status");
 
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -1908,6 +1919,17 @@ export default function ApplyPage() {
                     <div className="col-span-full py-4 text-center text-xs text-slate-400 animate-pulse font-medium">
                       Loading academic status options...
                     </div>
+                  ) : statusError && statusOptions.length === 0 ? (
+                    <div className="col-span-full py-6 flex flex-col items-center justify-center gap-3 text-center border border-red-200/50 bg-red-50/20 rounded-xl p-4">
+                      <p className="text-xs text-red-600 font-semibold">Failed to load academic status options due to poor connection.</p>
+                      <button 
+                        type="button" 
+                        onClick={retryStatus}
+                        className="px-4 py-1.5 bg-primary text-white text-xs font-bold rounded hover:bg-primary/95 cursor-pointer shadow-sm transition-colors"
+                      >
+                        Retry Loading
+                      </button>
+                    </div>
                   ) : (
                     statusOptions.map((status) => {
                       const desc = STATUS_DESCS[status.label] || "Applicant status";
@@ -2047,63 +2069,78 @@ export default function ApplyPage() {
                 </p>
               </div>
 
-              <div>
-                <label className="text-xs font-bold uppercase text-primary block mb-2">Primary Area of Interest (Select the one that applies to you) *</label>
-                <select
-                  id="primaryInterest"
-                  value={primaryInterest[0] || ""}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const updated = val ? [val] : [];
-                    setPrimaryInterest(updated);
-                    if (errors.primaryInterest && updated.length > 0) {
-                      setErrors((prev) => {
-                        const copy = { ...prev };
-                        delete copy.primaryInterest;
-                        return copy;
-                      });
-                    }
-                  }}
-                  className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
-                    errors.primaryInterest
-                      ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                      : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                  }`}
-                >
-                  <option value="">
-                    {loadingInterests ? "Loading options..." : "Select Primary Area of Interest..."}
-                  </option>
-                  {!loadingInterests &&
-                    interestOptions.map((option) => (
-                      <option key={option.value} value={option.label}>
-                        {option.label}
+              {interestError && interestOptions.length === 0 ? (
+                <div className="col-span-full py-8 flex flex-col items-center justify-center gap-3 text-center border border-red-200/50 bg-red-50/20 rounded-xl p-6">
+                  <p className="text-sm text-red-600 font-semibold">Failed to load areas of interest due to poor connection.</p>
+                  <button 
+                    type="button" 
+                    onClick={retryInterests}
+                    className="px-6 py-2 bg-primary text-white text-xs font-bold rounded hover:bg-primary/95 cursor-pointer shadow-md transition-colors"
+                  >
+                    Retry Loading Options
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="text-xs font-bold uppercase text-primary block mb-2">Primary Area of Interest (Select the one that applies to you) *</label>
+                    <select
+                      id="primaryInterest"
+                      value={primaryInterest[0] || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const updated = val ? [val] : [];
+                        setPrimaryInterest(updated);
+                        if (errors.primaryInterest && updated.length > 0) {
+                          setErrors((prev) => {
+                            const copy = { ...prev };
+                            delete copy.primaryInterest;
+                            return copy;
+                          });
+                        }
+                      }}
+                      className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
+                        errors.primaryInterest
+                          ? "border-red-300 focus:border-red-500 bg-red-50/10"
+                          : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
+                      }`}
+                    >
+                      <option value="">
+                        {loadingInterests ? "Loading options..." : "Select Primary Area of Interest..."}
                       </option>
-                    ))}
-                </select>
-                {errors.primaryInterest && (
-                  <span className="text-red-500 text-xs mt-1 block">{errors.primaryInterest}</span>
-                )}
-              </div>
+                      {!loadingInterests &&
+                        interestOptions.map((option) => (
+                          <option key={option.value} value={option.label}>
+                            {option.label}
+                          </option>
+                        ))}
+                    </select>
+                    {errors.primaryInterest && (
+                      <span className="text-red-500 text-xs mt-1 block">{errors.primaryInterest}</span>
+                    )}
+                  </div>
 
-              <div>
-                <label className="text-xs font-bold uppercase text-primary block mb-2">Secondary Area of Interest (Optional)</label>
-                <select
-                  value={secondaryInterest}
-                  onChange={(e) => setSecondaryInterest(e.target.value)}
-                  className="w-full border border-outline-variant/40 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-primary bg-slate-50/50"
-                >
-                  <option value="">
-                    {loadingInterests ? "Loading options..." : "Select an optional second focus..."}
-                  </option>
-                  {!loadingInterests &&
-                    interestOptions.map((option) => (
-                      <option key={option.value} value={option.label}>
-                        {option.label}
+                  <div>
+                    <label className="text-xs font-bold uppercase text-primary block mb-2">Secondary Area of Interest (Optional)</label>
+                    <select
+                      value={secondaryInterest}
+                      onChange={(e) => setSecondaryInterest(e.target.value)}
+                      className="w-full border border-outline-variant/40 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-primary bg-slate-50/50"
+                    >
+                      <option value="">
+                        {loadingInterests ? "Loading options..." : "Select an optional second focus..."}
                       </option>
-                    ))}
-                </select>
-                <span className="text-[10px] text-on-surface-variant/80 mt-1 block">Choosing a secondary area helps us understand the breadth of your profile.</span>
-              </div>
+                      {!loadingInterests &&
+                        interestOptions.map((option) => (
+                          <option key={option.value} value={option.label}>
+                            {option.label}
+                          </option>
+                        ))}
+                    </select>
+                    <span className="text-[10px] text-on-surface-variant/80 mt-1 block">Choosing a secondary area helps us understand the breadth of your profile.</span>
+                  </div>
+                </>
+              )}
 
               <div className="flex flex-wrap items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
                 <button

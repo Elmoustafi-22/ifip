@@ -35,8 +35,19 @@ import { useFormOptions } from "@/lib/hooks/useFormOptions";
 export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { options: interestOptions, loading: loadingInterests } = useFormOptions("placement_interests");
-  const { options: statusOptions, loading: loadingStatus } = useFormOptions("academic_status");
+  const { 
+    options: interestOptions, 
+    loading: loadingInterests,
+    error: interestError,
+    retry: retryInterests
+  } = useFormOptions("placement_interests");
+
+  const { 
+    options: statusOptions, 
+    loading: loadingStatus,
+    error: statusError,
+    retry: retryStatus
+  } = useFormOptions("academic_status");
 
   // Profile Form States
   const [fullName, setFullName] = useState("");
@@ -456,22 +467,35 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col gap-2">
               <label htmlFor="academic-status" className="text-xs font-bold uppercase text-slate-500 tracking-wide">Current Status</label>
-              <select
-                id="academic-status"
-                value={academicStatus}
-                onChange={(e) => setAcademicStatus(e.target.value)}
-                className="w-full border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
-              >
-                <option value="">
-                  {loadingStatus ? "Loading options..." : "Select Academic Status"}
-                </option>
-                {!loadingStatus &&
-                  statusOptions.map((opt) => (
-                    <option key={opt.value} value={opt.label}>
-                      {opt.label}
-                    </option>
-                  ))}
-              </select>
+              {statusError && statusOptions.length === 0 ? (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border border-red-200/50 bg-red-50/20 rounded-[6px] p-3">
+                  <span className="text-xs text-red-600 font-semibold">Failed to load status options.</span>
+                  <button 
+                    type="button" 
+                    onClick={retryStatus}
+                    className="px-3 py-1.5 bg-[#0E1B5D] text-white text-xs font-bold rounded hover:bg-[#0E1B5D]/90 cursor-pointer shadow-sm transition-colors"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : (
+                <select
+                  id="academic-status"
+                  value={academicStatus}
+                  onChange={(e) => setAcademicStatus(e.target.value)}
+                  className="w-full border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
+                >
+                  <option value="">
+                    {loadingStatus ? "Loading options..." : "Select Academic Status"}
+                  </option>
+                  {!loadingStatus &&
+                    statusOptions.map((opt) => (
+                      <option key={opt.value} value={opt.label}>
+                        {opt.label}
+                      </option>
+                    ))}
+                </select>
+              )}
             </div>
 
             <div className="flex flex-col gap-2">
@@ -525,45 +549,60 @@ export default function SettingsPage() {
               </div>
 
               <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="primary-focus" className="text-xs font-bold uppercase text-slate-500 tracking-wide">Primary Focus</label>
-                  <select
-                    id="primary-focus"
-                    value={primaryInterest}
-                    onChange={(e) => setPrimaryInterest(e.target.value)}
-                    className="w-full border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
-                  >
-                    <option value="">
-                      {loadingInterests ? "Loading options..." : "Select Primary Track"}
-                    </option>
-                    {!loadingInterests &&
-                      interestOptions.map((opt) => (
-                        <option key={opt.value} value={opt.label}>
-                          {opt.label}
+                {interestError && interestOptions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-3 border border-red-200/50 bg-red-50/20 rounded-[6px] p-5 text-center">
+                    <p className="text-xs text-red-600 font-semibold">Failed to load focus areas due to poor connection.</p>
+                    <button 
+                      type="button" 
+                      onClick={retryInterests}
+                      className="px-4 py-1.5 bg-[#0E1B5D] text-white text-xs font-bold rounded hover:bg-[#0E1B5D]/90 cursor-pointer shadow-sm transition-colors"
+                    >
+                      Retry Loading
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="primary-focus" className="text-xs font-bold uppercase text-slate-500 tracking-wide">Primary Focus</label>
+                      <select
+                        id="primary-focus"
+                        value={primaryInterest}
+                        onChange={(e) => setPrimaryInterest(e.target.value)}
+                        className="w-full border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
+                      >
+                        <option value="">
+                          {loadingInterests ? "Loading options..." : "Select Primary Track"}
                         </option>
-                      ))}
-                  </select>
-                </div>
+                        {!loadingInterests &&
+                          interestOptions.map((opt) => (
+                            <option key={opt.value} value={opt.label}>
+                              {opt.label}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
 
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="secondary-focus" className="text-xs font-bold uppercase text-slate-500 tracking-wide">Secondary Focus</label>
-                  <select
-                    id="secondary-focus"
-                    value={secondaryInterest}
-                    onChange={(e) => setSecondaryInterest(e.target.value)}
-                    className="w-full border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
-                  >
-                    <option value="">
-                      {loadingInterests ? "Loading options..." : "Select Secondary Track"}
-                    </option>
-                    {!loadingInterests &&
-                      interestOptions.map((opt) => (
-                        <option key={opt.value} value={opt.label}>
-                          {opt.label}
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="secondary-focus" className="text-xs font-bold uppercase text-slate-500 tracking-wide">Secondary Focus</label>
+                      <select
+                        id="secondary-focus"
+                        value={secondaryInterest}
+                        onChange={(e) => setSecondaryInterest(e.target.value)}
+                        className="w-full border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
+                      >
+                        <option value="">
+                          {loadingInterests ? "Loading options..." : "Select Secondary Track"}
                         </option>
-                      ))}
-                  </select>
-                </div>
+                        {!loadingInterests &&
+                          interestOptions.map((opt) => (
+                            <option key={opt.value} value={opt.label}>
+                              {opt.label}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  </>
+                )}
 
                 <div className="flex flex-col gap-2">
                   <label className="text-xs font-bold uppercase text-slate-500 tracking-wide">Availability</label>

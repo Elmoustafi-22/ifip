@@ -12,7 +12,12 @@ import { motion } from "framer-motion";
 
 
 export default function PartnerApplyPage() {
-  const { options: sectorOptions, loading: loadingSectors } = useFormOptions("sector_tags");
+  const { 
+    options: sectorOptions, 
+    loading: loadingSectors,
+    error: sectorError,
+    retry: retrySectors
+  } = useFormOptions("sector_tags");
 
   // Nav state
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -355,6 +360,17 @@ export default function PartnerApplyPage() {
               <div className="flex flex-wrap gap-2">
                 {loadingSectors ? (
                   <span className="text-xs text-slate-400 animate-pulse font-medium">Loading sectors...</span>
+                ) : sectorError && sectorOptions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-3 border border-red-200/50 bg-red-50/20 rounded-xl p-4 w-full text-center">
+                    <p className="text-xs text-red-600 font-semibold">Failed to load sectors due to poor connection.</p>
+                    <button 
+                      type="button" 
+                      onClick={retrySectors}
+                      className="px-4 py-1.5 bg-[#000666] text-white text-xs font-bold rounded hover:bg-[#000666]/90 cursor-pointer shadow-sm transition-colors"
+                    >
+                      Retry Loading
+                    </button>
+                  </div>
                 ) : (
                   sectorOptions.map((sector) => {
                     const active = selectedSectors.includes(sector.label);
