@@ -58,6 +58,7 @@ export const setPassword = async (req: Request<{}, {}, SetPasswordInput>, res: R
     }
 
     user.passwordHash = await bcrypt.hash(password, 12);
+    user.lastLoginAt = new Date();
     await user.save();
 
     const { accessToken } = issueTokens(res, user.id, user.role);
@@ -105,6 +106,9 @@ export const login = async (req: Request<{}, {}, LoginInput>, res: Response) => 
         res.json({ mfaRequired: true, mfaToken });
         return;
     }
+
+    user.lastLoginAt = new Date();
+    await user.save();
 
     const { accessToken } = issueTokens(res, user.id, user.role);
     res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
@@ -255,6 +259,9 @@ export const loginMfaVerify = async (req: Request, res: Response) => {
             res.status(401).json({ message: 'Invalid verification code.' });
             return;
         }
+
+        user.lastLoginAt = new Date();
+        await user.save();
 
         const { accessToken } = issueTokens(res, user.id, user.role);
         res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });

@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import cloudinary from '../config/cloudinary.js';
 import { Applicant } from '../models/Applicants.js';
 import { CohortConfig } from '../models/CohortConfig.js';
+import { logAction } from '../utils/auditLogger.js';
 
 export const uploadCv = async (req: Request, res: Response) => {
     if (!req.file) {
@@ -121,6 +122,8 @@ export const uploadBrochure = async (req: Request, res: Response) => {
         config.brochureUrl = uploadResult.secure_url;
         config.updatedAt = new Date();
         await config.save();
+
+        logAction(req, 'BROCHURE_UPLOAD', `Uploaded new curriculum brochure PDF: ${config.brochureUrl}`);
 
         res.json({ brochureUrl: config.brochureUrl });
     } catch (err: any) {

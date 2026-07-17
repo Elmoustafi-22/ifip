@@ -278,9 +278,11 @@ export default function AdminUsersPage() {
               <tr>
                 <th className="px-5 py-3 text-left text-[9px] font-bold uppercase tracking-wider text-slate-400">User</th>
                 <th className="px-4 py-3 text-left text-[9px] font-bold uppercase tracking-wider text-slate-400">Role</th>
+                <th className="px-4 py-3 text-left text-[9px] font-bold uppercase tracking-wider text-slate-400">Account Status</th>
                 <th className="px-4 py-3 text-left text-[9px] font-bold uppercase tracking-wider text-slate-400">Application Status</th>
                 <th className="px-4 py-3 text-left text-[9px] font-bold uppercase tracking-wider text-slate-400">Country</th>
                 <th className="px-4 py-3 text-left text-[9px] font-bold uppercase tracking-wider text-slate-400">Joined</th>
+                <th className="px-4 py-3 text-left text-[9px] font-bold uppercase tracking-wider text-slate-400">Last Login</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -296,7 +298,7 @@ export default function AdminUsersPage() {
                         </div>
                       </div>
                     </td>
-                    {[...Array(4)].map((_, j) => (
+                    {[...Array(6)].map((_, j) => (
                       <td key={j} className="px-4 py-4">
                         <div className="w-20 h-2.5 bg-slate-100 rounded" />
                       </td>
@@ -305,7 +307,7 @@ export default function AdminUsersPage() {
                 ))
               ) : !data || data.users.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-5 py-16 text-center">
+                  <td colSpan={7} className="px-5 py-16 text-center">
                     <HiOutlineUserCircle className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                     <p className="text-slate-400 text-sm font-medium">No users found.</p>
                     <p className="text-slate-300 text-xs mt-1">Try adjusting the filter or search term.</p>
@@ -343,6 +345,17 @@ export default function AdminUsersPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3.5">
+                        {user.isConfigured ? (
+                          <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#E8F5E9] text-[#2E7D32]">
+                            Configured
+                          </span>
+                        ) : (
+                          <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#FFF3E0] text-[#E65100]">
+                            Pending Setup
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5">
                         {statusMeta ? (
                           <span className={`inline-block text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${statusMeta.className}`}>
                             {statusMeta.label}
@@ -356,6 +369,9 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="px-4 py-3.5 text-xs text-slate-500 font-mono">
                         {formatDate(user.createdAt)}
+                      </td>
+                      <td className="px-4 py-3.5 text-xs text-slate-500 font-mono">
+                        {user.lastLoginAt ? formatDate(user.lastLoginAt) : "Never"}
                       </td>
                     </tr>
                   );
@@ -419,7 +435,7 @@ export default function AdminUsersPage() {
                   </div>
 
                   <div className="flex justify-between items-center pt-2 border-t border-slate-50 text-xs">
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1.5">
                       {statusMeta ? (
                         <span className={`inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${statusMeta.className} self-start`}>
                           {statusMeta.label}
@@ -427,13 +443,23 @@ export default function AdminUsersPage() {
                       ) : (
                         <span className="text-slate-300 text-[10px] italic">No application</span>
                       )}
+                      {user.isConfigured ? (
+                        <span className="inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#E8F5E9] text-[#2E7D32] self-start">
+                          Configured
+                        </span>
+                      ) : (
+                        <span className="inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#FFF3E0] text-[#E65100] self-start">
+                          Pending Setup
+                        </span>
+                      )}
                       <span className="text-slate-400 text-[10px]">
                         Country: {country ?? "—"}
                       </span>
                     </div>
-                    <span className="text-slate-400 text-[10px] font-mono self-end">
-                      Joined: {formatDate(user.createdAt)}
-                    </span>
+                    <div className="flex flex-col items-end text-[10px] text-slate-400 font-mono gap-1">
+                      <span>Joined: {formatDate(user.createdAt)}</span>
+                      <span>Login: {user.lastLoginAt ? formatDate(user.lastLoginAt) : "Never"}</span>
+                    </div>
                   </div>
                 </div>
               );
@@ -520,7 +546,7 @@ export default function AdminUsersPage() {
                 <h4 className="font-bold text-[#000666] border-b border-slate-100 pb-2 mb-3 flex items-center gap-1">
                   <HiOutlineUser className="w-4 h-4 text-amber-500" /> Profile Info
                 </h4>
-                <div className="grid grid-cols-2 gap-4 text-xs">
+                <div className="grid grid-cols-2 gap-y-4 gap-x-4 text-xs">
                   <div>
                     <span className="text-[10px] uppercase text-slate-400 font-medium">Registered Country</span>
                     <div className="font-bold text-slate-700">{selectedUser.country ?? selectedUser.application?.country ?? "—"}</div>
@@ -528,6 +554,26 @@ export default function AdminUsersPage() {
                   <div>
                     <span className="text-[10px] uppercase text-slate-400 font-medium">Account Created</span>
                     <div className="font-bold text-slate-700">{formatDate(selectedUser.createdAt)}</div>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase text-slate-400 font-medium">Account Setup Status</span>
+                    <div className="mt-0.5">
+                      {selectedUser.isConfigured ? (
+                        <span className="inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#E8F5E9] text-[#2E7D32]">
+                          Configured
+                        </span>
+                      ) : (
+                        <span className="inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#FFF3E0] text-[#E65100]">
+                          Pending Setup
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase text-slate-400 font-medium">Last Login Timestamp</span>
+                    <div className="font-bold text-slate-700 font-mono mt-0.5">
+                      {selectedUser.lastLoginAt ? formatDate(selectedUser.lastLoginAt) : "Never"}
+                    </div>
                   </div>
                 </div>
               </div>

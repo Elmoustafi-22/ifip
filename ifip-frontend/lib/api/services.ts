@@ -171,6 +171,8 @@ export interface AdminUser {
   country?: string;
   title?: string;
   createdAt: string;
+  isConfigured?: boolean;
+  lastLoginAt?: string;
   application?: {
     status: string;
     submittedAt: string;
@@ -211,6 +213,37 @@ export const getAdminUsers = async (params?: {
   limit?: number;
 }): Promise<AdminUsersResponse> => {
   const { data } = await authClient.get<AdminUsersResponse>("/admin/users", { params });
+  return data;
+};
+
+export interface AuditLogItem {
+  _id: string;
+  userId: string;
+  userEmail: string;
+  userRole: string;
+  action: string;
+  description: string;
+  ipAddress?: string;
+  userAgent?: string;
+  targetId?: string;
+  targetType?: string;
+  createdAt: string;
+}
+
+export interface AuditLogsResponse {
+  logs: AuditLogItem[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+export const getAuditLogs = async (params?: {
+  search?: string;
+  page?: number;
+  limit?: number;
+  action?: string;
+}): Promise<AuditLogsResponse> => {
+  const { data } = await authClient.get<AuditLogsResponse>("/admin/audit-logs", { params });
   return data;
 };
 

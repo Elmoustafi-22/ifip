@@ -17,6 +17,7 @@ export interface IUser extends Document {
     title?: string;
     mfaEnabled: boolean;
     mfaSecret?: string;
+    lastLoginAt?: Date;
     comparePassword(candidate: string): Promise<boolean>;
 }
 
@@ -35,6 +36,7 @@ const userSchema = new Schema<IUser>(
         title: { type: String },
         mfaEnabled: { type: Boolean, default: false },
         mfaSecret: { type: String },
+        lastLoginAt: { type: Date },
     },
     { timestamps: true }
 );

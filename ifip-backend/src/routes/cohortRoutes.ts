@@ -4,6 +4,7 @@ import { env } from '../config/env.js';
 import { getActiveRegistrationCohort, checkCohortCapacity } from '../controllers/paymentController.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
+import { logAction } from '../utils/auditLogger.js';
 
 const router = Router();
 
@@ -105,6 +106,8 @@ router.post('/active', authenticate, authorize('admin', 'superadmin'), async (re
         }
 
         await config.save();
+
+        logAction(req, 'SYSTEM_CONFIG_UPDATE', `Updated system launch configuration (capacity: ${config.cohortCap}, override mode: ${config.dashboardViewOverride})`);
 
         if (overrideChanged) {
             notificationEmitter.emit('cohort.override_changed', { override: config.dashboardViewOverride });

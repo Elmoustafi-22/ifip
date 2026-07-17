@@ -89,11 +89,19 @@ authClient.interceptors.response.use(
   async (error) => {
     const original = error.config;
 
-    // Only attempt a refresh on 401, once per request, and not on the refresh call itself
+    const isAuthRoute =
+      original.url?.includes("/auth/login") ||
+      original.url?.includes("/auth/set-password") ||
+      original.url?.includes("/auth/reset-password") ||
+      original.url?.includes("/auth/forgot-password") ||
+      original.url?.includes("/auth/token-info") ||
+      original.url?.includes("/auth/refresh");
+
+    // Only attempt a refresh on 401, once per request, and not on public auth endpoints
     if (
       error.response?.status === 401 &&
       !original._retry &&
-      !original.url?.includes("/auth/refresh")
+      !isAuthRoute
     ) {
       original._retry = true;
 

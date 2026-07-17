@@ -388,7 +388,7 @@ export default function Home() {
                 className="bg-impact-orange hover:bg-impact-orange/95 text-white font-semibold text-sm px-6 py-3 rounded-[6px] shadow-md hover-lift transition-all inline-flex items-center gap-2 cursor-pointer font-sans"
               >
                 <HiArrowDownTray className="w-4 h-4" />
-                Download Curriculum Brochure
+                Download Brochure
               </a>
             </div>
           </motion.div>

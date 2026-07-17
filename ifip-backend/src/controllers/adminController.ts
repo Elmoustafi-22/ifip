@@ -6,9 +6,11 @@ import { Waitlist } from '../models/Waitlist.js';
 import { Cohort } from '../models/Cohort.js';
 import { Notification } from '../models/Notification.js';
 import { Module } from '../models/Module.js';
+import { AuditLog } from '../models/AuditLog.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { signSetPasswordToken } from '../utils/jwt.js';
 import { sendAdminInvitationEmail } from '../services/emailService.js';
+import { logAction } from '../utils/auditLogger.js';
 
 // ── GET /api/v1/admin/users ────────────────────────────────────────────────────
 // Returns all platform users with optional ?role=&search=&page=&limit= filtering.
@@ -30,7 +32,7 @@ export const getAdminUsers = async (req: Request, res: Response) => {
             match.$or = [{ email: regex }, { fullName: regex }];
         }
 
-        const enrichPipeline: any[] = [
+                const enrichPipeline: any[] = [
             { $match: match },
             {
                 $lookup: {
@@ -42,6 +44,17 @@ export const getAdminUsers = async (req: Request, res: Response) => {
                 }
             },
             { $addFields: { application: { $arrayElemAt: ['$application', 0] } } },
+            {
+                $addFields: {
+                    isConfigured: {
+                        $cond: {
+                            if: { $and: [{ $ne: ["$passwordHash", null] }, { $ne: ["$passwordHash", ""] }] },
+                            then: true,
+                            else: false
+                        }
+                    }
+                }
+            },
             { $project: { passwordHash: 0 } },
             { $sort: { createdAt: -1 } },
         ];
@@ -226,6 +239,8 @@ export const createCohort = async (req: Request, res: Response) => {
         });
         await newCohort.save();
         
+        logAction(req, 'COHORT_CREATE', `Created new cohort "${newCohort.name}"`, { targetId: newCohort.id, targetType: 'Cohort' });
+        
         res.status(201).json({ message: 'Cohort created successfully.', cohort: newCohort });
     } catch (e: any) {
         res.status(500).json({ message: 'Error creating cohort.', error: e.message });
@@ -252,6 +267,7 @@ export const updateCohort = async (req: Request, res: Response) => {
         if (cohortCap !== undefined) cohort.cohortCap = Number(cohortCap);
         
         await cohort.save();
+        logAction(req, 'COHORT_UPDATE', `Updated cohort "${cohort.name}" settings`, { targetId: cohort.id, targetType: 'Cohort' });
         res.json({ message: 'Cohort updated successfully.', cohort });
     } catch (e: any) {
         res.status(500).json({ message: 'Error updating cohort.', error: e.message });
@@ -266,6 +282,7 @@ export const deleteCohort = async (req: Request, res: Response) => {
             res.status(404).json({ message: 'Cohort not found.' });
             return;
         }
+        logAction(req, 'COHORT_DELETE', `Deleted cohort "${result.name}" (ID: ${id})`);
         res.json({ message: 'Cohort deleted successfully.' });
     } catch (e: any) {
         res.status(500).json({ message: 'Error deleting cohort.', error: e.message });
@@ -407,8 +424,52 @@ export const inviteAdmin = async (req: Request, res: Response) => {
         const token = signSetPasswordToken(newUser.id, newUser.email);
         await sendAdminInvitationEmail(newUser.email, fullName, roleLower, title.trim(), token);
 
+        logAction(req, 'ADMIN_INVITE', `Invited new ${newUser.role} "${newUser.fullName}" (${newUser.email})`, { targetId: newUser.id, targetType: 'User' });
+
         res.status(201).json({ message: 'Administrator invited successfully.' });
     } catch (e: any) {
         res.status(500).json({ message: 'Error inviting administrator.', error: e.message });
+    }
+};
+
+// ── GET /api/v1/admin/audit-logs ──────────────────────────────────────────────
+export const getAuditLogs = async (req: Request, res: Response) => {
+    try {
+        const { search, page = '1', limit = '50', action } = req.query;
+
+        const pageNum = Math.max(1, parseInt(page as string, 10));
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
+        const skip = (pageNum - 1) * limitNum;
+
+        const match: any = {};
+        if (action && action !== 'all') {
+            match.action = action;
+        }
+        if (search) {
+            const regex = new RegExp(search as string, 'i');
+            match.$or = [
+                { userEmail: regex },
+                { userRole: regex },
+                { action: regex },
+                { description: regex }
+            ];
+        }
+
+        const [logs, total] = await Promise.all([
+            AuditLog.find(match)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limitNum),
+            AuditLog.countDocuments(match)
+        ]);
+
+        res.json({
+            logs,
+            total,
+            page: pageNum,
+            pages: Math.ceil(total / limitNum)
+        });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error retrieving audit logs.', error: e.message });
     }
 };

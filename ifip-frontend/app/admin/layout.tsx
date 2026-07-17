@@ -80,6 +80,7 @@ const NAV_GROUPS = [
     label: "Account",
     items: [
       { href: "/admin/settings", label: "Settings", icon: HiOutlineCog6Tooth },
+      { href: "/admin/audit-logs", label: "Audit Logs", icon: HiOutlineClipboardDocumentList, roles: ["superadmin"] },
     ],
   },
 ];
@@ -290,19 +291,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Nav */}
           <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-4 px-2">
-            {NAV_GROUPS.map((group) => (
-              <div key={group.label}>
-                {!isExpanded
-                  ? <div className="h-px bg-white/10 mx-1 mb-3" />
-                  : <p className="text-[9px] font-black uppercase tracking-[0.15em] text-white/30 px-3 mb-1.5 truncate">{group.label}</p>
-                }
-                <ul className="space-y-0.5">
-                  {group.items.map((item) => (
-                    <NavItem key={item.href} item={item} isCollapsed={!isExpanded} />
-                  ))}
-                </ul>
-              </div>
-            ))}
+            {NAV_GROUPS.map((group) => {
+              const filteredItems = group.items.filter(item => !(item as any).roles || (item as any).roles.includes(adminRole));
+              if (filteredItems.length === 0) return null;
+              return (
+                <div key={group.label}>
+                  {!isExpanded
+                    ? <div className="h-px bg-white/10 mx-1 mb-3" />
+                    : <p className="text-[9px] font-black uppercase tracking-[0.15em] text-white/30 px-3 mb-1.5 truncate">{group.label}</p>
+                  }
+                  <ul className="space-y-0.5">
+                    {filteredItems.map((item) => (
+                      <NavItem key={item.href} item={item} isCollapsed={!isExpanded} />
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
           </nav>
 
           {/* Footer */}
@@ -378,18 +383,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
-            {NAV_GROUPS.map((group) => (
-              <div key={group.label}>
-                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-white/30 px-3 mb-1.5">
-                  {group.label}
-                </p>
-                <ul className="space-y-0.5">
-                  {group.items.map((item) => (
-                    <NavItem key={item.href} item={item} isCollapsed={false} onClick={() => setMobileOpen(false)} />
-                  ))}
-                </ul>
-              </div>
-            ))}
+            {NAV_GROUPS.map((group) => {
+              const filteredItems = group.items.filter(item => !(item as any).roles || (item as any).roles.includes(adminRole));
+              if (filteredItems.length === 0) return null;
+              return (
+                <div key={group.label}>
+                  <p className="text-[9px] font-black uppercase tracking-[0.15em] text-white/30 px-3 mb-1.5">
+                    {group.label}
+                  </p>
+                  <ul className="space-y-0.5">
+                    {filteredItems.map((item) => (
+                      <NavItem key={item.href} item={item} isCollapsed={false} onClick={() => setMobileOpen(false)} />
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
           </nav>
 
           <div className="px-3 py-4 border-t border-white/10 shrink-0">

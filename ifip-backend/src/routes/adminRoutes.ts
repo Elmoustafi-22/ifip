@@ -15,6 +15,7 @@ import {
     getAdminUsers,
     broadcastCustomNotification,
     inviteAdmin,
+    getAuditLogs,
 } from '../controllers/adminController.js';
 import {
     getAssessments,
@@ -70,6 +71,7 @@ router.use(authorize('admin', 'superadmin'));
 router.get('/stats', getDashboardStats);
 router.get('/users', getAdminUsers);
 router.post('/users/invite', authorize('superadmin'), inviteAdmin);
+router.get('/audit-logs', authorize('superadmin'), getAuditLogs);
 router.get('/applications', getAdminApplications);
 router.patch('/applications/:id/cohort', assignApplicationCohort);
 router.patch('/applications/:id/withdraw', withdrawApplication);
