@@ -196,7 +196,8 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
                         // Check if declaration signed and confirmed
                         if (applicant.declaration?.confirmed && applicant.declaration?.signature) {
                             try {
-                                await executeApplicationSubmission(applicant._id, payment._id);
+                                const submission = await executeApplicationSubmission(applicant._id, payment._id);
+                                payment.applicationId = submission.application._id as any;
                                 console.log(`[PaymentStatus] Auto-submitted application on verify check for ${applicant.email}`);
                             } catch (err) {
                                 console.error(`[PaymentStatus] Auto-submit failed on verify check:`, err);
@@ -233,7 +234,8 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
                         // Check if declaration signed and confirmed
                         if (applicant.declaration?.confirmed && applicant.declaration?.signature) {
                             try {
-                                await executeApplicationSubmission(applicant._id, payment._id);
+                                const submission = await executeApplicationSubmission(applicant._id, payment._id);
+                                payment.applicationId = submission.application._id as any;
                                 console.log(`[PaymentStatus] Auto-submitted application on verify check for ${applicant.email}`);
                             } catch (err) {
                                 console.error(`[PaymentStatus] Auto-submit failed on verify check:`, err);
