@@ -437,7 +437,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     value={selectedCohortId}
                     onChange={(e) => handleSetCohort(e.target.value)}
                     aria-label="Select active cohort"
-                    className="appearance-none pl-3 pr-7 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#000666]/30 bg-slate-50 cursor-pointer hover:border-slate-300 transition-colors max-w-[150px] sm:max-w-none truncate"
+                    className="appearance-none pl-3 pr-7 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#000666]/30 bg-slate-50 cursor-pointer hover:border-slate-300 transition-colors max-w-[110px] min-[380px]:max-w-[160px] sm:max-w-none truncate"
                   >
                     <option value="">All Cohorts</option>
                     <option value="unassigned">Awaiting Assignment</option>

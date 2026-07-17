@@ -251,95 +251,166 @@ export default function AssessmentSubmissionsPage({ params }: { params: Promise<
         </div>
       ) : (
         <div className="bg-white border border-slate-150/70 rounded-2xl overflow-hidden shadow-sm">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50/75 border-b border-slate-100 text-[10px] font-bold uppercase text-slate-500 tracking-wider">
-                <th className="py-4 px-6">Participant</th>
-                <th className="py-4 px-6 text-center">Attempt #</th>
-                <th className="py-4 px-6 text-center">Score (%)</th>
-                <th className="py-4 px-6 text-center">Outcome</th>
-                <th className="py-4 px-6 text-center">Time-Out</th>
-                <th className="py-4 px-6">Submitted At</th>
-                <th className="py-4 px-6 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-xs font-semibold text-[#000666]">
-              {submissions.map((sub) => (
-                <tr key={sub._id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 text-xs font-bold">
-                        <HiOutlineUser className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="font-bold text-[#000666]">{sub.userId?.fullName || "Student"}</div>
-                        <div className="text-[10px] text-slate-400 font-medium">{sub.userId?.email || ""}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6 text-center font-bold text-slate-500">Attempt {sub.attemptNumber}</td>
-                  <td className="py-4 px-6 text-center font-bold text-slate-600">{sub.score}%</td>
-                  <td className="py-4 px-6 text-center">
-                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                      sub.status === 'passed' 
-                        ? 'bg-emerald-55/10 border border-emerald-100 text-emerald-700' 
-                        : sub.status === 'failed'
-                        ? 'bg-red-50 border border-red-100 text-red-600'
-                        : 'bg-amber-50 border border-amber-100 text-amber-700'
-                    }`}>
-                      {sub.status === 'pending_review' ? 'pending grade' : sub.status}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6 text-center">
-                    {sub.timedOut ? (
-                      <span className="text-red-500 text-[10px] font-bold">Timed Out ⚠️</span>
-                    ) : (
-                      <span className="text-slate-400 text-[10px] font-medium">-</span>
-                    )}
-                  </td>
-                  <td className="py-4 px-6 text-slate-400 font-medium">
-                    <span className="flex items-center gap-1">
-                      <HiOutlineClock className="w-3.5 h-3.5" />
-                      {new Date(sub.submittedAt).toLocaleString()}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6 text-right font-medium">
-                    <div className="flex justify-end gap-1.5">
-                      {sub.status === 'pending_review' ? (
-                        <button
-                          onClick={() => openGradingModal(sub)}
-                          className="px-3 py-1.5 bg-[#000666] hover:bg-[#000666]/90 text-white rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm transition-all"
-                        >
-                          <HiOutlineChatBubbleLeftRight className="w-3.5 h-3.5" /> Grade Review
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => openGradingModal(sub)}
-                          className="px-2.5 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-500 rounded text-[10px] font-bold uppercase tracking-wider transition-all"
-                        >
-                          Re-Grade
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleReset(sub.userId?._id, sub.userId?.fullName || "Student")}
-                        className="p-1.5 border border-slate-200 hover:bg-red-55/10 hover:text-red-500 hover:border-red-100 rounded text-slate-400 transition-all"
-                        title="Reset Attempt History & Lock Module"
-                      >
-                        <HiOutlineUserMinus className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
+          {/* Desktop View Table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/75 border-b border-slate-100 text-[10px] font-bold uppercase text-slate-500 tracking-wider">
+                  <th className="py-4 px-6">Participant</th>
+                  <th className="py-4 px-6 text-center">Attempt #</th>
+                  <th className="py-4 px-6 text-center">Score (%)</th>
+                  <th className="py-4 px-6 text-center">Outcome</th>
+                  <th className="py-4 px-6 text-center">Time-Out</th>
+                  <th className="py-4 px-6">Submitted At</th>
+                  <th className="py-4 px-6 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs font-semibold text-[#000666]">
+                {submissions.map((sub) => (
+                  <tr key={sub._id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 text-xs font-bold">
+                          <HiOutlineUser className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="font-bold text-[#000666]">{sub.userId?.fullName || "Student"}</div>
+                          <div className="text-[10px] text-slate-400 font-medium">{sub.userId?.email || ""}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6 text-center font-bold text-slate-500">Attempt {sub.attemptNumber}</td>
+                    <td className="py-4 px-6 text-center font-bold text-slate-600">{sub.score}%</td>
+                    <td className="py-4 px-6 text-center">
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                        sub.status === 'passed' 
+                          ? 'bg-emerald-55/10 border border-emerald-100 text-emerald-700' 
+                          : sub.status === 'failed'
+                          ? 'bg-red-50 border border-red-100 text-red-650'
+                          : 'bg-amber-50 border border-amber-100 text-amber-700'
+                      }`}>
+                        {sub.status === 'pending_review' ? 'pending grade' : sub.status}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 text-center">
+                      {sub.timedOut ? (
+                        <span className="text-red-500 text-[10px] font-bold">Timed Out ⚠️</span>
+                      ) : (
+                        <span className="text-slate-400 text-[10px] font-medium">-</span>
+                      )}
+                    </td>
+                    <td className="py-4 px-6 text-slate-400 font-medium">
+                      <span className="flex items-center gap-1">
+                        <HiOutlineClock className="w-3.5 h-3.5" />
+                        {new Date(sub.submittedAt).toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 text-right font-medium">
+                      <div className="flex justify-end gap-1.5">
+                        {sub.status === 'pending_review' ? (
+                          <button
+                            onClick={() => openGradingModal(sub)}
+                            className="px-3 py-1.5 bg-[#000666] hover:bg-[#000666]/90 text-white rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm transition-all"
+                          >
+                            <HiOutlineChatBubbleLeftRight className="w-3.5 h-3.5" /> Grade Review
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => openGradingModal(sub)}
+                            className="px-2.5 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-500 rounded text-[10px] font-bold uppercase tracking-wider transition-all"
+                          >
+                            Re-Grade
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleReset(sub.userId?._id, sub.userId?.fullName || "Student")}
+                          className="p-1.5 border border-slate-200 hover:bg-red-55/10 hover:text-red-500 hover:border-red-100 rounded text-slate-400 transition-all"
+                          title="Reset Attempt History & Lock Module"
+                        >
+                          <HiOutlineUserMinus className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile View Card List */}
+          <div className="block md:hidden divide-y divide-slate-100 bg-white">
+            {submissions.map((sub) => (
+              <div key={sub._id} className="p-4 space-y-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="font-bold text-[#000666] text-sm">{sub.userId?.fullName || "Student"}</div>
+                    <div className="text-[10px] text-slate-400 font-medium">{sub.userId?.email || ""}</div>
+                  </div>
+                  <span className={`inline-block px-2.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                    sub.status === 'passed' 
+                      ? 'bg-emerald-55/10 border border-emerald-100 text-emerald-700' 
+                      : sub.status === 'failed'
+                      ? 'bg-red-50 border border-red-100 text-red-650'
+                      : 'bg-amber-50 border border-amber-100 text-amber-700'
+                  }`}>
+                    {sub.status === 'pending_review' ? 'pending grade' : sub.status}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center text-xs text-slate-550 bg-slate-50 p-2.5 rounded-xl">
+                  <div>
+                    <span className="text-[9px] text-slate-400 block uppercase font-bold">Attempt</span>
+                    <span className="font-bold text-slate-700">#{sub.attemptNumber}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-slate-400 block uppercase font-bold">Score</span>
+                    <span className="font-bold text-slate-700">{sub.score}%</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-slate-400 block uppercase font-bold">Timed Out</span>
+                    <span className="font-bold text-slate-700">{sub.timedOut ? "Yes ⚠️" : "No"}</span>
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                  <HiOutlineClock className="w-3.5 h-3.5" />
+                  {new Date(sub.submittedAt).toLocaleString()}
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                  {sub.status === 'pending_review' ? (
+                    <button
+                      onClick={() => openGradingModal(sub)}
+                      className="px-3 py-1.5 bg-[#000666] hover:bg-[#000666]/90 text-white rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm transition-all animate-pulse"
+                    >
+                      <HiOutlineChatBubbleLeftRight className="w-3.5 h-3.5" /> Grade Review
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => openGradingModal(sub)}
+                      className="px-2.5 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-500 rounded text-[10px] font-bold uppercase tracking-wider transition-all"
+                    >
+                      Re-Grade
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleReset(sub.userId?._id, sub.userId?.fullName || "Student")}
+                    className="px-3 py-1.5 border border-slate-200 hover:bg-red-50 hover:text-red-500 hover:border-red-100 rounded text-slate-500 transition-all flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider"
+                    title="Reset Attempt History & Lock Module"
+                  >
+                    <HiOutlineUserMinus className="w-3.5 h-3.5" /> Reset
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {/* Grading Modal */}
       {selectedSubmission && (
-        <div className="fixed inset-0 z-50 bg-[#000666]/30 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleSaveGrade} className="bg-white border border-slate-100 shadow-2xl rounded-3xl w-full max-w-2xl overflow-hidden text-left flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 bg-[#000666]/30 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <form onSubmit={handleSaveGrade} className="bg-white border border-slate-100 shadow-2xl rounded-t-3xl sm:rounded-3xl w-full sm:max-w-2xl overflow-hidden text-left flex flex-col max-h-[90vh]">
             <div className="bg-[#000666] text-white px-6 py-4 flex justify-between items-center">
               <div>
                 <h3 className="font-bold font-display text-sm uppercase tracking-wider">Manual Score Review</h3>

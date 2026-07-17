@@ -264,120 +264,217 @@ export default function AdminOpportunitiesPage() {
             No opportunities configured. Click "Add Category" to get started.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-[#E7E2D8] text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                  <th className="py-3.5 px-6 w-16">Sort</th>
-                  <th className="py-3.5 px-6 w-16">Icon</th>
-                  <th className="py-3.5 px-6">Category</th>
-                  <th className="py-3.5 px-6">Roles / Opportunities</th>
-                  <th className="py-3.5 px-6 w-32">Status</th>
-                  <th className="py-3.5 px-6 w-24 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E7E2D8] text-sm">
-                {opportunities.map((opp, index) => (
-                  <tr
-                    key={opp._id}
-                    className={`hover:bg-slate-50/40 transition-colors ${
-                      opp.isActive ? "" : "bg-slate-50/20 text-slate-400"
-                    }`}
-                  >
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-0.5">
+          <div className="bg-white border border-[#E7E2D8] rounded-2xl shadow-level1 overflow-hidden">
+            {/* Desktop View Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-[#E7E2D8] text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                    <th className="py-3.5 px-6 w-16">Sort</th>
+                    <th className="py-3.5 px-6 w-16">Icon</th>
+                    <th className="py-3.5 px-6">Category</th>
+                    <th className="py-3.5 px-6">Roles / Opportunities</th>
+                    <th className="py-3.5 px-6 w-32">Status</th>
+                    <th className="py-3.5 px-6 w-24 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E7E2D8] text-sm">
+                  {opportunities.map((opp, index) => (
+                    <tr
+                      key={opp._id}
+                      className={`hover:bg-slate-50/40 transition-colors ${
+                        opp.isActive ? "" : "bg-slate-50/20 text-slate-400"
+                      }`}
+                    >
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            onClick={() => moveOpportunity(index, "up")}
+                            disabled={index === 0}
+                            className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-20 cursor-pointer"
+                            title="Move Up"
+                          >
+                            <HiOutlineArrowUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => moveOpportunity(index, "down")}
+                            disabled={index === opportunities.length - 1}
+                            className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-20 cursor-pointer"
+                            title="Move Down"
+                          >
+                            <HiOutlineArrowDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="p-2.5 bg-primary/10 rounded-lg text-primary w-fit">
+                          {renderIcon(opp.icon)}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 font-bold text-[#000666]">
+                        {opp.category}
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex flex-wrap gap-1.5 max-w-lg">
+                          {opp.roles.map((role, idx) => (
+                            <span
+                              key={idx}
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                opp.isActive
+                                  ? "bg-primary/5 text-primary border border-primary/10"
+                                  : "bg-slate-100 text-slate-400 border border-slate-200/40"
+                              }`}
+                            >
+                              {role}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
                         <button
-                          onClick={() => moveOpportunity(index, "up")}
-                          disabled={index === 0}
-                          className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-20 cursor-pointer"
-                          title="Move Up"
+                          onClick={() => toggleActiveStatus(opp)}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border cursor-pointer transition-all ${
+                            opp.isActive
+                              ? "bg-emerald-55/10 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                              : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200"
+                          }`}
                         >
-                          <HiOutlineArrowUp className="w-3.5 h-3.5" />
+                          {opp.isActive ? (
+                            <>
+                              <HiOutlineEye className="w-3.5 h-3.5" /> Active
+                            </>
+                          ) : (
+                            <>
+                              <HiOutlineEyeSlash className="w-3.5 h-3.5" /> Hidden
+                            </>
+                          )}
                         </button>
-                        <button
-                          onClick={() => moveOpportunity(index, "down")}
-                          disabled={index === opportunities.length - 1}
-                          className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-20 cursor-pointer"
-                          title="Move Down"
-                        >
-                          <HiOutlineArrowDown className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="p-2.5 bg-primary/10 rounded-lg text-primary w-fit">
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => openEditModal(opp)}
+                            className="p-2 border border-slate-200 hover:border-slate-300 rounded-lg text-slate-500 hover:bg-slate-50 cursor-pointer"
+                            title="Edit"
+                          >
+                            <HiOutlinePencilSquare className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingOpportunity(opp)}
+                            className="p-2 border border-red-200 hover:bg-red-50 rounded-lg text-red-500 cursor-pointer"
+                            title="Delete"
+                          >
+                            <HiOutlineTrash className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile View Card List */}
+            <div className="block md:hidden divide-y divide-slate-100 bg-white">
+              {opportunities.map((opp, index) => (
+                <div
+                  key={opp._id}
+                  className={`p-4 space-y-3 transition-colors ${
+                    opp.isActive ? "bg-white" : "bg-slate-50/20 text-slate-400"
+                  }`}
+                >
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg text-primary shrink-0">
                         {renderIcon(opp.icon)}
                       </div>
-                    </td>
-                    <td className="py-4 px-6 font-bold text-[#000666]">
-                      {opp.category}
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex flex-wrap gap-1.5 max-w-lg">
-                        {opp.roles.map((role, idx) => (
-                          <span
-                            key={idx}
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              opp.isActive
-                                ? "bg-primary/5 text-primary border border-primary/10"
-                                : "bg-slate-100 text-slate-400 border border-slate-200/40"
-                            }`}
-                          >
-                            {role}
-                          </span>
-                        ))}
+                      <div>
+                        <h4 className="font-bold text-[#000666] text-sm">{opp.category}</h4>
                       </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <button
-                        onClick={() => toggleActiveStatus(opp)}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border cursor-pointer transition-all ${
+                    </div>
+                    <button
+                      onClick={() => toggleActiveStatus(opp)}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border cursor-pointer transition-all ${
+                        opp.isActive
+                          ? "bg-emerald-55/10 text-emerald-700 border-emerald-100 hover:bg-emerald-100"
+                          : "bg-slate-100 text-slate-550 border-slate-200 hover:bg-slate-200"
+                      }`}
+                    >
+                      {opp.isActive ? (
+                        <>
+                          <HiOutlineEye className="w-3 h-3" /> Active
+                        </>
+                      ) : (
+                        <>
+                          <HiOutlineEyeSlash className="w-3 h-3" /> Hidden
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1">
+                    {opp.roles.map((role, idx) => (
+                      <span
+                        key={idx}
+                        className={`px-2 py-0.5 rounded text-[9px] font-bold ${
                           opp.isActive
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-                            : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200"
+                            ? "bg-primary/5 text-primary border border-primary/10"
+                            : "bg-slate-100 text-slate-400 border border-slate-200/40"
                         }`}
                       >
-                        {opp.isActive ? (
-                          <>
-                            <HiOutlineEye className="w-3.5 h-3.5" /> Active
-                          </>
-                        ) : (
-                          <>
-                            <HiOutlineEyeSlash className="w-3.5 h-3.5" /> Hidden
-                          </>
-                        )}
+                        {role}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => moveOpportunity(index, "up")}
+                        disabled={index === 0}
+                        className="p-1 border border-slate-200 hover:bg-slate-50 rounded text-slate-500 disabled:opacity-20 cursor-pointer"
+                        title="Move Up"
+                      >
+                        <HiOutlineArrowUp className="w-3.5 h-3.5" />
                       </button>
-                    </td>
-                    <td className="py-4 px-6 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => openEditModal(opp)}
-                          className="p-2 border border-slate-200 hover:border-slate-300 rounded-lg text-slate-500 hover:bg-slate-50 cursor-pointer"
-                          title="Edit"
-                        >
-                          <HiOutlinePencilSquare className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setDeletingOpportunity(opp)}
-                          className="p-2 border border-red-200 hover:bg-red-50 rounded-lg text-red-500 cursor-pointer"
-                          title="Delete"
-                        >
-                          <HiOutlineTrash className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <button
+                        onClick={() => moveOpportunity(index, "down")}
+                        disabled={index === opportunities.length - 1}
+                        className="p-1 border border-slate-200 hover:bg-slate-50 rounded text-slate-500 disabled:opacity-20 cursor-pointer"
+                        title="Move Down"
+                      >
+                        <HiOutlineArrowDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => openEditModal(opp)}
+                        className="p-1.5 border border-slate-200 hover:border-slate-350 rounded-lg text-slate-500 hover:bg-slate-50 cursor-pointer"
+                        title="Edit"
+                      >
+                        <HiOutlinePencilSquare className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeletingOpportunity(opp)}
+                        className="p-1.5 border border-red-200 hover:bg-red-50 rounded-lg text-red-500 cursor-pointer"
+                        title="Delete"
+                      >
+                        <HiOutlineTrash className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
 
       {/* Add / Edit Category Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-[#000666]/30 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E7E2D8] w-full max-w-md rounded-2xl shadow-2xl p-6 flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white border border-[#E7E2D8] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl p-6 flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] sm:max-h-none overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <h3 className="font-bold text-[#000666] text-lg font-display">
                 {editingOpportunity ? "Edit Category" : "Add Opportunity Category"}
@@ -469,8 +566,8 @@ export default function AdminOpportunitiesPage() {
 
       {/* Delete confirmation modal */}
       {deletingOpportunity && (
-        <div className="fixed inset-0 z-50 bg-[#000666]/30 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E7E2D8] w-full max-w-sm rounded-2xl shadow-2xl p-6 flex flex-col gap-4 text-center animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white border border-[#E7E2D8] w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-2xl p-6 flex flex-col gap-4 text-center animate-in fade-in zoom-in-95 duration-150">
             <div className="w-12 h-12 bg-red-50 border border-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
               <HiOutlineExclamationTriangle className="w-6 h-6" />
             </div>

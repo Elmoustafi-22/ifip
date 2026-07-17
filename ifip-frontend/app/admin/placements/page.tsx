@@ -614,8 +614,8 @@ export default function AdminPlacementsPage() {
 
       {/* Partner Modal Overlay */}
       {partnerModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white border border-slate-200 shadow-xl w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl overflow-hidden max-h-[90vh] sm:max-h-none flex flex-col">
             <div className="border-b border-slate-100 px-6 py-4 flex items-center justify-between">
               <h2 className="font-black text-[#000666] text-lg">
                 Register Partner Organization

@@ -1247,7 +1247,6 @@ export default function Home() {
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.28, ease: "easeInOut" }}
                         className="border-t border-outline-variant/10 overflow-hidden bg-slate-50/10"
-                        style={{ backfaceVisibility: "hidden", transform: "translateZ(0)", willChange: "transform, opacity" }}
                       >
                         <div className="px-6 py-5 text-sm md:text-base text-on-surface-variant leading-relaxed">
                           {faq.a}
@@ -1290,7 +1289,7 @@ export default function Home() {
               Join the Next Cohort
             </Link>
             <a
-              href="/documents/IFIP_Program_Guide.pdf"
+              href={brochureUrl || "/docs/Islamic Finance Internship Preparatory & Placement Program_20260716_181547_0000.pdf"}
               target="_blank"
               rel="noopener noreferrer"
               className="border border-white/20 hover:bg-white/10 text-white font-semibold text-sm sm:text-base py-3 sm:py-4 px-6 sm:px-8 rounded-[4px] hover-lift transition-all text-center flex items-center justify-center gap-2"

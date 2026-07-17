@@ -111,23 +111,23 @@ export default function AdminApplicationsPage() {
   return (
     <div className="max-w-6xl mx-auto py-10 px-4 sm:px-6 lg:px-8 font-sans bg-[#FDFBF7]">
       {/* Back to standard admin dashboard links */}
-      <div className="mb-6 flex justify-between items-center">
-        <div className="flex items-center gap-3">
+      <div className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <Link 
             href="/admin"
-            className="text-xs font-bold text-[#000666] hover:underline"
+            className="text-xs font-bold text-[#000666] hover:underline whitespace-nowrap"
           >
             &larr; Back to Admin Cockpit
           </Link>
-          <span className="text-slate-300 text-xs">|</span>
+          <span className="text-slate-300 text-xs hidden xs:inline">|</span>
           <Link 
             href="/dashboard"
-            className="text-xs font-bold text-slate-400 hover:underline"
+            className="text-xs font-bold text-slate-400 hover:underline whitespace-nowrap"
           >
             Go to Participant Workspace
           </Link>
         </div>
-        <span className="bg-orange-100 text-[#FF9800] text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full border border-orange-200">
+        <span className="bg-orange-100 text-[#FF9800] text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full border border-orange-200 self-start sm:self-auto">
           Admin Panel
         </span>
       </div>

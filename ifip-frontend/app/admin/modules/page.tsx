@@ -168,7 +168,8 @@ export default function AdminModulesPage() {
 
       {/* Modules Table List */}
       <div className="bg-white border border-[#E7E2D8] rounded-2xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+        {/* Desktop View Table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-100 text-sm text-left">
             <thead className="bg-slate-50 text-[10px] font-bold uppercase text-slate-400 tracking-wider">
               <tr>
@@ -238,12 +239,71 @@ export default function AdminModulesPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile View Card List */}
+        <div className="block md:hidden divide-y divide-slate-100 bg-white">
+          {modules.length === 0 ? (
+            <p className="px-6 py-12 text-center text-slate-400 text-xs italic">
+              No coursework modules configured. Click "Create Learning Module" to begin.
+            </p>
+          ) : (
+            modules.map((mod) => (
+              <div key={mod._id} className="p-4 space-y-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="font-mono text-xs font-bold text-[#000666] bg-[#000666]/5 px-2 py-0.5 rounded mr-2">
+                      #{mod.order}
+                    </span>
+                    <span className="font-bold text-[#000666] text-sm">{mod.title}</span>
+                  </div>
+                  <span className="bg-slate-100 text-slate-600 text-[9px] uppercase font-black tracking-wider px-2 py-0.5 rounded shrink-0">
+                    {mod.contentType}
+                  </span>
+                </div>
+                {mod.description && (
+                  <p className="text-xs text-slate-500 line-clamp-2">{mod.description}</p>
+                )}
+                <div className="flex flex-wrap items-center justify-between pt-2 border-t border-slate-50 text-xs">
+                  <div className="flex items-center gap-3">
+                    <span className="text-slate-400 font-medium flex items-center gap-1">
+                      <HiOutlineClock className="w-3.5 h-3.5" />
+                      {mod.estimatedDuration} mins
+                    </span>
+                    {(mod as any).cohortId ? (
+                      <span className="bg-indigo-50 text-indigo-700 text-[9px] font-bold px-2 py-0.5 rounded">
+                        {cohorts.find(c => c._id === (mod as any).cohortId)?.name || "Cohort Linked"}
+                      </span>
+                    ) : (
+                      <span className="bg-slate-50 text-slate-400 text-[9px] font-bold px-2 py-0.5 rounded">
+                        Global
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      onClick={() => handleOpenEdit(mod)}
+                      className="text-[#00B0FF] hover:text-[#00B0FF]/80 inline-flex items-center gap-1 font-bold text-xs"
+                    >
+                      <HiOutlinePencilSquare className="w-3.5 h-3.5" /> Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(mod._id)}
+                      className="text-rose-500 hover:text-rose-600 inline-flex items-center gap-1 font-bold text-xs"
+                    >
+                      <HiOutlineTrash className="w-3.5 h-3.5" /> Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {/* Coursework Modal Overlay */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E7E2D8] w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white border border-[#E7E2D8] w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
             <div className="bg-[#000666] text-white py-4 px-6 flex items-center justify-between shrink-0">
               <h3 className="font-bold text-base flex items-center gap-1.5">
                 <HiOutlineAcademicCap className="w-5 h-5 text-[#FF9800]" /> 

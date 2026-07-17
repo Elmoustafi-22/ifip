@@ -387,96 +387,192 @@ export default function AdminAssessmentsPage() {
             </div>
           ) : (
             <div className="bg-white border border-slate-150/70 rounded-2xl overflow-hidden shadow-sm">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/75 border-b border-slate-100 text-[10px] font-bold uppercase text-slate-500 tracking-wider">
-                    <th className="py-4 px-6">Assessment Title</th>
-                    <th className="py-4 px-6">Linked Module</th>
-                    <th className="py-4 px-6 text-center">Status</th>
-                    <th className="py-4 px-6 text-center">Pass Mark</th>
-                    <th className="py-4 px-6 text-center">Attempts Allowed</th>
-                    <th className="py-4 px-6 text-center">Questions</th>
-                    <th className="py-4 px-6 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs font-semibold text-[#000666]">
-                  {assessments.map((item) => (
-                    <tr key={item._id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-4 px-6 font-bold">{item.title}</td>
-                      <td className="py-4 px-6">
-                        {item.moduleId ? (
-                          <span className="bg-slate-100 border border-slate-200/50 rounded px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                            Mod {item.moduleId.order}: {item.moduleId.title}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 italic">Unlinked</span>
-                        )}
-                      </td>
-                      <td className="py-4 px-6 text-center">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                          item.status === 'published' 
-                            ? 'bg-emerald-55/10 border border-emerald-100 text-emerald-700' 
-                            : item.status === 'archived'
-                            ? 'bg-red-50 border border-red-100 text-red-600'
-                            : 'bg-slate-100 border border-slate-200 text-slate-600'
-                        }`}>
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6 text-center text-slate-500">{item.passMark}%</td>
-                      <td className="py-4 px-6 text-center text-slate-500">{item.maxAttempts}</td>
-                      <td className="py-4 px-6 text-center text-slate-500">{item.questions?.length || 0}</td>
-                      <td className="py-4 px-6 text-right font-medium">
-                        <div className="flex justify-end gap-1.5">
-                          <Link
-                            href={`/admin/assessments/${item._id}`}
-                            className="p-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider transition-all"
-                            title="View Submissions"
-                          >
-                            <HiOutlineEye className="w-4 h-4" /> Submissions
-                          </Link>
-                          
-                          {item.status === 'draft' && (
-                            <>
-                              <button
-                                onClick={() => handleOpenEdit(item)}
-                                className="p-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded transition-all"
-                                title="Edit Draft"
-                              >
-                                <HiOutlinePencilSquare className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handlePublish(item._id)}
-                                className="p-2 border border-slate-200 hover:bg-emerald-50 text-emerald-600 rounded transition-all"
-                                title="Publish Assessment"
-                              >
-                                <HiOutlinePlay className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(item._id)}
-                                className="p-2 border border-slate-200 hover:bg-red-50 text-red-500 rounded transition-all"
-                                title="Delete Draft"
-                              >
-                                <HiOutlineTrash className="w-4 h-4" />
-                              </button>
-                            </>
+              {/* Desktop view Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/75 border-b border-slate-100 text-[10px] font-bold uppercase text-slate-500 tracking-wider">
+                      <th className="py-4 px-6">Assessment Title</th>
+                      <th className="py-4 px-6">Linked Module</th>
+                      <th className="py-4 px-6 text-center">Status</th>
+                      <th className="py-4 px-6 text-center">Pass Mark</th>
+                      <th className="py-4 px-6 text-center">Attempts Allowed</th>
+                      <th className="py-4 px-6 text-center">Questions</th>
+                      <th className="py-4 px-6 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs font-semibold text-[#000666]">
+                    {assessments.map((item) => (
+                      <tr key={item._id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-4 px-6 font-bold">{item.title}</td>
+                        <td className="py-4 px-6">
+                          {item.moduleId ? (
+                            <span className="bg-slate-100 border border-slate-200/50 rounded px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                              Mod {item.moduleId.order}: {item.moduleId.title}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic">Unlinked</span>
                           )}
-                          
-                          {item.status === 'published' && (
-                            <button
-                              onClick={() => handleArchive(item._id)}
-                              className="p-2 border border-slate-200 hover:bg-amber-50 text-amber-600 rounded transition-all"
-                              title="Archive Assessment"
+                        </td>
+                        <td className="py-4 px-6 text-center">
+                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                            item.status === 'published' 
+                              ? 'bg-emerald-55/10 border border-emerald-100 text-emerald-700' 
+                              : item.status === 'archived'
+                              ? 'bg-red-50 border border-red-100 text-red-600'
+                              : 'bg-slate-100 border border-slate-200 text-slate-600'
+                          }`}>
+                            {item.status}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 text-center text-slate-500">{item.passMark}%</td>
+                        <td className="py-4 px-6 text-center text-slate-500">{item.maxAttempts}</td>
+                        <td className="py-4 px-6 text-center text-slate-500">{item.questions?.length || 0}</td>
+                        <td className="py-4 px-6 text-right font-medium">
+                          <div className="flex justify-end gap-1.5">
+                            <Link
+                              href={`/admin/assessments/${item._id}`}
+                              className="p-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider transition-all"
+                              title="View Submissions"
                             >
-                              <HiOutlineArchiveBox className="w-4 h-4" />
-                            </button>
+                              <HiOutlineEye className="w-4 h-4" /> Submissions
+                            </Link>
+                            
+                            {item.status === 'draft' && (
+                              <>
+                                <button
+                                  onClick={() => handleOpenEdit(item)}
+                                  className="p-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded transition-all"
+                                  title="Edit Draft"
+                                >
+                                  <HiOutlinePencilSquare className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handlePublish(item._id)}
+                                  className="p-2 border border-slate-200 hover:bg-emerald-50 text-emerald-600 rounded transition-all"
+                                  title="Publish Assessment"
+                                >
+                                  <HiOutlinePlay className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(item._id)}
+                                  className="p-2 border border-slate-200 hover:bg-red-50 text-red-500 rounded transition-all"
+                                  title="Delete Draft"
+                                >
+                                  <HiOutlineTrash className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
+                            
+                            {item.status === 'published' && (
+                              <button
+                                onClick={() => handleArchive(item._id)}
+                                className="p-2 border border-slate-200 hover:bg-amber-50 text-amber-600 rounded transition-all"
+                                title="Archive Assessment"
+                              >
+                                <HiOutlineArchiveBox className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile View Card List */}
+              <div className="block md:hidden divide-y divide-slate-100 bg-white">
+                {assessments.map((item) => (
+                  <div key={item._id} className="p-4 space-y-3">
+                    <div className="flex justify-between items-start gap-4">
+                      <div>
+                        <h4 className="font-bold text-[#000666] text-sm">{item.title}</h4>
+                        <div className="mt-1">
+                          {item.moduleId ? (
+                            <span className="bg-slate-100 border border-slate-200/50 rounded px-2 py-0.5 text-[9px] font-bold text-slate-600">
+                              Mod {item.moduleId.order}: {item.moduleId.title}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic text-[10px]">Unlinked</span>
                           )}
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0 ${
+                        item.status === 'published' 
+                          ? 'bg-emerald-55/10 border border-emerald-100 text-emerald-700' 
+                          : item.status === 'archived'
+                          ? 'bg-red-55/10 border border-red-100 text-red-700'
+                          : 'bg-slate-100 border border-slate-200 text-slate-650'
+                      }`}>
+                        {item.status}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 bg-slate-50 rounded-xl p-3 text-center text-xs">
+                      <div>
+                        <span className="text-slate-405 text-[9px] block uppercase font-bold">Pass Mark</span>
+                        <span className="font-bold text-slate-700">{item.passMark}%</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-405 text-[9px] block uppercase font-bold">Attempts</span>
+                        <span className="font-bold text-slate-700">{item.maxAttempts}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-405 text-[9px] block uppercase font-bold">Questions</span>
+                        <span className="font-bold text-slate-700">{item.questions?.length || 0}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-55 text-xs">
+                      <Link
+                        href={`/admin/assessments/${item._id}`}
+                        className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider transition-all"
+                      >
+                        <HiOutlineEye className="w-3.5 h-3.5" /> Submissions
+                      </Link>
+
+                      <div className="flex items-center gap-1.5">
+                        {item.status === 'draft' && (
+                          <>
+                            <button
+                              onClick={() => handleOpenEdit(item)}
+                              className="p-1.5 border border-slate-200 hover:bg-slate-50 text-slate-500 rounded transition-all"
+                              title="Edit Draft"
+                            >
+                              <HiOutlinePencilSquare className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handlePublish(item._id)}
+                              className="p-1.5 border border-slate-200 hover:bg-emerald-50 text-emerald-600 rounded transition-all"
+                              title="Publish Assessment"
+                            >
+                              <HiOutlinePlay className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(item._id)}
+                              className="p-1.5 border border-slate-200 hover:bg-red-50 text-red-500 rounded transition-all"
+                              title="Delete Draft"
+                            >
+                              <HiOutlineTrash className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                        
+                        {item.status === 'published' && (
+                          <button
+                            onClick={() => handleArchive(item._id)}
+                            className="p-1.5 border border-slate-200 hover:bg-amber-50 text-amber-600 rounded transition-all"
+                            title="Archive Assessment"
+                          >
+                            <HiOutlineArchiveBox className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </>

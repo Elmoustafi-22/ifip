@@ -239,119 +239,212 @@ export default function AdminOpeningsPage() {
             No active vacancies configured. Click "Add Opening" to create one.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-[#E7E2D8] text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                  <th className="py-3.5 px-6 w-16">Sort</th>
-                  <th className="py-3.5 px-6">Title</th>
-                  <th className="py-3.5 px-6">Department</th>
-                  <th className="py-3.5 px-6">Mode</th>
-                  <th className="py-3.5 px-6">Location</th>
-                  <th className="py-3.5 px-6 w-32">Status</th>
-                  <th className="py-3.5 px-6 w-24 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E7E2D8] text-sm">
-                {openings.map((opening, index) => (
-                  <tr
-                    key={opening._id}
-                    className={`hover:bg-slate-50/40 transition-colors ${
-                      opening.isActive ? "" : "bg-slate-50/20 text-slate-400"
-                    }`}
-                  >
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-0.5">
-                        <button
-                          onClick={() => moveOpening(index, "up")}
-                          disabled={index === 0}
-                          className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-20 cursor-pointer"
-                          title="Move Up"
-                        >
-                          <HiOutlineArrowUp className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => moveOpening(index, "down")}
-                          disabled={index === openings.length - 1}
-                          className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-20 cursor-pointer"
-                          title="Move Down"
-                        >
-                          <HiOutlineArrowDown className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6 font-bold text-[#000666]">
-                      {opening.title}
-                    </td>
-                    <td className="py-4 px-6 font-medium text-slate-600">
-                      {opening.department}
-                    </td>
-                    <td className="py-4 px-6">
-                      <span
-                        className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-full ${
-                          opening.workMode === "Remote"
-                            ? "bg-sky-500/10 text-sky-600 border border-sky-200/20"
-                            : opening.workMode === "Hybrid"
-                            ? "bg-emerald-500/10 text-emerald-600 border border-emerald-200/20"
-                            : "bg-amber-500/10 text-amber-600 border border-amber-200/20"
-                        }`}
-                      >
-                        {opening.workMode}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6 font-semibold text-slate-600">
-                      {opening.location}
-                    </td>
-                    <td className="py-4 px-6">
-                      <button
-                        onClick={() => toggleActiveStatus(opening)}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border cursor-pointer transition-all ${
-                          opening.isActive
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-                            : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200"
-                        }`}
-                      >
-                        {opening.isActive ? (
-                          <>
-                            <HiOutlineEye className="w-3.5 h-3.5" /> Active
-                          </>
-                        ) : (
-                          <>
-                            <HiOutlineEyeSlash className="w-3.5 h-3.5" /> Hidden
-                          </>
-                        )}
-                      </button>
-                    </td>
-                    <td className="py-4 px-6 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => openEditModal(opening)}
-                          className="p-2 border border-slate-200 hover:border-slate-300 rounded-lg text-slate-500 hover:bg-slate-50 cursor-pointer"
-                          title="Edit"
-                        >
-                          <HiOutlinePencilSquare className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setDeletingOpening(opening)}
-                          className="p-2 border border-red-200 hover:bg-red-50 rounded-lg text-red-500 cursor-pointer"
-                          title="Delete"
-                        >
-                          <HiOutlineTrash className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
+          <div className="bg-white border border-[#E7E2D8] rounded-2xl shadow-level1 overflow-hidden">
+            {/* Desktop View Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-[#E7E2D8] text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                    <th className="py-3.5 px-6 w-16">Sort</th>
+                    <th className="py-3.5 px-6">Title</th>
+                    <th className="py-3.5 px-6">Department</th>
+                    <th className="py-3.5 px-6">Mode</th>
+                    <th className="py-3.5 px-6">Location</th>
+                    <th className="py-3.5 px-6 w-32">Status</th>
+                    <th className="py-3.5 px-6 w-24 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-[#E7E2D8] text-sm">
+                  {openings.map((opening, index) => (
+                    <tr
+                      key={opening._id}
+                      className={`hover:bg-slate-50/40 transition-colors ${
+                        opening.isActive ? "" : "bg-slate-50/20 text-slate-400"
+                      }`}
+                    >
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            onClick={() => moveOpening(index, "up")}
+                            disabled={index === 0}
+                            className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-20 cursor-pointer"
+                            title="Move Up"
+                          >
+                            <HiOutlineArrowUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => moveOpening(index, "down")}
+                            disabled={index === openings.length - 1}
+                            className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-20 cursor-pointer"
+                            title="Move Down"
+                          >
+                            <HiOutlineArrowDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 font-bold text-[#000666]">
+                        {opening.title}
+                      </td>
+                      <td className="py-4 px-6 font-medium text-slate-600">
+                        {opening.department}
+                      </td>
+                      <td className="py-4 px-6">
+                        <span
+                          className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-full ${
+                            opening.workMode === "Remote"
+                              ? "bg-sky-500/10 text-sky-600 border border-sky-200/20"
+                              : opening.workMode === "Hybrid"
+                              ? "bg-emerald-500/10 text-emerald-600 border border-emerald-200/20"
+                              : "bg-amber-500/10 text-amber-600 border border-amber-200/20"
+                          }`}
+                        >
+                          {opening.workMode}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 font-semibold text-slate-600">
+                        {opening.location}
+                      </td>
+                      <td className="py-4 px-6">
+                        <button
+                          onClick={() => toggleActiveStatus(opening)}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border cursor-pointer transition-all ${
+                            opening.isActive
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                              : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200"
+                          }`}
+                        >
+                          {opening.isActive ? (
+                            <>
+                              <HiOutlineEye className="w-3.5 h-3.5" /> Active
+                            </>
+                          ) : (
+                            <>
+                              <HiOutlineEyeSlash className="w-3.5 h-3.5" /> Hidden
+                            </>
+                          )}
+                        </button>
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => openEditModal(opening)}
+                            className="p-2 border border-slate-200 hover:border-slate-300 rounded-lg text-slate-500 hover:bg-slate-50 cursor-pointer"
+                            title="Edit"
+                          >
+                            <HiOutlinePencilSquare className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingOpening(opening)}
+                            className="p-2 border border-red-200 hover:bg-red-50 rounded-lg text-red-500 cursor-pointer"
+                            title="Delete"
+                          >
+                            <HiOutlineTrash className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile View Card List */}
+            <div className="block md:hidden divide-y divide-slate-100 bg-white">
+              {openings.map((opening, index) => (
+                <div
+                  key={opening._id}
+                  className={`p-4 space-y-3 transition-colors ${
+                    opening.isActive ? "bg-white" : "bg-slate-50/20 text-slate-400"
+                  }`}
+                >
+                  <div className="flex justify-between items-start gap-4">
+                    <div>
+                      <h4 className="font-bold text-[#000666] text-sm">{opening.title}</h4>
+                      <span className="text-slate-400 text-xs mt-1 block">{opening.department}</span>
+                    </div>
+                    <button
+                      onClick={() => toggleActiveStatus(opening)}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border cursor-pointer transition-all ${
+                        opening.isActive
+                          ? "bg-emerald-55/10 text-emerald-700 border-emerald-100 hover:bg-emerald-100"
+                          : "bg-slate-100 text-slate-550 border-slate-200 hover:bg-slate-200"
+                      }`}
+                    >
+                      {opening.isActive ? (
+                        <>
+                          <HiOutlineEye className="w-3 h-3" /> Active
+                        </>
+                      ) : (
+                        <>
+                          <HiOutlineEyeSlash className="w-3 h-3" /> Hidden
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="flex justify-between items-center text-xs text-slate-550">
+                    <span
+                      className={`px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-full ${
+                        opening.workMode === "Remote"
+                          ? "bg-sky-500/10 text-sky-600 border border-sky-200/20"
+                          : opening.workMode === "Hybrid"
+                          ? "bg-emerald-500/10 text-emerald-600 border border-emerald-200/20"
+                          : "bg-amber-500/10 text-amber-600 border border-amber-200/20"
+                      }`}
+                    >
+                      {opening.workMode}
+                    </span>
+                    <span className="font-semibold text-slate-550">{opening.location}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => moveOpening(index, "up")}
+                        disabled={index === 0}
+                        className="p-1 border border-slate-200 hover:bg-slate-50 rounded text-slate-500 disabled:opacity-20 cursor-pointer"
+                        title="Move Up"
+                      >
+                        <HiOutlineArrowUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => moveOpening(index, "down")}
+                        disabled={index === openings.length - 1}
+                        className="p-1 border border-slate-200 hover:bg-slate-50 rounded text-slate-500 disabled:opacity-20 cursor-pointer"
+                        title="Move Down"
+                      >
+                        <HiOutlineArrowDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => openEditModal(opening)}
+                        className="p-1.5 border border-slate-200 hover:border-slate-350 rounded-lg text-slate-500 hover:bg-slate-50 cursor-pointer"
+                        title="Edit"
+                      >
+                        <HiOutlinePencilSquare className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeletingOpening(opening)}
+                        className="p-1.5 border border-red-200 hover:bg-red-50 rounded-lg text-red-500 cursor-pointer"
+                        title="Delete"
+                      >
+                        <HiOutlineTrash className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
 
       {/* Create / Edit Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-[#000666]/30 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E7E2D8] w-full max-w-md rounded-2xl shadow-2xl p-6 flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white border border-[#E7E2D8] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl p-6 flex flex-col gap-5 max-h-[90vh] sm:max-h-none overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <h3 className="font-bold text-[#000666] text-lg font-display">
                 {editingOpening ? "Edit Opening" : "Add Active Opening"}
@@ -450,8 +543,8 @@ export default function AdminOpeningsPage() {
 
       {/* Delete confirmation modal */}
       {deletingOpening && (
-        <div className="fixed inset-0 z-50 bg-[#000666]/30 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E7E2D8] w-full max-w-sm rounded-2xl shadow-2xl p-6 flex flex-col gap-4 text-center animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white border border-[#E7E2D8] w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-2xl p-6 flex flex-col gap-4 text-center animate-in fade-in zoom-in-95 duration-150">
             <div className="w-12 h-12 bg-red-50 border border-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
               <HiOutlineExclamationTriangle className="w-6 h-6" />
             </div>

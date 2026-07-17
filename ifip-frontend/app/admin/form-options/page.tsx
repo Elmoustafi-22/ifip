@@ -384,7 +384,7 @@ export default function AdminFormOptionsPage() {
         </div>
 
         {/* Sidebar Creation Panel */}
-        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 shadow-level1 flex flex-col gap-5 sticky top-24">
+        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 shadow-level1 flex flex-col gap-5 lg:sticky lg:top-24">
           <div>
             <h3 className="font-bold text-[#000666] text-base mb-1 font-display">Add Option</h3>
             <p className="text-slate-400 text-xs leading-relaxed">
