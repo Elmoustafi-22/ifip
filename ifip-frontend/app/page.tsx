@@ -380,19 +380,17 @@ export default function Home() {
           >
             <h2 className="text-headline-lg text-primary font-display text-3xl md:text-4xl mb-4 font-bold">Comprehensive Core Training</h2>
             <p className="text-body-md text-on-surface-variant">Our rigorous curriculum ensures you are fully prepared for the most demanding roles.</p>
-            {brochureUrl && (
-              <div className="mt-6 flex justify-center">
-                <a
-                  href={brochureUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-impact-orange hover:bg-impact-orange/95 text-white font-semibold text-sm px-6 py-3 rounded-[6px] shadow-md hover-lift transition-all inline-flex items-center gap-2 cursor-pointer font-sans"
-                >
-                  <HiArrowDownTray className="w-4 h-4" />
-                  Download Curriculum Brochure
-                </a>
-              </div>
-            )}
+            <div className="mt-6 flex justify-center">
+              <a
+                href={brochureUrl || "/docs/Islamic Finance Internship Preparatory & Placement Program_20260716_181547_0000.pdf"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-impact-orange hover:bg-impact-orange/95 text-white font-semibold text-sm px-6 py-3 rounded-[6px] shadow-md hover-lift transition-all inline-flex items-center gap-2 cursor-pointer font-sans"
+              >
+                <HiArrowDownTray className="w-4 h-4" />
+                Download Curriculum Brochure
+              </a>
+            </div>
           </motion.div>
 
           <motion.div
