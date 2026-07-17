@@ -1239,11 +1239,11 @@ export default function ApplyPage() {
                 <p className="text-sm text-on-surface-variant leading-relaxed font-medium">
                   We are having trouble connecting to our server to resume your application. Your progress is safe. Please check your internet connection and try again.
                 </p>
-                <div className="flex flex-col sm:flex-row gap-3 w-full mt-4">
+                <div className="w-full mt-4">
                   <button
                     onClick={handleRetryResume}
                     disabled={loading}
-                    className="flex-1 bg-primary hover:bg-primary/95 text-white font-bold text-sm py-3.5 rounded-[6px] shadow-md hover-lift transition-all cursor-pointer flex items-center justify-center gap-2 disabled:bg-slate-300"
+                    className="w-full bg-primary hover:bg-primary/95 text-white font-bold text-sm py-3.5 rounded-[6px] shadow-md hover-lift transition-all cursor-pointer flex items-center justify-center gap-2 disabled:bg-slate-300"
                   >
                     {loading ? (
                       <>
@@ -1256,12 +1256,6 @@ export default function ApplyPage() {
                     ) : (
                       "Retry Connection"
                     )}
-                  </button>
-                  <button
-                    onClick={handleCancelResume}
-                    className="flex-1 border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm py-3.5 rounded-[6px] transition-all cursor-pointer text-center"
-                  >
-                    Enter Email Manually
                   </button>
                 </div>
               </div>
