@@ -9,7 +9,7 @@ const sora = Sora({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://internship.nextif.org"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://ifip.nextif.org"),
   title: {
     default: "Islamic Finance Internship Program (IFIP) | Apply Now",
     template: "%s | IFIP",
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Islamic Finance Internship Program (IFIP) | Apply Now",
     description: "Empowering the next generation of leaders in ethical and Islamic finance through structured training, expert mentorship, and premium placement opportunities.",
-    url: "https://internship.nextif.org",
+    url: "https://ifip.nextif.org",
     siteName: "IFIP",
     locale: "en_US",
     type: "website",
@@ -79,8 +79,8 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@type": "EducationalOrganization",
   "name": "Islamic Finance Internship Program (IFIP)",
-  "url": "https://internship.nextif.org",
-  "logo": "https://internship.nextif.org/images/logos/logo-full-color.png",
+  "url": "https://ifip.nextif.org",
+  "logo": "https://ifip.nextif.org/images/logos/logo-full-color.png",
   "description": "Islamic Finance Internship Program (IFIP) is a premier structured training and placement platform empowering the next generation of ethical and Islamic finance leaders.",
   "sameAs": [
     "https://www.linkedin.com/company/islamic-finance-internship-program/"
