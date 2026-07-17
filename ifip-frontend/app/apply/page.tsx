@@ -324,6 +324,11 @@ export default function ApplyPage() {
   const [waitlistSuccessMsg, setWaitlistSuccessMsg] = useState("");
   const [cohortName, setCohortName] = useState("Batch 2026 Fall-A26");
 
+  // Resume/session restoration states
+  const [isResuming, setIsResuming] = useState(false);
+  const [isResumeNetworkError, setIsResumeNetworkError] = useState(false);
+  const [resumeToken, setResumeToken] = useState("");
+
   // Step 1 State
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
@@ -541,6 +546,7 @@ export default function ApplyPage() {
     const urlToken = params.get("token");
 
     if (urlToken) {
+      setResumeToken(urlToken);
       handleResumeApplication(urlToken);
     } else {
       const savedToken = localStorage.getItem("applicantToken");
@@ -600,11 +606,13 @@ export default function ApplyPage() {
     detectCountry();
   }, []);
 
-  const handleResumeApplication = async (resumeToken: string) => {
+  const handleResumeApplication = async (tokenToUse: string) => {
+    setIsResuming(true);
+    setIsResumeNetworkError(false);
     setLoading(true);
     setErrorMsg("");
     try {
-      const data = await resumeApplication(resumeToken);
+      const data = await resumeApplication(tokenToUse);
       const sessionToken = data.sessionToken;
       setToken(sessionToken);
       localStorage.setItem("applicantToken", sessionToken);
@@ -664,6 +672,18 @@ export default function ApplyPage() {
         if (applicant.leadSource) setLeadSource(applicant.leadSource);
         if (applicant.levyAcknowledged !== undefined) setLevyAcknowledged(applicant.levyAcknowledged);
 
+        if (applicant.declaration) {
+          if (applicant.declaration.confirmed !== undefined) setDeclarationConfirmed(applicant.declaration.confirmed);
+          if (applicant.declaration.signature) setSignature(applicant.declaration.signature);
+          if (applicant.declaration.date) {
+            const declDateVal = applicant.declaration.date;
+            const formattedDate = typeof declDateVal === "string" 
+              ? declDateVal.substring(0, 10) 
+              : new Date(declDateVal).toISOString().substring(0, 10);
+            setDeclarationDate(formattedDate);
+          }
+        }
+
         // Restore payment-verified state from server — critical for users who
         // paid but closed the browser before clicking "Submit Application".
         // Without this, isPaid=true applicants would see the "Pay Now" button
@@ -677,8 +697,17 @@ export default function ApplyPage() {
 
       // Clear the query parameter from the browser URL for clean state
       router.replace("/apply");
+      setIsResuming(false);
     } catch (err: any) {
-      setErrorMsg(err.message || "Failed to resume application. The token might have expired.");
+      if (err.isNetworkError) {
+        setIsResumeNetworkError(true);
+        setErrorMsg("Failed to connect to the server. Please check your internet connection.");
+      } else {
+        // Token expired/invalid - remove query param and exit resume screen to step 1
+        router.replace("/apply");
+        setIsResuming(false);
+        setErrorMsg(err.message || "Failed to resume application. The token might have expired.");
+      }
     } finally {
       setLoading(false);
       setGeoDetecting(false);
@@ -686,6 +715,9 @@ export default function ApplyPage() {
   };
 
   const fetchCurrentApplicant = async () => {
+    setIsResuming(true);
+    setIsResumeNetworkError(false);
+    setLoading(true);
     try {
       const data = await getApplicantProfile();
       if (data) {
@@ -738,6 +770,18 @@ export default function ApplyPage() {
         if (data.leadSource) setLeadSource(data.leadSource);
         if (data.levyAcknowledged !== undefined) setLevyAcknowledged(data.levyAcknowledged);
 
+        if (data.declaration) {
+          if (data.declaration.confirmed !== undefined) setDeclarationConfirmed(data.declaration.confirmed);
+          if (data.declaration.signature) setSignature(data.declaration.signature);
+          if (data.declaration.date) {
+            const declDateVal = data.declaration.date;
+            const formattedDate = typeof declDateVal === "string" 
+              ? declDateVal.substring(0, 10) 
+              : new Date(declDateVal).toISOString().substring(0, 10);
+            setDeclarationDate(formattedDate);
+          }
+        }
+
         // Restore payment-verified state from server — same fix as handleResumeApplication.
         // Handles the case where the applicantToken is still valid in localStorage
         // and the page auto-loads a paid applicant's record on mount.
@@ -745,11 +789,35 @@ export default function ApplyPage() {
 
         if (data.currentStep) setStep(data.currentStep);
       }
-    } catch (err) {
+      setIsResuming(false);
+    } catch (err: any) {
       console.error("Error pre-populating form:", err);
+      if (err.isNetworkError) {
+        setIsResumeNetworkError(true);
+        setErrorMsg("Failed to connect to the server. Please check your internet connection.");
+      } else {
+        // Auth token invalid (401 handled by response interceptor which clears it)
+        setIsResuming(false);
+      }
     } finally {
+      setLoading(false);
       setGeoDetecting(false);
     }
+  };
+
+  const handleRetryResume = () => {
+    if (resumeToken) {
+      handleResumeApplication(resumeToken);
+    } else {
+      fetchCurrentApplicant();
+    }
+  };
+
+  const handleCancelResume = () => {
+    router.replace("/apply");
+    setIsResuming(false);
+    setIsResumeNetworkError(false);
+    setErrorMsg("");
   };
 
   const setGradYearString = (year: any) => {
@@ -959,6 +1027,9 @@ export default function ApplyPage() {
 
   // Step 6 Pay redirect handler
   const handlePayRedirect = async () => {
+    if (!validateStep(6)) {
+      return;
+    }
     setLoading(true);
     setErrorMsg("");
     try {
@@ -1144,6 +1215,52 @@ export default function ApplyPage() {
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
             <p className="text-sm font-semibold text-on-surface-variant">Checking Admissions Status...</p>
+          </div>
+        ) : isResuming ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4 text-center font-sans animate-fadeIn">
+            {isResumeNetworkError ? (
+              <div className="bg-white border border-outline-variant/30 rounded-[16px] shadow-md p-8 sm:p-12 max-w-md w-full mx-auto flex flex-col items-center gap-6 text-center">
+                <div className="w-16 h-16 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500 mb-2 animate-pulse">
+                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-display font-bold text-primary">Connection Issue</h2>
+                <p className="text-sm text-on-surface-variant leading-relaxed font-medium">
+                  We are having trouble connecting to our server to resume your application. Your progress is safe. Please check your internet connection and try again.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 w-full mt-4">
+                  <button
+                    onClick={handleRetryResume}
+                    disabled={loading}
+                    className="flex-1 bg-primary hover:bg-primary/95 text-white font-bold text-sm py-3.5 rounded-[6px] shadow-md hover-lift transition-all cursor-pointer flex items-center justify-center gap-2 disabled:bg-slate-300"
+                  >
+                    {loading ? (
+                      <>
+                        <svg className="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Connecting...
+                      </>
+                    ) : (
+                      "Retry Connection"
+                    )}
+                  </button>
+                  <button
+                    onClick={handleCancelResume}
+                    className="flex-1 border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm py-3.5 rounded-[6px] transition-all cursor-pointer text-center"
+                  >
+                    Enter Email Manually
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white border border-outline-variant/30 rounded-[16px] shadow-md p-12 max-w-md w-full mx-auto flex flex-col items-center gap-4 text-center">
+                <div className="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+                <p className="text-sm font-semibold text-on-surface-variant font-medium">Resuming your application, please wait...</p>
+              </div>
+            )}
           </div>
         ) : cohortFull ? (
           <div className="flex flex-col items-center text-center gap-8 max-w-3xl mx-auto py-4 font-sans animate-fadeIn">
@@ -2268,102 +2385,91 @@ export default function ApplyPage() {
 
               {/* Terms & Action Container */}
               <div className="flex-1 flex flex-col gap-6">
-                {/* 1. Payment Block */}
-                {!paymentVerified ? (
-                  <div className="bg-[#e8e8ed]/35 border border-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
-                    <h3 className="text-lg font-bold font-display text-primary">7. Program Commitment Levy (Mandatory)</h3>
-                    <p className="text-xs text-on-surface-variant leading-relaxed font-medium">
-                      A commitment levy of <strong>{country === "Nigeria" ? "₦20,000" : "$30"}</strong> is required to finalize your application. Click below to pay securely via our payment gateway. You will be returned here to sign and complete your registration.
-                    </p>
-                    
-                    <button
-                      type="button"
-                      onClick={handlePayRedirect}
-                      disabled={loading}
-                      className="w-full bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-[13px] sm:text-sm py-4 rounded-[6px] shadow-md hover-lift transition-all flex items-center justify-center gap-2 cursor-pointer disabled:bg-slate-300"
-                    >
-                      {loading ? "Initializing Secure Payment..." : `Pay Commitment Levy (${country === "Nigeria" ? "₦20,000" : "$30"})`}
-                    </button>
-                    {errorMsg && (
-                      <span className="text-red-500 text-xs mt-1 block text-center font-bold">{errorMsg}</span>
-                    )}
-                  </div>
-                ) : (
+                {/* 1. Payment/Declaration Info Banners */}
+                {paymentVerified ? (
                   <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 flex items-start gap-4">
                     <HiShieldCheck className="w-8 h-8 text-emerald-600 shrink-0 mt-0.5" />
                     <div className="flex flex-col gap-1">
                       <h4 className="text-sm font-bold text-emerald-900">Levy Paid & Verified</h4>
                       <p className="text-xs text-emerald-700 font-medium">
-                        Your commitment levy of {country === "Nigeria" ? "₦20,000" : "$30"} has been successfully processed and verified. Please proceed to sign the declaration below.
+                        Your commitment levy of {country === "Nigeria" ? "₦20,000" : "$30"} has been successfully processed and verified. Please finalize your submission below.
                       </p>
                     </div>
                   </div>
-                )}
+                ) : declarationConfirmed && signature ? (
+                  <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-6 flex items-start gap-4 animate-fadeIn">
+                    <HiInformationCircle className="w-8 h-8 text-primary shrink-0 mt-0.5" />
+                    <div className="flex flex-col gap-1">
+                      <h4 className="text-sm font-bold text-primary">Declaration & Signature Saved</h4>
+                      <p className="text-xs text-primary/80 font-medium">
+                        Your declaration details have been saved. Please click the button below to pay the commitment levy and complete your application.
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
 
-                {/* 2. Declaration & Signature Block (only active / unlocked if payment is verified) */}
-                {paymentVerified && (
-                  <div className="flex flex-col gap-6 animate-fadeIn">
-                    {/* Section 7. Declaration */}
-                    <div className="bg-[#e8e8ed]/35 border border-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
-                      <h3 className="text-lg font-bold font-display text-primary">7. Declaration</h3>
-                      
-                      <ul className="list-disc pl-5 text-xs text-on-surface-variant flex flex-col gap-2 mb-4 leading-relaxed font-medium">
-                        <li>I confirm that the information provided is accurate and complete.</li>
-                        <li>I understand that internship placement is subject to screening and matching after program completion.</li>
-                        <li>I agree to participate in assessments and training.</li>
-                      </ul>
+                {/* 2. Declaration & Signature Block (Always visible) */}
+                <div className="flex flex-col gap-6 animate-fadeIn">
+                  {/* Section 7. Declaration */}
+                  <div className="bg-[#e8e8ed]/35 border border-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
+                    <h3 className="text-lg font-bold font-display text-primary">7. Declaration</h3>
+                    
+                    <ul className="list-disc pl-5 text-xs text-on-surface-variant flex flex-col gap-2 mb-4 leading-relaxed font-medium">
+                      <li>I confirm that the information provided is accurate and complete.</li>
+                      <li>I understand that internship placement is subject to screening and matching after program completion.</li>
+                      <li>I agree to participate in assessments and training.</li>
+                    </ul>
 
-                      <label id="declarationConfirmed" className="flex items-start gap-3 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={declarationConfirmed}
-                          onChange={(e) => handleInputChange("declarationConfirmed", e.target.checked, setDeclarationConfirmed)}
-                          className={`w-5 h-5 text-primary rounded mt-0.5 ${
-                            errors.declarationConfirmed ? "border-red-300" : "border-outline-variant/50"
-                          }`}
-                        />
-                        <span className="text-xs text-primary font-bold leading-relaxed">
-                          I acknowledge, declare, and confirm all statements above.
-                        </span>
-                      </label>
-                      {errors.declarationConfirmed && (
-                        <span className="text-red-500 text-xs mt-1 block">{errors.declarationConfirmed}</span>
+                    <label id="declarationConfirmed" className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={declarationConfirmed}
+                        onChange={(e) => handleInputChange("declarationConfirmed", e.target.checked, setDeclarationConfirmed)}
+                        className={`w-5 h-5 text-primary rounded mt-0.5 ${
+                          errors.declarationConfirmed ? "border-red-300" : "border-outline-variant/50"
+                        }`}
+                      />
+                      <span className="text-xs text-primary font-bold leading-relaxed">
+                        I acknowledge, declare, and confirm all statements above.
+                      </span>
+                    </label>
+                    {errors.declarationConfirmed && (
+                      <span className="text-red-500 text-xs mt-1 block">{errors.declarationConfirmed}</span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold uppercase text-primary flex items-end mb-2 min-h-[32px]">Typed Full Name (Digital Signature)</label>
+                      <input
+                        id="signature"
+                        type="text"
+                        placeholder="Type your full legal name"
+                        value={signature}
+                        onChange={(e) => handleInputChange("signature", e.target.value, setSignature)}
+                        className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
+                          errors.signature
+                            ? "border-red-300 focus:border-red-500 bg-red-50/10"
+                            : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
+                        }`}
+                      />
+                      {errors.signature && (
+                        <span className="text-red-500 text-xs mt-1 block">{errors.signature}</span>
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-xs font-bold uppercase text-primary flex items-end mb-2 min-h-[32px]">Typed Full Name (Digital Signature)</label>
-                        <input
-                          id="signature"
-                          type="text"
-                          placeholder="Type your full legal name"
-                          value={signature}
-                          onChange={(e) => handleInputChange("signature", e.target.value, setSignature)}
-                          className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
-                            errors.signature
-                              ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                              : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                          }`}
-                        />
-                        {errors.signature && (
-                          <span className="text-red-500 text-xs mt-1 block">{errors.signature}</span>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="text-xs font-bold uppercase text-primary flex items-end mb-2 min-h-[32px]">Date</label>
-                        <input
-                          type="date"
-                          value={declarationDate}
-                          onChange={(e) => handleInputChange("declarationDate", e.target.value, setDeclarationDate)}
-                          disabled
-                          className="w-full border border-outline-variant/40 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-primary bg-slate-100 text-on-surface-variant font-medium cursor-not-allowed"
-                        />
-                      </div>
+                    <div>
+                      <label className="text-xs font-bold uppercase text-primary flex items-end mb-2 min-h-[32px]">Date</label>
+                      <input
+                        type="date"
+                        value={declarationDate}
+                        onChange={(e) => handleInputChange("declarationDate", e.target.value, setDeclarationDate)}
+                        disabled
+                        className="w-full border border-outline-variant/40 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-primary bg-slate-100 text-on-surface-variant font-medium cursor-not-allowed"
+                      />
                     </div>
                   </div>
-                )}
+                </div>
 
                 {/* Back and Action Buttons */}
                 <div className="flex flex-wrap items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
@@ -2374,7 +2480,20 @@ export default function ApplyPage() {
                     <HiOutlineChevronLeft className="w-4 h-4" />
                     Back
                   </button>
-                  {paymentVerified && (
+                  {!paymentVerified ? (
+                    <div className="flex-1 sm:flex-none flex flex-col items-stretch sm:items-end gap-1">
+                      <button
+                        onClick={handlePayRedirect}
+                        disabled={loading || !declarationConfirmed || !signature}
+                        className="w-full sm:w-auto bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300"
+                      >
+                        {loading ? "Processing..." : `Submit & Pay Commitment Levy (${country === "Nigeria" ? "₦20,000" : "$30"})`}
+                      </button>
+                      {errorMsg && (
+                        <span className="text-red-500 text-xs mt-1 block text-center sm:text-right font-bold max-w-xs">{errorMsg}</span>
+                      )}
+                    </div>
+                  ) : (
                     <button
                       onClick={handleSubmitApplication}
                       disabled={loading || !declarationConfirmed || !signature}

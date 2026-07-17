@@ -12,6 +12,7 @@ import { generateResumeToken } from '../services/tokenService.js';
 import { signSetPasswordToken, signPollingToken, verifyPollingToken } from '../utils/jwt.js';
 import { paymentInitiateSchema } from '../validators/applicantValidators.js';
 import { env } from '../config/env.js';
+import { executeApplicationSubmission } from './applicantController.js';
 
 export const getActiveRegistrationCohort = async (): Promise<any> => {
     const currentDate = new Date();
@@ -163,13 +164,25 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
                 // Mark applicant as paid and remove TTL expiresAt field to prevent auto-deletion
                 const applicant = await Applicant.findById(payment.applicantId);
                 if (applicant && !applicant.isPaid) {
-                    const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
-                    applicant.resumeTokenHash = resumeTokenHash;
                     applicant.isPaid = true;
                     applicant.expiresAt = undefined;
                     await applicant.save();
 
-                    notificationEmitter.emit('payment.success', { email: applicant.email, resumeToken: resumeTokenRaw, country: applicant.country });
+                    // Check if declaration signed and confirmed
+                    if (applicant.declaration?.confirmed && applicant.declaration?.signature) {
+                        try {
+                            await executeApplicationSubmission(applicant._id, payment._id);
+                            console.log(`[PaymentStatus] Auto-submitted application on verify check for ${applicant.email}`);
+                        } catch (err) {
+                            console.error(`[PaymentStatus] Auto-submit failed on verify check:`, err);
+                        }
+                    } else {
+                        // Fallback (paid but not signed yet) - generate new resume token & email it
+                        const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
+                        applicant.resumeTokenHash = resumeTokenHash;
+                        await applicant.save();
+                        notificationEmitter.emit('payment.success', { email: applicant.email, resumeToken: resumeTokenRaw, country: applicant.country });
+                    }
                 }
             } else if (verified.status === 'failed' || verified.status === 'abandoned') {
                 payment.status = 'failed';
@@ -178,6 +191,21 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
         } catch (e: any) {
             console.error('[PaymentStatus] Paystack verify error:', e?.response?.status, e?.response?.data ?? e?.message);
         }
+    }
+
+    if (payment.status === 'success') {
+        let setPasswordToken: string | undefined = undefined;
+        if (payment.applicationId) {
+            const application = await Application.findById(payment.applicationId);
+            if (application) {
+                const user = await User.findById(application.userId);
+                if (user) {
+                    setPasswordToken = signSetPasswordToken(user.id, user.email);
+                }
+            }
+        }
+        res.json({ status: payment.status, setPasswordToken });
+        return;
     }
 
     res.json({ status: payment.status });
@@ -233,13 +261,25 @@ export const handlePaystackWebhook = async (req: Request, res: Response) => {
     // Mark applicant as paid and remove TTL expiresAt field to prevent auto-deletion
     const applicant = await Applicant.findById(payment.applicantId);
     if (applicant && !applicant.isPaid) {
-        const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
-        applicant.resumeTokenHash = resumeTokenHash;
         applicant.isPaid = true;
         applicant.expiresAt = undefined;
         await applicant.save();
 
-        notificationEmitter.emit('payment.success', { email: applicant.email, resumeToken: resumeTokenRaw, country: applicant.country });
+        // Check if declaration signed and confirmed
+        if (applicant.declaration?.confirmed && applicant.declaration?.signature) {
+            try {
+                await executeApplicationSubmission(applicant._id, payment._id);
+                console.log(`[Webhook] Auto-submitted application on webhook for ${applicant.email}`);
+            } catch (err) {
+                console.error(`[Webhook] Auto-submit failed on webhook:`, err);
+            }
+        } else {
+            // Fallback (paid but not signed yet) - generate new resume token & email it
+            const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
+            applicant.resumeTokenHash = resumeTokenHash;
+            await applicant.save();
+            notificationEmitter.emit('payment.success', { email: applicant.email, resumeToken: resumeTokenRaw, country: applicant.country });
+        }
     }
 
     res.status(200).end();

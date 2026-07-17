@@ -30,9 +30,25 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && typeof window !== "undefined") {
       localStorage.removeItem("applicantToken");
     }
-    return Promise.reject(
-      new Error(error.response?.data?.message ?? "An error occurred on the server.")
-    );
+
+    let errorMessage = "An error occurred on the server.";
+    let isNetworkError = false;
+
+    if (error.response) {
+      errorMessage = error.response.data?.message ?? `Server responded with status ${error.response.status}`;
+    } else if (error.request) {
+      isNetworkError = true;
+      errorMessage = "Network error. Please check your internet connection and try again.";
+    } else {
+      errorMessage = error.message;
+    }
+
+    const customError = new Error(errorMessage);
+    (customError as any).isNetworkError = isNetworkError;
+    (customError as any).status = error.response?.status;
+    (customError as any).code = error.code;
+
+    return Promise.reject(customError);
   }
 );
 
@@ -128,8 +144,23 @@ authClient.interceptors.response.use(
       }
     }
 
-    return Promise.reject(
-      new Error(error.response?.data?.message ?? "An error occurred on the server.")
-    );
+    let errorMessage = "An error occurred on the server.";
+    let isNetworkError = false;
+
+    if (error.response) {
+      errorMessage = error.response.data?.message ?? `Server responded with status ${error.response.status}`;
+    } else if (error.request) {
+      isNetworkError = true;
+      errorMessage = "Network error. Please check your internet connection and try again.";
+    } else {
+      errorMessage = error.message;
+    }
+
+    const customError = new Error(errorMessage);
+    (customError as any).isNetworkError = isNetworkError;
+    (customError as any).status = error.response?.status;
+    (customError as any).code = error.code;
+
+    return Promise.reject(customError);
   }
 );

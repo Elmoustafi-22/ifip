@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { Types } from 'mongoose';
 import { Applicant } from '../models/Applicants.js';
 import { generateOtp, verifyOtp } from '../services/otpServices.js';
 import { generateResumeToken, hashToken } from '../services/tokenService.js';
@@ -200,39 +201,29 @@ export const updateMyApplicant = async (req: Request, res: Response) => {
     res.json(applicant);
 };
 
-export const submitApplication = async (req: Request, res: Response) => {
-    const applicant = await Applicant.findById(req.applicant!.id);
+export const executeApplicationSubmission = async (applicantId: Types.ObjectId | string, paymentId: Types.ObjectId | string) => {
+    const applicant = await Applicant.findById(applicantId);
     if (!applicant) {
-        res.status(404).json({ message: 'Session expired — please resume via your email link.' });
-        return;
+        throw new Error('Applicant not found.');
     }
 
-    const validation = paymentReadySchema.safeParse(applicant.toObject());
-    if (!validation.success) {
-        res.status(400).json({
-            message: 'Application is incomplete. Please finish all sections before submitting.',
-            errors: validation.error.flatten(),
+    const payment = await Payment.findById(paymentId);
+    if (!payment || payment.status !== 'success') {
+        throw new Error('Payment verification is required.');
+    }
+
+    let user = await User.findOne({ email: applicant.email });
+    if (!user) {
+        user = await User.create({
+            email: applicant.email,
+            fullName: applicant.fullName,
+            phone: applicant.phone,
+            dob: applicant.dob,
+            gender: applicant.gender,
+            country: applicant.country,
+            stateCity: applicant.stateCity
         });
-        return;
     }
-
-    const payment = await Payment.findOne({ applicantId: applicant._id, status: 'success' });
-    if (!payment) {
-        res.status(402).json({
-            message: 'Payment not found or is still pending verification. Please make the payment first.',
-        });
-        return;
-    }
-
-    const user = await User.create({
-        email: applicant.email,
-        fullName: applicant.fullName,
-        phone: applicant.phone,
-        dob: applicant.dob,
-        gender: applicant.gender,
-        country: applicant.country,
-        stateCity: applicant.stateCity
-    });
 
     const application = await Application.create({
         userId: user._id,
@@ -266,9 +257,45 @@ export const submitApplication = async (req: Request, res: Response) => {
 
     await Applicant.deleteOne({ _id: applicant._id });
 
-    res.json({
-        message: 'Application submitted successfully. Please check your email to set your password.',
-        application,
-        setPasswordToken
-    });
+    return { application, setPasswordToken };
+};
+
+export const submitApplication = async (req: Request, res: Response) => {
+    const applicant = await Applicant.findById(req.applicant!.id);
+    if (!applicant) {
+        res.status(404).json({ message: 'Session expired — please resume via your email link.' });
+        return;
+    }
+
+    const validation = paymentReadySchema.safeParse(applicant.toObject());
+    if (!validation.success) {
+        res.status(400).json({
+            message: 'Application is incomplete. Please finish all sections before submitting.',
+            errors: validation.error.flatten(),
+        });
+        return;
+    }
+
+    const payment = await Payment.findOne({ applicantId: applicant._id, status: 'success' });
+    if (!payment) {
+        res.status(402).json({
+            message: 'Payment not found or is still pending verification. Please make the payment first.',
+        });
+        return;
+    }
+
+    try {
+        const { application, setPasswordToken } = await executeApplicationSubmission(
+            applicant._id,
+            payment._id
+        );
+
+        res.json({
+            message: 'Application submitted successfully. Please check your email to set your password.',
+            application,
+            setPasswordToken
+        });
+    } catch (err: any) {
+        res.status(500).json({ message: err.message || 'An error occurred during submission.' });
+    }
 };

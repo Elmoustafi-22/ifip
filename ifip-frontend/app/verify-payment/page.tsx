@@ -44,11 +44,18 @@ function VerifyPaymentContent() {
           localStorage.removeItem("paymentReference");
           localStorage.removeItem("paymentPollingToken");
           setStatus("success");
-          setMessage("Payment confirmed! Redirecting you back to complete your application…");
-          // Redirect back to /apply — the page will detect paymentVerified via server state
-          setTimeout(() => {
-            router.replace("/apply?payment=verified");
-          }, 2000);
+          
+          if (data.setPasswordToken) {
+            setMessage("Payment confirmed! Redirecting you to set your account password…");
+            setTimeout(() => {
+              router.replace(`/set-password?token=${data.setPasswordToken}`);
+            }, 2000);
+          } else {
+            setMessage("Payment confirmed! Redirecting you back to complete your application…");
+            setTimeout(() => {
+              router.replace("/apply?payment=verified");
+            }, 2000);
+          }
         } else if (data.status === "failed") {
           clearInterval(interval);
           setStatus("failed");

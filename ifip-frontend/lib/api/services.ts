@@ -59,8 +59,8 @@ export const initiatePayment = async (): Promise<InitiatePaymentResponse> => {
   return data;
 };
 
-export const checkPaymentStatus = async (reference: string, pollingToken: string): Promise<{ status: "pending" | "success" | "failed" }> => {
-  const { data } = await apiClient.get<{ status: "pending" | "success" | "failed" }>(`/payments/${reference}/status?token=${pollingToken}`);
+export const checkPaymentStatus = async (reference: string, pollingToken: string): Promise<{ status: "pending" | "success" | "failed"; setPasswordToken?: string }> => {
+  const { data } = await apiClient.get<{ status: "pending" | "success" | "failed"; setPasswordToken?: string }>(`/payments/${reference}/status?token=${pollingToken}`);
   return data;
 };
 
