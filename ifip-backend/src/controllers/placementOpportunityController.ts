@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PlacementOpportunity } from '../models/PlacementOpportunity.js';
+import { updateContentVersion } from './contentVersionController.js';
 
 // ─── Public Handlers ──────────────────────────────────────────────────────────
 
@@ -54,6 +55,7 @@ export const adminCreateOpportunity = async (req: Request, res: Response) => {
             isActive: true
         });
 
+        await updateContentVersion('opportunities');
         res.status(201).json({ message: 'Category created successfully.', opportunity });
     } catch (err) {
         res.status(500).json({ message: 'Failed to create category.' });
@@ -84,6 +86,7 @@ export const adminUpdateOpportunity = async (req: Request, res: Response) => {
         if (isActive !== undefined) opportunity.isActive = isActive;
 
         await opportunity.save();
+        await updateContentVersion('opportunities');
         res.json({ message: 'Category updated successfully.', opportunity });
     } catch (err) {
         res.status(500).json({ message: 'Failed to update category.' });
@@ -102,6 +105,7 @@ export const adminDeleteOpportunity = async (req: Request, res: Response) => {
             res.status(404).json({ message: 'Category not found.' });
             return;
         }
+        await updateContentVersion('opportunities');
         res.json({ message: 'Category deleted successfully.' });
     } catch (err) {
         res.status(500).json({ message: 'Failed to delete category.' });
@@ -127,6 +131,7 @@ export const adminReorderOpportunities = async (req: Request, res: Response) => 
             )
         );
 
+        await updateContentVersion('opportunities');
         res.json({ message: 'Categories reordered successfully.' });
     } catch (err) {
         res.status(500).json({ message: 'Failed to reorder categories.' });

@@ -474,6 +474,8 @@ export interface PartnerApplicationPayload {
   description?: string;
   activeSlots?: number;
   logoUrl?: string;
+  hasOpenings?: boolean;
+  openings?: Array<{ role: string; mode: string; location?: string; count: number }>;
 }
 
 export const submitPartnerApplication = async (payload: PartnerApplicationPayload): Promise<{ message: string; applicationId: string }> => {
@@ -495,6 +497,8 @@ export interface PartnerApplicationRecord {
   activeSlots: number;
   logoUrl?: string;
   status: 'pending' | 'approved' | 'declined';
+  hasOpenings?: boolean;
+  openings?: Array<{ role: string; mode: string; location?: string; count: number }>;
   adminNotes?: string;
   reviewedAt?: string;
   createdAt: string;

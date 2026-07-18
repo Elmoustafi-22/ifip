@@ -229,9 +229,39 @@ notificationEmitter.on('placement.status_updated', async ({ userId, userEmail, u
     }
 });
 
-notificationEmitter.on('partner.applied', async ({ email, companyName, contactPerson }) => {
+notificationEmitter.on('partner.applied', async ({ email, companyName, contactPerson, hasOpenings, openings }) => {
     try {
-        await queueEmail('partner_applied', { email, companyName, contactPerson });
+        // 1. Send confirmation email to the applicant (partner)
+        await queueEmail('partner_applied', { email, companyName, contactPerson, hasOpenings, openings });
+
+        // 2. Fetch all administrators from DB
+        const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } });
+
+        // 3. Create in-app notifications and queue alert emails for admins
+        for (const admin of admins) {
+            try {
+                // Create in-app notification
+                await Notification.create({
+                    userId: admin._id,
+                    title: 'New Partner Application',
+                    message: `A new partnership application has been submitted by "${companyName}" (${contactPerson}).`,
+                    type: 'info',
+                    link: '/admin/partners/applications'
+                });
+
+                // Queue notification email to the admin
+                await queueEmail('admin_partner_applied', {
+                    to: admin.email,
+                    companyName,
+                    contactPerson,
+                    contactEmail: email,
+                    hasOpenings,
+                    openings
+                });
+            } catch (adminErr) {
+                console.error(`[Event:partner.applied] Error alerting admin ${admin.email}:`, adminErr);
+            }
+        }
     } catch (err) {
         console.error('[Event:partner.applied] Error:', err);
     }

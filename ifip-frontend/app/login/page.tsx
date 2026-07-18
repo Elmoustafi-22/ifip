@@ -31,7 +31,21 @@ export default function LoginPage() {
   const [sessionMsg, setSessionMsg] = useState("");
 
   useEffect(() => {
-    setIsLoggedIn(!!getAccessToken());
+    const token = getAccessToken();
+    if (token) {
+      setIsLoggedIn(true);
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        if (payload.role === "admin" || payload.role === "superadmin") {
+          window.location.href = "/admin";
+        } else {
+          window.location.href = "/dashboard";
+        }
+      } catch (err) {
+        window.location.href = "/dashboard";
+      }
+      return;
+    }
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const session = params.get("session");
@@ -77,11 +91,8 @@ export default function LoginPage() {
         handlePostLoginRedirect(res.accessToken);
       }
     } catch (err: any) {
-      if (err.status === 400 || err.status === 401) {
-        setError("Incorrect credentials.");
-      } else {
-        setError(err.message || "An error occurred on the server.");
-      }
+      const errMsg = err.response?.data?.message || err.message || "Incorrect credentials.";
+      setError(errMsg);
       setLoading(false);
     }
   };
@@ -134,15 +145,23 @@ export default function LoginPage() {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-4">
-            <Link href="/login" className="text-sm font-semibold text-primary border-b border-primary/40 pb-0.5">
-              Login
-            </Link>
-            <Link
-              href="/apply"
-              className="bg-impact-orange hover:bg-impact-orange/90 text-white font-semibold text-sm px-6 py-2.5 rounded-[4px] shadow-sm hover-lift transition-all"
-            >
-              Apply Now
-            </Link>
+            {isLoggedIn ? (
+              <Link href="/dashboard" className="text-sm font-semibold hover:text-primary transition-colors px-4 py-2">
+                Go to Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className="text-sm font-semibold text-primary border-b border-primary/40 pb-0.5">
+                  Login
+                </Link>
+                <Link
+                  href="/apply"
+                  className="bg-impact-orange hover:bg-impact-orange/90 text-white font-semibold text-sm px-6 py-2.5 rounded-[4px] shadow-sm hover-lift transition-all"
+                >
+                  Apply Now
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile-only Right: Hamburger menu button */}
@@ -166,8 +185,20 @@ export default function LoginPage() {
           <a href="/#partners" onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold border-b border-outline-variant/20 pb-2">Partners</a>
           <a href="/#faq" onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold border-b border-outline-variant/20 pb-2">FAQ</a>
           <div className="flex flex-col gap-4 mt-6">
-            <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="text-center font-semibold border border-primary/20 py-3 rounded-[4px] hover:bg-primary/5 transition-colors text-primary">Login</Link>
-            <Link href="/apply" onClick={() => setMobileMenuOpen(false)} className="text-center bg-impact-orange text-white font-semibold py-3 rounded-[4px]">Apply Now</Link>
+            {isLoggedIn ? (
+              <Link
+                href="/dashboard"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-center font-semibold bg-primary text-white py-3 rounded-[4px]"
+              >
+                Go to Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="text-center font-semibold border border-primary/20 py-3 rounded-[4px] hover:bg-primary/5 transition-colors text-primary">Login</Link>
+                <Link href="/apply" onClick={() => setMobileMenuOpen(false)} className="text-center bg-impact-orange text-white font-semibold py-3 rounded-[4px]">Apply Now</Link>
+              </>
+            )}
           </div>
         </div>
       )}

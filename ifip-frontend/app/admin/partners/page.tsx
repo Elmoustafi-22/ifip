@@ -42,8 +42,11 @@ interface PartnerOrg {
   website?: string;
   contactEmail?: string;
   contactPerson?: string;
+  contactPhone?: string;
   status?: string;
   cohorts: string[];
+  hasOpenings?: boolean;
+  openings?: Array<{ role: string; mode: string; location?: string; count: number }>;
   createdAt: string;
 }
 
@@ -100,6 +103,26 @@ export default function AdminPartnersPage() {
   const [selectedCohorts, setSelectedCohorts] = useState<string[]>([]);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const [contactPhone, setContactPhone] = useState("");
+  const [hasOpenings, setHasOpenings] = useState(false);
+  const [openings, setOpenings] = useState<Array<{ role: string; mode: string; location: string; count: number }>>([
+    { role: "", mode: "Remote", location: "", count: 1 }
+  ]);
+
+  const addOpening = () => {
+    setOpenings((prev) => [...prev, { role: "", mode: "Remote", location: "", count: 1 }]);
+  };
+
+  const removeOpening = (index: number) => {
+    setOpenings((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateOpeningField = (index: number, field: string, value: any) => {
+    setOpenings((prev) =>
+      prev.map((op, i) => (i === index ? { ...op, [field]: value } : op))
+    );
+  };
 
   // ── Applications tab state ────────────────────────────────────────────────
   const [applications, setApplications] = useState<PartnerApplicationRecord[]>([]);
@@ -163,6 +186,9 @@ export default function AdminPartnersPage() {
     setEditingPartner(null);
     setName(""); setDescription(""); setWebsite(""); setLogoUrl("");
     setActiveSlots(5); setSectorTagsInput(""); setSelectedCohorts([]); setLogoFile(null);
+    setContactPhone("");
+    setHasOpenings(false);
+    setOpenings([{ role: "", mode: "Remote", location: "", count: 1 }]);
     setModalOpen(true);
   };
 
@@ -176,6 +202,14 @@ export default function AdminPartnersPage() {
     setSectorTagsInput(partner.sectorTags ? partner.sectorTags.join(", ") : "");
     setSelectedCohorts(partner.cohorts || []);
     setLogoFile(null);
+    setContactPhone(partner.contactPhone || "");
+    setHasOpenings(partner.hasOpenings || false);
+    setOpenings(partner.openings && partner.openings.length > 0 ? partner.openings.map(op => ({
+      role: op.role,
+      mode: op.mode,
+      location: op.location || "",
+      count: op.count
+    })) : [{ role: "", mode: "Remote", location: "", count: 1 }]);
     setModalOpen(true);
   };
 
@@ -200,6 +234,25 @@ export default function AdminPartnersPage() {
   const handleOrgSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || submitting) return;
+
+    if (hasOpenings) {
+      for (let i = 0; i < openings.length; i++) {
+        const op = openings[i];
+        if (!op.role.trim()) {
+          alert(`Please specify the role title for opening #${i + 1}.`);
+          return;
+        }
+        if (op.count < 1) {
+          alert(`Please specify a valid count for opening #${i + 1}.`);
+          return;
+        }
+        if ((op.mode === "On-site" || op.mode === "Hybrid") && !op.location.trim()) {
+          alert(`Please specify the location for opening #${i + 1} (${op.mode}).`);
+          return;
+        }
+      }
+    }
+
     setSubmitting(true);
     let finalLogoUrl = logoUrl;
     try {
@@ -214,9 +267,23 @@ export default function AdminPartnersPage() {
         }
       }
       const sectorTags = sectorTagsInput.split(",").map((t) => t.trim()).filter((t) => t.length > 0);
+      
+      let computedSlots = Number(activeSlots);
+      if (hasOpenings) {
+        computedSlots = openings.reduce((sum, item) => sum + item.count, 0);
+      }
+
       const payload = {
         name, description: description || undefined, website: website || undefined,
-        logoUrl: finalLogoUrl || undefined, activeSlots: Number(activeSlots), sectorTags, cohorts: selectedCohorts,
+        logoUrl: finalLogoUrl || undefined, activeSlots: computedSlots, sectorTags, cohorts: selectedCohorts,
+        contactPhone: contactPhone || undefined,
+        hasOpenings,
+        openings: hasOpenings ? openings.map(op => ({
+          role: op.role.trim(),
+          mode: op.mode,
+          location: (op.mode === "On-site" || op.mode === "Hybrid") ? op.location.trim() : undefined,
+          count: Number(op.count)
+        })) : undefined
       };
       if (editingPartner) {
         await updatePartnerV2(editingPartner._id, payload);
@@ -367,7 +434,7 @@ export default function AdminPartnersPage() {
                     <div className="flex items-start gap-4 mb-4">
                       <div className="w-16 h-16 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center p-2 relative overflow-hidden shrink-0">
                         {partner.logoUrl ? (
-                          <Image src={partner.logoUrl} alt={`${partner.name} Logo`} fill className="object-contain p-1" sizes="64px" />
+                          <Image src={partner.logoUrl} alt={`${partner.name} Logo`} fill className="object-contain p-1" sizes="64px" unoptimized />
                         ) : (
                           <span className="text-[10px] font-bold text-slate-300 uppercase">No Logo</span>
                         )}
@@ -380,6 +447,12 @@ export default function AdminPartnersPage() {
                             <HiOutlineGlobeAlt className="w-3.5 h-3.5 shrink-0" />
                             <span className="truncate">{partner.website.replace(/https?:\/\//, "")}</span>
                           </a>
+                        )}
+                        {partner.contactPhone && (
+                          <div className="text-[11px] text-slate-400 flex items-center gap-1 font-medium mt-1">
+                            <HiOutlinePhone className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                            <span className="truncate">{partner.contactPhone}</span>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -405,6 +478,20 @@ export default function AdminPartnersPage() {
                         <span className="text-[10px] text-slate-400 font-medium">No sector tags</span>
                       )}
                     </div>
+                    {partner.hasOpenings && partner.openings && partner.openings.length > 0 && (
+                      <div className="mt-3 border-t border-slate-100 pt-3">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Openings:</p>
+                        <div className="flex flex-col gap-1">
+                          {partner.openings.map((op, i) => (
+                            <div key={i} className="flex justify-between items-center text-xs bg-slate-50 border border-slate-100 rounded-lg px-2.5 py-1">
+                              <span className="font-semibold text-slate-700 truncate max-w-[140px]" title={op.role}>{op.role}</span>
+                              <span className="text-[9px] text-slate-500 bg-white border border-slate-200 rounded px-1.5 py-0.5 shrink-0">{op.mode} {op.location ? `(${op.location})` : ""}</span>
+                              <span className="text-[#000666] font-bold text-[10px] shrink-0 ml-1">x{op.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="border-t border-slate-100 pt-4 flex items-center justify-between">
                     <div className="text-xs text-slate-500 font-medium">
@@ -480,7 +567,7 @@ export default function AdminPartnersPage() {
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center relative overflow-hidden shrink-0">
                           {app.logoUrl ? (
-                            <Image src={app.logoUrl} alt={app.companyName} fill className="object-contain p-1" sizes="48px" />
+                            <Image src={app.logoUrl} alt={app.companyName} fill className="object-contain p-1" sizes="48px" unoptimized />
                           ) : (
                             <HiOutlineBriefcase className="w-5 h-5 text-slate-300" />
                           )}
@@ -577,11 +664,21 @@ export default function AdminPartnersPage() {
                   className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600"
                   placeholder="e.g. https://yourorganization.com" />
               </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="font-bold text-slate-700">Contact Phone Number</label>
+                <input type="text" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600"
+                  placeholder="e.g. +234 800 000 0000" />
+              </div>
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="font-bold text-slate-700">Placement Slots *</label>
                   <input type="number" required min={0} value={activeSlots} onChange={(e) => setActiveSlots(Number(e.target.value))}
-                    className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600" />
+                    className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600"
+                    disabled={hasOpenings} />
+                  {hasOpenings && (
+                    <span className="text-[10px] text-slate-400 mt-1">Slots are calculated automatically from the active openings counts.</span>
+                  )}
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="font-bold text-slate-700">Sector Tags <span className="font-normal text-slate-400">(comma-separated)</span></label>
@@ -589,6 +686,104 @@ export default function AdminPartnersPage() {
                     className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600"
                     placeholder="e.g. Finance, Advisory" />
                 </div>
+              </div>
+
+              {/* Admin Openings Editor */}
+              <div className="flex flex-col gap-3 p-4 border border-slate-200 bg-slate-50/50 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-bold text-[#000666]">Internship / Job Openings</h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Specify individual openings for this partner.</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={hasOpenings}
+                      onChange={(e) => setHasOpenings(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#000666]"></div>
+                  </label>
+                </div>
+
+                {hasOpenings && (
+                  <div className="flex flex-col gap-3 mt-2 border-t border-slate-200 pt-3">
+                    {openings.map((op, index) => (
+                      <div key={index} className="flex flex-col gap-2 p-3 border border-slate-200 bg-white rounded-lg relative">
+                        {openings.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeOpening(index)}
+                            className="absolute top-2 right-2 text-red-500 hover:text-red-700 text-[10px] font-bold cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                        )}
+                        <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Opening #{index + 1}</h5>
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500">Role Title *</label>
+                            <input
+                              type="text"
+                              required
+                              value={op.role}
+                              onChange={(e) => updateOpeningField(index, "role", e.target.value)}
+                              className="px-2 py-1 border border-slate-200 rounded text-xs"
+                              placeholder="e.g. Associate Analyst"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500">Count *</label>
+                            <input
+                              type="number"
+                              min={1}
+                              required
+                              value={op.count}
+                              onChange={(e) => updateOpeningField(index, "count", e.target.value === "" ? "" : Number(e.target.value))}
+                              className="px-2 py-1 border border-slate-200 rounded text-xs"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500">Mode *</label>
+                            <select
+                              value={op.mode}
+                              onChange={(e) => updateOpeningField(index, "mode", e.target.value)}
+                              className="px-2 py-1 border border-slate-200 bg-white rounded text-xs"
+                            >
+                              <option value="Remote">Remote</option>
+                              <option value="Hybrid">Hybrid</option>
+                              <option value="On-site">On-site</option>
+                            </select>
+                          </div>
+                          {(op.mode === "On-site" || op.mode === "Hybrid") && (
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[10px] font-bold text-slate-500">Location *</label>
+                              <input
+                                type="text"
+                                required
+                                value={op.location || ""}
+                                onChange={(e) => updateOpeningField(index, "location", e.target.value)}
+                                className="px-2 py-1 border border-slate-200 rounded text-xs"
+                                placeholder="e.g. Lagos, Nigeria"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={addOpening}
+                      className="self-start text-[11px] font-bold text-[#000666] hover:underline"
+                    >
+                      + Add another opening
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="flex flex-col gap-2 border-t border-slate-100 pt-4">
                 <label className="font-bold text-slate-700 flex items-center gap-1.5">
@@ -669,7 +864,7 @@ export default function AdminPartnersPage() {
               <div className="flex items-start gap-4">
                 <div className="w-20 h-20 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center relative overflow-hidden shrink-0">
                   {reviewingApp.logoUrl ? (
-                    <Image src={reviewingApp.logoUrl} alt={reviewingApp.companyName} fill className="object-contain p-2" sizes="80px" />
+                    <Image src={reviewingApp.logoUrl} alt={reviewingApp.companyName} fill className="object-contain p-2" sizes="80px" unoptimized />
                   ) : (
                     <HiOutlineBriefcase className="w-8 h-8 text-slate-300" />
                   )}
@@ -717,6 +912,35 @@ export default function AdminPartnersPage() {
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">About the Organization</p>
                   <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 rounded-xl p-4">{reviewingApp.description}</p>
+                </div>
+              )}
+
+              {/* Submitted Openings (Review) */}
+              {reviewingApp.hasOpenings && reviewingApp.openings && reviewingApp.openings.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Submitted Internship Openings</p>
+                  <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                    <table className="w-full text-xs text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200">
+                          <th className="p-3 font-bold text-[#000666]">Role</th>
+                          <th className="p-3 font-bold text-[#000666]">Mode</th>
+                          <th className="p-3 font-bold text-[#000666]">Location</th>
+                          <th className="p-3 font-bold text-[#000666] text-center">Slots</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reviewingApp.openings.map((op, idx) => (
+                          <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                            <td className="p-3 font-semibold text-slate-700">{op.role}</td>
+                            <td className="p-3 text-slate-600">{op.mode}</td>
+                            <td className="p-3 text-slate-500">{op.location || "—"}</td>
+                            <td className="p-3 text-[#000666] font-bold text-center">{op.count}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 

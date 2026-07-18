@@ -1,4 +1,5 @@
 import { Schema, model, Document, Types } from 'mongoose';
+import { IPartnerOpening } from './PartnerApplication.js';
 
 export interface IPartnerOrganization extends Document {
     name: string;
@@ -9,10 +10,20 @@ export interface IPartnerOrganization extends Document {
     status: 'active' | 'inactive';
     contactEmail?: string;
     contactPerson?: string;
+    contactPhone?: string;
     website?: string;
     cohorts: Types.ObjectId[];
+    hasOpenings: boolean;
+    openings: IPartnerOpening[];
     createdAt: Date;
 }
+
+const partnerOpeningSchema = new Schema<IPartnerOpening>({
+    role: { type: String, required: true },
+    mode: { type: String, enum: ['Remote', 'Hybrid', 'On-site'], required: true },
+    location: { type: String },
+    count: { type: Number, required: true, default: 1 }
+});
 
 const partnerOrganizationSchema = new Schema<IPartnerOrganization>({
     name:          { type: String, required: true },
@@ -23,8 +34,11 @@ const partnerOrganizationSchema = new Schema<IPartnerOrganization>({
     status:        { type: String, enum: ['active', 'inactive'], default: 'active' },
     contactEmail:  { type: String },
     contactPerson: { type: String },
+    contactPhone:  { type: String },
     website:       { type: String },
     cohorts:       [{ type: Schema.Types.ObjectId, ref: 'Cohort', default: [] }],
+    hasOpenings:   { type: Boolean, default: false },
+    openings:      { type: [partnerOpeningSchema], default: [] },
     createdAt:     { type: Date, default: Date.now },
 });
 

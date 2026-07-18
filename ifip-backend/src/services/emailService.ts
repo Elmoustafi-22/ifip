@@ -465,7 +465,36 @@ export const sendPasswordResetEmail = async (to: string, resetToken: string) => 
 
 // ─── Partner Application Emails ──────────────────────────────────────────────
 
-export const sendPartnerApplicationReceived = async (to: string, companyName: string, contactPerson: string) => {
+export const sendPartnerApplicationReceived = async (to: string, companyName: string, contactPerson: string, hasOpenings?: boolean, openings?: any[]) => {
+    let openingsHtml = '';
+    if (hasOpenings && Array.isArray(openings) && openings.length > 0) {
+        openingsHtml = `
+        <div style="margin: 24px 0;">
+            <h3 style="font-size: 14px; font-weight: bold; color: #000666; margin: 0 0 12px 0;">Submitted Job Openings:</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; border: 1px solid #E7E2D8; border-radius: 6px; overflow: hidden;">
+                <thead>
+                    <tr style="background-color: #FDFBF7; border-bottom: 1px solid #E7E2D8;">
+                        <th style="padding: 10px 12px; color: #000666; font-weight: bold;">Role</th>
+                        <th style="padding: 10px 12px; color: #000666; font-weight: bold;">Mode</th>
+                        <th style="padding: 10px 12px; color: #000666; font-weight: bold;">Location</th>
+                        <th style="padding: 10px 12px; color: #000666; font-weight: bold; text-align: center;">Slots</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${openings.map(op => `
+                        <tr style="border-bottom: 1px solid #E7E2D8;">
+                            <td style="padding: 10px 12px; color: #454652; font-weight: 600;">${op.role}</td>
+                            <td style="padding: 10px 12px; color: #454652;">${op.mode}</td>
+                            <td style="padding: 10px 12px; color: #767683;">${op.location || '—'}</td>
+                            <td style="padding: 10px 12px; color: #000666; font-weight: bold; text-align: center;">${op.count}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+        `;
+    }
+
     const html = `
     <div style="${wrapperStyle}">
         <div style="${cardStyle}">
@@ -481,6 +510,9 @@ export const sendPartnerApplicationReceived = async (to: string, companyName: st
                 <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
                     Thank you for submitting a partnership application for <strong>${companyName}</strong>. We have received your inquiry and our team will review it shortly.
                 </p>
+                
+                ${openingsHtml}
+
                 <div style="background-color: #F0F4FF; border-left: 4px solid #000666; border-radius: 4px; padding: 16px 20px; margin: 0 0 24px 0;">
                     <p style="font-size: 14px; color: #000666; margin: 0; font-weight: 600;">What happens next?</p>
                     <p style="font-size: 14px; color: #454652; margin: 8px 0 0 0; line-height: 1.6;">Our admissions team will review your application and reach out to you with a decision. This typically takes 3–5 business days.</p>
@@ -873,4 +905,85 @@ export const sendAdminInvitationEmail = async (to: string, name: string, role: s
     </div>
     `;
     await send(to, 'Invitation to join IFIP Admin Panel', html);
+};
+
+export const sendAdminPartnerApplicationReceived = async (to: string, companyName: string, contactPerson: string, contactEmail: string, hasOpenings?: boolean, openings?: any[]) => {
+    let openingsHtml = '';
+    if (hasOpenings && Array.isArray(openings) && openings.length > 0) {
+        openingsHtml = `
+        <div style="margin: 24px 0;">
+            <h3 style="font-size: 14px; font-weight: bold; color: #000666; margin: 0 0 12px 0;">Submitted Job Openings:</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; border: 1px solid #E7E2D8; border-radius: 6px; overflow: hidden;">
+                <thead>
+                    <tr style="background-color: #FDFBF7; border-bottom: 1px solid #E7E2D8;">
+                        <th style="padding: 10px 12px; color: #000666; font-weight: bold;">Role</th>
+                        <th style="padding: 10px 12px; color: #000666; font-weight: bold;">Mode</th>
+                        <th style="padding: 10px 12px; color: #000666; font-weight: bold;">Location</th>
+                        <th style="padding: 10px 12px; color: #000666; font-weight: bold; text-align: center;">Slots</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${openings.map(op => `
+                        <tr style="border-bottom: 1px solid #E7E2D8;">
+                            <td style="padding: 10px 12px; color: #454652; font-weight: 600;">${op.role}</td>
+                            <td style="padding: 10px 12px; color: #454652;">${op.mode}</td>
+                            <td style="padding: 10px 12px; color: #767683;">${op.location || '—'}</td>
+                            <td style="padding: 10px 12px; color: #000666; font-weight: bold; text-align: center;">${op.count}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+        `;
+    }
+
+    const html = `
+    <div style="${wrapperStyle}">
+        <div style="${cardStyle}">
+            <div style="padding: 40px 32px 0 32px; text-align: center;">
+                <img src="${LOGO_HEADER_URL}" style="height: 64px; max-height: 64px; width: auto; display: block; margin: 0 auto;" alt="IFIP Logo">
+                <div style="width: 80px; height: 4px; background-color: #000666; margin: 24px auto 0 auto; border-radius: 2px;"></div>
+            </div>
+            <div style="${contentContainerStyle}">
+                <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 16px 0;">New Partner Application</h1>
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    Hello Administrator,
+                </p>
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    A new partnership application has been submitted by <strong>${companyName}</strong>.
+                </p>
+                
+                <div style="background-color: #FDFBF7; border: 1px solid #E7E2D8; border-radius: 8px; padding: 20px; margin-bottom: 28px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
+                        <tr>
+                            <td style="padding: 4px 0; color: #767683; font-weight: bold; width: 120px;">Company Name:</td>
+                            <td style="padding: 4px 0; color: #000666; font-weight: bold;">${companyName}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 4px 0; color: #767683; font-weight: bold;">Contact Person:</td>
+                            <td style="padding: 4px 0; color: #000666; font-weight: bold;">${contactPerson}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 4px 0; color: #767683; font-weight: bold;">Contact Email:</td>
+                            <td style="padding: 4px 0; color: #000666; font-weight: bold;">${contactEmail}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                ${openingsHtml}
+
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <a href="${env.CLIENT_URL}/admin/partners" style="display: inline-block; background-color: #000666; color: #FFFFFF; font-size: 12px; font-weight: bold; text-decoration: none; padding: 14px 30px; border-radius: 4px; text-transform: uppercase; letter-spacing: 1px;">
+                        Review Application
+                    </a>
+                </div>
+            </div>
+            <div style="background-color: #FDFBF7; padding: 32px 24px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <h3 style="font-family: Georgia, serif; font-size: 18px; font-weight: bold; color: #000666; margin: 0 0 8px 0;">Islamic Finance Internship Program</h3>
+                <p style="font-size: 11px; color: #767683; margin: 0;">© 2026 Islamic Finance Academy. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+    `;
+    await send(to, `Admin Alert: New Partner Application from ${companyName} — IFIP`, html);
 };

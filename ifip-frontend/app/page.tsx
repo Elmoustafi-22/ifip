@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
+import { useCachedFetch } from "@/lib/hooks/useCachedFetch";
 import Link from "next/link";
 import {
   HiBars3,
@@ -62,13 +63,7 @@ export default function Home() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [activePlacementsTab, setActivePlacementsTab] = useState<"opportunities" | "jobs">("opportunities");
   const [isNigeria, setIsNigeria] = useState<boolean | null>(null);
-  const [cohortName, setCohortName] = useState("");
-  const [brochureUrl, setBrochureUrl] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [openings, setOpenings] = useState<ActiveOpening[]>([]);
-  const [openingsLoading, setOpeningsLoading] = useState(true);
-  const [opportunities, setOpportunities] = useState<PlacementOpportunity[]>([]);
-  const [opportunitiesLoading, setOpportunitiesLoading] = useState(true);
 
   useEffect(() => {
     setIsLoggedIn(!!getAccessToken());
@@ -92,68 +87,47 @@ export default function Home() {
     detectIp();
   }, []);
 
-  useEffect(() => {
-    const fetchCohortName = async () => {
-      try {
-        const { data } = await apiClient.get("/cohort/registration-status");
-        if (data) {
-          if (data.hasActiveCohort && data.cohortName) {
-            setCohortName(data.cohortName);
-          }
-          if (data.brochureUrl) {
-            setBrochureUrl(data.brochureUrl);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch registration status config:", err);
-      }
-    };
-    fetchCohortName();
+  // Cohort Status & Brochure
+  const fetchCohortStatus = useMemo(() => async () => {
+    const { data } = await apiClient.get("/cohort/registration-status");
+    return data;
   }, []);
 
-  const [partners, setPartners] = useState<{ name: string; logoUrl?: string; website?: string }[]>([]);
+  const { data: cohortData } = useCachedFetch<{ hasActiveCohort: boolean; cohortName?: string; brochureUrl?: string }>(
+    "cohort_registration_status",
+    fetchCohortStatus,
+    "cohort"
+  );
 
-  useEffect(() => {
-    const fetchPartners = async () => {
-      try {
-        const data = await getActivePartners();
-        setPartners(data);
-      } catch (err) {
-        console.error("Failed to fetch active partners:", err);
-      }
-    };
-    fetchPartners();
-  }, []);
+  const cohortName = cohortData?.hasActiveCohort && cohortData?.cohortName ? cohortData.cohortName : "";
+  const brochureUrl = cohortData?.brochureUrl || "";
 
-  useEffect(() => {
-    const fetchOpenings = async () => {
-      try {
-        setOpeningsLoading(true);
-        const data = await getActiveOpenings();
-        setOpenings(data);
-      } catch (err) {
-        console.error("Failed to fetch active openings:", err);
-      } finally {
-        setOpeningsLoading(false);
-      }
-    };
-    fetchOpenings();
-  }, []);
+  // Partners
+  const fetchPartnersFn = useMemo(() => () => getActivePartners(), []);
+  const { data: partnersData } = useCachedFetch<Array<{ name: string; logoUrl?: string; website?: string }>>(
+    "active_partners",
+    fetchPartnersFn,
+    "partners"
+  );
+  const partners = partnersData || [];
 
-  useEffect(() => {
-    const fetchOpportunities = async () => {
-      try {
-        setOpportunitiesLoading(true);
-        const data = await getOpportunities();
-        setOpportunities(data);
-      } catch (err) {
-        console.error("Failed to fetch placement opportunities:", err);
-      } finally {
-        setOpportunitiesLoading(false);
-      }
-    };
-    fetchOpportunities();
-  }, []);
+  // Openings
+  const fetchOpeningsFn = useMemo(() => () => getActiveOpenings(), []);
+  const { data: openingsData, loading: openingsLoading } = useCachedFetch<ActiveOpening[]>(
+    "active_openings",
+    fetchOpeningsFn,
+    "openings"
+  );
+  const openings = openingsData || [];
+
+  // Opportunities
+  const fetchOpportunitiesFn = useMemo(() => () => getOpportunities(), []);
+  const { data: opportunitiesData, loading: opportunitiesLoading } = useCachedFetch<PlacementOpportunity[]>(
+    "placement_opportunities",
+    fetchOpportunitiesFn,
+    "opportunities"
+  );
+  const opportunities = opportunitiesData || [];
 
   return (
     <div className="min-h-screen bg-background font-sans text-on-surface flex flex-col pb-16 md:pb-0">
@@ -183,15 +157,23 @@ export default function Home() {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-4">
-            <Link href="/login" className="text-sm font-semibold hover:text-primary transition-colors px-4 py-2">
-              Login
-            </Link>
-            <Link
-              href="/apply"
-              className="bg-impact-orange hover:bg-impact-orange/90 text-white font-semibold text-sm px-6 py-2.5 rounded-[4px] shadow-sm hover-lift transition-all"
-            >
-              Apply Now
-            </Link>
+            {isLoggedIn ? (
+              <Link href="/dashboard" className="text-sm font-semibold hover:text-primary transition-colors px-4 py-2">
+                Go to Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className="text-sm font-semibold hover:text-primary transition-colors px-4 py-2">
+                  Login
+                </Link>
+                <Link
+                  href="/apply"
+                  className="bg-impact-orange hover:bg-impact-orange/90 text-white font-semibold text-sm px-6 py-2.5 rounded-[4px] shadow-sm hover-lift transition-all"
+                >
+                  Apply Now
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile-only Right: Hamburger menu button */}
@@ -246,20 +228,32 @@ export default function Home() {
             FAQ
           </a>
           <div className="flex flex-col gap-4 mt-6">
-            <Link
-              href="/login"
-              onClick={() => setMobileMenuOpen(false)}
-              className="text-center font-semibold border border-primary/20 py-3 rounded-[4px] hover:bg-primary/5 transition-colors"
-            >
-              Login
-            </Link>
-            <Link
-              href="/apply"
-              onClick={() => setMobileMenuOpen(false)}
-              className="text-center bg-impact-orange text-white font-semibold py-3 rounded-[4px]"
-            >
-              Apply Now
-            </Link>
+            {isLoggedIn ? (
+              <Link
+                href="/dashboard"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-center font-semibold bg-primary text-white py-3 rounded-[4px]"
+              >
+                Go to Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-center font-semibold border border-primary/20 py-3 rounded-[4px] hover:bg-primary/5 transition-colors"
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/apply"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-center bg-impact-orange text-white font-semibold py-3 rounded-[4px]"
+                >
+                  Apply Now
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -1016,6 +1010,7 @@ export default function Home() {
                       width={180}
                       height={80}
                       className="max-h-[70px] max-w-full h-auto object-contain transition-opacity duration-300"
+                      unoptimized
                     />
                   ) : (
                     <div className="w-full h-[70px] bg-slate-100 rounded flex items-center justify-center text-slate-300 text-xs font-sans">

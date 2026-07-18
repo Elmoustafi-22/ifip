@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { ActiveOpening } from '../models/ActiveOpening.js';
+import { updateContentVersion } from './contentVersionController.js';
 
 // ─── Public Handlers ──────────────────────────────────────────────────────────
 
@@ -55,6 +56,7 @@ export const adminCreateOpening = async (req: Request, res: Response) => {
             isActive: true
         });
 
+        await updateContentVersion('openings');
         res.status(201).json({ message: 'Vacancy created successfully.', opening });
     } catch (err) {
         res.status(500).json({ message: 'Failed to create vacancy.' });
@@ -84,6 +86,7 @@ export const adminUpdateOpening = async (req: Request, res: Response) => {
         if (isActive !== undefined) opening.isActive = isActive;
 
         await opening.save();
+        await updateContentVersion('openings');
         res.json({ message: 'Vacancy updated successfully.', opening });
     } catch (err) {
         res.status(500).json({ message: 'Failed to update vacancy.' });
@@ -102,6 +105,7 @@ export const adminDeleteOpening = async (req: Request, res: Response) => {
             res.status(404).json({ message: 'Vacancy not found.' });
             return;
         }
+        await updateContentVersion('openings');
         res.json({ message: 'Vacancy deleted successfully.' });
     } catch (err) {
         res.status(500).json({ message: 'Failed to delete vacancy.' });
@@ -127,6 +131,7 @@ export const adminReorderOpenings = async (req: Request, res: Response) => {
             )
         );
 
+        await updateContentVersion('openings');
         res.json({ message: 'Vacancies reordered successfully.' });
     } catch (err) {
         res.status(500).json({ message: 'Failed to reorder vacancies.' });

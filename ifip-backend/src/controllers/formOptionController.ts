@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { FormOption, FormOptionGroup } from '../models/FormOption.js';
+import { updateContentVersion } from './contentVersionController.js';
 
 // ─── Public ───────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,7 @@ export const adminCreateOption = async (req: Request, res: Response) => {
             isActive: true,
         });
 
+        await updateContentVersion('formOptions');
         res.status(201).json({ message: 'Option created.', option });
     } catch (err: any) {
         if (err.code === 11000) {
@@ -111,6 +113,7 @@ export const adminUpdateOption = async (req: Request, res: Response) => {
         if (isActive !== undefined) option.isActive = isActive;
 
         await option.save();
+        await updateContentVersion('formOptions');
         res.json({ message: 'Option updated.', option });
     } catch (err: any) {
         if (err.code === 11000) {
@@ -133,6 +136,7 @@ export const adminDeleteOption = async (req: Request, res: Response) => {
             res.status(404).json({ message: 'Option not found.' });
             return;
         }
+        await updateContentVersion('formOptions');
         res.json({ message: 'Option deleted.' });
     } catch (err) {
         res.status(500).json({ message: 'Failed to delete option.' });
@@ -158,6 +162,7 @@ export const adminReorderOptions = async (req: Request, res: Response) => {
             )
         );
 
+        await updateContentVersion('formOptions');
         res.json({ message: 'Options reordered.' });
     } catch (err) {
         res.status(500).json({ message: 'Failed to reorder options.' });

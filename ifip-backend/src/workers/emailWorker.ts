@@ -14,7 +14,8 @@ import {
     sendCustomBroadcastEmail,
     sendPartnerApplicationReceived,
     sendPartnerApplicationApproved,
-    sendPartnerApplicationDeclined
+    sendPartnerApplicationDeclined,
+    sendAdminPartnerApplicationReceived
 } from '../services/emailService.js';
 
 export const emailWorker = new Worker(
@@ -58,13 +59,16 @@ export const emailWorker = new Worker(
                 await sendCustomBroadcastEmail(data.to, data.title, data.message);
                 break;
             case 'partner_applied':
-                await sendPartnerApplicationReceived(data.email, data.companyName, data.contactPerson);
+                await sendPartnerApplicationReceived(data.email, data.companyName, data.contactPerson, data.hasOpenings, data.openings);
                 break;
             case 'partner_reviewed_approved':
                 await sendPartnerApplicationApproved(data.email, data.companyName, data.contactPerson);
                 break;
             case 'partner_reviewed_declined':
                 await sendPartnerApplicationDeclined(data.email, data.companyName, data.contactPerson, data.adminNotes);
+                break;
+            case 'admin_partner_applied':
+                await sendAdminPartnerApplicationReceived(data.to, data.companyName, data.contactPerson, data.contactEmail, data.hasOpenings, data.openings);
                 break;
             default:
                 console.warn(`[Queue Worker] Received unsupported task type: ${type}`);

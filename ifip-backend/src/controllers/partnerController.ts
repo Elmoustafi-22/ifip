@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PartnerApplication } from '../models/PartnerApplication.js';
 import { PartnerOrganization } from '../models/PartnerOrganization.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
+import { updateContentVersion } from './contentVersionController.js';
 
 // ─── PUBLIC ───────────────────────────────────────────────────────────────────
 
@@ -21,6 +22,8 @@ export const submitPartnerApplication = async (req: Request, res: Response) => {
             description,
             activeSlots,
             logoUrl,
+            hasOpenings,
+            openings,
         } = req.body;
 
         if (!companyName || !contactEmail || !contactPhone || !contactPerson) {
@@ -28,6 +31,44 @@ export const submitPartnerApplication = async (req: Request, res: Response) => {
                 message: 'companyName, contactEmail, contactPhone, and contactPerson are required.',
             });
             return;
+        }
+
+        let processedOpenings = [];
+        if (hasOpenings) {
+            if (!Array.isArray(openings) || openings.length === 0) {
+                res.status(400).json({ message: 'If hasOpenings is true, at least one opening must be provided.' });
+                return;
+            }
+            for (const item of openings) {
+                if (!item.role || !item.role.trim()) {
+                    res.status(400).json({ message: 'Role title is required for all openings.' });
+                    return;
+                }
+                if (!['Remote', 'Hybrid', 'On-site'].includes(item.mode)) {
+                    res.status(400).json({ message: 'Invalid work mode for opening.' });
+                    return;
+                }
+                if (['Hybrid', 'On-site'].includes(item.mode) && (!item.location || !item.location.trim())) {
+                    res.status(400).json({ message: `Location is required for ${item.mode} openings.` });
+                    return;
+                }
+                const count = Number(item.count);
+                if (isNaN(count) || count < 1) {
+                    res.status(400).json({ message: 'Count must be a positive integer.' });
+                    return;
+                }
+                processedOpenings.push({
+                    role: item.role.trim(),
+                    mode: item.mode,
+                    location: ['Hybrid', 'On-site'].includes(item.mode) ? item.location.trim() : undefined,
+                    count
+                });
+            }
+        }
+
+        let computedSlots = activeSlots ? Number(activeSlots) : 0;
+        if (hasOpenings) {
+            computedSlots = processedOpenings.reduce((sum, item) => sum + item.count, 0);
         }
 
         const application = await PartnerApplication.create({
@@ -38,13 +79,21 @@ export const submitPartnerApplication = async (req: Request, res: Response) => {
             website: website || undefined,
             sectorTags: Array.isArray(sectorTags) ? sectorTags : [],
             description: description || undefined,
-            activeSlots: activeSlots ? Number(activeSlots) : 0,
+            activeSlots: computedSlots,
             logoUrl: logoUrl || undefined,
             status: 'pending',
+            hasOpenings: !!hasOpenings,
+            openings: processedOpenings
         });
 
         // Send confirmation email (non-blocking — failure must not reject the API response)
-        notificationEmitter.emit('partner.applied', { email: contactEmail, companyName, contactPerson });
+        notificationEmitter.emit('partner.applied', {
+            email: contactEmail,
+            companyName,
+            contactPerson,
+            hasOpenings: application.hasOpenings,
+            openings: application.openings
+        });
 
         res.status(201).json({
             message: 'Partnership application submitted successfully. You will hear from us within 3–5 business days.',
@@ -153,6 +202,7 @@ export const reviewPartnerApplication = async (req: Request, res: Response) => {
                 name:          application.companyName,
                 contactEmail:  application.contactEmail,
                 contactPerson: application.contactPerson,
+                contactPhone:  application.contactPhone,
                 website:       application.website,
                 sectorTags:    application.sectorTags,
                 description:   application.description,
@@ -160,6 +210,8 @@ export const reviewPartnerApplication = async (req: Request, res: Response) => {
                 logoUrl:       application.logoUrl,
                 status:        'active',
                 cohorts:       [],
+                hasOpenings:   application.hasOpenings || false,
+                openings:      application.openings || [],
             });
 
             application.status = 'approved';
@@ -173,6 +225,7 @@ export const reviewPartnerApplication = async (req: Request, res: Response) => {
                 adminNotes
             });
 
+            await updateContentVersion('partners');
             res.json({
                 message: `${application.companyName} has been approved and added as an active partner.`,
                 partnerOrganization: newOrg,
@@ -218,7 +271,7 @@ export const getAdminPartners = async (_req: Request, res: Response) => {
  */
 export const createPartnerOrg = async (req: Request, res: Response) => {
     try {
-        const { name, logoUrl, description, sectorTags, activeSlots, website, cohorts, contactEmail, contactPerson, status } = req.body;
+        const { name, logoUrl, description, sectorTags, activeSlots, website, cohorts, contactEmail, contactPerson, contactPhone, status, hasOpenings, openings } = req.body;
         if (!name) {
             res.status(400).json({ message: 'name is required.' });
             return;
@@ -233,8 +286,12 @@ export const createPartnerOrg = async (req: Request, res: Response) => {
             cohorts:       Array.isArray(cohorts) ? cohorts : [],
             contactEmail:  contactEmail || undefined,
             contactPerson: contactPerson || undefined,
+            contactPhone:  contactPhone || undefined,
             status:        status || 'active',
+            hasOpenings:   !!hasOpenings,
+            openings:      Array.isArray(openings) ? openings : [],
         });
+        await updateContentVersion('partners');
         res.status(201).json({ message: 'Partner organization created.', partnerOrganization: org });
     } catch (err: any) {
         res.status(500).json({ message: 'Error creating partner organization.', error: err.message });
@@ -248,7 +305,7 @@ export const createPartnerOrg = async (req: Request, res: Response) => {
 export const updatePartnerOrg = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { name, logoUrl, description, sectorTags, activeSlots, website, cohorts, contactEmail, contactPerson, status } = req.body;
+        const { name, logoUrl, description, sectorTags, activeSlots, website, cohorts, contactEmail, contactPerson, contactPhone, status, hasOpenings, openings } = req.body;
 
         const org = await PartnerOrganization.findById(id);
         if (!org) {
@@ -265,9 +322,13 @@ export const updatePartnerOrg = async (req: Request, res: Response) => {
         if (cohorts       !== undefined) org.cohorts       = cohorts;
         if (contactEmail  !== undefined) org.contactEmail  = contactEmail;
         if (contactPerson !== undefined) org.contactPerson = contactPerson;
+        if (contactPhone  !== undefined) org.contactPhone  = contactPhone;
         if (status        !== undefined) org.status        = status;
+        if (hasOpenings   !== undefined) org.hasOpenings   = !!hasOpenings;
+        if (openings      !== undefined) org.openings      = Array.isArray(openings) ? openings : [];
 
         await org.save();
+        await updateContentVersion('partners');
         res.json({ message: 'Partner organization updated.', partnerOrganization: org });
     } catch (err: any) {
         res.status(500).json({ message: 'Error updating partner organization.', error: err.message });
@@ -286,6 +347,7 @@ export const deletePartnerOrg = async (req: Request, res: Response) => {
             res.status(404).json({ message: 'Partner organization not found.' });
             return;
         }
+        await updateContentVersion('partners');
         res.json({ message: 'Partner organization deleted.' });
     } catch (err: any) {
         res.status(500).json({ message: 'Error deleting partner organization.', error: err.message });
