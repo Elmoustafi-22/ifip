@@ -25,6 +25,7 @@ export default function AboutIfipPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [brochureUrl, setBrochureUrl] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isNigeria, setIsNigeria] = useState<boolean | null>(null);
 
   useEffect(() => {
     setIsLoggedIn(!!getAccessToken());
@@ -42,6 +43,24 @@ export default function AboutIfipPage() {
       }
     };
     fetchCohortStatus();
+  }, []);
+
+  useEffect(() => {
+    const detectIp = async () => {
+      try {
+        const res = await fetch("/api/geolocation");
+        const data = await res.json();
+        if (data && data.countryCode) {
+          setIsNigeria(data.countryCode === "NG");
+        } else {
+          setIsNigeria(true); // Default fallback
+        }
+      } catch (err) {
+        console.error("IP detection failed:", err);
+        setIsNigeria(true); // Default fallback
+      }
+    };
+    detectIp();
   }, []);
 
   const fallbackBrochureUrl = "/docs/Islamic Finance Internship Preparatory & Placement Program_20260716_181547_0000.pdf";
@@ -294,36 +313,27 @@ export default function AboutIfipPage() {
               </div>
             </div>
 
-            <div className="bg-[#000666]/5 border border-[#000666]/10 p-6 rounded-xl flex flex-col items-center">
+            <div className="bg-[#000666]/5 border border-[#000666]/10 p-6 rounded-xl flex flex-col items-center justify-center min-h-[220px] w-full text-center">
               <span className="text-[10px] font-black uppercase text-[#FF9800] tracking-wider mb-2">Registration levy</span>
               <h3 className="font-bold text-[#000666] text-lg font-display mb-4">Program Commitment Levy</h3>
-              <div className="grid grid-cols-2 gap-3 w-full">
-                <div className="bg-white border border-slate-100 p-4 rounded-lg text-center">
-                  <span className="text-[9px] font-bold text-slate-400 block mb-1">NIGERIA</span>
-                  <span className="text-base font-black text-slate-800">₦20,000</span>
+              
+              {isNigeria === null ? (
+                <div className="animate-pulse flex flex-col items-center gap-2 w-full">
+                  <div className="h-8 bg-slate-200 rounded w-1/3"></div>
+                  <div className="h-4 bg-slate-200 rounded w-2/3 mt-2"></div>
                 </div>
-                <div className="bg-white border border-slate-100 p-4 rounded-lg text-center">
-                  <span className="text-[9px] font-bold text-slate-400 block mb-1">INTERNATIONAL</span>
-                  <span className="text-base font-black text-slate-800">$30</span>
-                </div>
-              </div>
+              ) : isNigeria ? (
+                <>
+                  <span className="text-4xl font-display font-black text-[#000666] mb-3">₦20,000</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nigeria pricing</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-4xl font-display font-black text-[#000666] mb-3">$30</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">International pricing</span>
+                </>
+              )}
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Partner ecosystem at a glance */}
-      <section className="py-12 bg-slate-50 border-t border-slate-100">
-        <div className="max-w-[1280px] mx-auto px-4 md:px-8">
-          <h4 className="text-center text-[10px] font-black uppercase text-slate-400 tracking-wider mb-6">
-            Ecosystem Matching Partner Networks
-          </h4>
-          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-            {partnerInstitutions.map((name, i) => (
-              <span key={i} className="text-sm font-black text-slate-400 hover:text-[#000666] transition-colors tracking-wide">
-                {name}
-              </span>
-            ))}
           </div>
         </div>
       </section>
