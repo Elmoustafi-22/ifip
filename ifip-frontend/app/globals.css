@@ -150,17 +150,35 @@
 }
 
 @layer base {
+  html {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
   body {
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Prevent subpixel rendering glitches during scroll on mobile */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
     color: #000666; /* Default Primary Deep Navy for headlines */
+  }
+
+  /* Promote sticky/fixed elements to their own GPU layer to avoid scroll paint artifacts */
+  header[class*="sticky"],
+  nav[class*="sticky"],
+  [style*="position: sticky"],
+  [style*="position: fixed"] {
+    will-change: transform;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
   }
 }
 

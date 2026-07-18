@@ -1222,6 +1222,7 @@ export default function Home() {
               return (
                 <div
                   key={index}
+                  style={{ transform: "translateZ(0)" }}
                   className="bg-white border border-outline-variant/30 rounded-[8px] overflow-hidden shadow-sm"
                 >
                   <button
@@ -1229,27 +1230,28 @@ export default function Home() {
                     className="w-full px-6 py-5 flex items-center justify-between text-left font-display font-bold text-primary text-base md:text-lg hover:bg-slate-50 transition-colors"
                   >
                     <span>{faq.q}</span>
-                    <span className="ml-4 text-primary shrink-0 transition-transform duration-200">
-                      {isOpen ? (
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
-                        </svg>
-                      ) : (
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                        </svg>
-                      )}
+                    <span
+                      className="ml-4 text-primary shrink-0"
+                      style={{
+                        transition: "transform 200ms ease",
+                        transform: isOpen ? "rotate(45deg)" : "rotate(0deg)",
+                      }}
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                      </svg>
                     </span>
                   </button>
 
                   <div
-                    className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                      }`}
+                    style={{
+                      maxHeight: isOpen ? "600px" : "0px",
+                      overflow: "hidden",
+                      transition: "max-height 300ms ease-in-out",
+                    }}
                   >
-                    <div className="overflow-hidden">
-                      <div className="px-6 py-5 text-sm md:text-base text-on-surface-variant leading-relaxed border-t border-outline-variant/10 bg-slate-50/10">
-                        {faq.a}
-                      </div>
+                    <div className="px-6 py-5 text-sm md:text-base text-on-surface-variant leading-relaxed border-t border-outline-variant/10 bg-slate-50/10">
+                      {faq.a}
                     </div>
                   </div>
                 </div>
