@@ -28,13 +28,28 @@ import {
   TbBrandLinkedin
 } from "react-icons/tb";
 
+import dynamic from "next/dynamic";
+
 import HomeNav from "@/components/home/HomeNav";
-import HeroSection from "@/components/home/HeroSection";
-import PlacementsSection from "@/components/home/PlacementsSection";
-import PricingSection from "@/components/home/PricingSection";
-import PartnersSection from "@/components/home/PartnersSection";
-import FaqSection from "@/components/home/FaqSection";
-import MobileBottomNav from "@/components/home/MobileBottomNav";
+
+const HeroSection = dynamic(() => import("@/components/home/HeroSection"), {
+  ssr: true,
+});
+const PlacementsSection = dynamic(() => import("@/components/home/PlacementsSection"), {
+  ssr: true,
+});
+const PricingSection = dynamic(() => import("@/components/home/PricingSection"), {
+  ssr: true,
+});
+const PartnersSection = dynamic(() => import("@/components/home/PartnersSection"), {
+  ssr: true,
+});
+const FaqSection = dynamic(() => import("@/components/home/FaqSection"), {
+  ssr: true,
+});
+const MobileBottomNav = dynamic(() => import("@/components/home/MobileBottomNav"), {
+  ssr: true,
+});
 
 export default function Home() {
   return (
