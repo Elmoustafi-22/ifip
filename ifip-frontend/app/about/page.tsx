@@ -325,12 +325,10 @@ export default function AboutIfipPage() {
               ) : isNigeria ? (
                 <>
                   <span className="text-4xl font-display font-black text-[#000666] mb-3">₦20,000</span>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nigeria pricing</span>
                 </>
               ) : (
                 <>
                   <span className="text-4xl font-display font-black text-[#000666] mb-3">$30</span>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">International pricing</span>
                 </>
               )}
             </div>
