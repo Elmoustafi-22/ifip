@@ -47,7 +47,6 @@ const NAV_GROUPS = [
     items: [
       { href: "/admin",       label: "Overview",      icon: HiOutlineSquares2X2 },
       { href: "/admin/users", label: "Platform Users", icon: HiOutlineUsers },
-      { href: "/admin/analytics", label: "Analytics", icon: HiOutlineChartBar },
     ],
   },
   {
@@ -82,6 +81,7 @@ const NAV_GROUPS = [
     label: "Account",
     items: [
       { href: "/admin/settings", label: "Settings", icon: HiOutlineCog6Tooth },
+      { href: "/admin/analytics", label: "Analytics", icon: HiOutlineChartBar },
       { href: "/admin/audit-logs", label: "Audit Logs", icon: HiOutlineClipboardDocumentList, roles: ["superadmin"] },
     ],
   },
