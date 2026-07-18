@@ -216,7 +216,7 @@ export default function AdminDashboardPage() {
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
-        <p className="text-slate-500 font-medium text-sm">Opening control cockpit...</p>
+        <p className="text-slate-500 font-medium text-sm">Opening admin dashboard...</p>
       </div>
     );
   }
@@ -235,8 +235,8 @@ export default function AdminDashboardPage() {
 
       {/* KPI Stats widgets */}
       {stats && (
-        <div className="flex md:grid md:grid-cols-4 overflow-x-auto md:overflow-x-visible snap-x snap-mandatory gap-4 pb-4 md:pb-0 scrollbar-hide mb-8">
-          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 snap-center bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-[10px] font-bold uppercase tracking-wider">Total Paid</span>
               <HiOutlineClipboardDocumentCheck className="w-5 h-5 text-[#00B0FF]" />
@@ -244,7 +244,7 @@ export default function AdminDashboardPage() {
             <div className="text-2xl font-black text-[#000666]">{stats.totalPaid}</div>
           </div>
 
-          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 snap-center bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
+          <div className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-[10px] font-bold uppercase tracking-wider">Active Learning</span>
               <HiOutlineUsers className="w-5 h-5 text-indigo-500" />
@@ -252,7 +252,7 @@ export default function AdminDashboardPage() {
             <div className="text-2xl font-black text-[#000666]">{stats.activeParticipants}</div>
           </div>
 
-          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 snap-center bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
+          <div className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-[10px] font-bold uppercase tracking-wider">Completed</span>
               <HiOutlineCheckCircle className="w-5 h-5 text-emerald-500" />
@@ -260,7 +260,7 @@ export default function AdminDashboardPage() {
             <div className="text-2xl font-black text-[#000666]">{stats.completedCount}</div>
           </div>
 
-          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 snap-center bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
+          <div className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-[10px] font-bold uppercase tracking-wider">Waitlisted Users</span>
               <HiOutlineInboxStack className="w-5 h-5 text-rose-500" />
@@ -467,13 +467,13 @@ export default function AdminDashboardPage() {
         {/* 3. Cohort/Intake Intake Manager Table (Col-span 2 on Desktop, controlled by activeTab on mobile) */}
         <div className={`${activeTab === "cohorts" ? "block" : "hidden"} lg:block bg-white border border-[#E7E2D8] rounded-2xl p-6 shadow-sm lg:col-span-2 flex flex-col justify-between`}>
           <div>
-            <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-2 border-b border-slate-100">
               <h2 className="text-base font-bold text-[#000666]">
                 Intake Cohort Management
               </h2>
               <button
                 onClick={openCreateModal}
-                className="inline-flex items-center gap-1 text-xs font-bold text-[#00B0FF] hover:underline"
+                className="inline-flex items-center gap-1 text-xs font-bold text-[#00B0FF] hover:underline self-start sm:self-auto"
               >
                 <HiOutlinePlus className="w-4 h-4" /> Add Intake Cohort
               </button>

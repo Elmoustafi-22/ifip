@@ -13,6 +13,12 @@ export const requireActiveApplication = async (req: Request, res: Response, next
             return;
         }
 
+        // Admins and superadmins bypass active application checks to view/manage LMS coursework
+        if (req.user.role === 'admin' || req.user.role === 'superadmin') {
+            next();
+            return;
+        }
+
         const application = await Application.findOne({ userId: req.user.id });
         
         if (!application) {

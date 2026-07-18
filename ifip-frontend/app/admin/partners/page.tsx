@@ -296,11 +296,12 @@ export default function AdminPartnersPage() {
         <div>
           <div className="mb-2">
             <Link href="/admin" className="text-xs font-bold text-[#000666] hover:underline">
-              ← Return to Cockpit
+              ← Return to Dashboard
             </Link>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight mb-1 flex items-center gap-2">
-            <HiOutlineBriefcase className="w-8 h-8 text-emerald-600" /> Placement Partners Desk
+          <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight mb-1 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-2">
+            <HiOutlineBriefcase className="w-8 h-8 text-emerald-600 shrink-0" />
+            <span>Placement Partners Desk</span>
           </h1>
           <p className="text-slate-500 text-sm">
             Manage partner organizations and review incoming partnership applications.

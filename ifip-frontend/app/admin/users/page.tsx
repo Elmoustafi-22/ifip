@@ -190,11 +190,11 @@ export default function AdminUsersPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto shrink-0">
           {currentUserRole === "superadmin" && (
             <button
               onClick={() => setInviteModalOpen(true)}
-              className="inline-flex items-center gap-2 text-xs font-bold text-white bg-[#000666] hover:bg-[#000666]/90 px-4 py-2.5 rounded-xl transition-all shadow-xs"
+              className="inline-flex items-center justify-center gap-2 text-xs font-bold text-white bg-[#000666] hover:bg-[#000666]/90 px-4 py-2.5 rounded-xl transition-all shadow-xs"
             >
               <HiOutlinePlus className="w-4 h-4" />
               Invite Admin
@@ -203,7 +203,7 @@ export default function AdminUsersPage() {
           <button
             onClick={fetchUsers}
             disabled={loading}
-            className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-[#000666] border border-[#E7E2D8] bg-white px-4 py-2.5 rounded-xl transition-all"
+            className="inline-flex items-center justify-center gap-2 text-xs font-bold text-slate-500 hover:text-[#000666] border border-[#E7E2D8] bg-white px-4 py-2.5 rounded-xl transition-all"
           >
             <HiOutlineArrowPath className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
@@ -212,7 +212,7 @@ export default function AdminUsersPage() {
       </div>
 
       {/* KPI Role Count Cards */}
-      <div className="flex md:grid md:grid-cols-4 overflow-x-auto md:overflow-x-visible snap-x snap-mandatory gap-4 pb-4 md:pb-0 scrollbar-hide mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {[
           { key: "applicant",  label: "Applicants",  color: "text-slate-700" },
           { key: "participant",label: "Participants", color: "text-indigo-700" },
@@ -222,7 +222,7 @@ export default function AdminUsersPage() {
           <button
             key={key}
             onClick={() => setActiveRole(key)}
-            className={`min-w-[150px] md:min-w-0 flex-shrink-0 snap-center bg-white border rounded-xl p-5 shadow-sm text-left hover:shadow-md transition-all ${
+            className={`flex flex-col bg-white border rounded-xl p-5 shadow-sm text-left hover:shadow-md transition-all ${
               activeRole === key ? "border-[#000666] ring-1 ring-[#000666]/20" : "border-[#E7E2D8]"
             }`}
           >
@@ -237,12 +237,12 @@ export default function AdminUsersPage() {
 
         {/* Tabs + Search */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
-          <div className="flex items-center gap-1 flex-wrap">
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide flex-nowrap -mx-4 px-4 sm:-mx-0 sm:px-0 pb-1.5 sm:pb-0">
             {ROLE_TABS.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveRole(tab.key)}
-                className={`text-xs font-bold px-3.5 py-2 rounded-lg transition-all ${
+                className={`text-xs font-bold px-3.5 py-2 rounded-lg transition-all whitespace-nowrap ${
                   activeRole === tab.key
                     ? "bg-[#000666] text-white"
                     : "text-slate-500 hover:bg-slate-100"
@@ -416,49 +416,61 @@ export default function AdminUsersPage() {
                 : user.email[0].toUpperCase();
 
               return (
-                <div key={user._id} onClick={() => setSelectedUser(user)} className="p-4 space-y-3 cursor-pointer hover:bg-slate-50/60 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#000666]/10 flex items-center justify-center text-[#000666] text-xs font-black shrink-0 select-none">
-                        {initials}
-                      </div>
-                      <div>
-                        <div className="font-bold text-[#000666] text-xs leading-tight">
+                <div key={user._id} onClick={() => setSelectedUser(user)} className="p-4 pr-10 sm:pr-4 space-y-4.5 cursor-pointer hover:bg-slate-50/60 transition-colors">
+                  {/* Identity Row */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="w-10 h-10 rounded-full bg-[#000666]/10 flex items-center justify-center text-[#000666] text-sm font-black shrink-0 select-none">
+                          {initials}
+                        </div>
+                        <div className="font-bold text-[#000666] text-sm leading-tight break-words flex-1">
                           {displayName ?? <span className="text-slate-400 italic font-normal">No name yet</span>}
                         </div>
-                        <div className="text-slate-400 text-[11px] leading-tight mt-0.5">{user.email}</div>
                       </div>
-                    </div>
-                    <span className={`inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${roleMeta.className}`}>
-                      {roleMeta.label}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center pt-2 border-t border-slate-50 text-xs">
-                    <div className="flex flex-col gap-1.5">
-                      {statusMeta ? (
-                        <span className={`inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${statusMeta.className} self-start`}>
-                          {statusMeta.label}
-                        </span>
-                      ) : (
-                        <span className="text-slate-300 text-[10px] italic">No application</span>
-                      )}
-                      {user.isConfigured ? (
-                        <span className="inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#E8F5E9] text-[#2E7D32] self-start">
-                          Configured
-                        </span>
-                      ) : (
-                        <span className="inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#FFF3E0] text-[#E65100] self-start">
-                          Pending Setup
-                        </span>
-                      )}
-                      <span className="text-slate-400 text-[10px]">
-                        Country: {country ?? "—"}
+                      <span className={`inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 ${roleMeta.className}`}>
+                        {roleMeta.label}
                       </span>
                     </div>
-                    <div className="flex flex-col items-end text-[10px] text-slate-400 font-mono gap-1">
-                      <span>Joined: {formatDate(user.createdAt)}</span>
-                      <span>Login: {user.lastLoginAt ? formatDate(user.lastLoginAt) : "Never"}</span>
+                    <div className="pl-[52px] text-slate-400 text-xs leading-tight break-all">
+                      {user.email}
+                    </div>
+                  </div>
+
+                  {/* Labeled Metadata Details Grid */}
+                  <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                    <div className="space-y-1">
+                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Account Status</div>
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {statusMeta ? (
+                          <span className={`inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${statusMeta.className}`}>
+                            {statusMeta.label}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300 text-[10px] italic">No application</span>
+                        )}
+                        {user.isConfigured ? (
+                          <span className="inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#E8F5E9] text-[#2E7D32]">
+                            Configured
+                          </span>
+                        ) : (
+                          <span className="inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#FFF3E0] text-[#E65100]">
+                            Pending Setup
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 text-right">
+                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Access Timeline</div>
+                      <div className="text-[10px] text-slate-500 font-mono space-y-0.5 pt-0.5">
+                        <div>Joined: {formatDate(user.createdAt)}</div>
+                        <div>Login: {user.lastLoginAt ? formatDate(user.lastLoginAt) : "Never"}</div>
+                      </div>
+                    </div>
+
+                    <div className="col-span-2 pt-1 border-t border-slate-50/50 flex items-center justify-between text-[11px] text-slate-400 font-sans">
+                      <span>Origin Country: <strong className="text-slate-600 font-bold">{country ?? "—"}</strong></span>
                     </div>
                   </div>
                 </div>

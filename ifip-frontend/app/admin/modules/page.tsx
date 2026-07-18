@@ -145,21 +145,22 @@ export default function AdminModulesPage() {
     <div className="max-w-6xl mx-auto py-10 px-4 sm:px-6 lg:px-8 font-sans bg-[#FDFBF7]">
       {/* Top Header */}
       <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="mb-2">
             <Link href="/admin" className="text-xs font-bold text-[#000666] hover:underline">
-              &larr; Back to Ops Cockpit
+              &larr; Back to Admin Dashboard
             </Link>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight mb-1 flex items-center gap-2">
-            <HiOutlineBookOpen className="w-8 h-8 text-[#FF9800]" /> Curriculum Coursework Editor
+          <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight mb-1 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-2">
+            <HiOutlineBookOpen className="w-8 h-8 text-[#FF9800] shrink-0" />
+            <span>Curriculum Coursework Editor</span>
           </h1>
           <p className="text-slate-500 text-sm">Create, edit, and structure the learning modules and knowledge check materials.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="w-full md:w-auto shrink-0 mt-2 md:mt-0">
           <button
             onClick={handleOpenCreate}
-            className="bg-[#000666] hover:bg-[#000666]/90 text-white font-bold text-xs tracking-wider uppercase px-6 py-3.5 rounded-xl shadow-sm transition-all"
+            className="w-full md:w-auto bg-[#000666] hover:bg-[#000666]/90 text-white font-bold text-xs tracking-wider uppercase px-6 py-3.5 rounded-xl shadow-sm transition-all text-center flex items-center justify-center"
           >
             Create Learning Module
           </button>

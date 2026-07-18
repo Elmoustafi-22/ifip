@@ -219,7 +219,7 @@ export default function AdminFormOptionsPage() {
       {/* Back link */}
       <div className="mb-2">
         <Link href="/admin" className="text-xs font-bold text-[#000666] hover:underline">
-          ← Return to Cockpit
+          ← Return to Dashboard
         </Link>
       </div>
 

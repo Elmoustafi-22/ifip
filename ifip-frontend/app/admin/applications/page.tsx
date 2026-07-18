@@ -117,7 +117,7 @@ export default function AdminApplicationsPage() {
             href="/admin"
             className="text-xs font-bold text-[#000666] hover:underline whitespace-nowrap"
           >
-            &larr; Back to Admin Cockpit
+            &larr; Back to Admin Dashboard
           </Link>
           <span className="text-slate-300 text-xs hidden xs:inline">|</span>
           <Link 
@@ -139,8 +139,8 @@ export default function AdminApplicationsPage() {
 
       {/* Stats Grid */}
       {stats && (
-        <div className="flex md:grid md:grid-cols-4 overflow-x-auto md:overflow-x-visible snap-x snap-mandatory gap-4 pb-4 md:pb-0 scrollbar-hide mb-8">
-          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 snap-center bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-xs font-bold uppercase tracking-wider">Total Paid</span>
               <HiOutlineClipboardDocumentCheck className="w-5 h-5 text-[#00B0FF]" />
@@ -148,7 +148,7 @@ export default function AdminApplicationsPage() {
             <div className="text-2xl font-black text-[#000666]">{stats.totalPaid}</div>
           </div>
 
-          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 snap-center bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-xs font-bold uppercase tracking-wider">Active</span>
               <HiOutlineUsers className="w-5 h-5 text-indigo-500" />
@@ -156,7 +156,7 @@ export default function AdminApplicationsPage() {
             <div className="text-2xl font-black text-[#000666]">{stats.activeParticipants}</div>
           </div>
 
-          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 snap-center bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-xs font-bold uppercase tracking-wider">Completed</span>
               <HiOutlineCheckCircle className="w-5 h-5 text-emerald-500" />
@@ -164,7 +164,7 @@ export default function AdminApplicationsPage() {
             <div className="text-2xl font-black text-[#000666]">{stats.completedCount}</div>
           </div>
 
-          <div className="min-w-[160px] md:min-w-0 flex-shrink-0 snap-center bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-xs font-bold uppercase tracking-wider">Waitlist</span>
               <HiOutlineInboxStack className="w-5 h-5 text-rose-500" />

@@ -89,7 +89,7 @@ export default function AdminPlacementsPage() {
       setPlacements(placementsData);
       setCohorts(cohortsData);
     } catch (err) {
-      console.error("Failed to load placement cockpit:", err);
+      console.error("Failed to load placement dashboard:", err);
     } finally {
       setLoading(false);
     }
@@ -231,7 +231,7 @@ export default function AdminPlacementsPage() {
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
-        <p className="text-slate-500 font-medium text-sm">Opening placement cockpit...</p>
+        <p className="text-slate-500 font-medium text-sm">Opening placement dashboard...</p>
       </div>
     );
   }
@@ -243,11 +243,12 @@ export default function AdminPlacementsPage() {
         <div>
           <div className="mb-2">
             <Link href="/admin" className="text-xs font-bold text-[#000666] hover:underline">
-              &larr; Back to Ops Cockpit
+              &larr; Back to Admin Dashboard
             </Link>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight mb-1 flex items-center gap-2">
-            <HiOutlineBriefcase className="w-8 h-8 text-sky-500" /> Placements Matchmaking Desk
+          <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight mb-1 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-2">
+            <HiOutlineBriefcase className="w-8 h-8 text-sky-500 shrink-0" />
+            <span>Placements Matchmaking Desk</span>
           </h1>
           <p className="text-slate-500 text-sm">Match qualified cohort graduates with active institutional partner internship slots.</p>
         </div>

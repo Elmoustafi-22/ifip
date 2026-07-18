@@ -376,11 +376,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </button>
           </div>
 
-          <div className="px-5 pt-3">
-            <span className="bg-[#FF9800]/20 text-[#FF9800] text-[8px] font-black tracking-widest uppercase px-2.5 py-1 rounded-full border border-[#FF9800]/30">
-              {adminRole === "superadmin" ? "Super Admin" : "Admin"}
-            </span>
-          </div>
 
           <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
             {NAV_GROUPS.map((group) => {
