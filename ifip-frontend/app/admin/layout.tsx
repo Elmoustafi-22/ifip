@@ -21,6 +21,7 @@ import {
   HiOutlineBars3,
   HiOutlineXMark,
   HiOutlineCog6Tooth,
+  HiOutlineChartBar,
 } from "react-icons/hi2";
 import { getMyApplication, getCohorts, Cohort } from "@/lib/api/services";
 import { clearAuth } from "@/lib/api/auth";
@@ -46,6 +47,7 @@ const NAV_GROUPS = [
     items: [
       { href: "/admin",       label: "Overview",      icon: HiOutlineSquares2X2 },
       { href: "/admin/users", label: "Platform Users", icon: HiOutlineUsers },
+      { href: "/admin/analytics", label: "Analytics", icon: HiOutlineChartBar },
     ],
   },
   {

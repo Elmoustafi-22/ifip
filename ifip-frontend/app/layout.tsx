@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Sora } from "next/font/google";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const GA_MEASUREMENT_ID = "G-94PH4VKTSX";
@@ -138,6 +140,8 @@ export default function RootLayout({
         <main id="main-content" className="flex-1 flex flex-col" tabIndex={-1}>
           {children}
         </main>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
