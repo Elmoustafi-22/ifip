@@ -1907,7 +1907,7 @@ export default function ApplyPage() {
                 <button
                   onClick={() => saveAllData(3)}
                   disabled={loading || !fullName || !phone || !dob || !gender || !stateCity}
-                  className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300"
+                  className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap"
                 >
                   {loading ? "Saving..." : "Save & Continue →"}
                 </button>
@@ -2064,7 +2064,7 @@ export default function ApplyPage() {
                 <button
                   onClick={() => saveAllData(4)}
                   disabled={loading || !academicStatus || !institution || !fieldOfStudy || !qualification}
-                  className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300"
+                  className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap"
                 >
                   {loading ? "Saving..." : "Save & Continue →"}
                 </button>
@@ -2167,7 +2167,7 @@ export default function ApplyPage() {
                 <button
                   onClick={() => saveAllData(5)}
                   disabled={loading || primaryInterest.length === 0}
-                  className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300"
+                  className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap"
                 >
                   {loading ? "Saving..." : "Save & Continue →"}
                 </button>
@@ -2421,7 +2421,7 @@ export default function ApplyPage() {
                 <button
                   onClick={() => saveAllData(6)}
                   disabled={loading || !whyApplying || !careerGoals || (!cvFile && !cvUrl)}
-                  className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300"
+                  className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap"
                 >
                   {loading ? "Saving..." : "Save & Continue →"}
                 </button>
