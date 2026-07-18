@@ -13,7 +13,10 @@ const router = Router();
 
 router.post('/cv', authenticateApplicant, upload.single('cv'), uploadCv);
 router.post('/cv-auth', authenticate, upload.single('cv'), uploadCvAuth);
-router.post('/logo', authenticate, authorize('admin', 'superadmin'), upload.single('logo'), uploadLogo);
+// Public — used by partner applicants uploading their company logo (no auth needed)
+router.post('/logo', upload.single('logo'), uploadLogo);
+// Admin-only alias kept for backward compatibility
+router.post('/logo/admin', authenticate, authorize('admin', 'superadmin'), upload.single('logo'), uploadLogo);
 router.post('/brochure', authenticate, authorize('admin', 'superadmin'), upload.single('brochure'), uploadBrochure);
 
 export default router;
