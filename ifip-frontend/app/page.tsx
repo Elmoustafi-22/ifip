@@ -293,7 +293,7 @@ export default function Home() {
             variants={fadeInUp}
           >
             {[
-              "4-Week Intensive Training",
+              "4-Week Intensive Virtual Training",
               "Workplace Professionalism",
               "Practical Simulations",
               "Internship Placement"
@@ -1239,21 +1239,16 @@ export default function Home() {
                     </span>
                   </button>
 
-                  <AnimatePresence initial={false}>
-                    {isOpen && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.28, ease: "easeInOut" }}
-                        className="border-t border-outline-variant/10 overflow-hidden bg-slate-50/10"
-                      >
-                        <div className="px-6 py-5 text-sm md:text-base text-on-surface-variant leading-relaxed">
-                          {faq.a}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  <div
+                    className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                      }`}
+                  >
+                    <div className="overflow-hidden">
+                      <div className="px-6 py-5 text-sm md:text-base text-on-surface-variant leading-relaxed border-t border-outline-variant/10 bg-slate-50/10">
+                        {faq.a}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               );
             })}
@@ -1326,7 +1321,7 @@ export default function Home() {
               >
                 <TbBrandLinkedin className="w-4 h-4" />
               </a>
-              <a href="https://ifip.ng" target="_blank" rel="noopener noreferrer" className="p-2 bg-primary/5 hover:bg-primary/10 rounded-full transition-colors" aria-label="Website">
+              <a href="https://ifip.nextif.org" target="_blank" rel="noopener noreferrer" className="p-2 bg-primary/5 hover:bg-primary/10 rounded-full transition-colors" aria-label="Website">
                 <HiGlobeAlt className="w-4 h-4" />
               </a>
             </div>
@@ -1374,7 +1369,7 @@ export default function Home() {
         </div>
       </footer>
       {/* Sticky Bottom Navigation for Mobile */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-md border-t border-outline-variant/30 px-6 py-2 flex items-center justify-between shadow-lg font-sans">
+      <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background border-t border-outline-variant/30 px-6 py-2 flex items-center justify-between shadow-lg font-sans">
         <Link href="/" className="flex flex-col items-center gap-1 text-primary/70 hover:text-primary transition-colors">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
