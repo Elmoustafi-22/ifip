@@ -174,6 +174,7 @@ export default function Home() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-8 font-semibold text-sm">
+            <Link href="/about" className="text-on-surface/80 hover:text-primary transition-colors">About IFIP</Link>
             <a href="#curriculum" className="text-on-surface/80 hover:text-primary transition-colors">Curriculum</a>
             <a href="#process" className="text-on-surface/80 hover:text-primary transition-colors">Process</a>
             <a href="#partners" className="text-on-surface/80 hover:text-primary transition-colors">Partners</a>
@@ -209,6 +210,13 @@ export default function Home() {
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 top-20 z-45 bg-background md:hidden flex flex-col px-6 py-8 border-t border-outline-variant/30 gap-6">
+          <Link
+            href="/about"
+            onClick={() => setMobileMenuOpen(false)}
+            className="text-lg font-semibold border-b border-outline-variant/20 pb-2"
+          >
+            About IFIP
+          </Link>
           <a
             href="#curriculum"
             onClick={() => setMobileMenuOpen(false)}
