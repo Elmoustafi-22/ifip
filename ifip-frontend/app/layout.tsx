@@ -8,7 +8,8 @@ const GA_MEASUREMENT_ID = "G-94PH4VKTSX";
 const sora = Sora({
   variable: "--font-sora",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
+  weight: ["400", "600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -52,7 +53,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/images/logos/logo-on-blue-gradient.png",
+        url: "/images/logos/logo-on-blue-gradient.jpg",
         width: 1200,
         height: 630,
         alt: "Islamic Finance Internship Program (IFIP) Logo",
@@ -63,7 +64,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Islamic Finance Internship Program (IFIP) | Apply Now",
     description: "Empowering the next generation of leaders in ethical and Islamic finance through structured training, expert mentorship, and premium placement opportunities.",
-    images: ["/images/logos/logo-on-blue-gradient.png"],
+    images: ["/images/logos/logo-on-blue-gradient.jpg"],
   },
   robots: {
     index: true,
