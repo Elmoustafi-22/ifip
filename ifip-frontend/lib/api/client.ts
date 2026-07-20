@@ -129,19 +129,23 @@ authClient.interceptors.response.use(
 
       isRefreshing = true;
       try {
+        const storedRefreshToken = typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null;
         const { data } = await axios.post(
           `${API_BASE_URL}/auth/refresh`,
-          {},
-          { withCredentials: true }
+          { refreshToken: storedRefreshToken },
+          {
+            headers: storedRefreshToken ? { "X-Refresh-Token": storedRefreshToken } : {},
+            withCredentials: true,
+          }
         );
         const newToken: string = data.accessToken;
+        const newRefreshToken: string | undefined = data.refreshToken;
 
-        // Persist the new token in whichever storage was used
+        // Persist the new tokens
         if (typeof window !== "undefined") {
-          if (localStorage.getItem("accessToken")) {
-            localStorage.setItem("accessToken", newToken);
-          } else {
-            sessionStorage.setItem("accessToken", newToken);
+          localStorage.setItem("accessToken", newToken);
+          if (newRefreshToken) {
+            localStorage.setItem("refreshToken", newRefreshToken);
           }
         }
 

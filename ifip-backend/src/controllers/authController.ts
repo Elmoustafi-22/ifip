@@ -66,8 +66,8 @@ export const setPassword = async (req: Request<{}, {}, SetPasswordInput>, res: R
     user.lastLoginAt = new Date();
     await user.save();
 
-    const { accessToken } = issueTokens(res, user.id, user.role);
-    res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
+    const { accessToken, refreshToken } = issueTokens(res, user.id, user.role);
+    res.json({ accessToken, refreshToken, user: { id: user.id, email: user.email, role: user.role } });
 };
 
 // ── GET /api/v1/auth/token-info ──────────────────────────────────────
@@ -115,7 +115,7 @@ export const login = async (req: Request<{}, {}, LoginInput>, res: Response) => 
     user.lastLoginAt = new Date();
     await user.save();
 
-    const { accessToken } = issueTokens(res, user.id, user.role);
+    const { accessToken, refreshToken } = issueTokens(res, user.id, user.role);
 
     // Audit — fire-and-forget, do not block the response
     const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
@@ -131,7 +131,7 @@ export const login = async (req: Request<{}, {}, LoginInput>, res: Response) => 
         userAgent: req.headers['user-agent'],
     });
 
-    res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
+    res.json({ accessToken, refreshToken, user: { id: user.id, email: user.email, role: user.role } });
 };
 
 // ── POST /api/v1/auth/refresh ─────────────────────────────────────────
@@ -139,7 +139,12 @@ export const login = async (req: Request<{}, {}, LoginInput>, res: Response) => 
 // The refresh token itself is not rotated here to keep the implementation
 // simple for v1 — add rotation (delete old, issue new cookie) before production.
 export const refresh = async (req: Request, res: Response) => {
-    const token = req.cookies?.refreshToken as string | undefined;
+    const token = (
+        req.cookies?.refreshToken ||
+        req.body?.refreshToken ||
+        (req.headers['x-refresh-token'] as string)
+    ) as string | undefined;
+
     if (!token) {
         res.status(401).json({ message: 'No refresh token.' });
         return;
@@ -161,9 +166,9 @@ export const refresh = async (req: Request, res: Response) => {
         return;
     }
 
-    // Issue a fresh access token (and rotate the refresh cookie)
-    const { accessToken } = issueTokens(res, user.id, user.role);
-    res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
+    // Issue a fresh access token (and rotate the refresh cookie/token)
+    const { accessToken, refreshToken } = issueTokens(res, user.id, user.role);
+    res.json({ accessToken, refreshToken, user: { id: user.id, email: user.email, role: user.role } });
 };
 
 // ── POST /api/v1/auth/logout ──────────────────────────────────────────

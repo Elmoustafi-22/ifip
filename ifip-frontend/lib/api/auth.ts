@@ -23,9 +23,12 @@ export const getAccessToken = (): string | null =>
     ? localStorage.getItem("accessToken") ?? sessionStorage.getItem("accessToken")
     : null);
 
-export const storeAccessToken = (token: string, _remember = false): void => {
+export const storeAccessToken = (token: string, _remember = false, refreshToken?: string): void => {
   if (typeof window === "undefined") return;
   localStorage.setItem("accessToken", token);
+  if (refreshToken) {
+    localStorage.setItem("refreshToken", refreshToken);
+  }
   sessionStorage.removeItem("accessToken");
 };
 
@@ -33,6 +36,7 @@ export const clearAuth = (): void => {
   if (typeof window === "undefined") return;
   sessionStorage.removeItem("accessToken");
   localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
 };
 
 // ── Auth API calls ────────────────────────────────────────────────────────────
@@ -51,7 +55,7 @@ export const login = async (
     password,
   });
   if (!data.mfaRequired && data.accessToken) {
-    storeAccessToken(data.accessToken, rememberMe);
+    storeAccessToken(data.accessToken, rememberMe, (data as any).refreshToken);
   }
   return data;
 };
@@ -69,7 +73,7 @@ export const setPassword = async (
     password,
   });
   if (data.accessToken) {
-    storeAccessToken(data.accessToken);
+    storeAccessToken(data.accessToken, false, (data as any).refreshToken);
   }
   return data;
 };
@@ -85,13 +89,17 @@ export const getTokenInfo = async (token: string): Promise<{ email: string }> =>
 
 /**
  * POST /auth/refresh
- * Uses the httpOnly refreshToken cookie to issue a new access token.
- * Called automatically by the authClient interceptor — pages rarely need this directly.
+ * Uses the httpOnly refreshToken cookie (or fallback token) to issue a new access token.
  */
 export const refreshAccessToken = async (): Promise<AuthResponse> => {
-  const { data } = await authClient.post<AuthResponse>("/auth/refresh");
+  const storedRefreshToken = typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null;
+  const { data } = await authClient.post<AuthResponse>(
+    "/auth/refresh",
+    { refreshToken: storedRefreshToken },
+    { headers: storedRefreshToken ? { "X-Refresh-Token": storedRefreshToken } : {} }
+  );
   if (data.accessToken) {
-    storeAccessToken(data.accessToken);
+    storeAccessToken(data.accessToken, false, (data as any).refreshToken);
   }
   return data;
 };
