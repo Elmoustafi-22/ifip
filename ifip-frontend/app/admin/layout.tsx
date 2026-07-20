@@ -25,7 +25,7 @@ import {
   HiOutlineCreditCard,
 } from "react-icons/hi2";
 import { getMyApplication, getCohorts, Cohort } from "@/lib/api/services";
-import { clearAuth } from "@/lib/api/auth";
+import { clearAuth, startSilentRefresh, stopSilentRefresh } from "@/lib/api/auth";
 import NotificationBell from "@/components/NotificationBell";
 
 export interface AdminCohortContextType {
@@ -151,9 +151,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         setLoading(false);
       }
     })();
-  }, [router]);
+  }, [authorized, router]);
 
-  // Idle Activity Monitor for Auto-Logout (30 minutes)
+  // Proactive silent token refresh — renews the access token 2 min before it
+  // expires so the admin never experiences a 401 mid-session.
+  useEffect(() => {
+    if (!authorized) return;
+    startSilentRefresh();
+    return () => stopSilentRefresh();
+  }, [authorized]);
+
   useEffect(() => {
     if (!authorized) return;
 
@@ -161,6 +168,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     let timeoutId: NodeJS.Timeout;
 
     const handleLogout = () => {
+      stopSilentRefresh();
       clearAuth();
       router.push("/login?session=idle");
     };

@@ -189,6 +189,76 @@ export const mfaDisable = async (code: string): Promise<{ message: string }> => 
   return data;
 };
 
+// ── Silent proactive token refresh ──────────────────────────────────────────
+// Decodes the JWT `exp` claim from the stored access token (no extra library
+// needed — the payload is plain Base64url), then schedules a refresh 2 minutes
+// before the token actually expires. After each successful refresh the timer is
+// rescheduled automatically. Call stopSilentRefresh() on logout / unmount.
+
+const REFRESH_LEAD_MS = 2 * 60 * 1000; // refresh 2 min before expiry
+let _silentRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+const getTokenExpMs = (): number | null => {
+  if (typeof window === "undefined") return null;
+  const token =
+    sessionStorage.getItem("accessToken") ??
+    localStorage.getItem("accessToken");
+  if (!token) return null;
+  try {
+    const payloadBase64 = token.split(".")[1];
+    if (!payloadBase64) return null;
+    const json = atob(payloadBase64.replace(/-/g, "+").replace(/_/g, "/"));
+    const { exp } = JSON.parse(json) as { exp?: number };
+    return exp ? exp * 1000 : null;
+  } catch {
+    return null;
+  }
+};
+
+const scheduleNextRefresh = () => {
+  if (_silentRefreshTimer !== null) {
+    clearTimeout(_silentRefreshTimer);
+    _silentRefreshTimer = null;
+  }
+
+  const expMs = getTokenExpMs();
+  if (!expMs) return;
+
+  const delay = Math.max(expMs - Date.now() - REFRESH_LEAD_MS, 0);
+
+  _silentRefreshTimer = setTimeout(async () => {
+    try {
+      await refreshAccessToken();
+      scheduleNextRefresh(); // reschedule for the new token
+    } catch {
+      // Refresh failed — clear tokens and redirect
+      clearAuth();
+      if (typeof window !== "undefined") {
+        window.location.href = "/login?session=expired";
+      }
+    }
+  }, delay);
+};
+
+/**
+ * Start the proactive silent-refresh loop.
+ * Call this once the admin is confirmed authorized.
+ */
+export const startSilentRefresh = (): void => {
+  scheduleNextRefresh();
+};
+
+/**
+ * Cancel the silent-refresh timer.
+ * Call this on logout or when the admin layout unmounts.
+ */
+export const stopSilentRefresh = (): void => {
+  if (_silentRefreshTimer !== null) {
+    clearTimeout(_silentRefreshTimer);
+    _silentRefreshTimer = null;
+  }
+};
+
 export const updateProfile = async (
   fullName: string,
   title?: string
