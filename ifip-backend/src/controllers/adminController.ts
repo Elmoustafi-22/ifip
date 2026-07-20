@@ -536,11 +536,6 @@ export const resendSetPasswordLink = async (req: Request, res: Response) => {
             return;
         }
 
-        if (user.passwordHash) {
-            res.status(400).json({ message: 'This user has already set their password. No need to resend.' });
-            return;
-        }
-
         const token = signSetPasswordToken(user.id, user.email);
         await sendAdminInvitationEmail(
             user.email,

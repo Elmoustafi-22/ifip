@@ -397,12 +397,12 @@ export default function AdminUsersPage() {
                         {user.lastLoginAt ? formatDate(user.lastLoginAt) : "Never"}
                       </td>
                       <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
-                        {currentUserRole === "superadmin" && (user.role === "admin" || user.role === "superadmin") && !user.isConfigured ? (
+                        {currentUserRole === "superadmin" && (user.role === "admin" || user.role === "superadmin") ? (
                           <button
                             onClick={(e) => handleResendInvite(e, user._id)}
                             disabled={resendingInviteId === user._id}
                             className="inline-flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 \
-                              bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                              bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 cursor-pointer"
                           >
                             {resendingInviteId === user._id ? (
                               <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
