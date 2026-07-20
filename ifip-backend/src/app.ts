@@ -36,6 +36,9 @@ app.use(helmet());
 
 const allowedOrigins = [
     env.CLIENT_URL,
+    'https://ifip.nextif.org',
+    'https://www.nextif.org',
+    'https://nextif.org',
     'http://localhost:3000',
     'http://localhost:3001',
     'http://localhost:3002',

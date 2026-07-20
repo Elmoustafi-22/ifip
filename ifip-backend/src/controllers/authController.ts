@@ -24,19 +24,23 @@ import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { logRawAction } from '../utils/auditLogger.js';
 
 // ── Shared helper: issue tokens + set refresh cookie ──────────────────
+const getCookieOptions = () => {
+    const isProd = env.NODE_ENV === 'production';
+    return {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days for all users/admins
+        path: '/',
+    };
+};
+
 const issueTokens = (res: Response, userId: string, role: 'applicant' | 'participant' | 'admin' | 'superadmin') => {
     const accessToken = signAccessToken(userId, role);
-    const isAdmin = role === 'admin' || role === 'superadmin';
-    const refreshExpiry = isAdmin ? '24h' : '7d';
-    const cookieMaxAge = isAdmin ? 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
+    const refreshExpiry = '7d';
 
     const refreshToken = signRefreshToken(userId, refreshExpiry);
-    res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: cookieMaxAge,
-    });
+    res.cookie('refreshToken', refreshToken, getCookieOptions());
     return { accessToken, refreshToken };
 };
 
@@ -145,14 +149,14 @@ export const refresh = async (req: Request, res: Response) => {
     try {
         decoded = verifyRefreshToken(token);
     } catch {
-        res.clearCookie('refreshToken');
+        res.clearCookie('refreshToken', getCookieOptions());
         res.status(401).json({ message: 'Refresh token invalid or expired. Please log in again.' });
         return;
     }
 
     const user = await User.findById(decoded.sub);
     if (!user) {
-        res.clearCookie('refreshToken');
+        res.clearCookie('refreshToken', getCookieOptions());
         res.status(401).json({ message: 'User not found.' });
         return;
     }
@@ -160,6 +164,12 @@ export const refresh = async (req: Request, res: Response) => {
     // Issue a fresh access token (and rotate the refresh cookie)
     const { accessToken } = issueTokens(res, user.id, user.role);
     res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
+};
+
+// ── POST /api/v1/auth/logout ──────────────────────────────────────────
+export const logout = async (_req: Request, res: Response) => {
+    res.clearCookie('refreshToken', getCookieOptions());
+    res.json({ message: 'Logged out successfully.' });
 };
 
 // ── POST /api/v1/auth/forgot-password ────────────────────────────────

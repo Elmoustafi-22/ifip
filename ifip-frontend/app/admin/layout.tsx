@@ -161,46 +161,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => stopSilentRefresh();
   }, [authorized]);
 
-  useEffect(() => {
-    if (!authorized) return;
-
-    const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
-    let timeoutId: NodeJS.Timeout;
-
-    const handleLogout = () => {
-      stopSilentRefresh();
-      clearAuth();
-      router.push("/login?session=idle");
-    };
-
-    const resetTimer = () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(handleLogout, IDLE_TIMEOUT_MS);
-    };
-
-    const activityEvents = [
-      "mousemove",
-      "keydown",
-      "mousedown",
-      "scroll",
-      "click",
-      "touchstart",
-    ];
-
-    resetTimer();
-
-    activityEvents.forEach((event) => {
-      window.addEventListener(event, resetTimer);
-    });
-
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      activityEvents.forEach((event) => {
-        window.removeEventListener(event, resetTimer);
-      });
-    };
-  }, [authorized, router]);
-
   const handleSetCohort = (id: string) => {
     setSelectedCohortId(id);
     localStorage.setItem("adminSelectedCohortId", id);

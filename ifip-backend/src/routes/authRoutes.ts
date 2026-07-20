@@ -3,6 +3,7 @@ import {
     setPassword,
     login,
     refresh,
+    logout,
     forgotPassword,
     resetPassword,
     getTokenInfo,
@@ -38,6 +39,9 @@ router.post('/login/mfa-verify', loginMfaVerify);
 
 // Refresh access token using the httpOnly refreshToken cookie
 router.post('/refresh', refresh);
+
+// Logout — clears httpOnly refresh cookie
+router.post('/logout', logout);
 
 // Forgot password — sends a reset link to the provided email (timing-safe, no enumeration)
 router.post('/forgot-password', validate(forgotPasswordSchema), forgotPassword);

@@ -20,18 +20,13 @@ import type { AuthResponse, ForgotPasswordResponse } from "./types";
 
 export const getAccessToken = (): string | null =>
   (typeof window !== "undefined"
-    ? sessionStorage.getItem("accessToken") ?? localStorage.getItem("accessToken")
+    ? localStorage.getItem("accessToken") ?? sessionStorage.getItem("accessToken")
     : null);
 
-export const storeAccessToken = (token: string, remember = false): void => {
+export const storeAccessToken = (token: string, _remember = false): void => {
   if (typeof window === "undefined") return;
-  if (remember) {
-    localStorage.setItem("accessToken", token);
-    sessionStorage.removeItem("accessToken");
-  } else {
-    sessionStorage.setItem("accessToken", token);
-    localStorage.removeItem("accessToken");
-  }
+  localStorage.setItem("accessToken", token);
+  sessionStorage.removeItem("accessToken");
 };
 
 export const clearAuth = (): void => {
@@ -133,11 +128,13 @@ export const resetPassword = async (
   return data;
 };
 
-/**
- * Logout helper — clears local tokens and redirects.
- * The server should also be called to invalidate the refresh cookie (future endpoint).
- */
-export const logout = (): void => {
+export const logout = async (): Promise<void> => {
+  stopSilentRefresh();
+  try {
+    await authClient.post("/auth/logout");
+  } catch {
+    // ignore errors on logout request
+  }
   clearAuth();
   if (typeof window !== "undefined") {
     window.location.href = "/login";
