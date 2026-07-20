@@ -27,6 +27,11 @@ import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
 
+// Trust the first proxy hop so req.ip resolves to the real client IP
+// rather than the reverse proxy's internal address. Without this every
+// user shares the same IP counter and the rate limiter fires for everyone.
+app.set('trust proxy', 1);
+
 app.use(helmet());
 
 const allowedOrigins = [
@@ -67,7 +72,9 @@ app.use(
 app.use(cookieParser());
 app.use(morgan('dev'));
 
-const otpIpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5 });
+// max: 10 gives headroom for shared networks (university campuses, corporate
+// NAT, mobile carriers) without opening the door to abuse.
+const otpIpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false });
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
 const paymentLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
 

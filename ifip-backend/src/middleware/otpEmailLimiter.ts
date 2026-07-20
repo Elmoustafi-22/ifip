@@ -8,7 +8,6 @@ export const otpEmailLimiter = rateLimit({
     max: 3,
     standardHeaders: true,
     legacyHeaders: false,
-    validate: false,
     keyGenerator: (req: Request) => {
         const email = req.body?.email;
         return typeof email === 'string' ? email.toLowerCase().trim() : req.ip ?? 'unknown';

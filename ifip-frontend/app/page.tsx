@@ -11,7 +11,9 @@ import {
   HiGlobeAlt,
   HiArrowDownTray,
   HiArrowTrendingUp,
+  HiEnvelope,
 } from "react-icons/hi2";
+import { FaWhatsapp } from "react-icons/fa";
 import {
   TbBook,
   TbUserCog,
@@ -526,7 +528,8 @@ export default function Home() {
                   rel="noopener noreferrer"
                   className="hover:text-primary transition-colors inline-flex items-center gap-1.5 text-emerald-600 font-bold"
                 >
-                  💬 Registration Support (WhatsApp)
+                  <FaWhatsapp className="w-4 h-4 text-emerald-600 shrink-0" />
+                  Registration Support (WhatsApp)
                 </a>
               </li>
               <li>
@@ -534,7 +537,8 @@ export default function Home() {
                   href="mailto:ifip.program@gmail.com"
                   className="hover:text-primary transition-colors inline-flex items-center gap-1.5 text-slate-500"
                 >
-                  ✉️ Support: ifip.program@gmail.com
+                  <HiEnvelope className="w-4 h-4 text-slate-500 shrink-0" />
+                  Support: ifip.program@gmail.com
                 </a>
               </li>
             </ul>

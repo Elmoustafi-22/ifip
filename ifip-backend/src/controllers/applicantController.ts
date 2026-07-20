@@ -56,59 +56,19 @@ export const startApplication = async (req: Request, res: Response) => {
         return;
     }
 
-    // Redis Rate Limiting Check
-    const now = Date.now();
-    const rateKey = `otp_rate:${email.toLowerCase()}`;
-    const rateDataRaw = await redisClient.get(rateKey);
-    let rateData = rateDataRaw 
-        ? JSON.parse(rateDataRaw) 
-        : { sendCount: 0, windowStart: now, lastSentTime: 0 };
-
-    const windowMs = 1 * 60 * 60 * 1000;
-    const windowExpired = (now - rateData.windowStart) > windowMs;
-    if (windowExpired) {
-        rateData.sendCount = 0;
-        rateData.windowStart = now;
-    }
-
-    const cooldownSeconds = 60;
-    const secondsSinceLastSend = (now - rateData.lastSentTime) / 1000;
-    if (rateData.sendCount > 0 && secondsSinceLastSend < cooldownSeconds) {
-        res.status(429).json({
-            message: 'Please wait before requesting another code.',
-            retryAfterSeconds: Math.ceil(cooldownSeconds - secondsSinceLastSend),
-        });
-        return;
-    }
-
-    const maxPerWindow = 5;
-    if (rateData.sendCount >= maxPerWindow) {
-        res.status(429).json({
-            message: 'Too many verification codes requested. Please try again in an hour.'
-        });
-        return;
-    }
-
-    // Increment count & timestamp
-    rateData.sendCount += 1;
-    rateData.lastSentTime = now;
+    // Rate enforcement is handled upstream by otpIpLimiter + otpEmailLimiter middleware.
+    // Controller is pure business logic from here.
 
     const { code, hash } = generateOtp();
     const otpExpiryMinutes = Number(env.OTP_EXPIRY_MINUTES || 10);
     const otpKey = `pending_otp:${email.toLowerCase()}`;
 
-    // Save values in Redis concurrently
-    await Promise.all([
-        redisClient.set(otpKey, hash, { EX: otpExpiryMinutes * 60 }),
-        redisClient.set(rateKey, JSON.stringify(rateData), { EX: 1 * 60 * 60 })
-    ]);
+    await redisClient.set(otpKey, hash, { EX: otpExpiryMinutes * 60 });
 
     notificationEmitter.emit('otp.requested', { email, otp: code });
 
     // Audit — APPLICATION_START (fire-and-forget)
-    const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
-    const ipAddress = Array.isArray(rawIp) ? rawIp[0] : (typeof rawIp === 'string' ? rawIp.split(',')[0].trim() : undefined);
-    // Use a placeholder ObjectId for pre-applicant log entries so the schema constraint is met
+    // req.ip is now the real client IP thanks to app.set('trust proxy', 1)
     const SYSTEM_USER_ID = '000000000000000000000000';
     logRawAction({
         userId: SYSTEM_USER_ID,
@@ -116,7 +76,7 @@ export const startApplication = async (req: Request, res: Response) => {
         userRole: 'applicant',
         action: 'APPLICATION_START',
         description: `New application started for "${email}" — OTP sent`,
-        ipAddress,
+        ipAddress: req.ip,
         userAgent: req.headers['user-agent'],
     });
 

@@ -1468,6 +1468,7 @@ export default function ApplyPage() {
                   rel="noopener noreferrer"
                   className="underline hover:text-emerald-700 transition-all flex items-center gap-1"
                 >
+                  <FaWhatsapp className="w-3.5 h-3.5 shrink-0" />
                   Registration issues? WhatsApp Support
                 </a>
               </div>
