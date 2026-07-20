@@ -21,6 +21,7 @@ import type {
 } from '../validators/authValidators.js';
 import { sendPasswordResetEmail } from '../services/emailService.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
+import { logRawAction } from '../utils/auditLogger.js';
 
 // ── Shared helper: issue tokens + set refresh cookie ──────────────────
 const issueTokens = (res: Response, userId: string, role: 'applicant' | 'participant' | 'admin' | 'superadmin') => {
@@ -111,6 +112,21 @@ export const login = async (req: Request<{}, {}, LoginInput>, res: Response) => 
     await user.save();
 
     const { accessToken } = issueTokens(res, user.id, user.role);
+
+    // Audit — fire-and-forget, do not block the response
+    const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+    const ipAddress = Array.isArray(rawIp) ? rawIp[0] : (typeof rawIp === 'string' ? rawIp.split(',')[0].trim() : undefined);
+    const isAdmin = user.role === 'admin' || user.role === 'superadmin';
+    logRawAction({
+        userId: user.id,
+        userEmail: user.email,
+        userRole: user.role,
+        action: isAdmin ? 'ADMIN_LOGIN' : 'USER_LOGIN',
+        description: `${isAdmin ? 'Admin' : 'User'} "${user.email}" signed in successfully`,
+        ipAddress,
+        userAgent: req.headers['user-agent'],
+    });
+
     res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
 };
 

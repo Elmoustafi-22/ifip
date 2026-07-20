@@ -137,12 +137,30 @@ export const completeLMSModule = async (moduleId: string): Promise<any> => {
   return data;
 };
 
+export interface RegistrationFunnelStep {
+  step: number;
+  label: string;
+  count: number;
+}
+
+export interface RegistrationFunnel {
+  totalStarted: number;
+  inProgress: number;
+  byStep: RegistrationFunnelStep[];
+  checkoutStarted: number;
+  paymentCompleted: number;
+  fullyConverted: number;
+  dropOffStep: number | null;
+  conversionRate: number;
+}
+
 export interface AdminStats {
   totalPaid: number;
   activeParticipants: number;
   completedCount: number;
   waitlistCount: number;
   leadSources?: { source: string; count: number }[];
+  registrationFunnel?: RegistrationFunnel;
 }
 
 export interface Cohort {
@@ -160,6 +178,21 @@ export const getAdminStats = async (cohortId?: string): Promise<AdminStats> => {
   const params: any = {};
   if (cohortId) params.cohortId = cohortId;
   const { data } = await authClient.get<AdminStats>("/admin/stats", { params });
+  return data;
+};
+
+export interface AnonApplicant {
+  ref: string;           // opaque 8-char token — no PII
+  currentStep: number;
+  checkoutInitiated: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const getRegistrationApplicants = async (
+  params: { step?: number; page?: number; limit?: number } = {}
+): Promise<{ applicants: AnonApplicant[]; total: number; page: number; pages: number }> => {
+  const { data } = await authClient.get("/admin/registration-funnel/applicants", { params });
   return data;
 };
 
@@ -854,8 +887,69 @@ export const inviteAdmin = async (payload: {
   const { data } = await authClient.post<{ message: string }>("/admin/users/invite", payload);
   return data;
 };
+// ─── Admin Payment Tracking ───────────────────────────────────────────────────
 
+export interface AdminPayment {
+  _id: string;
+  applicantId: string;
+  applicationId?: {
+    _id: string;
+    fullName?: string;
+    status: string;
+    submittedAt: string;
+    userId?: { email: string };
+  };
+  provider: 'paystack' | 'flutterwave';
+  providerRef: string;
+  amount: number;
+  currency: string;
+  status: 'pending' | 'success' | 'failed';
+  type: string;
+  webhookVerified: boolean;
+  paystackVerification?: Record<string, unknown>;
+  flutterwaveVerification?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
 
+export interface AdminPaymentsResponse {
+  payments: AdminPayment[];
+  total: number;
+  page: number;
+  pages: number;
+  summary: {
+    pending: number;
+    success: number;
+    failed: number;
+    totalRevenue: number;
+  };
+}
 
+export const getAdminPayments = async (params?: {
+  status?: string;
+  provider?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<AdminPaymentsResponse> => {
+  const { data } = await authClient.get<AdminPaymentsResponse>('/admin/payments', { params });
+  return data;
+};
+
+export const getAdminPaymentById = async (id: string): Promise<AdminPayment> => {
+  const { data } = await authClient.get<AdminPayment>(`/admin/payments/${id}`);
+  return data;
+};
+
+export const resolveAdminPayment = async (
+  id: string,
+  payload: { status: 'success' | 'failed'; note?: string }
+): Promise<{ message: string; payment: AdminPayment }> => {
+  const { data } = await authClient.patch<{ message: string; payment: AdminPayment }>(
+    `/admin/payments/${id}/resolve`,
+    payload
+  );
+  return data;
+};
 
 

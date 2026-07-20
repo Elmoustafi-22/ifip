@@ -6,6 +6,8 @@ const RedisClient = (Redis as any).default || Redis;
 
 export const redisConnection = new RedisClient(env.REDIS_URL, {
     maxRetriesPerRequest: null,
+    enableKeepAlive: true,
+    keepAliveDelay: 5000, // Enable TCP Keep-Alive with 5-second delay
 });
 
 export default redisConnection;

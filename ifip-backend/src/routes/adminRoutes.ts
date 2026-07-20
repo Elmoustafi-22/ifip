@@ -16,6 +16,10 @@ import {
     broadcastCustomNotification,
     inviteAdmin,
     getAuditLogs,
+    getRegistrationApplicants,
+    getAdminPayments,
+    getAdminPaymentById,
+    resolvePayment,
 } from '../controllers/adminController.js';
 import {
     getAssessments,
@@ -76,6 +80,14 @@ router.get('/applications', getAdminApplications);
 router.patch('/applications/:id/cohort', assignApplicationCohort);
 router.patch('/applications/:id/withdraw', withdrawApplication);
 router.post('/notifications/broadcast', broadcastCustomNotification);
+
+// ── Registration Funnel (anonymised — no PII) ────────────────────────
+router.get('/registration-funnel/applicants', getRegistrationApplicants);
+
+// ── Payment Tracking & Resolution ────────────────────────────────────
+router.get('/payments', getAdminPayments);
+router.get('/payments/:id', getAdminPaymentById);
+router.patch('/payments/:id/resolve', resolvePayment);
 
 router.get('/cohorts', getCohorts);
 router.post('/cohorts', createCohort);

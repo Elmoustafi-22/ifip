@@ -22,6 +22,7 @@ import {
   HiOutlineXMark,
   HiOutlineCog6Tooth,
   HiOutlineChartBar,
+  HiOutlineCreditCard,
 } from "react-icons/hi2";
 import { getMyApplication, getCohorts, Cohort } from "@/lib/api/services";
 import { clearAuth } from "@/lib/api/auth";
@@ -75,6 +76,12 @@ const NAV_GROUPS = [
     items: [
       { href: "/admin/form-options", label: "Form Options",    icon: HiOutlineListBullet },
       { href: "/admin/openings",     label: "Active Openings", icon: HiOutlineMegaphone },
+    ],
+  },
+  {
+    label: "Finance",
+    items: [
+      { href: "/admin/payments", label: "Payment Records", icon: HiOutlineCreditCard },
     ],
   },
   {

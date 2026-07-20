@@ -1,16 +1,28 @@
 import { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import { Application } from '../models/Application.js';
+import { Applicant } from '../models/Applicants.js';
 import { User } from '../models/User.js';
 import { Waitlist } from '../models/Waitlist.js';
 import { Cohort } from '../models/Cohort.js';
 import { Notification } from '../models/Notification.js';
 import { Module } from '../models/Module.js';
 import { AuditLog } from '../models/AuditLog.js';
+import { Payment } from '../models/Payments.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { signSetPasswordToken } from '../utils/jwt.js';
 import { sendAdminInvitationEmail } from '../services/emailService.js';
-import { logAction } from '../utils/auditLogger.js';
+import { logAction, logRawAction } from '../utils/auditLogger.js';
+
+// Step labels for the registration funnel
+const REGISTRATION_STEP_LABELS: Record<number, string> = {
+    1: 'Email Verified',
+    2: 'Personal Info',
+    3: 'Academic Background',
+    4: 'Program Interest',
+    5: 'Skills & Availability',
+    6: 'Declaration & Review',
+};
 
 // ── GET /api/v1/admin/users ────────────────────────────────────────────────────
 // Returns all platform users with optional ?role=&search=&page=&limit= filtering.
@@ -104,8 +116,81 @@ export const getDashboardStats = async (req: Request, res: Response) => {
             source: item._id || 'Unknown',
             count: item.count
         }));
-        
-        res.json({ totalPaid, activeParticipants, completedCount, waitlistCount, leadSources });
+
+        // ── Registration Funnel Aggregation ──────────────────────────────────────
+        // Aggregate over the Applicant collection (pre-payment pipeline).
+        // No PII is included here — we only count documents per step.
+        const [stepCounts, funnelMeta] = await Promise.all([
+            // Group by currentStep to get per-step headcounts
+            Applicant.aggregate([
+                { $group: { _id: '$currentStep', count: { $sum: 1 } } },
+                { $sort: { _id: 1 } },
+            ]),
+            // Single-pass counts for checkout & payment states
+            Applicant.aggregate([
+                {
+                    $group: {
+                        _id: null,
+                        totalStarted: { $sum: 1 },
+                        checkoutStarted: {
+                            $sum: { $cond: [{ $ne: ['$checkoutStartedAt', null] }, 1, 0] },
+                        },
+                        paymentCompleted: {
+                            $sum: { $cond: ['$isPaid', 1, 0] },
+                        },
+                    },
+                },
+            ]),
+        ]);
+
+        const meta = funnelMeta[0] ?? { totalStarted: 0, checkoutStarted: 0, paymentCompleted: 0 };
+
+        // Build the byStep array with drop-off data
+        const stepCountMap: Record<number, number> = {};
+        for (const row of stepCounts) {
+            stepCountMap[row._id as number] = row.count;
+        }
+
+        const byStep = Object.entries(REGISTRATION_STEP_LABELS).map(([stepStr, label]) => {
+            const step = Number(stepStr);
+            // Count includes anyone at this step OR beyond (waterfall view)
+            const count = Object.entries(stepCountMap)
+                .filter(([s]) => Number(s) >= step)
+                .reduce((acc, [, c]) => acc + c, 0);
+            return { step, label, count };
+        });
+
+        // Find the step with the greatest absolute drop-off
+        let dropOffStep: number | null = null;
+        let maxDrop = 0;
+        for (let i = 1; i < byStep.length; i++) {
+            const drop = byStep[i - 1].count - byStep[i].count;
+            if (drop > maxDrop) {
+                maxDrop = drop;
+                dropOffStep = byStep[i].step;
+            }
+        }
+
+        // Conversion rate: completed Applications vs total Applicant starters
+        // Uses Application total (post-payment) as the numerator for accuracy
+        const totalApplications = await Application.countDocuments();
+        const totalStarted = meta.totalStarted + totalApplications; // starters = in-flight + completed
+        const conversionRate = totalStarted > 0
+            ? parseFloat(((totalApplications / totalStarted) * 100).toFixed(1))
+            : 0;
+
+        const registrationFunnel = {
+            totalStarted,
+            inProgress: meta.totalStarted,   // still in Applicant collection
+            byStep,
+            checkoutStarted: meta.checkoutStarted,
+            paymentCompleted: meta.paymentCompleted,
+            fullyConverted: totalApplications,
+            dropOffStep,
+            conversionRate,
+        };
+
+        res.json({ totalPaid, activeParticipants, completedCount, waitlistCount, leadSources, registrationFunnel });
     } catch (e: any) {
         res.status(500).json({ message: 'Error retrieving dashboard stats.', error: e.message });
     }
@@ -471,5 +556,239 @@ export const getAuditLogs = async (req: Request, res: Response) => {
         });
     } catch (e: any) {
         res.status(500).json({ message: 'Error retrieving audit logs.', error: e.message });
+    }
+};
+
+// ── GET /api/v1/admin/registration-funnel/applicants ───────────────────────────
+// Returns anonymised in-progress Applicant records for the funnel drill-down.
+// ⚠ PRIVACY: email and fullName are NEVER included in this response.
+//   Full identity is only available once the applicant graduates to an Application
+//   (i.e., after successful payment).
+export const getRegistrationApplicants = async (req: Request, res: Response) => {
+    try {
+        const { step, page = '1', limit = '50' } = req.query;
+
+        const pageNum = Math.max(1, parseInt(page as string, 10));
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
+        const skip = (pageNum - 1) * limitNum;
+
+        const match: any = { isPaid: { $ne: true } }; // exclude anyone pending TTL cleanup after payment
+        if (step) {
+            const stepNum = parseInt(step as string, 10);
+            if (!isNaN(stepNum)) {
+                match.currentStep = stepNum;
+            }
+        }
+
+        const [applicants, total] = await Promise.all([
+            Applicant.find(match, {
+                // ── Explicit PII exclusion ──────────────────────────
+                email: 0,
+                fullName: 0,
+                phone: 0,
+                resumeTokenHash: 0,
+                dob: 0,
+                // ── Include only what the admin needs ───────────────
+                // _id, currentStep, checkoutStartedAt, isPaid, createdAt, updatedAt
+                //   are returned by default after the exclusions above.
+            })
+                .sort({ updatedAt: -1 })
+                .skip(skip)
+                .limit(limitNum)
+                .lean(),
+            Applicant.countDocuments(match),
+        ]);
+
+        // Further sanitise: return only a short opaque token derived from the _id
+        // so the UI can reference individual records without exposing MongoDB IDs.
+        const sanitised = applicants.map((a: any) => ({
+            ref: a._id.toString().slice(-8).toUpperCase(), // last 8 hex chars — opaque enough
+            currentStep: a.currentStep,
+            checkoutInitiated: !!a.checkoutStartedAt,
+            createdAt: a.createdAt,
+            updatedAt: a.updatedAt,
+        }));
+
+        res.json({ applicants: sanitised, total, page: pageNum, pages: Math.ceil(total / limitNum) });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error retrieving registration applicants.', error: e.message });
+    }
+};
+
+// ── GET /api/v1/admin/payments ─────────────────────────────────────────────────
+// Paginated list of all payment records with optional status/provider/search filters.
+export const getAdminPayments = async (req: Request, res: Response) => {
+    try {
+        const { status, provider, search, page = '1', limit = '50' } = req.query;
+
+        const pageNum = Math.max(1, parseInt(page as string, 10));
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
+        const skip = (pageNum - 1) * limitNum;
+
+        const match: any = {};
+        if (status && status !== 'all') match.status = status;
+        if (provider && provider !== 'all') match.provider = provider;
+
+        // Search by providerRef text
+        if (search) {
+            const regex = new RegExp(search as string, 'i');
+            match.providerRef = regex;
+        }
+
+        const [payments, total, stats] = await Promise.all([
+            Payment.find(match)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limitNum)
+                .populate({
+                    path: 'applicationId',
+                    select: 'fullName userId',
+                    populate: { path: 'userId', select: 'email' },
+                })
+                .lean(),
+            Payment.countDocuments(match),
+            Payment.aggregate([
+                {
+                    $group: {
+                        _id: '$status',
+                        count: { $sum: 1 },
+                        totalAmount: { $sum: '$amount' },
+                    },
+                },
+            ]),
+        ]);
+
+        // Summarise stats for the UI
+        const summary: Record<string, number> = { pending: 0, success: 0, failed: 0, totalRevenue: 0 };
+        for (const s of stats) {
+            if (s._id === 'success') {
+                summary.success = s.count;
+                summary.totalRevenue = s.totalAmount;
+            } else if (s._id === 'pending') {
+                summary.pending = s.count;
+            } else if (s._id === 'failed') {
+                summary.failed = s.count;
+            }
+        }
+
+        res.json({ payments, total, page: pageNum, pages: Math.ceil(total / limitNum), summary });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error retrieving payments.', error: e.message });
+    }
+};
+
+// ── GET /api/v1/admin/payments/:id ─────────────────────────────────────────────
+// Full payment detail including raw provider verification blobs for debugging.
+export const getAdminPaymentById = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const payment = await Payment.findById(id)
+            .populate({
+                path: 'applicationId',
+                select: 'fullName userId status submittedAt',
+                populate: { path: 'userId', select: 'email' },
+            })
+            .lean();
+
+        if (!payment) {
+            res.status(404).json({ message: 'Payment not found.' });
+            return;
+        }
+
+        res.json(payment);
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error retrieving payment.', error: e.message });
+    }
+};
+
+// ── PATCH /api/v1/admin/payments/:id/resolve ───────────────────────────────────
+// Admin override: set payment status to success or failed.
+// When resolving to 'success', the downstream Application record is created/confirmed.
+export const resolvePayment = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { status, note } = req.body;
+
+        if (!status || !['success', 'failed'].includes(status)) {
+            res.status(400).json({ message: "status must be 'success' or 'failed'." });
+            return;
+        }
+
+        const payment = await Payment.findById(id);
+        if (!payment) {
+            res.status(404).json({ message: 'Payment not found.' });
+            return;
+        }
+
+        const previousStatus = payment.status;
+        payment.status = status;
+        await payment.save();
+
+        // When resolving to success, ensure the applicant's Application exists
+        if (status === 'success') {
+            const applicant = await Applicant.findById(payment.applicantId);
+            if (applicant) {
+                // Check whether an Application already exists for this applicant's user
+                let linkedUser = await User.findOne({ email: applicant.email });
+                if (!linkedUser) {
+                    linkedUser = new User({
+                        email: applicant.email,
+                        role: 'applicant',
+                        fullName: applicant.fullName,
+                        emailVerified: true,
+                    });
+                    await linkedUser.save();
+                }
+
+                const existingApp = await Application.findOne({ userId: linkedUser._id });
+                if (!existingApp) {
+                    const newApp = new Application({
+                        userId: linkedUser._id,
+                        paymentId: payment._id,
+                        fullName: applicant.fullName,
+                        phone: applicant.phone,
+                        dob: applicant.dob,
+                        gender: applicant.gender,
+                        country: applicant.country,
+                        stateCity: applicant.stateCity,
+                        academicInfo: applicant.academicInfo,
+                        programInterest: applicant.programInterest,
+                        skills: applicant.skills,
+                        motivation: applicant.motivation,
+                        cvUrl: applicant.cvUrl,
+                        linkedinUrl: applicant.linkedinUrl,
+                        portfolioUrl: applicant.portfolioUrl,
+                        leadSource: applicant.leadSource,
+                        levyAcknowledged: applicant.levyAcknowledged,
+                        declaration: applicant.declaration,
+                        status: 'payment_confirmed',
+                    });
+                    await newApp.save();
+                    payment.applicationId = newApp._id as any;
+                    await payment.save();
+                }
+
+                // Mark the applicant as paid so the TTL index won't clean them up
+                applicant.isPaid = true;
+                applicant.refreshExpiry();
+                await applicant.save();
+            }
+        }
+
+        // Audit log
+        const adminUser = await User.findById(req.user!.id);
+        await logRawAction({
+            userId: req.user!.id,
+            userEmail: adminUser?.email || 'N/A',
+            userRole: req.user!.role,
+            action: 'PAYMENT_RESOLVED',
+            description: `Admin resolved payment "${payment.providerRef}" from "${previousStatus}" → "${status}"${note ? `. Note: ${note}` : ''}`,
+            targetId: payment.id,
+            targetType: 'Payment',
+        });
+
+        res.json({ message: 'Payment status resolved successfully.', payment });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error resolving payment.', error: e.message });
     }
 };

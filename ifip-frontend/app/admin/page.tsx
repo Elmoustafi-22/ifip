@@ -10,7 +10,12 @@ import {
   HiOutlinePlus,
   HiOutlineXMark,
   HiOutlineCalendarDays,
-  HiOutlinePencilSquare
+  HiOutlinePencilSquare,
+  HiOutlineChartBarSquare,
+  HiOutlineArrowTrendingDown,
+  HiOutlineFunnel,
+  HiChevronRight,
+  HiOutlineClock,
 } from "react-icons/hi2";
 import { useContext } from "react";
 import { AdminCohortContext } from "./layout";
@@ -21,7 +26,9 @@ import {
   updateCohort,
   updateCohortConfig, 
   uploadBrochure,
+  getRegistrationApplicants,
   AdminStats, 
+  AnonApplicant,
   Cohort 
 } from "@/lib/api/services";
 
@@ -29,7 +36,13 @@ export default function AdminDashboardPage() {
   const { selectedCohortId, cohorts } = useContext(AdminCohortContext);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("cohorts"); // cohorts, system, acquisition
+  const [activeTab, setActiveTab] = useState("cohorts"); // cohorts, system, acquisition, funnel
+
+  // Funnel drill-down state
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerStep, setDrawerStep] = useState<number | null>(null);
+  const [drawerApplicants, setDrawerApplicants] = useState<AnonApplicant[]>([]);
+  const [drawerLoading, setDrawerLoading] = useState(false);
 
   const getCohortScopeName = () => {
     if (selectedCohortId === "") return "Global Scope (All Cohorts)";
@@ -83,6 +96,20 @@ export default function AdminDashboardPage() {
       console.error("Failed to load dashboard parameters:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openFunnelDrawer = async (step: number) => {
+    setDrawerStep(step);
+    setDrawerOpen(true);
+    setDrawerLoading(true);
+    try {
+      const res = await getRegistrationApplicants({ step, limit: 50 });
+      setDrawerApplicants(res.applicants);
+    } catch {
+      setDrawerApplicants([]);
+    } finally {
+      setDrawerLoading(false);
     }
   };
 
@@ -271,7 +298,7 @@ export default function AdminDashboardPage() {
       )}
 
       {/* Mobile view tab buttons */}
-      <div className="flex lg:hidden bg-slate-100 p-1 rounded-xl mb-6">
+      <div className="flex lg:hidden bg-slate-100 p-1 rounded-xl mb-6 gap-1">
         <button
           onClick={() => setActiveTab("cohorts")}
           className={`flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all ${
@@ -286,7 +313,7 @@ export default function AdminDashboardPage() {
             activeTab === "system" ? "bg-white text-[#000666] shadow-xs" : "text-slate-500"
           }`}
         >
-          System Config
+          System
         </button>
         <button
           onClick={() => setActiveTab("acquisition")}
@@ -296,11 +323,19 @@ export default function AdminDashboardPage() {
         >
           Acquisition
         </button>
+        <button
+          onClick={() => setActiveTab("funnel")}
+          className={`flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all ${
+            activeTab === "funnel" ? "bg-white text-[#000666] shadow-xs" : "text-slate-500"
+          }`}
+        >
+          Funnel
+        </button>
       </div>
 
       {/* Main split grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* 1. Sidebar Configurations (Col-span 1 on Desktop, controlled by activeTab on mobile) */}
+        {/* 1. Sidebar Configurations */}
         <div className={`${activeTab === "system" ? "block" : "hidden"} lg:block`}>
           {/* Global System Settings Panel */}
           <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 shadow-sm">
@@ -588,6 +623,264 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Registration Funnel Panel ───────────────────────────────────────── */}
+      {(() => {
+        const funnel = stats?.registrationFunnel;
+        const maxCount = funnel?.totalStarted || 1;
+        const convRate = funnel?.conversionRate ?? 0;
+        const convColor = convRate >= 60 ? "text-emerald-600 bg-emerald-50 border-emerald-200"
+          : convRate >= 30 ? "text-amber-600 bg-amber-50 border-amber-200"
+          : "text-rose-600 bg-rose-50 border-rose-200";
+        const abandonCount = (funnel?.checkoutStarted ?? 0) - (funnel?.paymentCompleted ?? 0) - (funnel?.fullyConverted ?? 0);
+
+        return (
+          <div className={`mt-8 ${activeTab === "funnel" ? "block" : "hidden"} lg:block`}>
+            <div className="bg-white border border-[#E7E2D8] rounded-2xl shadow-sm overflow-hidden">
+              {/* Panel header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-6 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
+                    <HiOutlineFunnel className="w-4 h-4 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-[#000666]">Registration Funnel</h2>
+                    <p className="text-[10px] text-slate-400 font-medium">Live pipeline — identities hidden until payment is confirmed</p>
+                  </div>
+                </div>
+                {/* KPI chips */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full border ${convColor}`}>
+                    <HiOutlineChartBarSquare className="w-3.5 h-3.5" />
+                    {convRate}% converted
+                  </span>
+                  {(abandonCount > 0) && (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full border border-rose-200 bg-rose-50 text-rose-600">
+                      <HiOutlineArrowTrendingDown className="w-3.5 h-3.5" />
+                      {abandonCount} checkout abandoned
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-slate-600">
+                    {funnel?.inProgress ?? 0} in-progress
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-6">
+                {!funnel || funnel.totalStarted === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <HiOutlineFunnel className="w-10 h-10 text-slate-200 mb-3" />
+                    <p className="text-slate-400 text-sm font-medium">No in-progress registrations</p>
+                    <p className="text-slate-300 text-xs mt-1">Funnel data will appear once applicants start signing up.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Waterfall Funnel Chart */}
+                    <div className="space-y-2">
+                      {funnel.byStep.map((s, idx) => {
+                        const pct = maxCount > 0 ? (s.count / maxCount) * 100 : 0;
+                        const dropFromPrev = idx > 0 ? funnel.byStep[idx - 1].count - s.count : 0;
+                        const dropPct = idx > 0 && funnel.byStep[idx - 1].count > 0
+                          ? Math.round((dropFromPrev / funnel.byStep[idx - 1].count) * 100)
+                          : 0;
+                        const isWorstDrop = funnel.dropOffStep === s.step;
+                        const barColor = isWorstDrop ? "bg-rose-500" : idx < 2 ? "bg-[#000666]" : idx < 4 ? "bg-indigo-500" : "bg-indigo-300";
+
+                        return (
+                          <div key={s.step}>
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <div className="flex items-center gap-2">
+                                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black shrink-0 ${
+                                  isWorstDrop ? "bg-rose-100 text-rose-600" : "bg-slate-100 text-slate-600"
+                                }`}>{s.step}</span>
+                                <span className={`font-semibold ${isWorstDrop ? "text-rose-600" : "text-slate-700"}`}>{s.label}</span>
+                                {isWorstDrop && (
+                                  <span className="text-[9px] font-bold bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded">Highest Drop-off</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3">
+                                {idx > 0 && dropFromPrev > 0 && (
+                                  <span className="text-[10px] font-bold text-rose-400">−{dropFromPrev} ({dropPct}%)</span>
+                                )}
+                                <button
+                                  onClick={() => openFunnelDrawer(s.step)}
+                                  className="flex items-center gap-0.5 font-bold text-[#000666] hover:underline tabular-nums"
+                                >
+                                  {s.count} <HiChevronRight className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                            <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                              <div
+                                className={`${barColor} h-full rounded-full transition-all duration-700`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Checkout & Payment rows */}
+                      {[{
+                        label: "Checkout Initiated",
+                        count: funnel.checkoutStarted,
+                        color: "bg-amber-400",
+                        tag: null,
+                      }, {
+                        label: "Payment Confirmed",
+                        count: funnel.fullyConverted,
+                        color: "bg-emerald-500",
+                        tag: null,
+                      }].map((row, idx) => {
+                        const pct = maxCount > 0 ? (row.count / maxCount) * 100 : 0;
+                        return (
+                          <div key={row.label}>
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <div className="flex items-center gap-2">
+                                <span className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black shrink-0 bg-slate-100 text-slate-500">
+                                  {idx === 0 ? "💳" : "✅"}
+                                </span>
+                                <span className="font-semibold text-slate-600">{row.label}</span>
+                              </div>
+                              <span className="font-bold text-slate-600 tabular-nums">{row.count}</span>
+                            </div>
+                            <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                              <div
+                                className={`${row.color} h-full rounded-full transition-all duration-700`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Step breakdown table */}
+                    <div className="border border-slate-100 rounded-xl overflow-hidden">
+                      <div className="bg-slate-50 px-4 py-2 border-b border-slate-100">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Step-by-Step Breakdown</span>
+                      </div>
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-[9px] uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                            <th className="text-left px-4 py-2.5">Stage</th>
+                            <th className="text-right px-4 py-2.5">Count</th>
+                            <th className="text-right px-4 py-2.5">Drop-off</th>
+                            <th className="text-right px-4 py-2.5">Health</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {funnel.byStep.map((s, idx) => {
+                            const prevCount = idx > 0 ? funnel.byStep[idx - 1].count : s.count;
+                            const dropPct = prevCount > 0 ? Math.round(((prevCount - s.count) / prevCount) * 100) : 0;
+                            const health = dropPct === 0 ? "🟢" : dropPct < 20 ? "🟡" : "🔴";
+                            return (
+                              <tr key={s.step} className="hover:bg-slate-50/70 transition-colors">
+                                <td className="px-4 py-2.5">
+                                  <span className="font-medium text-slate-700">
+                                    <span className="text-slate-400 font-mono mr-1.5">{s.step}.</span>
+                                    {s.label}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2.5 text-right font-mono font-bold text-[#000666]">{s.count}</td>
+                                <td className="px-4 py-2.5 text-right">
+                                  {idx > 0 && dropPct > 0 ? (
+                                    <span className={`font-bold ${dropPct >= 30 ? "text-rose-500" : "text-amber-500"}`}>−{dropPct}%</span>
+                                  ) : (
+                                    <span className="text-slate-300">—</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-2.5 text-right text-base">{health}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── In-Progress Applicants Slide-In Drawer ─────────────────────────── */}
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex justify-end"
+          onClick={() => setDrawerOpen(false)}
+        >
+          <div
+            className="bg-white w-full max-w-sm h-full flex flex-col shadow-2xl border-l border-slate-100"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Drawer header */}
+            <div className="bg-[#000666] text-white px-5 py-4 flex items-center justify-between shrink-0">
+              <div>
+                <p className="font-bold text-sm">Step {drawerStep} — In Progress</p>
+                <p className="text-white/60 text-[10px] mt-0.5">Identities hidden — payment not yet confirmed</p>
+              </div>
+              <button onClick={() => setDrawerOpen(false)} className="text-white/70 hover:text-white">
+                <HiOutlineXMark className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Privacy notice */}
+            <div className="mx-4 mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+              <p className="text-[10px] font-semibold text-amber-700">
+                🔒 Applicant names and emails are only revealed once payment is confirmed and the application is fully submitted.
+              </p>
+            </div>
+
+            {/* Applicant list */}
+            <div className="flex-1 overflow-y-auto px-4 pb-4 mt-4">
+              {drawerLoading ? (
+                <div className="flex justify-center py-12">
+                  <svg className="animate-spin w-6 h-6 text-[#000666]" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                </div>
+              ) : drawerApplicants.length === 0 ? (
+                <p className="text-slate-400 text-sm text-center py-12">No applicants at this step.</p>
+              ) : (
+                <div className="space-y-2">
+                  {drawerApplicants.map((a) => {
+                    const lastSeen = new Date(a.updatedAt);
+                    const minutesAgo = Math.round((Date.now() - lastSeen.getTime()) / 60000);
+                    const timeLabel = minutesAgo < 60
+                      ? `${minutesAgo}m ago`
+                      : minutesAgo < 1440
+                        ? `${Math.round(minutesAgo / 60)}h ago`
+                        : `${Math.round(minutesAgo / 1440)}d ago`;
+
+                    return (
+                      <div key={a.ref} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-white hover:border-slate-200 transition-all">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                            <span className="text-[9px] font-black text-indigo-600 font-mono">{a.ref.slice(0, 3)}</span>
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-700 font-mono"># {a.ref}</p>
+                            <p className="text-[10px] text-slate-400">
+                              {a.checkoutInitiated ? "Checkout started" : "Form in progress"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                          <HiOutlineClock className="w-3.5 h-3.5" />
+                          {timeLabel}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Cohort Modal Overlay */}
       {modalOpen && (

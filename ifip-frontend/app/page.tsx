@@ -519,6 +519,24 @@ export default function Home() {
             <ul className="flex flex-col gap-3 text-sm text-on-surface-variant">
               <li><a href="#" className="hover:text-primary transition-colors">Terms of Service</a></li>
               <li><a href="#" className="hover:text-primary transition-colors">Privacy Policy</a></li>
+              <li>
+                <a
+                  href="https://wa.me/2348112021272"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-primary transition-colors inline-flex items-center gap-1.5 text-emerald-600 font-bold"
+                >
+                  💬 Registration Support (WhatsApp)
+                </a>
+              </li>
+              <li>
+                <a
+                  href="mailto:ifip.program@gmail.com"
+                  className="hover:text-primary transition-colors inline-flex items-center gap-1.5 text-slate-500"
+                >
+                  ✉️ Support: ifip.program@gmail.com
+                </a>
+              </li>
             </ul>
           </div>
         </div>

@@ -13,6 +13,7 @@ import { Cohort } from '../models/Cohort.js';
 import { paymentReadySchema } from '../validators/applicantValidators.js';
 import { env } from '../config/env.js';
 import { CohortConfig } from '../models/CohortConfig.js';
+import { logRawAction } from '../utils/auditLogger.js';
 
 
 export const getCohortStatus = async (req: Request, res: Response) => {
@@ -104,6 +105,21 @@ export const startApplication = async (req: Request, res: Response) => {
 
     notificationEmitter.emit('otp.requested', { email, otp: code });
 
+    // Audit — APPLICATION_START (fire-and-forget)
+    const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+    const ipAddress = Array.isArray(rawIp) ? rawIp[0] : (typeof rawIp === 'string' ? rawIp.split(',')[0].trim() : undefined);
+    // Use a placeholder ObjectId for pre-applicant log entries so the schema constraint is met
+    const SYSTEM_USER_ID = '000000000000000000000000';
+    logRawAction({
+        userId: SYSTEM_USER_ID,
+        userEmail: email,
+        userRole: 'applicant',
+        action: 'APPLICATION_START',
+        description: `New application started for "${email}" — OTP sent`,
+        ipAddress,
+        userAgent: req.headers['user-agent'],
+    });
+
     res.json({ message: 'Verification code sent. Please check your email.' });
 };
 
@@ -142,6 +158,22 @@ export const verifyApplicantOtp = async (req: Request, res: Response) => {
     notificationEmitter.emit('applicant.resume', { email, token: resumeTokenRaw, isPaid: applicant.isPaid });
 
     const sessionToken = signApplicantSessionToken(applicant.id);
+
+    // Audit — OTP_VERIFIED (fire-and-forget)
+    const rawIpV = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+    const ipAddressV = Array.isArray(rawIpV) ? rawIpV[0] : (typeof rawIpV === 'string' ? rawIpV.split(',')[0].trim() : undefined);
+    logRawAction({
+        userId: applicant.id,
+        userEmail: applicant.email,
+        userRole: 'applicant',
+        action: 'OTP_VERIFIED',
+        description: `Email OTP verified for "${applicant.email}" — application session started`,
+        ipAddress: ipAddressV,
+        userAgent: req.headers['user-agent'],
+        targetId: applicant.id,
+        targetType: 'Applicant',
+    });
+
     res.json({ sessionToken, applicant });
 };
 
@@ -299,6 +331,21 @@ export const submitApplication = async (req: Request, res: Response) => {
             applicant._id,
             payment._id
         );
+
+        // Audit — APPLICATION_SUBMIT (fire-and-forget)
+        const rawIpS = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+        const ipAddressS = Array.isArray(rawIpS) ? rawIpS[0] : (typeof rawIpS === 'string' ? rawIpS.split(',')[0].trim() : undefined);
+        logRawAction({
+            userId: application.userId.toString(),
+            userEmail: applicant.email,
+            userRole: 'applicant',
+            action: 'APPLICATION_SUBMIT',
+            description: `Application submitted for "${applicant.email}" — payment confirmed, account created`,
+            ipAddress: ipAddressS,
+            userAgent: req.headers['user-agent'],
+            targetId: application.id,
+            targetType: 'Application',
+        });
 
         res.json({
             message: 'Application submitted successfully. Please check your email to set your password.',

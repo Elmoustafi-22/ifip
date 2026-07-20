@@ -20,6 +20,7 @@ import {
   HiShare,
   HiUserGroup,
 } from "react-icons/hi2";
+import { FaWhatsapp } from "react-icons/fa";
 import {
   TbBook,
   TbUserCog,
@@ -344,10 +345,19 @@ export default function ApplyPage() {
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   useEffect(() => {
     setIsLoggedIn(!!getAccessToken());
   }, []);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   // Step 2 State (Profile)
   const [fullName, setFullName] = useState("");
@@ -848,6 +858,7 @@ export default function ApplyPage() {
     try {
       await startApplication(email);
       setOtpSent(true);
+      setResendCooldown(60); // Start 60 second countdown cooldown
     } catch (err: any) {
       if (err.message?.toLowerCase().includes("full")) {
         setCohortFull(true);
@@ -1116,7 +1127,7 @@ export default function ApplyPage() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-academic-cream font-sans">
+    <div className="min-h-screen flex flex-col bg-academic-cream font-sans pb-16 md:pb-0">
       {/* Navigation Header — mirrors landing page */}
       <header className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-outline-variant/30">
         <div className="max-w-[1280px] mx-auto px-4 md:px-8 h-20 flex items-center justify-between">
@@ -1445,9 +1456,20 @@ export default function ApplyPage() {
               Complete the details below to join the Batch 2026-A Islamic Finance Program.
             </p>
             {step < 6 && (
-              <div className="mt-2 bg-emerald-500/5 border border-emerald-500/15 px-4 py-2 rounded-lg text-xs text-emerald-600 font-semibold flex items-center gap-2">
-                <HiOutlineShieldCheck className="w-4 h-4 shrink-0 text-emerald-500" />
-                <span>Your application progress is automatically saved as you fill out each section.</span>
+              <div className="mt-2 bg-emerald-500/5 border border-emerald-500/15 px-4 py-2.5 rounded-lg text-xs text-emerald-600 font-semibold flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 max-w-xl mx-auto">
+                <span className="flex items-center gap-1.5">
+                  <HiOutlineShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                  Progress is automatically saved.
+                </span>
+                <span className="hidden sm:inline text-emerald-300">|</span>
+                <a
+                  href="https://wa.me/2348112021272"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-emerald-700 transition-all flex items-center gap-1"
+                >
+                  Registration issues? WhatsApp Support
+                </a>
               </div>
             )}
           </div>
@@ -1581,10 +1603,14 @@ export default function ApplyPage() {
                       <button
                         type="button"
                         onClick={handleSendCode}
-                        disabled={loading}
-                        className="bg-primary hover:bg-primary/95 text-white font-bold text-sm px-6 py-3 rounded-[6px] transition-all cursor-pointer whitespace-nowrap disabled:bg-slate-300"
+                        disabled={loading || resendCooldown > 0}
+                        className="bg-primary hover:bg-primary/95 text-white font-bold text-sm px-6 py-3 rounded-[6px] transition-all cursor-pointer whitespace-nowrap disabled:bg-slate-300 disabled:cursor-not-allowed"
                       >
-                        {loading ? "Sending..." : "Resend Code"}
+                        {loading
+                          ? "Sending..."
+                          : resendCooldown > 0
+                            ? `Resend in ${resendCooldown}s`
+                            : "Resend Code"}
                       </button>
                     </div>
                   </div>
@@ -2668,15 +2694,33 @@ export default function ApplyPage() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-outline-variant/30 py-8 px-6 md:px-12 mt-auto text-xs text-on-surface-variant font-sans flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div>
+      <footer className="bg-white border-t border-outline-variant/30 py-6 px-6 md:px-12 mt-auto font-sans">
+        {/* Links row — first on mobile, visible on all sizes */}
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-on-surface-variant mb-4">
+          <a href="#" className="hover:underline hover:text-primary transition-colors">Terms of Service</a>
+          <a href="#" className="hover:underline hover:text-primary transition-colors">Privacy Policy</a>
+          <a href="/#faq" className="hover:underline hover:text-primary transition-colors">Program FAQs</a>
+          <a
+            href="https://wa.me/2348112021272"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-emerald-600 hover:text-emerald-700 font-semibold transition-colors hover:underline"
+          >
+            <FaWhatsapp className="w-4 h-4" />
+            WhatsApp Support
+          </a>
+          <a
+            href="mailto:ifip.program@gmail.com"
+            className="inline-flex items-center gap-1.5 text-primary/70 hover:text-primary font-semibold transition-colors hover:underline"
+          >
+            <HiEnvelope className="w-4 h-4" />
+            Email Support
+          </a>
+        </div>
+        {/* Copyright — always at the very bottom, centered */}
+        <p className="text-center text-[11px] text-on-surface-variant/60">
           © {new Date().getFullYear()} IFIP. All rights reserved.
-        </div>
-        <div className="flex gap-4">
-          <a href="#" className="hover:underline">Terms of Service</a>
-          <a href="#" className="hover:underline">Privacy Policy</a>
-          <a href="#" className="hover:underline">Program FAQs</a>
-        </div>
+        </p>
       </footer>
       {/* Sticky Bottom Navigation for Mobile */}
       <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background border-t border-outline-variant/30 px-6 py-2 flex items-center justify-between shadow-lg font-sans">

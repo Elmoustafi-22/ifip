@@ -14,6 +14,7 @@ import { signSetPasswordToken, signPollingToken, verifyPollingToken } from '../u
 import { paymentInitiateSchema } from '../validators/applicantValidators.js';
 import { env } from '../config/env.js';
 import { executeApplicationSubmission } from './applicantController.js';
+import { logRawAction } from '../utils/auditLogger.js';
 
 export const getActiveRegistrationCohort = async (): Promise<any> => {
     const currentDate = new Date();
@@ -143,6 +144,17 @@ export const initiatePayment = async (req: Request, res: Response) => {
     });
 
     const pollingToken = signPollingToken(reference);
+
+    // Audit — PAYMENT_INITIATED (fire-and-forget)
+    logRawAction({
+        userId: applicant.id,
+        userEmail: applicant.email,
+        userRole: 'applicant',
+        action: 'PAYMENT_INITIATED',
+        description: `Payment initiated for "${applicant.email}" via ${provider.toUpperCase()} — ref: ${reference}, amount: ${amount / 100} ${currency}`,
+        targetId: applicant.id,
+        targetType: 'Applicant',
+    });
 
     res.json({ authorizationUrl, reference, pollingToken });
 };
@@ -345,6 +357,17 @@ export const handlePaystackWebhook = async (req: Request, res: Response) => {
             await applicant.save();
             notificationEmitter.emit('payment.success', { email: applicant.email, resumeToken: resumeTokenRaw, country: applicant.country });
         }
+
+        // Audit — PAYMENT_CONFIRMED via Paystack webhook (fire-and-forget)
+        logRawAction({
+            userId: applicant.id,
+            userEmail: applicant.email,
+            userRole: 'applicant',
+            action: 'PAYMENT_CONFIRMED',
+            description: `Paystack payment confirmed via webhook for "${applicant.email}" — ref: ${reference}`,
+            targetId: payment.id,
+            targetType: 'Payment',
+        });
     }
 
     res.status(200).end();
@@ -414,6 +437,17 @@ export const handleFlutterwaveWebhook = async (req: Request, res: Response) => {
                 await applicant.save();
                 notificationEmitter.emit('payment.success', { email: applicant.email, resumeToken: resumeTokenRaw, country: applicant.country });
             }
+
+            // Audit — PAYMENT_CONFIRMED via Flutterwave webhook (fire-and-forget)
+            logRawAction({
+                userId: applicant.id,
+                userEmail: applicant.email,
+                userRole: 'applicant',
+                action: 'PAYMENT_CONFIRMED',
+                description: `Flutterwave payment confirmed via webhook for "${applicant.email}" — ref: ${tx_ref}`,
+                targetId: payment.id,
+                targetType: 'Payment',
+            });
         }
     } catch (err: any) {
         console.error('[Webhook] Flutterwave verify error:', err?.response?.status, err?.response?.data ?? err?.message);

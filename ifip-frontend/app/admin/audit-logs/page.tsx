@@ -26,6 +26,15 @@ const ACTION_COLORS: Record<string, string> = {
   SYSTEM_CONFIG_UPDATE: "bg-purple-50 text-purple-700 border border-purple-100",
   BROCHURE_UPLOAD: "bg-amber-50 text-amber-700 border border-amber-100",
   ADMIN_INVITE: "bg-rose-50 text-rose-700 border border-rose-100",
+  USER_LOGIN: "bg-sky-50 text-sky-700 border border-sky-100",
+  ADMIN_LOGIN: "bg-indigo-50 text-indigo-700 border border-indigo-100",
+  APPLICATION_START: "bg-teal-50 text-teal-700 border border-teal-100",
+  OTP_VERIFIED: "bg-cyan-50 text-cyan-700 border border-cyan-100",
+  APPLICATION_SUBMIT: "bg-violet-50 text-violet-700 border border-violet-100",
+  PAYMENT_INITIATED: "bg-orange-50 text-orange-700 border border-orange-100",
+  PAYMENT_CONFIRMED: "bg-green-50 text-green-700 border border-green-100",
+  PAYMENT_FAILED: "bg-red-50 text-red-700 border border-red-100",
+  PAYMENT_RESOLVED: "bg-yellow-50 text-yellow-700 border border-yellow-100",
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -35,6 +44,15 @@ const ACTION_LABELS: Record<string, string> = {
   SYSTEM_CONFIG_UPDATE: "Config Overrides",
   BROCHURE_UPLOAD: "Brochure Upload",
   ADMIN_INVITE: "Admin Invited",
+  USER_LOGIN: "User Login",
+  ADMIN_LOGIN: "Admin Login",
+  APPLICATION_START: "Application Started",
+  OTP_VERIFIED: "OTP Verified",
+  APPLICATION_SUBMIT: "Application Submitted",
+  PAYMENT_INITIATED: "Payment Initiated",
+  PAYMENT_CONFIRMED: "Payment Confirmed",
+  PAYMENT_FAILED: "Payment Failed",
+  PAYMENT_RESOLVED: "Payment Resolved",
 };
 
 export default function AdminAuditLogsPage() {
@@ -127,7 +145,7 @@ export default function AdminAuditLogsPage() {
               System Audit Logs
             </h1>
             <p className="text-slate-500 text-sm mt-0.5">
-              Chronological log of administrative actions, config alterations, and program updates.
+              Chronological log of all platform events — user logins, applications, payments, and administrative actions.
             </p>
           </div>
         </div>
@@ -154,12 +172,29 @@ export default function AdminAuditLogsPage() {
               className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#00B0FF] bg-slate-50/50"
             >
               <option value="all">All Actions</option>
-              <option value="COHORT_CREATE">Cohort Creation</option>
-              <option value="COHORT_UPDATE">Cohort Updates</option>
-              <option value="COHORT_DELETE">Cohort Deletions</option>
-              <option value="SYSTEM_CONFIG_UPDATE">Launch Configurations</option>
-              <option value="BROCHURE_UPLOAD">Brochure Uploads</option>
-              <option value="ADMIN_INVITE">Admin Invitations</option>
+              <optgroup label="─── Auth Events">
+                <option value="USER_LOGIN">User Logins</option>
+                <option value="ADMIN_LOGIN">Admin Logins</option>
+              </optgroup>
+              <optgroup label="─── Application Events">
+                <option value="APPLICATION_START">Application Started</option>
+                <option value="OTP_VERIFIED">OTP Verified</option>
+                <option value="APPLICATION_SUBMIT">Application Submitted</option>
+              </optgroup>
+              <optgroup label="─── Payment Events">
+                <option value="PAYMENT_INITIATED">Payment Initiated</option>
+                <option value="PAYMENT_CONFIRMED">Payment Confirmed</option>
+                <option value="PAYMENT_FAILED">Payment Failed</option>
+                <option value="PAYMENT_RESOLVED">Payment Resolved (Admin)</option>
+              </optgroup>
+              <optgroup label="─── Admin Operations">
+                <option value="COHORT_CREATE">Cohort Creation</option>
+                <option value="COHORT_UPDATE">Cohort Updates</option>
+                <option value="COHORT_DELETE">Cohort Deletions</option>
+                <option value="SYSTEM_CONFIG_UPDATE">Launch Configurations</option>
+                <option value="BROCHURE_UPLOAD">Brochure Uploads</option>
+                <option value="ADMIN_INVITE">Admin Invitations</option>
+              </optgroup>
             </select>
           </div>
           <div className="relative w-full md:w-80">
