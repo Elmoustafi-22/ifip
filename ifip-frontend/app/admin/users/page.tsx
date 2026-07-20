@@ -378,9 +378,26 @@ export default function AdminUsersPage() {
                           </span>
                         )}
                       </td>
-                      {/* Resend invite — desktop: extra column only visible to superadmin */}
+                      <td className="px-4 py-3.5">
+                        {statusMeta ? (
+                          <span className={`inline-block text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${statusMeta.className}`}>
+                            {statusMeta.label}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300 text-[11px] italic">No application</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 text-xs text-slate-500">
+                        {country ?? <span className="text-slate-300 italic">—</span>}
+                      </td>
+                      <td className="px-4 py-3.5 text-xs text-slate-500 font-mono">
+                        {formatDate(user.createdAt)}
+                      </td>
+                      <td className="px-4 py-3.5 text-xs text-slate-500 font-mono">
+                        {user.lastLoginAt ? formatDate(user.lastLoginAt) : "Never"}
+                      </td>
                       <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
-                        {currentUserRole === "superadmin" && (user.role === "admin" || user.role === "superadmin") && !user.isConfigured && (
+                        {currentUserRole === "superadmin" && (user.role === "admin" || user.role === "superadmin") && !user.isConfigured ? (
                           <button
                             onClick={(e) => handleResendInvite(e, user._id)}
                             disabled={resendingInviteId === user._id}
@@ -400,25 +417,9 @@ export default function AdminUsersPage() {
                               "↗ Resend Link"
                             )}
                           </button>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        {statusMeta ? (
-                          <span className={`inline-block text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${statusMeta.className}`}>
-                            {statusMeta.label}
-                          </span>
                         ) : (
-                          <span className="text-slate-300 text-[11px] italic">No application</span>
+                          <span className="text-slate-300 text-xs italic">—</span>
                         )}
-                      </td>
-                      <td className="px-4 py-3.5 text-xs text-slate-500">
-                        {country ?? <span className="text-slate-300 italic">—</span>}
-                      </td>
-                      <td className="px-4 py-3.5 text-xs text-slate-500 font-mono">
-                        {formatDate(user.createdAt)}
-                      </td>
-                      <td className="px-4 py-3.5 text-xs text-slate-500 font-mono">
-                        {user.lastLoginAt ? formatDate(user.lastLoginAt) : "Never"}
                       </td>
                     </tr>
                   );
