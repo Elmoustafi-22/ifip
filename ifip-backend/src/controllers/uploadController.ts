@@ -68,6 +68,53 @@ export const uploadCvAuth = async (req: Request, res: Response) => {
     res.json({ cvUrl: application.cvUrl });
 };
 
+import { User } from '../models/User.js';
+
+export const uploadAvatarAuth = async (req: Request, res: Response) => {
+    if (!req.file) {
+        res.status(400).json({ message: 'No image file uploaded' });
+        return;
+    }
+    if (!req.file.mimetype.startsWith('image/')) {
+        res.status(400).json({ message: 'Only image files (JPEG, PNG, WebP) are accepted' });
+        return;
+    }
+
+    try {
+        const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+                {
+                    resource_type: 'image',
+                    folder: 'ifipp/avatars',
+                    transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }]
+                },
+                (error, result) => (error || !result ? reject(error) : resolve(result as { secure_url: string }))
+            );
+            stream.end(req.file!.buffer);
+        });
+
+        const avatarUrl = uploadResult.secure_url;
+
+        // Update User model
+        const user = await User.findById(req.user!.id);
+        if (user) {
+            user.avatarUrl = avatarUrl;
+            await user.save();
+        }
+
+        // Update Application model if participant
+        const application = await Application.findOne({ userId: req.user!.id });
+        if (application) {
+            application.avatarUrl = avatarUrl;
+            await application.save();
+        }
+
+        res.json({ avatarUrl });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Avatar upload failed', error: err.message });
+    }
+};
+
 export const uploadLogo = async (req: Request, res: Response) => {
     if (!req.file) {
         res.status(400).json({ message: 'No file uploaded' });

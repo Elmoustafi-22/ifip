@@ -21,6 +21,7 @@ export interface IApplication extends Document {
     skills?: Record<string, unknown>;
     motivation?: { whyApplying?: string; careerGoals?: string };
     cvUrl?: string;
+    avatarUrl?: string;
     linkedinUrl?: string;
     portfolioUrl?: string;
     leadSource?: string;
@@ -46,6 +47,7 @@ const applicationSchema = new Schema<IApplication>(
         skills: Schema.Types.Mixed,
         motivation: { whyApplying: String, careerGoals: String },
         cvUrl: String,
+        avatarUrl: String,
         linkedinUrl: String,
         portfolioUrl: String,
         leadSource: String,

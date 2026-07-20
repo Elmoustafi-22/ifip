@@ -15,6 +15,7 @@ export interface IUser extends Document {
     country?: string;
     stateCity?: string;
     title?: string;
+    avatarUrl?: string;
     mfaEnabled: boolean;
     mfaSecret?: string;
     lastLoginAt?: Date;
@@ -34,6 +35,7 @@ const userSchema = new Schema<IUser>(
         country: { type: String },
         stateCity: { type: String },
         title: { type: String },
+        avatarUrl: { type: String },
         mfaEnabled: { type: Boolean, default: false },
         mfaSecret: { type: String },
         lastLoginAt: { type: Date },

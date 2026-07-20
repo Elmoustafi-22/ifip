@@ -129,24 +129,17 @@ authClient.interceptors.response.use(
 
       isRefreshing = true;
       try {
-        const storedRefreshToken = typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null;
         const { data } = await axios.post(
           `${API_BASE_URL}/auth/refresh`,
-          { refreshToken: storedRefreshToken },
-          {
-            headers: storedRefreshToken ? { "X-Refresh-Token": storedRefreshToken } : {},
-            withCredentials: true,
-          }
+          {},
+          { withCredentials: true }
         );
         const newToken: string = data.accessToken;
-        const newRefreshToken: string | undefined = data.refreshToken;
 
-        // Persist the new tokens
+        // Persist the new token in localStorage
         if (typeof window !== "undefined") {
           localStorage.setItem("accessToken", newToken);
-          if (newRefreshToken) {
-            localStorage.setItem("refreshToken", newRefreshToken);
-          }
+          localStorage.removeItem("refreshToken");
         }
 
         // Drain the queue

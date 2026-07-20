@@ -53,7 +53,7 @@ export const getAdminUsers = async (req: Request, res: Response) => {
                     localField: '_id',
                     foreignField: 'userId',
                     as: 'application',
-                    pipeline: [{ $project: { status: 1, submittedAt: 1, cohortId: 1, country: 1, stateCity: 1, fullName: 1, phone: 1, dob: 1, gender: 1, academicInfo: 1, programInterest: 1, skills: 1, motivation: 1, cvUrl: 1, linkedinUrl: 1, portfolioUrl: 1, leadSource: 1, declaration: 1 } }],
+                    pipeline: [{ $project: { status: 1, submittedAt: 1, cohortId: 1, country: 1, stateCity: 1, fullName: 1, phone: 1, dob: 1, gender: 1, academicInfo: 1, programInterest: 1, skills: 1, motivation: 1, cvUrl: 1, avatarUrl: 1, linkedinUrl: 1, portfolioUrl: 1, leadSource: 1, declaration: 1 } }],
                 }
             },
             { $addFields: { application: { $arrayElemAt: ['$application', 0] } } },

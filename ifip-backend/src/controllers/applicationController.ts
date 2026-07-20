@@ -3,7 +3,7 @@ import { Application } from '../models/Application.js';
 import { User } from '../models/User.js';
 
 export const getMyApplication = async (req: Request, res: Response) => {
-    const application = await Application.findOne({ userId: req.user!.id }).populate('userId', 'email role mfaEnabled');
+    const application = await Application.findOne({ userId: req.user!.id }).populate('userId', 'email role mfaEnabled avatarUrl');
     if (!application) {
         const user = await User.findById(req.user!.id);
         if (user && (user.role === 'admin' || user.role === 'superadmin')) {
@@ -13,6 +13,8 @@ export const getMyApplication = async (req: Request, res: Response) => {
                 email: user.email,
                 role: user.role,
                 fullName: user.fullName || 'Admin User',
+                avatarUrl: user.avatarUrl,
+                title: user.title,
                 mfaEnabled: user.mfaEnabled,
                 status: 'active'
             });
@@ -25,11 +27,13 @@ export const getMyApplication = async (req: Request, res: Response) => {
     const email = (application.userId as any)?.email || '';
     const role = (application.userId as any)?.role || 'participant';
     const mfaEnabled = (application.userId as any)?.mfaEnabled || false;
+    const avatarUrl = application.avatarUrl || (application.userId as any)?.avatarUrl || undefined;
     
     res.json({
         ...application.toObject(),
         email,
         role,
+        avatarUrl,
         mfaEnabled
     });
 };
@@ -49,12 +53,17 @@ export const updateMyApplication = async (req: Request, res: Response) => {
         academicInfo,
         programInterest,
         skills,
-        cvUrl
+        cvUrl,
+        avatarUrl
     } = req.body;
 
     if (fullName !== undefined) {
         application.fullName = fullName;
         await User.findByIdAndUpdate(req.user!.id, { fullName });
+    }
+    if (avatarUrl !== undefined) {
+        application.avatarUrl = avatarUrl;
+        await User.findByIdAndUpdate(req.user!.id, { avatarUrl });
     }
     if (phone !== undefined) application.phone = phone;
     if (country !== undefined) application.country = country;

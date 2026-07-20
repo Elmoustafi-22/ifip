@@ -307,7 +307,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </span>
                 </div>
                 <div className="w-9 h-9 rounded-full bg-sky-50 border border-slate-200 flex items-center justify-center text-sky-700 font-bold overflow-hidden">
-                  <HiOutlineUserCircle className="w-8 h-8 text-sky-700" />
+                  {userData?.avatarUrl ? (
+                    <img src={userData.avatarUrl} alt={userData?.fullName || "User Avatar"} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-xs font-black text-[#000666]">
+                      {userData?.fullName ? userData.fullName.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase() : "US"}
+                    </span>
+                  )}
                 </div>
               </button>
 

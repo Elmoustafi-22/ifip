@@ -9,9 +9,10 @@ import {
   HiOutlineLockClosed,
   HiOutlineCheck,
   HiOutlineArrowUpTray,
-  HiOutlineExclamationTriangle
+  HiOutlineExclamationTriangle,
+  HiOutlineCamera
 } from "react-icons/hi2";
-import { getMyApplication, updateMyApplication, uploadCvAuth } from "@/lib/api/services";
+import { getMyApplication, updateMyApplication, uploadCvAuth, uploadAvatarAuth } from "@/lib/api/services";
 import { changePassword, mfaSetup, mfaEnable, mfaDisable } from "@/lib/api/auth";
 
 // Common country list for dial codes & location matching screen-7.png
@@ -34,6 +35,7 @@ import { useFormOptions } from "@/lib/hooks/useFormOptions";
 
 export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const { 
     options: interestOptions, 
@@ -56,6 +58,9 @@ export default function SettingsPage() {
   const [dialCode, setDialCode] = useState("+234");
   const [country, setCountry] = useState("Nigeria");
   const [stateCity, setStateCity] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
 
   // Academic States
   const [academicStatus, setAcademicStatus] = useState("");
@@ -145,6 +150,31 @@ export default function SettingsPage() {
     }
   };
 
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setAvatarError("Please select a valid image file (JPEG, PNG, WebP).");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError("Image file size must be less than 5MB.");
+      return;
+    }
+
+    setUploadingAvatar(true);
+    setAvatarError("");
+    try {
+      const res = await uploadAvatarAuth(file);
+      setAvatarUrl(res.avatarUrl);
+      setSuccessMsg("Profile picture updated successfully!");
+    } catch (err: any) {
+      setAvatarError(err?.response?.data?.message || err.message || "Failed to upload profile picture.");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   // Global Page States
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -162,6 +192,7 @@ export default function SettingsPage() {
           setCountry(data.country || "Nigeria");
           setStateCity(data.stateCity || "");
           setCvUrl(data.cvUrl || "");
+          setAvatarUrl(data.avatarUrl || "");
 
           // Phone parsing logic
           if (data.phone) {
@@ -278,7 +309,8 @@ export default function SettingsPage() {
       skills: {
         availability
       },
-      cvUrl
+      cvUrl,
+      avatarUrl: avatarUrl || undefined
     };
 
     try {
@@ -385,6 +417,66 @@ export default function SettingsPage() {
               <HiOutlineUser className="w-5 h-5" />
             </div>
             <h3 className="text-base font-bold text-[#000666] font-display">Personal Information</h3>
+          </div>
+
+          {/* Profile Photo Upload */}
+          <div className="flex flex-col sm:flex-row items-center gap-6 pb-2">
+            <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
+              <div className="w-24 h-24 rounded-full border-2 border-[#000666]/20 bg-[#000666]/5 overflow-hidden flex items-center justify-center relative shadow-sm">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={fullName} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-2xl font-black text-[#000666]">
+                    {fullName ? fullName.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase() : "US"}
+                  </span>
+                )}
+                {uploadingAvatar && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white">
+                    <svg className="animate-spin w-6 h-6 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+              <div className="absolute bottom-0 right-0 bg-[#000666] text-white p-2 rounded-full shadow-md hover:bg-sky-500 transition-colors">
+                <HiOutlineCamera className="w-4 h-4" />
+              </div>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleAvatarFileChange}
+                className="hidden"
+              />
+            </div>
+
+            <div className="flex flex-col text-center sm:text-left gap-1">
+              <h4 className="text-xs font-bold text-[#000666]">Profile Photo</h4>
+              <p className="text-xs text-slate-500 font-medium max-w-sm">
+                Upload a professional headshot (JPEG, PNG, or WebP up to 5MB). This picture will be visible on your student workspace and program profile.
+              </p>
+              <div className="flex items-center justify-center sm:justify-start gap-3 mt-1">
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="text-xs font-bold text-[#000666] hover:text-sky-500 transition-colors cursor-pointer"
+                >
+                  {uploadingAvatar ? "Uploading..." : avatarUrl ? "Change Photo" : "Upload Photo"}
+                </button>
+                {avatarUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setAvatarUrl("")}
+                    className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors cursor-pointer"
+                  >
+                    Remove Photo
+                  </button>
+                )}
+              </div>
+              {avatarError && <span className="text-xs text-red-500 font-bold mt-1">{avatarError}</span>}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

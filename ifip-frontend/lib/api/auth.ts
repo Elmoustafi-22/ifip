@@ -23,12 +23,10 @@ export const getAccessToken = (): string | null =>
     ? localStorage.getItem("accessToken") ?? sessionStorage.getItem("accessToken")
     : null);
 
-export const storeAccessToken = (token: string, _remember = false, refreshToken?: string): void => {
+export const storeAccessToken = (token: string, _remember = false): void => {
   if (typeof window === "undefined") return;
   localStorage.setItem("accessToken", token);
-  if (refreshToken) {
-    localStorage.setItem("refreshToken", refreshToken);
-  }
+  localStorage.removeItem("refreshToken");
   sessionStorage.removeItem("accessToken");
 };
 
@@ -55,7 +53,7 @@ export const login = async (
     password,
   });
   if (!data.mfaRequired && data.accessToken) {
-    storeAccessToken(data.accessToken, rememberMe, (data as any).refreshToken);
+    storeAccessToken(data.accessToken, rememberMe);
   }
   return data;
 };
@@ -73,7 +71,7 @@ export const setPassword = async (
     password,
   });
   if (data.accessToken) {
-    storeAccessToken(data.accessToken, false, (data as any).refreshToken);
+    storeAccessToken(data.accessToken, false);
   }
   return data;
 };
@@ -89,17 +87,12 @@ export const getTokenInfo = async (token: string): Promise<{ email: string }> =>
 
 /**
  * POST /auth/refresh
- * Uses the httpOnly refreshToken cookie (or fallback token) to issue a new access token.
+ * Uses the httpOnly refreshToken cookie managed server-side to issue a new access token.
  */
 export const refreshAccessToken = async (): Promise<AuthResponse> => {
-  const storedRefreshToken = typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null;
-  const { data } = await authClient.post<AuthResponse>(
-    "/auth/refresh",
-    { refreshToken: storedRefreshToken },
-    { headers: storedRefreshToken ? { "X-Refresh-Token": storedRefreshToken } : {} }
-  );
+  const { data } = await authClient.post<AuthResponse>("/auth/refresh", {});
   if (data.accessToken) {
-    storeAccessToken(data.accessToken, false, (data as any).refreshToken);
+    storeAccessToken(data.accessToken, false);
   }
   return data;
 };
@@ -266,11 +259,13 @@ export const stopSilentRefresh = (): void => {
 
 export const updateProfile = async (
   fullName: string,
-  title?: string
+  title?: string,
+  avatarUrl?: string
 ): Promise<{ message: string; user: any }> => {
   const { data } = await authClient.patch<{ message: string; user: any }>("/auth/profile", {
     fullName,
     title,
+    avatarUrl,
   });
   return data;
 };

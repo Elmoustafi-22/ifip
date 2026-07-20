@@ -101,6 +101,17 @@ export const uploadCvAuth = async (file: File): Promise<{ cvUrl: string }> => {
   return data;
 };
 
+export const uploadAvatarAuth = async (file: File): Promise<{ avatarUrl: string }> => {
+  const formData = new FormData();
+  formData.append("avatar", file);
+  const { data } = await authClient.post<{ avatarUrl: string }>("/uploads/avatar", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+  return data;
+};
+
 export interface CohortConfigResponse {
   cohortStartDate: string;
   cohortCap: number;
@@ -203,6 +214,7 @@ export interface AdminUser {
   role: 'applicant' | 'participant' | 'admin' | 'superadmin';
   country?: string;
   title?: string;
+  avatarUrl?: string;
   createdAt: string;
   isConfigured?: boolean;
   lastLoginAt?: string;
@@ -212,6 +224,7 @@ export interface AdminUser {
     cohortId?: string;
     fullName?: string;
     country?: string;
+    avatarUrl?: string;
     academicInfo?: {
       institution?: string;
       fieldOfStudy?: string;

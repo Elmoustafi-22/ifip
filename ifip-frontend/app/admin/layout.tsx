@@ -119,6 +119,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     localStorage.setItem("adminSidebarCollapsed", String(next));
   };
 
+  const [adminName, setAdminName] = useState("Admin");
+  const [adminAvatarUrl, setAdminAvatarUrl] = useState<string | undefined>(undefined);
+
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
   useEffect(() => {
@@ -131,6 +134,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         if (profile && (profile.role === "admin" || profile.role === "superadmin")) {
           setAuthorized(true);
           setAdminRole(profile.role);
+          setAdminName(profile.fullName || "Admin");
+          setAdminAvatarUrl(profile.avatarUrl);
           setCohorts(cohortsList);
           const saved = localStorage.getItem("adminSelectedCohortId");
           if (saved) {
@@ -422,8 +427,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <NotificationBell />
+              <Link
+                href="/admin/settings"
+                className="w-8 h-8 rounded-full border border-slate-200 bg-[#000666]/10 flex items-center justify-center overflow-hidden hover:ring-2 hover:ring-[#000666]/30 transition-all shrink-0"
+                title="Account Settings"
+              >
+                {adminAvatarUrl ? (
+                  <img src={adminAvatarUrl} alt={adminName} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xs font-black text-[#000666]">
+                    {adminName ? adminName.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase() : "AD"}
+                  </span>
+                )}
+              </Link>
             </div>
           </header>
 

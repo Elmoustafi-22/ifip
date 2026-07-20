@@ -343,6 +343,7 @@ export default function AdminUsersPage() {
                   const statusMeta = appStatus ? APP_STATUS_META[appStatus] : null;
                   const displayName = user.fullName ?? user.application?.fullName;
                   const country = user.country ?? user.application?.country;
+                  const avatar = user.avatarUrl ?? user.application?.avatarUrl;
                   const initials = displayName
                     ? displayName.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase()
                     : user.email[0].toUpperCase();
@@ -351,8 +352,12 @@ export default function AdminUsersPage() {
                     <tr key={user._id} onClick={() => setSelectedUser(user)} className="hover:bg-slate-50/60 transition-colors cursor-pointer">
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-[#000666]/10 flex items-center justify-center text-[#000666] text-xs font-black shrink-0 select-none">
-                            {initials}
+                          <div className="w-8 h-8 rounded-full bg-[#000666]/10 flex items-center justify-center text-[#000666] text-xs font-black shrink-0 select-none overflow-hidden border border-slate-200">
+                            {avatar ? (
+                              <img src={avatar} alt={displayName ?? user.email} className="w-full h-full object-cover" />
+                            ) : (
+                              initials
+                            )}
                           </div>
                           <div>
                             <div className="font-bold text-[#000666] text-xs leading-tight">
