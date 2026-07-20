@@ -18,7 +18,7 @@ import {
   HiOutlineUser,
   HiOutlinePlus,
 } from "react-icons/hi2";
-import { getAdminUsers, AdminUser, AdminUsersResponse, getMyApplication, inviteAdmin } from "@/lib/api/services";
+import { getAdminUsers, AdminUser, AdminUsersResponse, getMyApplication, inviteAdmin, resendAdminInvite } from "@/lib/api/services";
 
 const ROLE_META: Record<string, { label: string; className: string }> = {
   applicant:   { label: "Applicant",   className: "bg-slate-100 text-slate-600" },
@@ -71,6 +71,11 @@ export default function AdminUsersPage() {
   const [inviteError, setInviteError] = useState("");
   const [inviteSuccess, setInviteSuccess] = useState(false);
 
+  // Resend invite state
+  const [resendingInviteId, setResendingInviteId] = useState<string | null>(null);
+  const [resendSuccessId, setResendSuccessId] = useState<string | null>(null);
+  const [resendErrorId, setResendErrorId] = useState<string | null>(null);
+
   useEffect(() => {
     (async () => {
       try {
@@ -116,6 +121,23 @@ export default function AdminUsersPage() {
   useEffect(() => {
     if (authorized) fetchUsers();
   }, [authorized, fetchUsers]);
+
+  const handleResendInvite = async (e: React.MouseEvent, userId: string) => {
+    e.stopPropagation();
+    if (resendingInviteId) return;
+    setResendingInviteId(userId);
+    setResendErrorId(null);
+    try {
+      await resendAdminInvite(userId);
+      setResendSuccessId(userId);
+      setTimeout(() => setResendSuccessId(null), 3000);
+    } catch {
+      setResendErrorId(userId);
+      setTimeout(() => setResendErrorId(null), 3000);
+    } finally {
+      setResendingInviteId(null);
+    }
+  };
 
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -283,6 +305,7 @@ export default function AdminUsersPage() {
                 <th className="px-4 py-3 text-left text-[9px] font-bold uppercase tracking-wider text-slate-400">Country</th>
                 <th className="px-4 py-3 text-left text-[9px] font-bold uppercase tracking-wider text-slate-400">Joined</th>
                 <th className="px-4 py-3 text-left text-[9px] font-bold uppercase tracking-wider text-slate-400">Last Login</th>
+                <th className="px-4 py-3 text-left text-[9px] font-bold uppercase tracking-wider text-slate-400">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -353,6 +376,30 @@ export default function AdminUsersPage() {
                           <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#FFF3E0] text-[#E65100]">
                             Pending Setup
                           </span>
+                        )}
+                      </td>
+                      {/* Resend invite — desktop: extra column only visible to superadmin */}
+                      <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                        {currentUserRole === "superadmin" && (user.role === "admin" || user.role === "superadmin") && !user.isConfigured && (
+                          <button
+                            onClick={(e) => handleResendInvite(e, user._id)}
+                            disabled={resendingInviteId === user._id}
+                            className="inline-flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 \
+                              bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                          >
+                            {resendingInviteId === user._id ? (
+                              <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                              </svg>
+                            ) : resendSuccessId === user._id ? (
+                              "✓ Sent!"
+                            ) : resendErrorId === user._id ? (
+                              "✗ Failed"
+                            ) : (
+                              "↗ Resend Link"
+                            )}
+                          </button>
                         )}
                       </td>
                       <td className="px-4 py-3.5">
@@ -450,14 +497,26 @@ export default function AdminUsersPage() {
                           <span className="text-slate-300 text-[10px] italic">No application</span>
                         )}
                         {user.isConfigured ? (
-                          <span className="inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#E8F5E9] text-[#2E7D32]">
-                            Configured
-                          </span>
-                        ) : (
-                          <span className="inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#FFF3E0] text-[#E65100]">
-                            Pending Setup
-                          </span>
-                        )}
+                           <span className="inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#E8F5E9] text-[#2E7D32]">
+                             Configured
+                           </span>
+                         ) : (
+                          <>
+                           <span className="inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#FFF3E0] text-[#E65100]">
+                             Pending Setup
+                           </span>
+                           {/* Resend invite — mobile card */}
+                           {currentUserRole === "superadmin" && (user.role === "admin" || user.role === "superadmin") && (
+                             <button
+                               onClick={(e) => handleResendInvite(e, user._id)}
+                               disabled={resendingInviteId === user._id}
+                               className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-lg border transition-all disabled:opacity-50 bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                             >
+                               {resendingInviteId === user._id ? "Sending…" : resendSuccessId === user._id ? "✓ Sent!" : resendErrorId === user._id ? "✗ Failed" : "↗ Resend Link"}
+                             </button>
+                           )}
+                          </>
+                         )}
                       </div>
                     </div>
 

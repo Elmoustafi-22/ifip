@@ -13,6 +13,7 @@ import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { signSetPasswordToken } from '../utils/jwt.js';
 import { sendAdminInvitationEmail } from '../services/emailService.js';
 import { logAction, logRawAction } from '../utils/auditLogger.js';
+import { executeApplicationSubmission } from './applicantController.js';
 
 // Step labels for the registration funnel
 const REGISTRATION_STEP_LABELS: Record<number, string> = {
@@ -517,6 +518,46 @@ export const inviteAdmin = async (req: Request, res: Response) => {
     }
 };
 
+// ── POST /api/v1/admin/users/:id/resend-invite ────────────────────────────────
+// Superadmin-only: generate a fresh set-password token and re-send the
+// invitation email to an admin/superadmin who has not yet set their password.
+export const resendSetPasswordLink = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        const user = await User.findById(id);
+        if (!user) {
+            res.status(404).json({ message: 'User not found.' });
+            return;
+        }
+
+        if (user.role !== 'admin' && user.role !== 'superadmin') {
+            res.status(400).json({ message: 'Set-password link can only be resent to admin or superadmin users.' });
+            return;
+        }
+
+        if (user.passwordHash) {
+            res.status(400).json({ message: 'This user has already set their password. No need to resend.' });
+            return;
+        }
+
+        const token = signSetPasswordToken(user.id, user.email);
+        await sendAdminInvitationEmail(
+            user.email,
+            user.fullName || user.email,
+            user.role,
+            user.title || user.role,
+            token
+        );
+
+        logAction(req, 'RESEND_INVITE', `Resent set-password link to ${user.role} "${user.fullName}" (${user.email})`, { targetId: user.id, targetType: 'User' });
+
+        res.json({ message: 'Set-password link resent successfully.' });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error resending set-password link.', error: e.message });
+    }
+};
+
 // ── GET /api/v1/admin/audit-logs ──────────────────────────────────────────────
 export const getAuditLogs = async (req: Request, res: Response) => {
     try {
@@ -724,54 +765,23 @@ export const resolvePayment = async (req: Request, res: Response) => {
         payment.status = status;
         await payment.save();
 
-        // When resolving to success, ensure the applicant's Application exists
+        // When resolving to success, run the full application submission flow —
+        // this creates the User + Application, sets the participant role, sends the
+        // set-password email, welcome/cohort emails, admin enrollment alert, and
+        // cleans up the temporary Applicant record. Identical to the webhook path.
         if (status === 'success') {
-            const applicant = await Applicant.findById(payment.applicantId);
-            if (applicant) {
-                // Check whether an Application already exists for this applicant's user
-                let linkedUser = await User.findOne({ email: applicant.email });
-                if (!linkedUser) {
-                    linkedUser = new User({
-                        email: applicant.email,
-                        role: 'applicant',
-                        fullName: applicant.fullName,
-                        emailVerified: true,
-                    });
-                    await linkedUser.save();
+            // Check whether an Application already exists to avoid double-processing
+            const existingApp = await Application.findOne({ paymentId: payment._id });
+            if (!existingApp) {
+                try {
+                    await executeApplicationSubmission(payment.applicantId, payment._id);
+                    console.log(`[AdminResolve] executeApplicationSubmission completed for payment ${payment._id}`);
+                } catch (submissionErr: any) {
+                    // Non-fatal: payment is already saved as success. Log and continue.
+                    console.error(`[AdminResolve] executeApplicationSubmission failed for payment ${payment._id}:`, submissionErr?.message);
                 }
-
-                const existingApp = await Application.findOne({ userId: linkedUser._id });
-                if (!existingApp) {
-                    const newApp = new Application({
-                        userId: linkedUser._id,
-                        paymentId: payment._id,
-                        fullName: applicant.fullName,
-                        phone: applicant.phone,
-                        dob: applicant.dob,
-                        gender: applicant.gender,
-                        country: applicant.country,
-                        stateCity: applicant.stateCity,
-                        academicInfo: applicant.academicInfo,
-                        programInterest: applicant.programInterest,
-                        skills: applicant.skills,
-                        motivation: applicant.motivation,
-                        cvUrl: applicant.cvUrl,
-                        linkedinUrl: applicant.linkedinUrl,
-                        portfolioUrl: applicant.portfolioUrl,
-                        leadSource: applicant.leadSource,
-                        levyAcknowledged: applicant.levyAcknowledged,
-                        declaration: applicant.declaration,
-                        status: 'payment_confirmed',
-                    });
-                    await newApp.save();
-                    payment.applicationId = newApp._id as any;
-                    await payment.save();
-                }
-
-                // Mark the applicant as paid so the TTL index won't clean them up
-                applicant.isPaid = true;
-                applicant.refreshExpiry();
-                await applicant.save();
+            } else {
+                console.log(`[AdminResolve] Application already exists for payment ${payment._id} — skipping submission.`);
             }
         }
 

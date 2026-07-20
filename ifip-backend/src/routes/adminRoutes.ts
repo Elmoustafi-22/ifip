@@ -15,6 +15,7 @@ import {
     getAdminUsers,
     broadcastCustomNotification,
     inviteAdmin,
+    resendSetPasswordLink,
     getAuditLogs,
     getRegistrationApplicants,
     getAdminPayments,
@@ -75,6 +76,7 @@ router.use(authorize('admin', 'superadmin'));
 router.get('/stats', getDashboardStats);
 router.get('/users', getAdminUsers);
 router.post('/users/invite', authorize('superadmin'), inviteAdmin);
+router.post('/users/:id/resend-invite', authorize('superadmin'), resendSetPasswordLink);
 router.get('/audit-logs', authorize('superadmin'), getAuditLogs);
 router.get('/applications', getAdminApplications);
 router.patch('/applications/:id/cohort', assignApplicationCohort);

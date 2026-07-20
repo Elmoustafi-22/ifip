@@ -887,6 +887,12 @@ export const inviteAdmin = async (payload: {
   const { data } = await authClient.post<{ message: string }>("/admin/users/invite", payload);
   return data;
 };
+
+export const resendAdminInvite = async (userId: string): Promise<{ message: string }> => {
+  const { data } = await authClient.post<{ message: string }>(`/admin/users/${userId}/resend-invite`);
+  return data;
+};
+
 // ─── Admin Payment Tracking ───────────────────────────────────────────────────
 
 export interface AdminPayment {
