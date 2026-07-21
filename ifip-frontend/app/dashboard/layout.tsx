@@ -326,6 +326,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   ></div>
 
                   <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200/80 rounded-xl shadow-lg py-1.5 z-50 animate-fadeIn font-sans">
+                    <Link
+                      href="/dashboard"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                    >
+                      <HiOutlineSquares2X2 className="w-4 h-4 text-slate-400" />
+                      Dashboard Overview
+                    </Link>
                     {(userData?.role === "admin" || userData?.role === "superadmin") && (
                       <>
                         <Link
@@ -336,7 +344,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                           <HiOutlineShieldCheck className="w-4 h-4 text-slate-400" />
                           Admin Workspace
                         </Link>
-                        <div className="border-t border-slate-100 my-1"></div>
                       </>
                     )}
                     <Link

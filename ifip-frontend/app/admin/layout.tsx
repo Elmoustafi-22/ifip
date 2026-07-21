@@ -23,9 +23,10 @@ import {
   HiOutlineCog6Tooth,
   HiOutlineChartBar,
   HiOutlineCreditCard,
+  HiArrowLeftOnRectangle,
 } from "react-icons/hi2";
 import { getMyApplication, getCohorts, Cohort } from "@/lib/api/services";
-import { clearAuth, startSilentRefresh, stopSilentRefresh } from "@/lib/api/auth";
+import { clearAuth, logout, startSilentRefresh, stopSilentRefresh } from "@/lib/api/auth";
 import NotificationBell from "@/components/NotificationBell";
 
 export interface AdminCohortContextType {
@@ -121,6 +122,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const [adminName, setAdminName] = useState("Admin");
   const [adminAvatarUrl, setAdminAvatarUrl] = useState<string | undefined>(undefined);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
@@ -429,19 +431,79 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             <div className="flex items-center gap-3">
               <NotificationBell />
-              <Link
-                href="/admin/settings"
-                className="w-8 h-8 rounded-full border border-slate-200 bg-[#000666]/10 flex items-center justify-center overflow-hidden hover:ring-2 hover:ring-[#000666]/30 transition-all shrink-0"
-                title="Account Settings"
-              >
-                {adminAvatarUrl ? (
-                  <img src={adminAvatarUrl} alt={adminName} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-xs font-black text-[#000666]">
-                    {adminName ? adminName.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase() : "AD"}
-                  </span>
+
+              {/* Profile Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="w-8 h-8 rounded-full border border-slate-200 bg-[#000666]/10 flex items-center justify-center overflow-hidden hover:ring-2 hover:ring-[#000666]/30 transition-all shrink-0 cursor-pointer focus:outline-none"
+                  title="Account Options"
+                  aria-expanded={dropdownOpen}
+                >
+                  {adminAvatarUrl ? (
+                    <img src={adminAvatarUrl} alt={adminName} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-xs font-black text-[#000666]">
+                      {adminName ? adminName.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase() : "AD"}
+                    </span>
+                  )}
+                </button>
+
+                {dropdownOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40 cursor-default"
+                      onClick={() => setDropdownOpen(false)}
+                    ></div>
+                    <div className="absolute right-0 mt-2 w-52 bg-white border border-slate-200 rounded-xl shadow-xl py-2 z-50 animate-fadeIn font-sans">
+                      <div className="px-4 py-2 border-b border-slate-100 mb-1">
+                        <p className="text-xs font-bold text-slate-800 truncate">{adminName}</p>
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{adminRole || "Admin"}</p>
+                      </div>
+
+                      <Link
+                        href="/admin"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <HiOutlineSquares2X2 className="w-4 h-4 text-slate-400" />
+                        <span>Admin Overview</span>
+                      </Link>
+
+                      <Link
+                        href="/dashboard"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <HiOutlineBriefcase className="w-4 h-4 text-slate-400" />
+                        <span>Candidate Workspace</span>
+                      </Link>
+
+                      <Link
+                        href="/admin/settings"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <HiOutlineCog6Tooth className="w-4 h-4 text-slate-400" />
+                        <span>Account Settings</span>
+                      </Link>
+
+                      <div className="border-t border-slate-100 my-1"></div>
+
+                      <button
+                        onClick={async () => {
+                          setDropdownOpen(false);
+                          await logout();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors text-left cursor-pointer"
+                      >
+                        <HiArrowLeftOnRectangle className="w-4 h-4 text-red-600" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  </>
                 )}
-              </Link>
+              </div>
             </div>
           </header>
 
