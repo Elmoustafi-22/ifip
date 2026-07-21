@@ -579,20 +579,23 @@ export default function PendingApplicantsPage() {
             </div>
 
             {/* MOBILE STACKED CARDS VIEW (shown on screens < 768px) */}
-            <div className="block md:hidden divide-y divide-slate-100">
+            <div className="block md:hidden p-3.5 bg-slate-100/70 space-y-3.5">
               {applicants.map((applicant) => (
                 <div
                   key={applicant._id}
-                  className="p-4 bg-white hover:bg-slate-50/90 transition cursor-pointer space-y-3"
+                  className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md hover:border-sky-300 transition-all space-y-3 relative overflow-hidden"
                   onClick={() => {
                     setSelectedApplicant(applicant);
                     setActiveTab("details");
                   }}
                 >
+                  {/* Top Color Accent Strip Demarcating Card Boundary */}
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-sky-500 via-indigo-500 to-sky-400 opacity-90" />
+
                   {/* Top Row: Avatar, Name (with truncation & checkmark) & Expiry Badge */}
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start justify-between gap-3 pt-0.5">
                     <div className="flex items-start gap-3 min-w-0 flex-1">
-                      <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-800 font-bold flex items-center justify-center text-xs shrink-0 shadow-xs">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-600 to-indigo-700 text-white font-bold flex items-center justify-center text-xs shrink-0 shadow-xs">
                         {(applicant.fullName || applicant.email).slice(0, 2).toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -611,7 +614,7 @@ export default function PendingApplicantsPage() {
                   </div>
 
                   {/* Middle Row: Country/Phone & Status Badges */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-slate-100 text-xs">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-slate-800">{applicant.country || "Unspecified"}</span>
                       {applicant.phone && (
@@ -622,17 +625,17 @@ export default function PendingApplicantsPage() {
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                      <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-200/80">
                         Step {applicant.currentStep}/7
                       </span>
 
                       {applicant.paymentAttemptsCount > 0 ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/80">
                           <HiOutlineCreditCard className="w-3 h-3 text-amber-600" />
                           {applicant.paymentAttemptsCount} Attempt{applicant.paymentAttemptsCount > 1 ? "s" : ""}
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-500">
+                        <span className="px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-500">
                           No attempts
                         </span>
                       )}
@@ -641,7 +644,7 @@ export default function PendingApplicantsPage() {
 
                   {/* Bottom Row: Outreach Toolbar & Inspect Profile */}
                   <div
-                    className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100/70"
+                    className="flex items-center justify-between gap-2 pt-2.5 border-t border-slate-100"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex items-center gap-1.5">
@@ -649,7 +652,7 @@ export default function PendingApplicantsPage() {
                         <a
                           href={`tel:${applicant.phone}`}
                           title="Call Phone Number"
-                          className="p-2 text-slate-600 hover:text-emerald-700 bg-slate-50 hover:bg-emerald-50 rounded-xl border border-slate-200 transition"
+                          className="p-2 text-slate-600 hover:text-emerald-700 bg-slate-50 hover:bg-emerald-50 rounded-xl border border-slate-200/80 transition"
                         >
                           <HiOutlinePhone className="w-4 h-4" />
                         </a>
@@ -660,7 +663,7 @@ export default function PendingApplicantsPage() {
                           target="_blank"
                           rel="noopener noreferrer"
                           title="WhatsApp Reminder"
-                          className="p-2 text-slate-600 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 rounded-xl border border-slate-200 transition"
+                          className="p-2 text-slate-600 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 rounded-xl border border-slate-200/80 transition"
                         >
                           <FaWhatsapp className="w-4 h-4 text-emerald-600" />
                         </a>
@@ -668,7 +671,7 @@ export default function PendingApplicantsPage() {
                       <button
                         onClick={() => openEmailModal(applicant)}
                         title="Compose Email"
-                        className="p-2 text-slate-600 hover:text-sky-700 bg-slate-50 hover:bg-sky-50 rounded-xl border border-slate-200 transition"
+                        className="p-2 text-slate-600 hover:text-sky-700 bg-slate-50 hover:bg-sky-50 rounded-xl border border-slate-200/80 transition"
                       >
                         <HiOutlineEnvelope className="w-4 h-4 text-sky-700" />
                       </button>
@@ -679,7 +682,7 @@ export default function PendingApplicantsPage() {
                         setSelectedApplicant(applicant);
                         setActiveTab("details");
                       }}
-                      className="px-3.5 py-1.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-xs transition"
+                      className="px-3.5 py-1.5 text-xs font-semibold bg-slate-900 hover:bg-sky-900 text-white rounded-xl shadow-xs transition"
                     >
                       Inspect Profile
                     </button>
