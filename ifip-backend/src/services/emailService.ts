@@ -994,12 +994,51 @@ export const sendPendingReminderEmail = async (
     currentStep: number,
     daysLeft: number,
     hoursLeft: number,
-    resumeToken?: string
+    resumeToken?: string,
+    customSubject?: string,
+    customMessage?: string,
+    includeResumeLink: boolean = true
 ) => {
     const resumeUrl = resumeToken ? `${env.CLIENT_URL}/apply?token=${resumeToken}` : `${env.CLIENT_URL}/apply`;
     const firstName = fullName ? fullName.trim().split(' ')[0] : 'Applicant';
     const timeText = daysLeft > 0 ? `${daysLeft} day${daysLeft > 1 ? 's' : ''}` : `${hoursLeft} hour${hoursLeft > 1 ? 's' : ''}`;
-    const subject = `Reminder: Complete Your IFIP Application (${timeText} remaining)`;
+
+    const subject = customSubject?.trim() || `Reminder: Complete Your IFIP Application (${timeText} remaining)`;
+
+    let bodyHtml = '';
+    if (customMessage && customMessage.trim()) {
+        const paragraphs = customMessage.trim().split('\n\n').map(p =>
+            `<p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 16px 0;">${p.replace(/\n/g, '<br/>')}</p>`
+        ).join('');
+        bodyHtml = paragraphs;
+    } else {
+        bodyHtml = `
+            <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 16px 0;">Don't Lose Your Application Progress</h1>
+            <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                Hello ${firstName},
+            </p>
+            <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 24px 0;">
+                We noticed you started your application for the Islamic Finance Internship Program (IFIP) and reached <strong>Step ${currentStep} of 7</strong>.
+            </p>
+
+            <div style="background-color: #FFF3CD; border: 1px solid #FFEBAA; border-radius: 8px; padding: 20px; margin-bottom: 28px; text-align: center;">
+                <p style="font-size: 14px; color: #856404; font-weight: bold; margin: 0 0 6px 0;">
+                    ⏰ Application Expiration Notice
+                </p>
+                <p style="font-size: 13px; color: #856404; margin: 0; line-height: 1.5;">
+                    Your saved draft will expire in <strong>${timeText}</strong>. After this period, unsubmitted details are automatically purged for security.
+                </p>
+            </div>
+        `;
+    }
+
+    const buttonHtml = includeResumeLink ? `
+        <div style="text-align: center; margin: 28px 0 32px 0;">
+            <a href="${resumeUrl}" style="display: inline-block; background-color: #000666; color: #FFFFFF; font-size: 14px; font-weight: bold; text-decoration: none; padding: 16px 36px; border-radius: 6px; letter-spacing: 0.5px;">
+                Resume Your Application Now
+            </a>
+        </div>
+    ` : '';
 
     const html = `
     <div style="${wrapperStyle}">
@@ -1009,30 +1048,8 @@ export const sendPendingReminderEmail = async (
                 <div style="width: 80px; height: 4px; background-color: #000666; margin: 24px auto 0 auto; border-radius: 2px;"></div>
             </div>
             <div style="${contentContainerStyle}">
-                <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 16px 0;">Don't Lose Your Application Progress</h1>
-                
-                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
-                    Hello ${firstName},
-                </p>
-                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 24px 0;">
-                    We noticed you started your application for the Islamic Finance Internship Program (IFIP) and reached <strong>Step ${currentStep} of 7</strong>.
-                </p>
-
-                <div style="background-color: #FFF3CD; border: 1px solid #FFEBAA; border-radius: 8px; padding: 20px; margin-bottom: 28px; text-align: center;">
-                    <p style="font-size: 14px; color: #856404; font-weight: bold; margin: 0 0 6px 0;">
-                        ⏰ Application Expiration Notice
-                    </p>
-                    <p style="font-size: 13px; color: #856404; margin: 0; line-height: 1.5;">
-                        Your saved draft will expire in <strong>${timeText}</strong>. After this period, unsubmitted details are automatically purged for security.
-                    </p>
-                </div>
-
-                <div style="text-align: center; margin-bottom: 32px;">
-                    <a href="${resumeUrl}" style="display: inline-block; background-color: #000666; color: #FFFFFF; font-size: 14px; font-weight: bold; text-decoration: none; padding: 16px 36px; border-radius: 6px; letter-spacing: 0.5px;">
-                        Resume Your Application Now
-                    </a>
-                </div>
-
+                ${bodyHtml}
+                ${buttonHtml}
                 <p style="font-size: 13px; color: #767683; line-height: 1.6; text-align: center; margin: 0;">
                     If you have any questions or need assistance, feel free to reply directly to this email.
                 </p>

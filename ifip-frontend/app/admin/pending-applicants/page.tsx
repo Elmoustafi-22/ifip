@@ -23,6 +23,8 @@ import {
   HiOutlineShare,
   HiOutlineBuildingLibrary,
   HiOutlineMapPin,
+  HiOutlineChatBubbleLeftEllipsis,
+  HiOutlinePaperAirplane,
 } from "react-icons/hi2";
 import { FaWhatsapp } from "react-icons/fa";
 import {
@@ -59,10 +61,18 @@ export default function PendingApplicantsPage() {
   const [hasPaymentAttempt, setHasPaymentAttempt] = useState<"all" | "true" | "false">("all");
   const [expiringSoon, setExpiringSoon] = useState(false);
 
-  // Modal / Drawer state
+  // Drawer & Modal State
   const [selectedApplicant, setSelectedApplicant] = useState<PendingApplicant | null>(null);
-  const [activeTab, setActiveTab] = useState<"details" | "payments" | "outreach">("details");
-  const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"details" | "payments">("details");
+
+  // Email Modal State
+  const [emailModalApplicant, setEmailModalApplicant] = useState<PendingApplicant | null>(null);
+  const [emailTemplateKey, setEmailTemplateKey] = useState<string>("expiration_reminder");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [includeResumeLink, setIncludeResumeLink] = useState(true);
+  const [sendingEmail, setSendingEmail] = useState(false);
+
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   const fetchApplicants = async (overrideParams: Partial<GetPendingApplicantsParams> = {}) => {
@@ -85,7 +95,6 @@ export default function PendingApplicantsPage() {
       setTotal(data.total);
       setPages(data.pages);
 
-      // If selected applicant is open, refresh their data
       if (selectedApplicant) {
         const updated = data.applicants.find((a) => a._id === selectedApplicant._id);
         if (updated) setSelectedApplicant(updated);
@@ -132,17 +141,68 @@ export default function PendingApplicantsPage() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  const handleSendReminder = async (applicant: PendingApplicant) => {
-    if (sendingEmailId) return;
-    setSendingEmailId(applicant._id);
+  // Helper to load templates into Email Modal
+  const loadEmailTemplate = (key: string, applicant: PendingApplicant) => {
+    setEmailTemplateKey(key);
+    const firstName = applicant.fullName ? applicant.fullName.trim().split(" ")[0] : "Applicant";
+    const daysText = applicant.daysLeft > 0 ? `${applicant.daysLeft} days` : `${applicant.hoursLeft} hours`;
+    const stageName = STEP_LABELS[applicant.currentStep] || "Registration";
+
+    if (key === "expiration_reminder") {
+      setEmailSubject(`Reminder: Complete Your IFIP Application (${daysText} remaining)`);
+      setEmailBody(
+        `Hello ${firstName},\n\nWe noticed you started your application for the Islamic Finance Internship Program (IFIP) and reached Step ${applicant.currentStep} (${stageName}).\n\nYour saved registration draft will expire in ${daysText}. After this period, unsubmitted details are automatically purged for data security.\n\nIf you plan to complete your application, please resume your registration before the deadline.`
+      );
+      setIncludeResumeLink(true);
+    } else if (key === "assistance_inquiry") {
+      setEmailSubject(`IFIP Admissions: Do you need assistance completing your application?`);
+      setEmailBody(
+        `Hello ${firstName},\n\nThank you for your interest in the Islamic Finance Internship Program (IFIP).\n\nWe noticed that you paused your application at Step ${applicant.currentStep} (${stageName}). We wanted to check in and see if you encountered any technical difficulties or have questions regarding the program tracks or application process.\n\nPlease reply directly to this email if you need any support from our admissions team.`
+      );
+      setIncludeResumeLink(true);
+    } else if (key === "payment_assistance") {
+      setEmailSubject(`IFIP Admissions: Commitment Levy Payment Support`);
+      setEmailBody(
+        `Hello ${firstName},\n\nWe noticed you completed your profile and reached Step 7 (Levy Payment & Final Review) for the Islamic Finance Internship Program (IFIP).\n\nIf you are experiencing any issues with your payment transaction or have questions regarding accepted payment options, please let us know so we can assist you.`
+      );
+      setIncludeResumeLink(true);
+    } else if (key === "custom") {
+      setEmailSubject(`Update regarding your IFIP Application`);
+      setEmailBody(`Hello ${firstName},\n\n`);
+      setIncludeResumeLink(true);
+    }
+  };
+
+  const openEmailModal = (applicant: PendingApplicant) => {
+    setEmailModalApplicant(applicant);
+    loadEmailTemplate("expiration_reminder", applicant);
+  };
+
+  const handleSendCustomEmail = async () => {
+    if (!emailModalApplicant || sendingEmail) return;
+    if (!emailSubject.trim()) {
+      showToast("Please enter an email subject line.", "error");
+      return;
+    }
+    if (!emailBody.trim()) {
+      showToast("Please enter an email message body.", "error");
+      return;
+    }
+
+    setSendingEmail(true);
     try {
-      const res = await sendPendingApplicantReminder(applicant._id);
-      showToast(res.message || `Reminder email sent to ${applicant.email}`, "success");
+      const res = await sendPendingApplicantReminder(emailModalApplicant._id, {
+        subject: emailSubject,
+        message: emailBody,
+        includeResumeLink,
+      });
+      showToast(res.message || `Email sent successfully to ${emailModalApplicant.email}`, "success");
+      setEmailModalApplicant(null);
     } catch (err: any) {
-      console.error("Reminder email error:", err);
-      showToast(err.response?.data?.message || "Failed to send reminder email.", "error");
+      console.error("Send custom email error:", err);
+      showToast(err.response?.data?.message || "Failed to send email.", "error");
     } finally {
-      setSendingEmailId(null);
+      setSendingEmail(false);
     }
   };
 
@@ -208,7 +268,7 @@ export default function PendingApplicantsPage() {
           </div>
           <h1 className="text-2xl md:text-3xl font-bold font-serif tracking-tight">Pending Applicants Tracker</h1>
           <p className="text-slate-300 text-sm max-w-2xl leading-relaxed">
-            Monitor non-paid applicants who have not completed checkout. Inspect full form responses, review payment attempt logs, and contact candidates directly via Call, WhatsApp, or Email before their 5-day session expires.
+            Monitor non-paid applicants who have not completed checkout. Inspect full form responses, review payment attempt logs, and compose custom message templates or reminders to contact candidates.
           </p>
         </div>
         <div className="flex items-center gap-3 self-start md:self-auto">
@@ -272,7 +332,6 @@ export default function PendingApplicantsPage() {
       {/* Filter Bar */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
-          {/* Search Input */}
           <div className="relative flex-1">
             <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
             <input
@@ -298,7 +357,6 @@ export default function PendingApplicantsPage() {
               <HiOutlineFunnel className="w-4 h-4 text-slate-400" /> Filter By:
             </div>
 
-            {/* Country Dropdown */}
             <select
               value={country}
               onChange={(e) => setCountry(e.target.value)}
@@ -312,7 +370,6 @@ export default function PendingApplicantsPage() {
               ))}
             </select>
 
-            {/* Step Dropdown */}
             <select
               value={step}
               onChange={(e) => setStep(e.target.value)}
@@ -329,7 +386,6 @@ export default function PendingApplicantsPage() {
               })}
             </select>
 
-            {/* Payment Attempt Status Dropdown */}
             <select
               value={hasPaymentAttempt}
               onChange={(e) => setHasPaymentAttempt(e.target.value as any)}
@@ -340,7 +396,6 @@ export default function PendingApplicantsPage() {
               <option value="false">Never Attempted Payment</option>
             </select>
 
-            {/* Expiring Soon Toggle */}
             <button
               type="button"
               onClick={() => setExpiringSoon(!expiringSoon)}
@@ -453,7 +508,6 @@ export default function PendingApplicantsPage() {
                             {STEP_LABELS[applicant.currentStep] || "Registration"}
                           </span>
                         </div>
-                        {/* Mini progress bar */}
                         <div className="w-32 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-sky-500 rounded-full transition-all"
@@ -484,8 +538,8 @@ export default function PendingApplicantsPage() {
                     {/* Direct Outreach Quick Action Buttons */}
                     <td className="py-4 px-4 pr-6 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
-                        {/* Phone Call Button */}
-                        {applicant.phone ? (
+                        {/* Phone Call */}
+                        {applicant.phone && (
                           <a
                             href={`tel:${applicant.phone}`}
                             title="Call Phone Number"
@@ -493,10 +547,10 @@ export default function PendingApplicantsPage() {
                           >
                             <HiOutlinePhone className="w-4.5 h-4.5" />
                           </a>
-                        ) : null}
+                        )}
 
-                        {/* WhatsApp Button */}
-                        {applicant.phone ? (
+                        {/* WhatsApp */}
+                        {applicant.phone && (
                           <a
                             href={formatWhatsAppUrl(applicant)}
                             target="_blank"
@@ -506,23 +560,18 @@ export default function PendingApplicantsPage() {
                           >
                             <FaWhatsapp className="w-4.5 h-4.5 text-emerald-600" />
                           </a>
-                        ) : null}
+                        )}
 
-                        {/* Send Email Button */}
+                        {/* Compose Email Modal Trigger */}
                         <button
-                          onClick={() => handleSendReminder(applicant)}
-                          disabled={sendingEmailId === applicant._id}
-                          title="Send Email Reminder"
+                          onClick={() => openEmailModal(applicant)}
+                          title="Compose Custom Email / Select Template"
                           className="p-2 text-slate-600 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition"
                         >
-                          {sendingEmailId === applicant._id ? (
-                            <HiOutlineArrowPath className="w-4.5 h-4.5 animate-spin text-sky-600" />
-                          ) : (
-                            <HiOutlineEnvelope className="w-4.5 h-4.5" />
-                          )}
+                          <HiOutlineEnvelope className="w-4.5 h-4.5 text-sky-700" />
                         </button>
 
-                        {/* View Full Profile Button */}
+                        {/* View Full Profile */}
                         <button
                           onClick={() => {
                             setSelectedApplicant(applicant);
@@ -566,6 +615,121 @@ export default function PendingApplicantsPage() {
           </div>
         )}
       </div>
+
+      {/* CUSTOM EMAIL COMPOSER MODAL */}
+      {emailModalApplicant && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-300 flex items-center justify-center">
+                  <HiOutlineEnvelope className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base">Compose Email to Candidate</h3>
+                  <p className="text-xs text-slate-400 font-mono">
+                    To: {emailModalApplicant.fullName || "Applicant"} &lt;{emailModalApplicant.email}&gt;
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEmailModalApplicant(null)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg transition"
+              >
+                <HiOutlineXMark className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4 text-xs">
+              {/* Template Selector Dropdown */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1.5 uppercase tracking-wider text-[10px]">
+                  Select Email Template / Purpose
+                </label>
+                <select
+                  value={emailTemplateKey}
+                  onChange={(e) => loadEmailTemplate(e.target.value, emailModalApplicant)}
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                >
+                  <option value="expiration_reminder">⏰ 1. Expiration Notice & Registration Reminder</option>
+                  <option value="assistance_inquiry">❓ 2. Registration Assistance / Issue Check-in</option>
+                  <option value="payment_assistance">💳 3. Commitment Levy Payment Support</option>
+                  <option value="custom">✏️ 4. Custom Message (Blank Canvas)</option>
+                </select>
+              </div>
+
+              {/* Subject Input */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1.5 uppercase tracking-wider text-[10px]">
+                  Subject Line
+                </label>
+                <input
+                  type="text"
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  placeholder="Enter email subject line..."
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 text-xs"
+                />
+              </div>
+
+              {/* Body Textarea */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1.5 uppercase tracking-wider text-[10px]">
+                  Email Message Body
+                </label>
+                <textarea
+                  rows={8}
+                  value={emailBody}
+                  onChange={(e) => setEmailBody(e.target.value)}
+                  placeholder="Type your message content here..."
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 text-xs leading-relaxed"
+                />
+              </div>
+
+              {/* Toggle to include Resume Button */}
+              <div className="flex items-center gap-2.5 pt-1">
+                <input
+                  type="checkbox"
+                  id="includeResumeLink"
+                  checked={includeResumeLink}
+                  onChange={(e) => setIncludeResumeLink(e.target.checked)}
+                  className="w-4 h-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500"
+                />
+                <label htmlFor="includeResumeLink" className="font-semibold text-slate-700 cursor-pointer">
+                  Include direct &quot;Resume Application Now&quot; action button link
+                </label>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setEmailModalApplicant(null)}
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-100 transition text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendCustomEmail}
+                disabled={sendingEmail}
+                className="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-semibold transition shadow-sm flex items-center gap-2 text-xs"
+              >
+                {sendingEmail ? (
+                  <>
+                    <HiOutlineArrowPath className="w-4 h-4 animate-spin" /> Sending Email...
+                  </>
+                ) : (
+                  <>
+                    <HiOutlinePaperAirplane className="w-4 h-4" /> Send Email
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* APPLICANT FULL DETAILS SLIDE-OVER DRAWER */}
       {selectedApplicant && (
@@ -616,11 +780,10 @@ export default function PendingApplicantsPage() {
                   </a>
                 )}
                 <button
-                  onClick={() => handleSendReminder(selectedApplicant)}
-                  disabled={sendingEmailId === selectedApplicant._id}
+                  onClick={() => openEmailModal(selectedApplicant)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold transition shadow-sm"
                 >
-                  <HiOutlineEnvelope className="w-4 h-4" /> Send Email Reminder
+                  <HiOutlineEnvelope className="w-4 h-4" /> Compose Email
                 </button>
               </div>
             </div>

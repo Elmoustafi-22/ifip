@@ -814,6 +814,8 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
 export const sendPendingApplicantReminder = async (req: Request, res: Response) => {
     try {
         const { applicantId } = req.params;
+        const { subject, message, includeResumeLink } = req.body || {};
+
         const applicant = await Applicant.findById(applicantId);
         if (!applicant) {
             res.status(404).json({ message: 'Applicant record not found.' });
@@ -834,7 +836,10 @@ export const sendPendingApplicantReminder = async (req: Request, res: Response) 
             applicant.currentStep,
             daysLeft,
             hoursLeft,
-            resumeToken
+            resumeToken,
+            subject,
+            message,
+            includeResumeLink !== false
         );
 
         logRawAction({
@@ -842,14 +847,14 @@ export const sendPendingApplicantReminder = async (req: Request, res: Response) 
             userEmail: (req as any).user?.email || 'admin',
             userRole: (req as any).user?.role || 'admin',
             action: 'REMINDER_EMAIL_SENT',
-            description: `Sent reminder email to pending applicant "${applicant.email}" (ID: ${applicant._id})`,
+            description: `Sent custom email to pending applicant "${applicant.email}" (ID: ${applicant._id})`,
             targetId: applicant._id.toString(),
             targetType: 'Applicant',
         });
 
-        res.json({ message: `Reminder email successfully sent to ${applicant.email}` });
+        res.json({ message: `Email successfully sent to ${applicant.email}` });
     } catch (e: any) {
-        res.status(500).json({ message: 'Failed to send reminder email.', error: e.message });
+        res.status(500).json({ message: 'Failed to send email.', error: e.message });
     }
 };
 

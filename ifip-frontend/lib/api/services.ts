@@ -321,9 +321,13 @@ export const getPendingApplicants = async (
 };
 
 export const sendPendingApplicantReminder = async (
-  applicantId: string
+  applicantId: string,
+  payload?: { subject?: string; message?: string; includeResumeLink?: boolean }
 ): Promise<{ message: string }> => {
-  const { data } = await authClient.post<{ message: string }>(`/admin/pending-applicants/${applicantId}/remind-email`);
+  const { data } = await authClient.post<{ message: string }>(
+    `/admin/pending-applicants/${applicantId}/remind-email`,
+    payload
+  );
   return data;
 };
 
