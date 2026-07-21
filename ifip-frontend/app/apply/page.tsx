@@ -1000,6 +1000,10 @@ export default function ApplyPage() {
         setErrorMsg("Please upload a PDF file only.");
         return;
       }
+      if (file.size > 10 * 1024 * 1024) {
+        setErrorMsg("File size exceeds 10MB limit. Please upload a smaller PDF file.");
+        return;
+      }
       setCvFile(file);
       setErrorMsg(""); // Clear any previous errors
       setErrors((prev) => {

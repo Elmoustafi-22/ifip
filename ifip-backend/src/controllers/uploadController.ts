@@ -15,25 +15,30 @@ export const uploadCv = async (req: Request, res: Response) => {
         return;
     }
 
-    const applicant = await Applicant.findById(req.applicant!.id);
-    if (!applicant) {
-        res.status(404).json({ message: 'Session expired — please resume via your email link.' });
-        return;
+    try {
+        const applicant = await Applicant.findById(req.applicant!.id);
+        if (!applicant) {
+            res.status(404).json({ message: 'Session expired — please resume via your email link.' });
+            return;
+        }
+
+        const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+                { resource_type: 'auto', folder: 'ifipp/cvs' },
+                (error, result) => (error || !result ? reject(error) : resolve(result as { secure_url: string }))
+            );
+            stream.end(req.file!.buffer);
+        });
+
+        applicant.cvUrl = uploadResult.secure_url;
+        applicant.refreshExpiry();
+        await applicant.save();
+
+        res.json({ cvUrl: applicant.cvUrl });
+    } catch (err: any) {
+        console.error('CV upload error:', err);
+        res.status(500).json({ message: err.message || 'CV upload failed' });
     }
-
-    const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-            { resource_type: 'image', folder: 'ifipp/cvs' },
-            (error, result) => (error || !result ? reject(error) : resolve(result as { secure_url: string }))
-        );
-        stream.end(req.file!.buffer);
-    });
-
-    applicant.cvUrl = uploadResult.secure_url;
-    applicant.refreshExpiry();
-    await applicant.save();
-
-    res.json({ cvUrl: applicant.cvUrl });
 };
 
 import { Application } from '../models/Application.js';
@@ -48,24 +53,29 @@ export const uploadCvAuth = async (req: Request, res: Response) => {
         return;
     }
 
-    const application = await Application.findOne({ userId: req.user!.id });
-    if (!application) {
-        res.status(404).json({ message: 'Application not found.' });
-        return;
+    try {
+        const application = await Application.findOne({ userId: req.user!.id });
+        if (!application) {
+            res.status(404).json({ message: 'Application not found.' });
+            return;
+        }
+
+        const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+                { resource_type: 'auto', folder: 'ifipp/cvs' },
+                (error, result) => (error || !result ? reject(error) : resolve(result as { secure_url: string }))
+            );
+            stream.end(req.file!.buffer);
+        });
+
+        application.cvUrl = uploadResult.secure_url;
+        await application.save();
+
+        res.json({ cvUrl: application.cvUrl });
+    } catch (err: any) {
+        console.error('CV auth upload error:', err);
+        res.status(500).json({ message: err.message || 'CV upload failed' });
     }
-
-    const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-            { resource_type: 'image', folder: 'ifipp/cvs' },
-            (error, result) => (error || !result ? reject(error) : resolve(result as { secure_url: string }))
-        );
-        stream.end(req.file!.buffer);
-    });
-
-    application.cvUrl = uploadResult.secure_url;
-    await application.save();
-
-    res.json({ cvUrl: application.cvUrl });
 };
 
 import { User } from '../models/User.js';
