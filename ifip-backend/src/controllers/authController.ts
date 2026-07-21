@@ -24,12 +24,13 @@ import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { logRawAction } from '../utils/auditLogger.js';
 
 // ── Shared helper: issue tokens + set refresh cookie ──────────────────
-const getCookieOptions = () => {
-    const isProd = env.NODE_ENV === 'production';
+const getCookieOptions = (req?: Request) => {
+    const isProd = env.NODE_ENV === 'production' || process.env.NODE_ENV === 'production';
+    const isSecure = isProd || Boolean(req && (req.secure || req.headers['x-forwarded-proto'] === 'https'));
     const options: any = {
         httpOnly: true,
-        secure: isProd,
-        sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
+        secure: isSecure,
+        sameSite: isSecure ? 'none' : 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days for all users/admins
         path: '/',
     };
@@ -39,12 +40,12 @@ const getCookieOptions = () => {
     return options;
 };
 
-const issueTokens = (res: Response, userId: string, role: 'applicant' | 'participant' | 'admin' | 'superadmin') => {
+const issueTokens = (res: Response, userId: string, role: 'applicant' | 'participant' | 'admin' | 'superadmin', req?: Request) => {
     const accessToken = signAccessToken(userId, role);
     const refreshExpiry = '7d';
 
     const refreshToken = signRefreshToken(userId, refreshExpiry);
-    res.cookie('refreshToken', refreshToken, getCookieOptions());
+    res.cookie('refreshToken', refreshToken, getCookieOptions(req));
     return { accessToken, refreshToken };
 };
 
@@ -70,7 +71,7 @@ export const setPassword = async (req: Request<{}, {}, SetPasswordInput>, res: R
     user.lastLoginAt = new Date();
     await user.save();
 
-    const { accessToken } = issueTokens(res, user.id, user.role);
+    const { accessToken } = issueTokens(res, user.id, user.role, req);
     res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
 };
 
@@ -119,7 +120,7 @@ export const login = async (req: Request<{}, {}, LoginInput>, res: Response) => 
     user.lastLoginAt = new Date();
     await user.save();
 
-    const { accessToken } = issueTokens(res, user.id, user.role);
+    const { accessToken } = issueTokens(res, user.id, user.role, req);
 
     // Audit — fire-and-forget, do not block the response
     const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
@@ -158,26 +159,26 @@ export const refresh = async (req: Request, res: Response) => {
     try {
         decoded = verifyRefreshToken(token);
     } catch {
-        res.clearCookie('refreshToken', getCookieOptions());
+        res.clearCookie('refreshToken', getCookieOptions(req));
         res.status(401).json({ message: 'Refresh token invalid or expired. Please log in again.' });
         return;
     }
 
     const user = await User.findById(decoded.sub);
     if (!user) {
-        res.clearCookie('refreshToken', getCookieOptions());
+        res.clearCookie('refreshToken', getCookieOptions(req));
         res.status(401).json({ message: 'User not found.' });
         return;
     }
 
     // Issue a fresh access token (and rotate the refresh cookie/token)
-    const { accessToken } = issueTokens(res, user.id, user.role);
+    const { accessToken } = issueTokens(res, user.id, user.role, req);
     res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
 };
 
 // ── POST /api/v1/auth/logout ──────────────────────────────────────────
-export const logout = async (_req: Request, res: Response) => {
-    res.clearCookie('refreshToken', getCookieOptions());
+export const logout = async (req: Request, res: Response) => {
+    res.clearCookie('refreshToken', getCookieOptions(req));
     res.json({ message: 'Logged out successfully.' });
 };
 
@@ -222,7 +223,7 @@ export const resetPassword = async (req: Request<{}, {}, ResetPasswordInput>, re
     notificationEmitter.emit('auth.password_changed', { user });
 
     // Log the user in immediately after resetting
-    const { accessToken } = issueTokens(res, user.id, user.role);
+    const { accessToken } = issueTokens(res, user.id, user.role, req);
     res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
 };
 
@@ -298,7 +299,7 @@ export const loginMfaVerify = async (req: Request, res: Response) => {
         user.lastLoginAt = new Date();
         await user.save();
 
-        const { accessToken } = issueTokens(res, user.id, user.role);
+        const { accessToken } = issueTokens(res, user.id, user.role, req);
         res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
     } catch (e: any) {
         res.status(500).json({ message: 'Error verifying code.', error: e.message });
