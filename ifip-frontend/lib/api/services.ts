@@ -216,6 +216,117 @@ export const getRegistrationApplicants = async (
   return data;
 };
 
+export interface PendingPaymentAttempt {
+  _id: string;
+  provider: 'paystack' | 'flutterwave';
+  providerRef: string;
+  amount: number;
+  currency: string;
+  status: 'pending' | 'success' | 'failed';
+  webhookVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PendingApplicant {
+  _id: string;
+  email: string;
+  emailVerified: boolean;
+  fullName?: string;
+  phone?: string;
+  dob?: string;
+  gender?: string;
+  country?: string;
+  stateCity?: string;
+  academicInfo?: {
+    status?: string;
+    institution?: string;
+    fieldOfStudy?: string;
+    qualification?: string;
+    gradYear?: number;
+  };
+  programInterest?: {
+    primary: string[];
+    secondary?: string;
+  };
+  skills?: {
+    relevantSkills?: string[];
+    tools?: string[];
+    hasPriorInternship?: boolean;
+    priorInternshipDesc?: string;
+    commSkillLevel?: string;
+    availability?: string;
+  };
+  motivation?: {
+    whyApplying?: string;
+    careerGoals?: string;
+  };
+  cvUrl?: string;
+  linkedinUrl?: string;
+  portfolioUrl?: string;
+  leadSource?: string;
+  levyAcknowledged?: boolean;
+  declaration?: {
+    confirmed?: boolean;
+    signature?: string;
+    date?: string;
+  };
+  currentStep: number;
+  isPaid?: boolean;
+  expiresAt?: string;
+  daysLeft: number;
+  hoursLeft: number;
+  secondsRemaining: number;
+  paymentAttemptsCount: number;
+  paymentAttempts: PendingPaymentAttempt[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PendingApplicantsSummary {
+  totalPending: number;
+  attemptedPaymentCount: number;
+  noAttemptCount: number;
+  expiringSoonCount: number;
+  distinctCountries: string[];
+  stepBreakdown: Record<number, number>;
+}
+
+export interface PendingApplicantsResponse {
+  applicants: PendingApplicant[];
+  total: number;
+  page: number;
+  pages: number;
+  summary: PendingApplicantsSummary;
+}
+
+export interface GetPendingApplicantsParams {
+  search?: string;
+  country?: string;
+  step?: number;
+  hasPaymentAttempt?: 'true' | 'false' | 'all';
+  paymentStatus?: string;
+  expiringSoon?: 'true' | 'false';
+  programInterest?: string;
+  leadSource?: string;
+  page?: number;
+  limit?: number;
+}
+
+export const getPendingApplicants = async (
+  params: GetPendingApplicantsParams = {}
+): Promise<PendingApplicantsResponse> => {
+  const { data } = await authClient.get<PendingApplicantsResponse>("/admin/pending-applicants", { params });
+  return data;
+};
+
+export const sendPendingApplicantReminder = async (
+  applicantId: string
+): Promise<{ message: string }> => {
+  const { data } = await authClient.post<{ message: string }>(`/admin/pending-applicants/${applicantId}/remind-email`);
+  return data;
+};
+
 export interface AdminUser {
   _id: string;
   email: string;

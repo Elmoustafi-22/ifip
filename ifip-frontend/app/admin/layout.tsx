@@ -23,6 +23,7 @@ import {
   HiOutlineCog6Tooth,
   HiOutlineChartBar,
   HiOutlineCreditCard,
+  HiOutlineClock,
   HiArrowLeftOnRectangle,
 } from "react-icons/hi2";
 import { getMyApplication, getCohorts, Cohort } from "@/lib/api/services";
@@ -55,6 +56,7 @@ const NAV_GROUPS = [
     label: "Participants",
     items: [
       { href: "/admin/applications", label: "Applications",  icon: HiOutlineClipboardDocumentList },
+      { href: "/admin/pending-applicants", label: "Pending Applicants", icon: HiOutlineClock },
       { href: "/admin/placements",   label: "Matching Desk", icon: HiOutlineArrowsRightLeft },
     ],
   },

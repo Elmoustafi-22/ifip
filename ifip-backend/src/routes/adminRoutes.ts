@@ -18,6 +18,8 @@ import {
     resendSetPasswordLink,
     getAuditLogs,
     getRegistrationApplicants,
+    getPendingApplicants,
+    sendPendingApplicantReminder,
     getAdminPayments,
     getAdminPaymentById,
     resolvePayment,
@@ -83,8 +85,10 @@ router.patch('/applications/:id/cohort', assignApplicationCohort);
 router.patch('/applications/:id/withdraw', withdrawApplication);
 router.post('/notifications/broadcast', broadcastCustomNotification);
 
-// ── Registration Funnel (anonymised — no PII) ────────────────────────
+// ── Registration Funnel & Pending Applicants ──────────────────────────
 router.get('/registration-funnel/applicants', getRegistrationApplicants);
+router.get('/pending-applicants', getPendingApplicants);
+router.post('/pending-applicants/:applicantId/remind-email', sendPendingApplicantReminder);
 
 // ── Payment Tracking & Resolution ────────────────────────────────────
 router.get('/payments', getAdminPayments);

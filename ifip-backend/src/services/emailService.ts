@@ -987,3 +987,63 @@ export const sendAdminPartnerApplicationReceived = async (to: string, companyNam
     `;
     await send(to, `Admin Alert: New Partner Application from ${companyName} — IFIP`, html);
 };
+
+export const sendPendingReminderEmail = async (
+    to: string,
+    fullName: string | undefined,
+    currentStep: number,
+    daysLeft: number,
+    hoursLeft: number,
+    resumeToken?: string
+) => {
+    const resumeUrl = resumeToken ? `${env.CLIENT_URL}/apply?token=${resumeToken}` : `${env.CLIENT_URL}/apply`;
+    const firstName = fullName ? fullName.trim().split(' ')[0] : 'Applicant';
+    const timeText = daysLeft > 0 ? `${daysLeft} day${daysLeft > 1 ? 's' : ''}` : `${hoursLeft} hour${hoursLeft > 1 ? 's' : ''}`;
+    const subject = `Reminder: Complete Your IFIP Application (${timeText} remaining)`;
+
+    const html = `
+    <div style="${wrapperStyle}">
+        <div style="${cardStyle}">
+            <div style="padding: 40px 32px 0 32px; text-align: center;">
+                <img src="${LOGO_HEADER_URL}" style="height: 56px; max-height: 56px; width: auto; display: block; margin: 0 auto;" alt="IFIP Logo">
+                <div style="width: 80px; height: 4px; background-color: #000666; margin: 24px auto 0 auto; border-radius: 2px;"></div>
+            </div>
+            <div style="${contentContainerStyle}">
+                <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 16px 0;">Don't Lose Your Application Progress</h1>
+                
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    Hello ${firstName},
+                </p>
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 24px 0;">
+                    We noticed you started your application for the Islamic Finance Internship Program (IFIP) and reached <strong>Step ${currentStep} of 7</strong>.
+                </p>
+
+                <div style="background-color: #FFF3CD; border: 1px solid #FFEBAA; border-radius: 8px; padding: 20px; margin-bottom: 28px; text-align: center;">
+                    <p style="font-size: 14px; color: #856404; font-weight: bold; margin: 0 0 6px 0;">
+                        ⏰ Application Expiration Notice
+                    </p>
+                    <p style="font-size: 13px; color: #856404; margin: 0; line-height: 1.5;">
+                        Your saved draft will expire in <strong>${timeText}</strong>. After this period, unsubmitted details are automatically purged for security.
+                    </p>
+                </div>
+
+                <div style="text-align: center; margin-bottom: 32px;">
+                    <a href="${resumeUrl}" style="display: inline-block; background-color: #000666; color: #FFFFFF; font-size: 14px; font-weight: bold; text-decoration: none; padding: 16px 36px; border-radius: 6px; letter-spacing: 0.5px;">
+                        Resume Your Application Now
+                    </a>
+                </div>
+
+                <p style="font-size: 13px; color: #767683; line-height: 1.6; text-align: center; margin: 0;">
+                    If you have any questions or need assistance, feel free to reply directly to this email.
+                </p>
+            </div>
+            <div style="background-color: #FDFBF7; padding: 28px 24px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <h3 style="font-family: Georgia, serif; font-size: 16px; font-weight: bold; color: #000666; margin: 0 0 6px 0;">Islamic Finance Internship Program</h3>
+                <p style="font-size: 11px; color: #767683; margin: 0;">© 2026 Islamic Finance Academy. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+    `;
+
+    await send(to, subject, html);
+};

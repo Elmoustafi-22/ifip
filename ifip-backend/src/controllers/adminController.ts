@@ -10,8 +10,8 @@ import { Module } from '../models/Module.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { Payment } from '../models/Payments.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
-import { signSetPasswordToken } from '../utils/jwt.js';
-import { sendAdminInvitationEmail } from '../services/emailService.js';
+import { signSetPasswordToken, signApplicantSessionToken } from '../utils/jwt.js';
+import { sendAdminInvitationEmail, sendPendingReminderEmail } from '../services/emailService.js';
 import { logAction, logRawAction } from '../utils/auditLogger.js';
 import { executeApplicationSubmission } from './applicantController.js';
 
@@ -648,6 +648,208 @@ export const getRegistrationApplicants = async (req: Request, res: Response) => 
         res.json({ applicants: sanitised, total, page: pageNum, pages: Math.ceil(total / limitNum) });
     } catch (e: any) {
         res.status(500).json({ message: 'Error retrieving registration applicants.', error: e.message });
+    }
+};
+
+// ── GET /api/v1/admin/pending-applicants ────────────────────────────────────────
+// Paginated list of pending (unpaid) applicants with full details, payment attempts,
+// country/stage filters, and computed expiration time remaining.
+export const getPendingApplicants = async (req: Request, res: Response) => {
+    try {
+        const {
+            search,
+            country,
+            step,
+            hasPaymentAttempt,
+            paymentStatus,
+            expiringSoon,
+            programInterest,
+            leadSource,
+            page = '1',
+            limit = '50',
+        } = req.query;
+
+        const pageNum = Math.max(1, parseInt(page as string, 10));
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
+        const skip = (pageNum - 1) * limitNum;
+
+        const match: any = { isPaid: { $ne: true } };
+
+        if (step) {
+            const stepNum = parseInt(step as string, 10);
+            if (!isNaN(stepNum)) {
+                match.currentStep = stepNum;
+            }
+        }
+
+        if (country) {
+            match.country = { $regex: new RegExp(country as string, 'i') };
+        }
+
+        if (search) {
+            const searchRegex = new RegExp((search as string).trim(), 'i');
+            match.$or = [
+                { fullName: searchRegex },
+                { email: searchRegex },
+                { phone: searchRegex },
+            ];
+        }
+
+        if (programInterest) {
+            match['programInterest.primary'] = { $regex: new RegExp(programInterest as string, 'i') };
+        }
+
+        if (leadSource) {
+            match.leadSource = { $regex: new RegExp(leadSource as string, 'i') };
+        }
+
+        if (expiringSoon === 'true') {
+            const next24h = new Date(Date.now() + 24 * 60 * 60 * 1000);
+            match.expiresAt = { $lte: next24h };
+        }
+
+        if (hasPaymentAttempt === 'true' || hasPaymentAttempt === 'false') {
+            const attemptedApplicantIds = await Payment.distinct('applicantId');
+            if (hasPaymentAttempt === 'true') {
+                match._id = { $in: attemptedApplicantIds };
+            } else {
+                match._id = { $nin: attemptedApplicantIds };
+            }
+        }
+
+        if (paymentStatus) {
+            const matchingPaymentApplicantIds = await Payment.distinct('applicantId', { status: paymentStatus as any });
+            if (match._id?.$in) {
+                match._id.$in = match._id.$in.filter((id: any) =>
+                    matchingPaymentApplicantIds.some((pId: any) => pId.toString() === id.toString())
+                );
+            } else {
+                match._id = { $in: matchingPaymentApplicantIds };
+            }
+        }
+
+        const [applicants, total, allPendingCount, attemptedCount, distinctCountries, stepAgg] = await Promise.all([
+            Applicant.find(match)
+                .sort({ updatedAt: -1 })
+                .skip(skip)
+                .limit(limitNum)
+                .lean(),
+            Applicant.countDocuments(match),
+            Applicant.countDocuments({ isPaid: { $ne: true } }),
+            Payment.distinct('applicantId').then(ids => Applicant.countDocuments({ _id: { $in: ids }, isPaid: { $ne: true } })),
+            Applicant.distinct('country', { isPaid: { $ne: true }, country: { $ne: null } }),
+            Applicant.aggregate([
+                { $match: { isPaid: { $ne: true } } },
+                { $group: { _id: '$currentStep', count: { $sum: 1 } } }
+            ]),
+        ]);
+
+        const applicantIds = applicants.map((a: any) => a._id);
+        const payments = await Payment.find({ applicantId: { $in: applicantIds } })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        const paymentsByApplicant: Record<string, any[]> = {};
+        payments.forEach((p: any) => {
+            const k = p.applicantId.toString();
+            if (!paymentsByApplicant[k]) paymentsByApplicant[k] = [];
+            paymentsByApplicant[k].push({
+                _id: p._id,
+                provider: p.provider,
+                providerRef: p.providerRef,
+                amount: p.amount,
+                currency: p.currency,
+                status: p.status,
+                webhookVerified: p.webhookVerified,
+                createdAt: p.createdAt,
+                updatedAt: p.updatedAt,
+            });
+        });
+
+        const now = Date.now();
+        const enrichedApplicants = applicants.map((a: any) => {
+            const expiresAtMs = a.expiresAt ? new Date(a.expiresAt).getTime() : 0;
+            const diffMs = Math.max(0, expiresAtMs - now);
+            const daysLeft = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            const hoursLeft = Math.floor(diffMs / (1000 * 60 * 60));
+            const paymentAttempts = paymentsByApplicant[a._id.toString()] || [];
+
+            return {
+                ...a,
+                daysLeft,
+                hoursLeft,
+                secondsRemaining: Math.floor(diffMs / 1000),
+                paymentAttemptsCount: paymentAttempts.length,
+                paymentAttempts,
+            };
+        });
+
+        const stepBreakdown: Record<number, number> = {};
+        stepAgg.forEach((item: any) => {
+            if (item._id) stepBreakdown[item._id] = item.count;
+        });
+
+        const expiringSoonCount = enrichedApplicants.filter((a: any) => a.hoursLeft <= 24).length;
+
+        res.json({
+            applicants: enrichedApplicants,
+            total,
+            page: pageNum,
+            pages: Math.ceil(total / limitNum),
+            summary: {
+                totalPending: allPendingCount,
+                attemptedPaymentCount: attemptedCount,
+                noAttemptCount: allPendingCount - attemptedCount,
+                expiringSoonCount,
+                distinctCountries: distinctCountries.filter(Boolean).sort(),
+                stepBreakdown,
+            },
+        });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error retrieving pending applicants.', error: e.message });
+    }
+};
+
+// ── POST /api/v1/admin/pending-applicants/:applicantId/remind-email ───────────
+export const sendPendingApplicantReminder = async (req: Request, res: Response) => {
+    try {
+        const { applicantId } = req.params;
+        const applicant = await Applicant.findById(applicantId);
+        if (!applicant) {
+            res.status(404).json({ message: 'Applicant record not found.' });
+            return;
+        }
+
+        const now = Date.now();
+        const expiresAtMs = applicant.expiresAt ? new Date(applicant.expiresAt).getTime() : now + 5 * 24 * 3600 * 1000;
+        const diffMs = Math.max(0, expiresAtMs - now);
+        const daysLeft = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const hoursLeft = Math.floor(diffMs / (1000 * 60 * 60));
+
+        const resumeToken = signApplicantSessionToken(applicant._id.toString());
+
+        await sendPendingReminderEmail(
+            applicant.email,
+            applicant.fullName,
+            applicant.currentStep,
+            daysLeft,
+            hoursLeft,
+            resumeToken
+        );
+
+        logRawAction({
+            userId: (req as any).user?.id || 'admin',
+            userEmail: (req as any).user?.email || 'admin',
+            userRole: (req as any).user?.role || 'admin',
+            action: 'REMINDER_EMAIL_SENT',
+            description: `Sent reminder email to pending applicant "${applicant.email}" (ID: ${applicant._id})`,
+            targetId: applicant._id.toString(),
+            targetType: 'Applicant',
+        });
+
+        res.json({ message: `Reminder email successfully sent to ${applicant.email}` });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Failed to send reminder email.', error: e.message });
     }
 };
 
