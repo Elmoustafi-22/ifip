@@ -22,12 +22,13 @@ export default function ForgotPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!email) { setError("Please enter your email address."); return; }
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) { setError("Please enter your email address."); return; }
 
     setLoading(true);
     try {
       // Always show success — server response is timing-safe regardless of email existence
-      await forgotPasswordApi(email);
+      await forgotPasswordApi(cleanEmail);
       setSubmitted(true);
     } catch {
       // Also show success to prevent user enumeration through error messages

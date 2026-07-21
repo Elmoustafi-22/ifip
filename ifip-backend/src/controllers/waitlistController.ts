@@ -13,10 +13,11 @@ export const joinWaitlist = async (req: Request, res: Response) => {
         return;
     }
 
-    const { email } = parsed.data;
+    const rawEmail = parsed.data.email || '';
+    const email = rawEmail.trim().toLowerCase();
 
     try {
-        const existing = await Waitlist.findOne({ email: email.toLowerCase() });
+        const existing = await Waitlist.findOne({ email });
         if (existing) {
             res.status(409).json({ message: 'You have already joined the waitlist for this cycle.' });
             return;

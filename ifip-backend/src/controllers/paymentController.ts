@@ -160,7 +160,7 @@ export const initiatePayment = async (req: Request, res: Response) => {
 };
 
 export const getPaymentStatus = async (req: Request, res: Response) => {
-    const { token } = req.query;
+    const { token, transaction_id, status: queryStatus } = req.query;
 
     if (typeof token !== 'string') {
         res.status(401).json({ message: 'Polling token required.' });
@@ -190,41 +190,57 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
     if (payment.status === 'pending') {
         try {
             if (payment.provider === 'flutterwave') {
-                const verified = await flutterwaveService.verifyTransactionByRef(req.params.reference);
-                console.log(`[PaymentStatus] Flutterwave verify → status=${verified.status} amount=${verified.amount} stored=${payment.amount}`);
-
-                if (verified.status === 'successful') {
-                    payment.status = 'success';
-                    payment.flutterwaveVerification = verified as unknown as Record<string, unknown>;
-                    await payment.save();
-
-                    // Mark applicant as paid and remove TTL expiresAt field to prevent auto-deletion
-                    const applicant = await Applicant.findById(payment.applicantId);
-                    if (applicant && !applicant.isPaid) {
-                        applicant.isPaid = true;
-                        applicant.expiresAt = undefined;
-                        await applicant.save();
-
-                        // Check if declaration signed and confirmed
-                        if (applicant.declaration?.confirmed && applicant.declaration?.signature) {
-                            try {
-                                const submission = await executeApplicationSubmission(applicant._id, payment._id);
-                                payment.applicationId = submission.application._id as any;
-                                console.log(`[PaymentStatus] Auto-submitted application on verify check for ${applicant.email}`);
-                            } catch (err) {
-                                console.error(`[PaymentStatus] Auto-submit failed on verify check:`, err);
-                            }
-                        } else {
-                            // Fallback (paid but not signed yet) - generate new resume token & email it
-                            const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
-                            applicant.resumeTokenHash = resumeTokenHash;
-                            await applicant.save();
-                            notificationEmitter.emit('payment.success', { email: applicant.email, resumeToken: resumeTokenRaw, country: applicant.country });
-                        }
-                    }
-                } else if (verified.status === 'failed') {
+                if (queryStatus === 'cancelled' || queryStatus === 'failed') {
                     payment.status = 'failed';
                     await payment.save();
+                } else {
+                    let verified: any = null;
+                    if (typeof transaction_id === 'string' && transaction_id.trim()) {
+                        try {
+                            verified = await flutterwaveService.verifyTransaction(transaction_id);
+                        } catch (err: any) {
+                            console.warn(`[PaymentStatus] Flutterwave verify by ID failed (${transaction_id}), falling back to ref:`, err?.message);
+                        }
+                    }
+                    if (!verified) {
+                        verified = await flutterwaveService.verifyTransactionByRef(req.params.reference);
+                    }
+
+                    console.log(`[PaymentStatus] Flutterwave verify → status=${verified.status} amount=${verified.amount} stored=${payment.amount}`);
+
+                    if (verified.status === 'successful') {
+                        payment.status = 'success';
+                        payment.flutterwaveVerification = verified as unknown as Record<string, unknown>;
+                        await payment.save();
+
+                        // Mark applicant as paid and remove TTL expiresAt field to prevent auto-deletion
+                        const applicant = await Applicant.findById(payment.applicantId);
+                        if (applicant && !applicant.isPaid) {
+                            applicant.isPaid = true;
+                            applicant.expiresAt = undefined;
+                            await applicant.save();
+
+                            // Check if declaration signed and confirmed
+                            if (applicant.declaration?.confirmed && applicant.declaration?.signature) {
+                                try {
+                                    const submission = await executeApplicationSubmission(applicant._id, payment._id);
+                                    payment.applicationId = submission.application._id as any;
+                                    console.log(`[PaymentStatus] Auto-submitted application on verify check for ${applicant.email}`);
+                                } catch (err) {
+                                    console.error(`[PaymentStatus] Auto-submit failed on verify check:`, err);
+                                }
+                            } else {
+                                // Fallback (paid but not signed yet) - generate new resume token & email it
+                                const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
+                                applicant.resumeTokenHash = resumeTokenHash;
+                                await applicant.save();
+                                notificationEmitter.emit('payment.success', { email: applicant.email, resumeToken: resumeTokenRaw, country: applicant.country });
+                            }
+                        }
+                    } else if (verified.status === 'failed' || verified.status === 'cancelled') {
+                        payment.status = 'failed';
+                        await payment.save();
+                    }
                 }
             } else {
                 const verified = await paystackService.verifyTransaction(req.params.reference);

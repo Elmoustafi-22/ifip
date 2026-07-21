@@ -31,7 +31,8 @@ export const getCohortStatus = async (req: Request, res: Response) => {
 };
 
 export const startApplication = async (req: Request, res: Response) => {
-    const { email } = req.body;
+    const rawEmail = req.body.email || '';
+    const email = rawEmail.trim().toLowerCase();
 
     const activeApplicationsCount = await Application.countDocuments({ status: { $ne: 'withdrawn' } });
     let cap = Number(env.COHORT_CAP || 100);
@@ -61,7 +62,7 @@ export const startApplication = async (req: Request, res: Response) => {
 
     const { code, hash } = generateOtp();
     const otpExpiryMinutes = Number(env.OTP_EXPIRY_MINUTES || 10);
-    const otpKey = `pending_otp:${email.toLowerCase()}`;
+    const otpKey = `pending_otp:${email}`;
 
     await redisClient.set(otpKey, hash, { EX: otpExpiryMinutes * 60 });
 
@@ -84,9 +85,11 @@ export const startApplication = async (req: Request, res: Response) => {
 };
 
 export const verifyApplicantOtp = async (req: Request, res: Response) => {
-    const { email, otp } = req.body;
+    const rawEmail = req.body.email || '';
+    const email = rawEmail.trim().toLowerCase();
+    const { otp } = req.body;
 
-    const otpKey = `pending_otp:${email.toLowerCase()}`;
+    const otpKey = `pending_otp:${email}`;
     const cachedHash = await redisClient.get(otpKey);
 
     if (!cachedHash) {

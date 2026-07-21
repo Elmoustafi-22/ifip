@@ -849,14 +849,15 @@ export default function ApplyPage() {
   const handleSendCode = async () => {
     setErrors({});
     setErrorMsg("");
-    const validation = step1EmailSchema.safeParse({ email });
+    const cleanEmail = email.trim().toLowerCase();
+    const validation = step1EmailSchema.safeParse({ email: cleanEmail });
     if (!validation.success) {
       setErrors({ email: validation.error.issues[0].message });
       return;
     }
     setLoading(true);
     try {
-      await startApplication(email);
+      await startApplication(cleanEmail);
       setOtpSent(true);
       setResendCooldown(60); // Start 60 second countdown cooldown
     } catch (err: any) {
@@ -874,7 +875,8 @@ export default function ApplyPage() {
   const handleVerifyOtp = async () => {
     setErrors({});
     setErrorMsg("");
-    const validation = step1OtpSchema.safeParse({ email, otp });
+    const cleanEmail = email.trim().toLowerCase();
+    const validation = step1OtpSchema.safeParse({ email: cleanEmail, otp });
     if (!validation.success) {
       const formattedErrors: Record<string, string> = {};
       validation.error.issues.forEach((issue) => {
@@ -885,7 +887,7 @@ export default function ApplyPage() {
     }
     setLoading(true);
     try {
-      const data = await verifyOtp(email, otp);
+      const data = await verifyOtp(cleanEmail, otp);
       const sessionToken = data.sessionToken;
       setToken(sessionToken);
       localStorage.setItem("applicantToken", sessionToken);

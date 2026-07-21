@@ -74,13 +74,14 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!email || !password) {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !password) {
       setError("Please enter your email and password.");
       return;
     }
     setLoading(true);
     try {
-      const res = await loginApi(email, password, rememberMe);
+      const res = await loginApi(cleanEmail, password, rememberMe);
       if (res.mfaRequired && res.mfaToken) {
         setMfaRequired(true);
         setMfaToken(res.mfaToken);

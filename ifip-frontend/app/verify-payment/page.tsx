@@ -17,8 +17,11 @@ function VerifyPaymentContent() {
     // Paystack/Flutterwave appends ?reference=, ?trxref=, or ?tx_ref= to the callback URL
     const referenceFromUrl =
       searchParams.get("reference") || searchParams.get("trxref") || searchParams.get("tx_ref");
+    const transactionId =
+      searchParams.get("transaction_id") || searchParams.get("id");
+    const urlStatus = searchParams.get("status");
 
-    // Retrieve the polling token we saved before redirecting to Paystack
+    // Retrieve the polling token we saved before redirecting to payment gateway
     const pollingToken = localStorage.getItem("paymentPollingToken");
     const storedReference = localStorage.getItem("paymentReference");
 
@@ -30,16 +33,27 @@ function VerifyPaymentContent() {
       return;
     }
 
-    let attempts = 0;
-    const MAX_ATTEMPTS = 20; // 40 seconds total
+    // Handle instant failure if payment gateway redirected back with cancelled / failed status
+    if (urlStatus === "cancelled" || urlStatus === "failed") {
+      setStatus("failed");
+      setMessage("Payment was cancelled or unsuccessful. Please return to your application and try again.");
+      checkPaymentStatus(reference, pollingToken, transactionId, urlStatus).catch(() => {});
+      return;
+    }
 
-    const interval = setInterval(async () => {
+    let attempts = 0;
+    const MAX_ATTEMPTS = 20; // 40 seconds max
+    let timer: NodeJS.Timeout | null = null;
+    let cancelled = false;
+
+    const executeCheck = async () => {
+      attempts++;
       try {
-        attempts++;
-        const data = await checkPaymentStatus(reference, pollingToken);
+        const data = await checkPaymentStatus(reference, pollingToken, transactionId, urlStatus);
+
+        if (cancelled) return true;
 
         if (data.status === "success") {
-          clearInterval(interval);
           // Clean up storage
           localStorage.removeItem("paymentReference");
           localStorage.removeItem("paymentPollingToken");
@@ -56,26 +70,43 @@ function VerifyPaymentContent() {
               router.replace("/apply?payment=verified");
             }, 2000);
           }
+          return true; // Done
         } else if (data.status === "failed") {
-          clearInterval(interval);
           setStatus("failed");
           setMessage("Payment was not successful. Please go back and try again.");
+          return true; // Done
         } else if (attempts >= MAX_ATTEMPTS) {
-          clearInterval(interval);
           setStatus("failed");
           setMessage("Payment verification timed out. If your bank was charged, please contact support. Otherwise, please try again.");
+          return true; // Done
         }
       } catch (err: any) {
         console.error("Verification polling error:", err);
         if (attempts >= MAX_ATTEMPTS) {
-          clearInterval(interval);
           setStatus("failed");
           setMessage("Unable to reach our servers. Please check your connection and try again.");
+          return true; // Done
         }
       }
-    }, 2000);
+      return false; // Still pending
+    };
 
-    return () => clearInterval(interval);
+    // Run first check immediately on mount, then poll every 2s if still pending
+    executeCheck().then((finished) => {
+      if (!finished && !cancelled) {
+        timer = setInterval(async () => {
+          const isDone = await executeCheck();
+          if (isDone && timer) {
+            clearInterval(timer);
+          }
+        }, 2000);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+    };
   }, []);
 
   return (

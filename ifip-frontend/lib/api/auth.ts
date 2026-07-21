@@ -48,8 +48,9 @@ export const login = async (
   password: string,
   rememberMe = false
 ): Promise<AuthResponse> => {
+  const cleanEmail = email.trim().toLowerCase();
   const { data } = await authClient.post<AuthResponse>("/auth/login", {
-    email,
+    email: cleanEmail,
     password,
   });
   if (!data.mfaRequired && data.accessToken) {
@@ -104,9 +105,10 @@ export const refreshAccessToken = async (): Promise<AuthResponse> => {
 export const forgotPassword = async (
   email: string
 ): Promise<ForgotPasswordResponse> => {
+  const cleanEmail = email.trim().toLowerCase();
   const { data } = await authClient.post<ForgotPasswordResponse>(
     "/auth/forgot-password",
-    { email }
+    { email: cleanEmail }
   );
   return data;
 };

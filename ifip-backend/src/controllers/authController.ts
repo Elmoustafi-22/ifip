@@ -99,7 +99,9 @@ export const getTokenInfo = async (req: Request, res: Response) => {
 
 // ── POST /api/v1/auth/login ───────────────────────────────────────────
 export const login = async (req: Request<{}, {}, LoginInput>, res: Response) => {
-    const { email, password } = req.body;
+    const rawEmail = req.body.email || '';
+    const email = rawEmail.trim().toLowerCase();
+    const { password } = req.body;
     const user = await User.findOne({ email });
 
     if (!user || !(await user.comparePassword(password))) {
@@ -186,9 +188,10 @@ export const logout = async (req: Request, res: Response) => {
 // Always returns 200 regardless of whether the email exists — prevents
 // user enumeration. The reset link is delivered by email only.
 export const forgotPassword = async (req: Request<{}, {}, ForgotPasswordInput>, res: Response) => {
-    const { email } = req.body;
+    const rawEmail = req.body.email || '';
+    const email = rawEmail.trim().toLowerCase();
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await User.findOne({ email });
 
     // Respond immediately regardless of whether the user exists
     res.json({ message: 'If an account with that email exists, a reset link has been sent.' });

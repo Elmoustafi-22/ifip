@@ -8,12 +8,14 @@ import {
 } from "./types";
 
 export const startApplication = async (email: string): Promise<StartApplicationResponse> => {
-  const { data } = await apiClient.post<StartApplicationResponse>("/applicants/start", { email });
+  const cleanEmail = email.trim().toLowerCase();
+  const { data } = await apiClient.post<StartApplicationResponse>("/applicants/start", { email: cleanEmail });
   return data;
 };
 
 export const verifyOtp = async (email: string, otp: string): Promise<VerifyOtpResponse> => {
-  const { data } = await apiClient.post<VerifyOtpResponse>("/applicants/verify-otp", { email, otp });
+  const cleanEmail = email.trim().toLowerCase();
+  const { data } = await apiClient.post<VerifyOtpResponse>("/applicants/verify-otp", { email: cleanEmail, otp });
   return data;
 };
 
@@ -57,8 +59,20 @@ export const initiatePayment = async (): Promise<InitiatePaymentResponse> => {
   return data;
 };
 
-export const checkPaymentStatus = async (reference: string, pollingToken: string): Promise<{ status: "pending" | "success" | "failed"; setPasswordToken?: string }> => {
-  const { data } = await apiClient.get<{ status: "pending" | "success" | "failed"; setPasswordToken?: string }>(`/payments/${reference}/status?token=${pollingToken}`);
+export const checkPaymentStatus = async (
+  reference: string,
+  pollingToken: string,
+  transactionId?: string | null,
+  status?: string | null
+): Promise<{ status: "pending" | "success" | "failed"; setPasswordToken?: string }> => {
+  let url = `/payments/${reference}/status?token=${pollingToken}`;
+  if (transactionId) {
+    url += `&transaction_id=${encodeURIComponent(transactionId)}`;
+  }
+  if (status) {
+    url += `&status=${encodeURIComponent(status)}`;
+  }
+  const { data } = await apiClient.get<{ status: "pending" | "success" | "failed"; setPasswordToken?: string }>(url);
   return data;
 };
 
@@ -74,7 +88,8 @@ export const getCohortStatus = async (): Promise<CohortStatusResponse> => {
 };
 
 export const joinWaitlist = async (email: string): Promise<{ message: string }> => {
-  const { data } = await apiClient.post<{ message: string }>("/waitlist", { email });
+  const cleanEmail = email.trim().toLowerCase();
+  const { data } = await apiClient.post<{ message: string }>("/waitlist", { email: cleanEmail });
   return data;
 };
 
