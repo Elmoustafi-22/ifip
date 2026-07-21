@@ -38,7 +38,6 @@ export const uploadCv = async (file: File): Promise<{ cvUrl: string }> => {
   const formData = new FormData();
   formData.append("cv", file);
   const { data } = await apiClient.post<{ cvUrl: string }>("/uploads/cv", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
     timeout: 60000,
   });
   return data;
@@ -108,7 +107,6 @@ export const uploadCvAuth = async (file: File): Promise<{ cvUrl: string }> => {
   const formData = new FormData();
   formData.append("cv", file);
   const { data } = await authClient.post<{ cvUrl: string }>("/uploads/cv-auth", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
     timeout: 60000,
   });
   return data;
@@ -118,7 +116,6 @@ export const uploadAvatarAuth = async (file: File): Promise<{ avatarUrl: string 
   const formData = new FormData();
   formData.append("avatar", file);
   const { data } = await authClient.post<{ avatarUrl: string }>("/uploads/avatar", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
     timeout: 60000,
   });
   return data;
