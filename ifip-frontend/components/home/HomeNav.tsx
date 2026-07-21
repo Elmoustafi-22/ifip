@@ -6,6 +6,8 @@ import Link from "next/link";
 import { HiBars3, HiXMark } from "react-icons/hi2";
 import { getAccessToken } from "@/lib/api/auth";
 
+import UserAvatarMenu from "@/components/UserAvatarMenu";
+
 export default function HomeNav() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -43,9 +45,7 @@ export default function HomeNav() {
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-4">
             {isLoggedIn ? (
-              <Link href="/dashboard" className="text-sm font-semibold hover:text-primary transition-colors px-4 py-2">
-                Go to Dashboard
-              </Link>
+              <UserAvatarMenu dropDirection="down" />
             ) : (
               <>
                 <Link href="/login" className="text-sm font-semibold hover:text-primary transition-colors px-4 py-2">
@@ -114,13 +114,10 @@ export default function HomeNav() {
           </a>
           <div className="flex flex-col gap-4 mt-6">
             {isLoggedIn ? (
-              <Link
-                href="/dashboard"
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-center font-semibold bg-primary text-white py-3 rounded-[4px]"
-              >
-                Go to Dashboard
-              </Link>
+              <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border border-primary/10">
+                <span className="text-sm font-semibold text-on-surface">Account Menu</span>
+                <UserAvatarMenu dropDirection="down" showLabel />
+              </div>
             ) : (
               <>
                 <Link

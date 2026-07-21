@@ -15,6 +15,7 @@ import { TbBrandLinkedin } from "react-icons/tb";
 import apiClient from "@/lib/api/client";
 import { getAccessToken } from "@/lib/api/auth";
 import { motion } from "framer-motion";
+import UserAvatarMenu from "@/components/UserAvatarMenu";
 
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },
@@ -96,9 +97,7 @@ export default function AboutIfipPage() {
 
           <div className="hidden md:flex items-center gap-4">
             {isLoggedIn ? (
-              <Link href="/dashboard" className="text-sm font-semibold hover:text-primary transition-colors px-4 py-2">
-                Go to Dashboard
-              </Link>
+              <UserAvatarMenu dropDirection="down" />
             ) : (
               <>
                 <Link href="/login" className="text-sm font-semibold hover:text-primary transition-colors px-4 py-2">
