@@ -15,6 +15,9 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
+  if (config.data instanceof FormData && config.headers) {
+    delete config.headers["Content-Type"];
+  }
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("applicantToken");
     if (token && config.headers) {
@@ -81,6 +84,9 @@ export const authClient = axios.create({
 });
 
 authClient.interceptors.request.use((config) => {
+  if (config.data instanceof FormData && config.headers) {
+    delete config.headers["Content-Type"];
+  }
   if (typeof window !== "undefined") {
     const token =
       sessionStorage.getItem("accessToken") ??
