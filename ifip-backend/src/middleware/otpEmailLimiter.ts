@@ -12,5 +12,6 @@ export const otpEmailLimiter = rateLimit({
         const email = req.body?.email;
         return typeof email === 'string' ? email.toLowerCase().trim() : req.ip ?? 'unknown';
     },
+    validate: { keyGeneratorIpFallback: false },
     message: { message: 'Too many verification code requests for this email. Please wait 15 minutes and try again.' },
 });
