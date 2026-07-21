@@ -583,26 +583,26 @@ export default function PendingApplicantsPage() {
               {applicants.map((applicant) => (
                 <div
                   key={applicant._id}
-                  className="p-4 space-y-3 hover:bg-slate-50/80 transition cursor-pointer"
+                  className="p-4 bg-white hover:bg-slate-50/90 transition cursor-pointer space-y-3"
                   onClick={() => {
                     setSelectedApplicant(applicant);
                     setActiveTab("details");
                   }}
                 >
-                  {/* Top Row: Avatar + Name + Expiry */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-sky-100 text-sky-800 font-bold flex items-center justify-center text-xs shrink-0">
+                  {/* Top Row: Avatar, Name (with truncation & checkmark) & Expiry Badge */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-800 font-bold flex items-center justify-center text-xs shrink-0 shadow-xs">
                         {(applicant.fullName || applicant.email).slice(0, 2).toUpperCase()}
                       </div>
-                      <div>
-                        <div className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
-                          {applicant.fullName || "Name Not Set"}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-slate-900 text-sm flex items-center gap-1.5 leading-snug">
+                          <span className="truncate">{applicant.fullName || "Name Not Set"}</span>
                           {applicant.emailVerified && (
-                            <HiOutlineCheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                            <HiOutlineCheckCircle className="w-4 h-4 text-emerald-500 shrink-0" title="Email Verified" />
                           )}
                         </div>
-                        <div className="text-xs text-slate-500 font-mono mt-0.5 truncate max-w-[190px]">
+                        <div className="text-xs text-slate-500 font-mono truncate mt-0.5">
                           {applicant.email}
                         </div>
                       </div>
@@ -610,46 +610,46 @@ export default function PendingApplicantsPage() {
                     <div className="shrink-0">{getExpiryBadge(applicant)}</div>
                   </div>
 
-                  {/* Middle Row: Country/Phone & Stage Completed */}
-                  <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100/80">
-                    <div>
-                      <span className="font-semibold text-slate-800">{applicant.country || "Unspecified"}</span>
+                  {/* Middle Row: Country/Phone & Status Badges */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-800">{applicant.country || "Unspecified"}</span>
                       {applicant.phone && (
-                        <span className="text-slate-400 font-mono block sm:inline sm:ml-2 text-[11px]">
-                          {applicant.phone}
+                        <span className="text-slate-500 font-mono text-[11px]">
+                          ({applicant.phone})
                         </span>
                       )}
                     </div>
-                    <div className="text-right">
-                      <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
+
+                    <div className="flex items-center gap-1.5">
+                      <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
                         Step {applicant.currentStep}/7
                       </span>
+
+                      {applicant.paymentAttemptsCount > 0 ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                          <HiOutlineCreditCard className="w-3 h-3 text-amber-600" />
+                          {applicant.paymentAttemptsCount} Attempt{applicant.paymentAttemptsCount > 1 ? "s" : ""}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-500">
+                          No attempts
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  {/* Bottom Row: Payment Attempt Badge & Quick Outreach Buttons */}
+                  {/* Bottom Row: Outreach Toolbar & Inspect Profile */}
                   <div
-                    className="flex items-center justify-between pt-1"
+                    className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100/70"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div>
-                      {applicant.paymentAttemptsCount > 0 ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                          <HiOutlineCreditCard className="w-3 h-3 text-amber-600" />
-                          {applicant.paymentAttemptsCount} Attempt
-                          {applicant.paymentAttemptsCount > 1 ? "s" : ""}
-                        </span>
-                      ) : (
-                        <span className="text-[11px] text-slate-400 font-medium">No payment attempts</span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       {applicant.phone && (
                         <a
                           href={`tel:${applicant.phone}`}
                           title="Call Phone Number"
-                          className="p-2 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition"
+                          className="p-2 text-slate-600 hover:text-emerald-700 bg-slate-50 hover:bg-emerald-50 rounded-xl border border-slate-200 transition"
                         >
                           <HiOutlinePhone className="w-4 h-4" />
                         </a>
@@ -660,7 +660,7 @@ export default function PendingApplicantsPage() {
                           target="_blank"
                           rel="noopener noreferrer"
                           title="WhatsApp Reminder"
-                          className="p-2 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
+                          className="p-2 text-slate-600 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 rounded-xl border border-slate-200 transition"
                         >
                           <FaWhatsapp className="w-4 h-4 text-emerald-600" />
                         </a>
@@ -668,20 +668,21 @@ export default function PendingApplicantsPage() {
                       <button
                         onClick={() => openEmailModal(applicant)}
                         title="Compose Email"
-                        className="p-2 text-slate-600 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition"
+                        className="p-2 text-slate-600 hover:text-sky-700 bg-slate-50 hover:bg-sky-50 rounded-xl border border-slate-200 transition"
                       >
                         <HiOutlineEnvelope className="w-4 h-4 text-sky-700" />
                       </button>
-                      <button
-                        onClick={() => {
-                          setSelectedApplicant(applicant);
-                          setActiveTab("details");
-                        }}
-                        className="px-2.5 py-1 text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition ml-1"
-                      >
-                        Inspect
-                      </button>
                     </div>
+
+                    <button
+                      onClick={() => {
+                        setSelectedApplicant(applicant);
+                        setActiveTab("details");
+                      }}
+                      className="px-3.5 py-1.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-xs transition"
+                    >
+                      Inspect Profile
+                    </button>
                   </div>
                 </div>
               ))}
