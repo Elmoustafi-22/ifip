@@ -33,6 +33,7 @@ const envSchema = z.object({
     FLUTTERWAVE_CALLBACK_URL: z.string().min(1),
     FLUTTERWAVE_WEBHOOK_HASH: z.string().min(1),
     LEVY_AMOUNT_USD: z.string().default('30'),
+    COOKIE_DOMAIN: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

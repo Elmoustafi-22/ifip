@@ -26,13 +26,17 @@ import { logRawAction } from '../utils/auditLogger.js';
 // ── Shared helper: issue tokens + set refresh cookie ──────────────────
 const getCookieOptions = () => {
     const isProd = env.NODE_ENV === 'production';
-    return {
+    const options: any = {
         httpOnly: true,
         secure: isProd,
         sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days for all users/admins
         path: '/',
     };
+    if (env.COOKIE_DOMAIN) {
+        options.domain = env.COOKIE_DOMAIN;
+    }
+    return options;
 };
 
 const issueTokens = (res: Response, userId: string, role: 'applicant' | 'participant' | 'admin' | 'superadmin') => {
