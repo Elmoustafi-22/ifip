@@ -3,7 +3,6 @@ import { connectDB } from './config/db.js';
 import { env } from './config/env.js';
 import { schedulePurgeJob } from './jobs/purgeOphanedCvs.js';
 import { connectRedis } from './services/redisService.js';
-import './workers/emailWorker.js';
 
 const PORT = Number(env.PORT);
 

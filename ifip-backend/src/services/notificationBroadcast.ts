@@ -3,15 +3,30 @@ import { Types } from 'mongoose';
 import { Notification } from '../models/Notification.js';
 import { User } from '../models/User.js';
 import { Application } from '../models/Application.js';
-import { env } from '../config/env.js';
-import { queueEmail } from '../queues/emailQueue.js';
+import {
+    sendOtpEmail,
+    sendResumeLinkEmail,
+    sendPaymentSuccessEmail,
+    sendSetPasswordEmail,
+    sendPasswordChangedAlert,
+    sendAdminEnrollmentDigest,
+    sendCohortWelcomeEmail,
+    sendAssessmentGradedEmail,
+    sendPlacementMatchedEmail,
+    sendPartnerApplicationReceived,
+    sendAdminPartnerApplicationReceived,
+    sendPartnerApplicationApproved,
+    sendPartnerApplicationDeclined,
+    sendCustomBroadcastEmail,
+} from './emailService.js';
 
 export const notificationEmitter = new EventEmitter();
 
 // Define listener contracts
+
 notificationEmitter.on('otp.requested', async ({ email, otp }) => {
     try {
-        await queueEmail('otp', { email, otp });
+        await sendOtpEmail(email, otp);
     } catch (err) {
         console.error('[Event:otp.requested] Error:', err);
     }
@@ -19,7 +34,7 @@ notificationEmitter.on('otp.requested', async ({ email, otp }) => {
 
 notificationEmitter.on('applicant.resume', async ({ email, token, isPaid }) => {
     try {
-        await queueEmail('resume_link', { email, token, isPaid });
+        await sendResumeLinkEmail(email, token, isPaid);
     } catch (err) {
         console.error('[Event:applicant.resume] Error:', err);
     }
@@ -27,7 +42,7 @@ notificationEmitter.on('applicant.resume', async ({ email, token, isPaid }) => {
 
 notificationEmitter.on('payment.success', async ({ email, resumeToken, country }) => {
     try {
-        await queueEmail('payment_success', { email, resumeToken, country });
+        await sendPaymentSuccessEmail(email, resumeToken, country);
     } catch (err) {
         console.error('[Event:payment.success] Error:', err);
     }
@@ -35,7 +50,7 @@ notificationEmitter.on('payment.success', async ({ email, resumeToken, country }
 
 notificationEmitter.on('application.submitted', async ({ email, setPasswordToken, country }) => {
     try {
-        await queueEmail('set_password', { email, setPasswordToken, country });
+        await sendSetPasswordEmail(email, setPasswordToken, country);
     } catch (err) {
         console.error('[Event:application.submitted] Error:', err);
     }
@@ -59,7 +74,7 @@ notificationEmitter.on('application.enrolled', async ({ user, application }) => 
         // 2. Email alert digest for superadmins / admins
         for (const admin of admins) {
             try {
-                await queueEmail('admin_digest', { to: admin.email, newStudentCount: 1 });
+                await sendAdminEnrollmentDigest(admin.email, 1);
             } catch (err) {
                 console.error('[Event:application.enrolled] Admin email fail:', err);
             }
@@ -80,7 +95,7 @@ notificationEmitter.on('auth.password_changed', async ({ user }) => {
             link: '/dashboard/settings'
         });
         // Email
-        await queueEmail('password_changed', { to: user.email, email: user.email });
+        await sendPasswordChangedAlert(user.email, user.email);
     } catch (err) {
         console.error('[Event:auth.password_changed] Error:', err);
     }
@@ -97,12 +112,12 @@ notificationEmitter.on('cohort.assigned', async ({ user, cohort }) => {
             link: '/dashboard/modules'
         });
         // Email
-        await queueEmail('welcome', {
-            to: user.email,
-            fullName: user.fullName || 'Participant',
-            cohortName: cohort.name,
-            kickoffDate: cohort.startDate
-        });
+        await sendCohortWelcomeEmail(
+            user.email,
+            user.fullName || 'Participant',
+            cohort.name,
+            cohort.startDate
+        );
     } catch (err) {
         console.error('[Event:cohort.assigned] Error:', err);
     }
@@ -178,14 +193,14 @@ notificationEmitter.on('assessment.graded', async ({ submission, assessment, use
             link: `/dashboard/modules/${submission.moduleId}`
         });
         // Email
-        await queueEmail('graded', {
-            to: user.email,
-            fullName: user.fullName || 'Participant',
-            assessmentTitle: assessment.title,
-            score: submission.score,
-            passed: submission.passed,
+        await sendAssessmentGradedEmail(
+            user.email,
+            user.fullName || 'Participant',
+            assessment.title,
+            submission.score,
+            submission.passed,
             attemptsRemaining
-        });
+        );
     } catch (err) {
         console.error('[Event:assessment.graded] Error:', err);
     }
@@ -202,13 +217,13 @@ notificationEmitter.on('placement.matched', async ({ userId, userEmail, userFull
             link: '/dashboard/placement'
         });
         // Email
-        await queueEmail('match', {
-            to: userEmail,
-            fullName: userFullName || 'Participant',
-            partnerName: partner.name,
+        await sendPlacementMatchedEmail(
+            userEmail,
+            userFullName || 'Participant',
+            partner.name,
             area,
-            onboardingNotes: notes
-        });
+            notes
+        );
     } catch (err) {
         console.error('[Event:placement.matched] Error:', err);
     }
@@ -232,12 +247,12 @@ notificationEmitter.on('placement.status_updated', async ({ userId, userEmail, u
 notificationEmitter.on('partner.applied', async ({ email, companyName, contactPerson, hasOpenings, openings }) => {
     try {
         // 1. Send confirmation email to the applicant (partner)
-        await queueEmail('partner_applied', { email, companyName, contactPerson, hasOpenings, openings });
+        await sendPartnerApplicationReceived(email, companyName, contactPerson, hasOpenings, openings);
 
         // 2. Fetch all administrators from DB
         const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } });
 
-        // 3. Create in-app notifications and queue alert emails for admins
+        // 3. Create in-app notifications and send alert emails for admins
         for (const admin of admins) {
             try {
                 // Create in-app notification
@@ -249,15 +264,15 @@ notificationEmitter.on('partner.applied', async ({ email, companyName, contactPe
                     link: '/admin/partners/applications'
                 });
 
-                // Queue notification email to the admin
-                await queueEmail('admin_partner_applied', {
-                    to: admin.email,
+                // Send notification email to the admin
+                await sendAdminPartnerApplicationReceived(
+                    admin.email,
                     companyName,
                     contactPerson,
-                    contactEmail: email,
+                    email,
                     hasOpenings,
                     openings
-                });
+                );
             } catch (adminErr) {
                 console.error(`[Event:partner.applied] Error alerting admin ${admin.email}:`, adminErr);
             }
@@ -270,9 +285,9 @@ notificationEmitter.on('partner.applied', async ({ email, companyName, contactPe
 notificationEmitter.on('partner.reviewed', async ({ email, companyName, contactPerson, status, adminNotes }) => {
     try {
         if (status === 'approved') {
-            await queueEmail('partner_reviewed_approved', { email, companyName, contactPerson });
+            await sendPartnerApplicationApproved(email, companyName, contactPerson);
         } else {
-            await queueEmail('partner_reviewed_declined', { email, companyName, contactPerson, adminNotes });
+            await sendPartnerApplicationDeclined(email, companyName, contactPerson, adminNotes);
         }
     } catch (err) {
         console.error('[Event:partner.reviewed] Error:', err);
@@ -292,7 +307,7 @@ notificationEmitter.on('admin.broadcast', async ({ targetType, targetUserId, tit
             });
             const user = await User.findById(targetUserId);
             if (user) {
-                await queueEmail('custom_broadcast', { to: user.email, title, message });
+                await sendCustomBroadcastEmail(user.email, title, message);
             }
         } else {
             // Broadcast to all active participants
@@ -312,7 +327,7 @@ notificationEmitter.on('admin.broadcast', async ({ targetType, targetUserId, tit
             const users = await User.find({ _id: { $in: activeApps.map(app => app.userId) } });
             for (const user of users) {
                 try {
-                    await queueEmail('custom_broadcast', { to: user.email, title, message });
+                    await sendCustomBroadcastEmail(user.email, title, message);
                 } catch (err) {
                     console.error('[Event:admin.broadcast] Email send fail to', user.email, err);
                 }
