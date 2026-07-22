@@ -18,6 +18,10 @@ const send = async (to: string, subject: string, html: string) => {
                 name: 'IFIP Admissions',
                 email: env.EMAIL_FROM,
             },
+            replyTo: {
+                email: env.EMAIL_REPLY_TO,
+                name: 'IFIP Support',
+            },
             to: [{ email: to }],
             subject,
             htmlContent: html,
