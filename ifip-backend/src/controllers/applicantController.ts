@@ -64,7 +64,14 @@ export const startApplication = async (req: Request, res: Response) => {
     const otpExpiryMinutes = Number(env.OTP_EXPIRY_MINUTES || 10);
     const otpKey = `pending_otp:${email}`;
 
-    await redisClient.set(otpKey, hash, { EX: otpExpiryMinutes * 60 });
+    // Store OTP hash in Redis — if this fails, we must NOT tell the user the code was sent
+    try {
+        await redisClient.set(otpKey, hash, { EX: otpExpiryMinutes * 60 });
+    } catch (redisErr: any) {
+        console.error(`[startApplication] Redis SET failed for ${email}:`, redisErr?.message ?? redisErr);
+        res.status(503).json({ message: 'Verification service temporarily unavailable. Please try again in a moment.' });
+        return;
+    }
 
     notificationEmitter.emit('otp.requested', { email, otp: code });
 
