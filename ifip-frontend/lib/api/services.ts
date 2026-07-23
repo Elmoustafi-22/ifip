@@ -331,6 +331,19 @@ export const sendPendingApplicantReminder = async (
   return data;
 };
 
+export const sendBulkPendingApplicantReminders = async (payload: {
+  applicantIds: string[];
+  subject?: string;
+  message?: string;
+  includeResumeLink?: boolean;
+}): Promise<{ message: string; sentCount: number; failCount: number }> => {
+  const { data } = await authClient.post<{ message: string; sentCount: number; failCount: number }>(
+    `/admin/pending-applicants/bulk-remind-email`,
+    payload
+  );
+  return data;
+};
+
 export interface AdminUser {
   _id: string;
   email: string;

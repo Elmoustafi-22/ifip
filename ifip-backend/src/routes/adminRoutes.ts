@@ -20,6 +20,7 @@ import {
     getRegistrationApplicants,
     getPendingApplicants,
     sendPendingApplicantReminder,
+    sendBulkPendingApplicantReminders,
     getAdminPayments,
     getAdminPaymentById,
     resolvePayment,
@@ -88,6 +89,7 @@ router.post('/notifications/broadcast', broadcastCustomNotification);
 // ── Registration Funnel & Pending Applicants ──────────────────────────
 router.get('/registration-funnel/applicants', getRegistrationApplicants);
 router.get('/pending-applicants', getPendingApplicants);
+router.post('/pending-applicants/bulk-remind-email', sendBulkPendingApplicantReminders);
 router.post('/pending-applicants/:applicantId/remind-email', sendPendingApplicantReminder);
 
 // ── Payment Tracking & Resolution ────────────────────────────────────

@@ -30,6 +30,7 @@ import { FaWhatsapp } from "react-icons/fa";
 import {
   getPendingApplicants,
   sendPendingApplicantReminder,
+  sendBulkPendingApplicantReminders,
   PendingApplicant,
   PendingApplicantsSummary,
   GetPendingApplicantsParams,
@@ -64,6 +65,10 @@ export default function PendingApplicantsPage() {
   // Drawer & Modal State
   const [selectedApplicant, setSelectedApplicant] = useState<PendingApplicant | null>(null);
   const [activeTab, setActiveTab] = useState<"details" | "payments">("details");
+
+  // Selection & Bulk Outreach State
+  const [selectedApplicantIds, setSelectedApplicantIds] = useState<string[]>([]);
+  const [isBulkEmailModalOpen, setIsBulkEmailModalOpen] = useState(false);
 
   // Email Modal State
   const [emailModalApplicant, setEmailModalApplicant] = useState<PendingApplicant | null>(null);
@@ -141,7 +146,7 @@ export default function PendingApplicantsPage() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Helper to load templates into Email Modal
+  // Helper to load templates into Email Modal (Single Applicant)
   const loadEmailTemplate = (key: string, applicant: PendingApplicant) => {
     setEmailTemplateKey(key);
     const firstName = applicant.fullName ? applicant.fullName.trim().split(" ")[0] : "Applicant";
@@ -157,13 +162,13 @@ export default function PendingApplicantsPage() {
     } else if (key === "assistance_inquiry") {
       setEmailSubject(`IFIP Admissions: Do you need assistance completing your application?`);
       setEmailBody(
-        `Hello ${firstName},\n\nThank you for your interest in the Islamic Finance Internship Program (IFIP).\n\nWe noticed that you paused your application at Step ${applicant.currentStep} (${stageName}). We wanted to check in and see if you encountered any technical difficulties or have questions regarding the program tracks or application process.\n\nPlease reply directly to this email if you need any support from our admissions team.`
+        `Hello ${firstName},\n\nThank you for your interest in the Islamic Finance Internship Program (IFIP).\n\nWe noticed that you paused your application at Step ${applicant.currentStep} (${stageName}). We wanted to check in and see if you encountered any technical difficulties or have questions regarding the program tracks or application process.\n\nPlease reply directly to this email or contact support at +234 906 035 6610 if you need any support from our admissions team.`
       );
       setIncludeResumeLink(true);
     } else if (key === "payment_assistance") {
-      setEmailSubject(`IFIP Admissions: Commitment Levy Payment Support`);
+      setEmailSubject(`IFIP Admissions: Commitment Levy Payment Support (${daysText} remaining)`);
       setEmailBody(
-        `Hello ${firstName},\n\nWe noticed you completed your profile and reached Step 7 (Levy Payment & Final Review) for the Islamic Finance Internship Program (IFIP).\n\nIf you are experiencing any issues with your payment transaction or have questions regarding accepted payment options, please let us know so we can assist you.`
+        `Hello ${firstName},\n\nWe noticed you reached Step 7 (Levy Payment & Final Review) for the Islamic Finance Internship Program (IFIP).\n\nPlease note that your saved draft and registration spot will expire in ${daysText}.\n\nIf you are experiencing any issues with your payment transaction or have questions regarding commitment levy payment options, please reach out to our team at +234 906 035 6610 or reply directly to this email so we can assist you.`
       );
       setIncludeResumeLink(true);
     } else if (key === "custom") {
@@ -173,9 +178,77 @@ export default function PendingApplicantsPage() {
     }
   };
 
+  // Helper to load templates into Bulk Email Modal (Uses placeholders)
+  const loadBulkEmailTemplate = (key: string) => {
+    setEmailTemplateKey(key);
+    if (key === "expiration_reminder") {
+      setEmailSubject(`Reminder: Complete Your IFIP Application ({{daysLeft}} remaining)`);
+      setEmailBody(
+        `Hello {{firstName}},\n\nWe noticed you started your application for the Islamic Finance Internship Program (IFIP) and reached Step {{currentStep}}.\n\nYour saved registration draft will expire in {{daysLeft}}. After this period, unsubmitted details are automatically purged for data security.\n\nIf you plan to complete your application, please resume your registration before the deadline.`
+      );
+      setIncludeResumeLink(true);
+    } else if (key === "assistance_inquiry") {
+      setEmailSubject(`IFIP Admissions: Do you need assistance completing your application?`);
+      setEmailBody(
+        `Hello {{firstName}},\n\nThank you for your interest in the Islamic Finance Internship Program (IFIP).\n\nWe noticed that you paused your application at Step {{currentStep}}. We wanted to check in and see if you encountered any technical difficulties or have questions regarding the program tracks or application process.\n\nPlease reply directly to this email or contact support at +234 906 035 6610 if you need any support from our admissions team.`
+      );
+      setIncludeResumeLink(true);
+    } else if (key === "payment_assistance") {
+      setEmailSubject(`IFIP Admissions: Commitment Levy Payment Support ({{daysLeft}} remaining)`);
+      setEmailBody(
+        `Hello {{firstName}},\n\nWe noticed you reached Step 7 (Levy Payment & Final Review) for the Islamic Finance Internship Program (IFIP).\n\nPlease note that your saved draft and registration spot will expire in {{daysLeft}}.\n\nIf you are experiencing any issues with your payment transaction or have questions regarding commitment levy payment options, please reach out to our team at +234 906 035 6610 or reply directly to this email so we can assist you.`
+      );
+      setIncludeResumeLink(true);
+    } else if (key === "custom") {
+      setEmailSubject(`Update regarding your IFIP Application`);
+      setEmailBody(`Hello {{firstName}},\n\n`);
+      setIncludeResumeLink(true);
+    }
+  };
+
+  // Selection Handlers
+  const toggleSelectApplicant = (id: string) => {
+    setSelectedApplicantIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const isAllCurrentPageSelected =
+    applicants.length > 0 && applicants.every((a) => selectedApplicantIds.includes(a._id));
+
+  const toggleSelectAllCurrentPage = () => {
+    if (isAllCurrentPageSelected) {
+      const pageIds = new Set(applicants.map((a) => a._id));
+      setSelectedApplicantIds((prev) => prev.filter((id) => !pageIds.has(id)));
+    } else {
+      const pageIds = applicants.map((a) => a._id);
+      setSelectedApplicantIds((prev) => Array.from(new Set([...prev, ...pageIds])));
+    }
+  };
+
+  const selectAllFilteredApplicants = () => {
+    const allIds = applicants.map((a) => a._id);
+    setSelectedApplicantIds(allIds);
+  };
+
+  const clearSelection = () => {
+    setSelectedApplicantIds([]);
+  };
+
   const openEmailModal = (applicant: PendingApplicant) => {
     setEmailModalApplicant(applicant);
+    setIsBulkEmailModalOpen(false);
     loadEmailTemplate("expiration_reminder", applicant);
+  };
+
+  const openBulkEmailModal = () => {
+    if (selectedApplicantIds.length === 0) {
+      showToast("Please select at least one applicant.", "error");
+      return;
+    }
+    setEmailModalApplicant(null);
+    setIsBulkEmailModalOpen(true);
+    loadBulkEmailTemplate("payment_assistance");
   };
 
   const handleSendCustomEmail = async () => {
@@ -201,6 +274,36 @@ export default function PendingApplicantsPage() {
     } catch (err: any) {
       console.error("Send custom email error:", err);
       showToast(err.response?.data?.message || "Failed to send email.", "error");
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  const handleSendBulkEmail = async () => {
+    if (selectedApplicantIds.length === 0 || sendingEmail) return;
+    if (!emailSubject.trim()) {
+      showToast("Please enter an email subject line.", "error");
+      return;
+    }
+    if (!emailBody.trim()) {
+      showToast("Please enter an email message body.", "error");
+      return;
+    }
+
+    setSendingEmail(true);
+    try {
+      const res = await sendBulkPendingApplicantReminders({
+        applicantIds: selectedApplicantIds,
+        subject: emailSubject,
+        message: emailBody,
+        includeResumeLink,
+      });
+      showToast(res.message || `Bulk email dispatched successfully!`, "success");
+      setIsBulkEmailModalOpen(false);
+      setSelectedApplicantIds([]);
+    } catch (err: any) {
+      console.error("Send bulk email error:", err);
+      showToast(err.response?.data?.message || "Failed to send bulk email.", "error");
     } finally {
       setSendingEmail(false);
     }
@@ -420,6 +523,49 @@ export default function PendingApplicantsPage() {
         </div>
       </div>
 
+      {/* SELECTION BATCH ACTION TOOLBAR */}
+      {selectedApplicantIds.length > 0 && (
+        <div className="bg-gradient-to-r from-slate-900 via-sky-950 to-slate-900 text-white p-4 rounded-2xl shadow-xl border border-sky-800/40 flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in zoom-in-95 duration-200">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-300 flex items-center justify-center font-bold text-sm border border-sky-400/30 shrink-0">
+              {selectedApplicantIds.length}
+            </div>
+            <div>
+              <div className="font-bold text-sm sm:text-base flex items-center gap-2">
+                <span>{selectedApplicantIds.length} Applicant{selectedApplicantIds.length > 1 ? "s" : ""} Selected</span>
+                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30">
+                  Bulk Outreach Ready
+                </span>
+              </div>
+              <p className="text-slate-300 text-xs mt-0.5">
+                Send a personalized commitment levy reminder or custom bulk email to all selected candidates.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+            <button
+              onClick={selectAllFilteredApplicants}
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition border border-slate-700"
+            >
+              Select All Page ({applicants.length})
+            </button>
+            <button
+              onClick={clearSelection}
+              className="px-3.5 py-2 bg-slate-800/50 hover:bg-slate-800 text-slate-300 rounded-xl text-xs font-medium transition border border-slate-700/50"
+            >
+              Clear Selection
+            </button>
+            <button
+              onClick={openBulkEmailModal}
+              className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold transition shadow-md flex items-center gap-2"
+            >
+              <HiOutlinePaperAirplane className="w-4 h-4" /> Send Bulk Email ({selectedApplicantIds.length})
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Applicants Container */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         {loading ? (
@@ -452,7 +598,16 @@ export default function PendingApplicantsPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 text-[11px] font-bold tracking-wider uppercase">
-                    <th className="py-3.5 px-4 pl-6">Applicant Name & Email</th>
+                    <th className="py-3.5 px-4 pl-6 w-10">
+                      <input
+                        type="checkbox"
+                        checked={isAllCurrentPageSelected}
+                        onChange={toggleSelectAllCurrentPage}
+                        className="w-4 h-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500 cursor-pointer"
+                        title="Select all applicants on this page"
+                      />
+                    </th>
+                    <th className="py-3.5 px-4">Applicant Name & Email</th>
                     <th className="py-3.5 px-4">Country & Phone</th>
                     <th className="py-3.5 px-4">Form Stage Completed</th>
                     <th className="py-3.5 px-4">Time Left (TTL)</th>
@@ -470,7 +625,16 @@ export default function PendingApplicantsPage() {
                         setActiveTab("details");
                       }}
                     >
-                      <td className="py-4 px-4 pl-6">
+                      <td className="py-4 px-4 pl-6 w-10" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedApplicantIds.includes(applicant._id)}
+                          onChange={() => toggleSelectApplicant(applicant._id)}
+                          className="w-4 h-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500 cursor-pointer"
+                        />
+                      </td>
+
+                      <td className="py-4 px-4">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-full bg-sky-100 text-sky-800 font-bold flex items-center justify-center text-xs shrink-0">
                             {(applicant.fullName || applicant.email).slice(0, 2).toUpperCase()}
@@ -592,9 +756,17 @@ export default function PendingApplicantsPage() {
                   {/* Top Color Accent Strip Demarcating Card Boundary */}
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-sky-500 via-indigo-500 to-sky-400 opacity-90" />
 
-                  {/* Top Row: Avatar, Name (with truncation & checkmark) & Expiry Badge */}
+                  {/* Top Row: Checkbox, Avatar, Name (with truncation & checkmark) & Expiry Badge */}
                   <div className="flex items-start justify-between gap-3 pt-0.5">
                     <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div className="pt-2" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedApplicantIds.includes(applicant._id)}
+                          onChange={() => toggleSelectApplicant(applicant._id)}
+                          className="w-4 h-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500 cursor-pointer"
+                        />
+                      </div>
                       <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-600 to-indigo-700 text-white font-bold flex items-center justify-center text-xs shrink-0 shadow-xs">
                         {(applicant.fullName || applicant.email).slice(0, 2).toUpperCase()}
                       </div>
@@ -719,8 +891,8 @@ export default function PendingApplicantsPage() {
         )}
       </div>
 
-      {/* CUSTOM EMAIL COMPOSER MODAL */}
-      {emailModalApplicant && (
+      {/* CUSTOM EMAIL COMPOSER MODAL (SINGLE OR BULK) */}
+      {(emailModalApplicant || isBulkEmailModalOpen) && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
@@ -730,14 +902,21 @@ export default function PendingApplicantsPage() {
                   <HiOutlineEnvelope className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm sm:text-base">Compose Email to Candidate</h3>
+                  <h3 className="font-bold text-sm sm:text-base">
+                    {isBulkEmailModalOpen ? `Compose Bulk Email (${selectedApplicantIds.length} Recipients)` : "Compose Email to Candidate"}
+                  </h3>
                   <p className="text-[11px] sm:text-xs text-slate-400 font-mono truncate max-w-[200px] sm:max-w-[320px]">
-                    To: {emailModalApplicant.fullName || "Applicant"} &lt;{emailModalApplicant.email}&gt;
+                    {isBulkEmailModalOpen
+                      ? `To: ${selectedApplicantIds.length} selected pending applicants`
+                      : `To: ${emailModalApplicant?.fullName || "Applicant"} <${emailModalApplicant?.email}>`}
                   </p>
                 </div>
               </div>
               <button
-                onClick={() => setEmailModalApplicant(null)}
+                onClick={() => {
+                  setEmailModalApplicant(null);
+                  setIsBulkEmailModalOpen(false);
+                }}
                 className="p-1.5 text-slate-400 hover:text-white rounded-lg transition"
               >
                 <HiOutlineXMark className="w-5 h-5" />
@@ -746,6 +925,13 @@ export default function PendingApplicantsPage() {
 
             {/* Modal Body */}
             <div className="p-4 sm:p-6 space-y-4 text-xs">
+              {/* Info banner for bulk mode */}
+              {isBulkEmailModalOpen && (
+                <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-sky-800 text-[11px] leading-relaxed">
+                  💡 <strong>Personalized Bulk Dispatch:</strong> Placeholders <code>&#123;&#123;firstName&#125;&#125;</code> and <code>&#123;&#123;daysLeft&#125;&#125;</code> will automatically evaluate each candidate&apos;s name and actual time remaining before draft expiration.
+                </div>
+              )}
+
               {/* Template Selector Dropdown */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1.5 uppercase tracking-wider text-[10px]">
@@ -753,7 +939,13 @@ export default function PendingApplicantsPage() {
                 </label>
                 <select
                   value={emailTemplateKey}
-                  onChange={(e) => loadEmailTemplate(e.target.value, emailModalApplicant)}
+                  onChange={(e) => {
+                    if (isBulkEmailModalOpen) {
+                      loadBulkEmailTemplate(e.target.value);
+                    } else if (emailModalApplicant) {
+                      loadEmailTemplate(e.target.value, emailModalApplicant);
+                    }
+                  }}
                   className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 text-xs"
                 >
                   <option value="expiration_reminder">⏰ 1. Expiration Notice & Registration Reminder</option>
@@ -809,23 +1001,26 @@ export default function PendingApplicantsPage() {
             {/* Modal Footer */}
             <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3">
               <button
-                onClick={() => setEmailModalApplicant(null)}
+                onClick={() => {
+                  setEmailModalApplicant(null);
+                  setIsBulkEmailModalOpen(false);
+                }}
                 className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-100 transition text-xs"
               >
                 Cancel
               </button>
               <button
-                onClick={handleSendCustomEmail}
+                onClick={isBulkEmailModalOpen ? handleSendBulkEmail : handleSendCustomEmail}
                 disabled={sendingEmail}
                 className="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-semibold transition shadow-sm flex items-center gap-2 text-xs"
               >
                 {sendingEmail ? (
                   <>
-                    <HiOutlineArrowPath className="w-4 h-4 animate-spin" /> Sending Email...
+                    <HiOutlineArrowPath className="w-4 h-4 animate-spin" /> {isBulkEmailModalOpen ? "Sending Bulk Emails..." : "Sending Email..."}
                   </>
                 ) : (
                   <>
-                    <HiOutlinePaperAirplane className="w-4 h-4" /> Send Email
+                    <HiOutlinePaperAirplane className="w-4 h-4" /> {isBulkEmailModalOpen ? `Send to ${selectedApplicantIds.length} Applicants` : "Send Email"}
                   </>
                 )}
               </button>

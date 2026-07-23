@@ -858,6 +858,79 @@ export const sendPendingApplicantReminder = async (req: Request, res: Response) 
     }
 };
 
+// ── POST /api/v1/admin/pending-applicants/bulk-remind-email ──────────────────
+export const sendBulkPendingApplicantReminders = async (req: Request, res: Response) => {
+    try {
+        const { applicantIds, subject, message, includeResumeLink } = req.body || {};
+
+        if (!Array.isArray(applicantIds) || applicantIds.length === 0) {
+            res.status(400).json({ message: 'No applicant IDs provided for bulk email outreach.' });
+            return;
+        }
+
+        const applicants = await Applicant.find({ _id: { $in: applicantIds } });
+        if (!applicants.length) {
+            res.status(404).json({ message: 'No matching pending applicants found.' });
+            return;
+        }
+
+        let sentCount = 0;
+        let failCount = 0;
+        const now = Date.now();
+
+        // Process in concurrent chunks of 5
+        const CHUNK_SIZE = 5;
+        for (let i = 0; i < applicants.length; i += CHUNK_SIZE) {
+            const chunk = applicants.slice(i, i + CHUNK_SIZE);
+            await Promise.all(
+                chunk.map(async (applicant) => {
+                    try {
+                        const expiresAtMs = applicant.expiresAt ? new Date(applicant.expiresAt).getTime() : now + 5 * 24 * 3600 * 1000;
+                        const diffMs = Math.max(0, expiresAtMs - now);
+                        const daysLeft = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                        const hoursLeft = Math.floor(diffMs / (1000 * 60 * 60));
+
+                        const resumeToken = signApplicantSessionToken(applicant._id.toString());
+
+                        await sendPendingReminderEmail(
+                            applicant.email,
+                            applicant.fullName,
+                            applicant.currentStep,
+                            daysLeft,
+                            hoursLeft,
+                            resumeToken,
+                            subject,
+                            message,
+                            includeResumeLink !== false
+                        );
+                        sentCount++;
+                    } catch (err) {
+                        console.error(`Bulk email failed for ${applicant.email}:`, err);
+                        failCount++;
+                    }
+                })
+            );
+        }
+
+        logRawAction({
+            userId: (req as any).user?.id || 'admin',
+            userEmail: (req as any).user?.email || 'admin',
+            userRole: (req as any).user?.role || 'admin',
+            action: 'BULK_REMINDER_EMAIL_SENT',
+            description: `Sent bulk email outreach to ${sentCount} pending applicants (${failCount} failed)`,
+            targetType: 'Applicant',
+        });
+
+        res.json({
+            message: `Bulk email processing complete. Successfully sent to ${sentCount} applicant(s).${failCount > 0 ? ` (${failCount} failed)` : ''}`,
+            sentCount,
+            failCount,
+        });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Failed to send bulk emails.', error: e.message });
+    }
+};
+
 // ── GET /api/v1/admin/payments ─────────────────────────────────────────────────
 // Paginated list of all payment records with optional status/provider/search filters.
 export const getAdminPayments = async (req: Request, res: Response) => {

@@ -27,6 +27,7 @@ const envSchema = z.object({
     BREVO_API_KEY: z.string().min(1),
     EMAIL_FROM: z.string().min(1),
     EMAIL_REPLY_TO: z.string().email().default('ifip.program@gmail.com'),
+    SUPPORT_PHONE: z.string().default('+2349060356610'),
     COHORT_CAP: z.string().default('100'),
     COHORT_START_DATE: z.string().default('2026-08-31T00:00:00.000Z'),
     REDIS_URL: z.string().default('redis://127.0.0.1:6379'),

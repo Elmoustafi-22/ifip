@@ -1007,11 +1007,22 @@ export const sendPendingReminderEmail = async (
     const firstName = fullName ? fullName.trim().split(' ')[0] : 'Applicant';
     const timeText = daysLeft > 0 ? `${daysLeft} day${daysLeft > 1 ? 's' : ''}` : `${hoursLeft} hour${hoursLeft > 1 ? 's' : ''}`;
 
-    const subject = customSubject?.trim() || `Reminder: Complete Your IFIP Application (${timeText} remaining)`;
+    let subject = customSubject?.trim() || `Reminder: Complete Your IFIP Application (${timeText} remaining)`;
+    subject = subject
+        .replace(/\{\{firstName\}\}/g, firstName)
+        .replace(/\{\{daysLeft\}\}/g, timeText)
+        .replace(/\{\{hoursLeft\}\}/g, `${hoursLeft} hours`)
+        .replace(/\{\{currentStep\}\}/g, currentStep.toString());
 
     let bodyHtml = '';
     if (customMessage && customMessage.trim()) {
-        const paragraphs = customMessage.trim().split('\n\n').map(p =>
+        let processedMessage = customMessage.trim()
+            .replace(/\{\{firstName\}\}/g, firstName)
+            .replace(/\{\{daysLeft\}\}/g, timeText)
+            .replace(/\{\{hoursLeft\}\}/g, `${hoursLeft} hours`)
+            .replace(/\{\{currentStep\}\}/g, currentStep.toString());
+
+        const paragraphs = processedMessage.split('\n\n').map(p =>
             `<p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 16px 0;">${p.replace(/\n/g, '<br/>')}</p>`
         ).join('');
         bodyHtml = paragraphs;
@@ -1054,12 +1065,18 @@ export const sendPendingReminderEmail = async (
             <div style="${contentContainerStyle}">
                 ${bodyHtml}
                 ${buttonHtml}
-                <p style="font-size: 13px; color: #767683; line-height: 1.6; text-align: center; margin: 0;">
-                    If you have any questions or need assistance, feel free to reply directly to this email.
-                </p>
+                <div style="margin-top: 28px; padding-top: 20px; border-top: 1px solid #E7E2D8; text-align: center;">
+                    <p style="font-size: 13px; color: #454652; line-height: 1.6; margin: 0 0 6px 0; font-weight: 600;">
+                        Need Help or Have Questions Regarding Payment?
+                    </p>
+                    <p style="font-size: 12px; color: #767683; line-height: 1.6; margin: 0;">
+                        Reply directly to this email: <a href="mailto:${env.EMAIL_REPLY_TO}" style="color: #000666; font-weight: bold; text-decoration: underline;">${env.EMAIL_REPLY_TO}</a><br/>
+                        Call / WhatsApp Support: <a href="tel:+2349060356610" style="color: #000666; font-weight: bold; text-decoration: underline;">+234 906 035 6610</a>
+                    </p>
+                </div>
             </div>
-            <div style="background-color: #FDFBF7; padding: 28px 24px; text-align: center; border-top: 1px solid #E7E2D8;">
-                <h3 style="font-family: Georgia, serif; font-size: 16px; font-weight: bold; color: #000666; margin: 0 0 6px 0;">Islamic Finance Internship Program</h3>
+            <div style="background-color: #FDFBF7; padding: 24px 24px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <h3 style="font-family: Georgia, serif; font-size: 15px; font-weight: bold; color: #000666; margin: 0 0 6px 0;">Islamic Finance Internship Program</h3>
                 <p style="font-size: 11px; color: #767683; margin: 0;">© 2026 Islamic Finance Academy. All rights reserved.</p>
             </div>
         </div>
