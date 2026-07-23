@@ -11,6 +11,7 @@ import { AuditLog } from '../models/AuditLog.js';
 import { Payment } from '../models/Payments.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { signSetPasswordToken, signApplicantSessionToken } from '../utils/jwt.js';
+import { generateResumeToken } from '../services/tokenService.js';
 import { sendAdminInvitationEmail, sendPendingReminderEmail } from '../services/emailService.js';
 import { logAction, logRawAction } from '../utils/auditLogger.js';
 import { executeApplicationSubmission } from './applicantController.js';
@@ -828,7 +829,12 @@ export const sendPendingApplicantReminder = async (req: Request, res: Response) 
         const daysLeft = Math.floor(diffMs / (1000 * 60 * 60 * 24));
         const hoursLeft = Math.floor(diffMs / (1000 * 60 * 60));
 
-        const resumeToken = signApplicantSessionToken(applicant._id.toString());
+        // Generate a proper opaque resume token (raw/hash pair) — NOT a JWT.
+        // The resumeApplication endpoint looks up by hash, so using a JWT here
+        // would never match and would produce "This resume link is invalid or has expired."
+        const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
+        applicant.resumeTokenHash = resumeTokenHash;
+        await applicant.save();
 
         await sendPendingReminderEmail(
             applicant.email,
@@ -836,7 +842,7 @@ export const sendPendingApplicantReminder = async (req: Request, res: Response) 
             applicant.currentStep,
             daysLeft,
             hoursLeft,
-            resumeToken,
+            resumeTokenRaw,
             subject,
             message,
             includeResumeLink !== false
@@ -890,7 +896,11 @@ export const sendBulkPendingApplicantReminders = async (req: Request, res: Respo
                         const daysLeft = Math.floor(diffMs / (1000 * 60 * 60 * 24));
                         const hoursLeft = Math.floor(diffMs / (1000 * 60 * 60));
 
-                        const resumeToken = signApplicantSessionToken(applicant._id.toString());
+                        // Generate a proper opaque resume token (raw/hash pair) — NOT a JWT.
+                        // resumeApplication looks up by hash; a JWT would never match.
+                        const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
+                        applicant.resumeTokenHash = resumeTokenHash;
+                        await applicant.save();
 
                         await sendPendingReminderEmail(
                             applicant.email,
@@ -898,7 +908,7 @@ export const sendBulkPendingApplicantReminders = async (req: Request, res: Respo
                             applicant.currentStep,
                             daysLeft,
                             hoursLeft,
-                            resumeToken,
+                            resumeTokenRaw,
                             subject,
                             message,
                             includeResumeLink !== false
