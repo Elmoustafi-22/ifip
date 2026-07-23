@@ -670,7 +670,7 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
         } = req.query;
 
         const pageNum = Math.max(1, parseInt(page as string, 10));
-        const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
+        const limitNum = Math.min(1000, Math.max(1, parseInt(limit as string, 10)));
         const skip = (pageNum - 1) * limitNum;
 
         const match: any = { isPaid: { $ne: true } };

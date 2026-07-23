@@ -52,6 +52,7 @@ export default function PendingApplicantsPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
+  const [limit, setLimit] = useState(25);
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
 
@@ -85,7 +86,7 @@ export default function PendingApplicantsPage() {
     try {
       const params: GetPendingApplicantsParams = {
         page,
-        limit: 25,
+        limit,
         search: search.trim() || undefined,
         country: country || undefined,
         step: step ? parseInt(step, 10) : undefined,
@@ -116,7 +117,7 @@ export default function PendingApplicantsPage() {
     startTransition(() => {
       fetchApplicants();
     });
-  }, [page, country, step, hasPaymentAttempt, expiringSoon]);
+  }, [page, limit, country, step, hasPaymentAttempt, expiringSoon]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -499,6 +500,23 @@ export default function PendingApplicantsPage() {
               <option value="false">Never Attempted Payment</option>
             </select>
 
+            <select
+              value={limit}
+              onChange={(e) => {
+                setLimit(parseInt(e.target.value, 10));
+                setPage(1);
+              }}
+              className="w-full sm:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-sky-800 bg-sky-50/60 border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-500"
+              title="Select number of records to fetch per page"
+            >
+              <option value={25}>Show 25 / page</option>
+              <option value={50}>Show 50 / page</option>
+              <option value={100}>Show 100 / page</option>
+              <option value={250}>Show 250 / page</option>
+              <option value={500}>Show 500 / page</option>
+              <option value={1000}>Show All (1000 max)</option>
+            </select>
+
             <button
               type="button"
               onClick={() => setExpiringSoon(!expiringSoon)}
@@ -866,27 +884,49 @@ export default function PendingApplicantsPage() {
         )}
 
         {/* Pagination Footer */}
-        {pages > 1 && (
+        {total > 0 && (
           <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium">
-            <div>
-              Showing Page {page} of {pages} ({total} total applicants)
+            <div className="flex flex-wrap items-center gap-3">
+              <div>
+                Showing Page {page} of {pages} ({total} total applicants)
+              </div>
+              <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                <span className="text-slate-400">Items per page:</span>
+                <select
+                  value={limit}
+                  onChange={(e) => {
+                    setLimit(parseInt(e.target.value, 10));
+                    setPage(1);
+                  }}
+                  className="px-2 py-1 bg-white border border-slate-200 rounded-lg font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={250}>250</option>
+                  <option value={500}>500</option>
+                  <option value={1000}>1000 (All)</option>
+                </select>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                disabled={page <= 1}
-                onClick={() => setPage(page - 1)}
-                className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
-              >
-                Previous
-              </button>
-              <button
-                disabled={page >= pages}
-                onClick={() => setPage(page + 1)}
-                className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
-              >
-                Next
-              </button>
-            </div>
+            {pages > 1 && (
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={page <= 1}
+                  onClick={() => setPage(page - 1)}
+                  className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  Previous
+                </button>
+                <button
+                  disabled={page >= pages}
+                  onClick={() => setPage(page + 1)}
+                  className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
