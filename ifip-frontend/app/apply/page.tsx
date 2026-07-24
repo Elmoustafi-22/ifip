@@ -1469,7 +1469,7 @@ export default function ApplyPage() {
                 </span>
                 <span className="hidden sm:inline text-emerald-300">|</span>
                 <a
-                  href="https://wa.me/2348112021272"
+                  href="https://wa.me/2349060356610"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="underline hover:text-emerald-700 transition-all flex items-center gap-1"
@@ -2708,7 +2708,7 @@ export default function ApplyPage() {
           <a href="#" className="hover:underline hover:text-primary transition-colors">Privacy Policy</a>
           <a href="/#faq" className="hover:underline hover:text-primary transition-colors">Program FAQs</a>
           <a
-            href="https://wa.me/2348112021272"
+            href="https://wa.me/2349060356610"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-emerald-600 hover:text-emerald-700 font-semibold transition-colors hover:underline"

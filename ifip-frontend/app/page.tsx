@@ -523,7 +523,7 @@ export default function Home() {
               <li><a href="#" className="hover:text-primary transition-colors">Privacy Policy</a></li>
               <li>
                 <a
-                  href="https://wa.me/2348112021272"
+                  href="https://wa.me/2349060356610"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-primary transition-colors inline-flex items-center gap-1.5 text-emerald-600 font-bold"
