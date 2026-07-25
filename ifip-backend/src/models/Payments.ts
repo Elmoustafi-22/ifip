@@ -20,7 +20,7 @@ const paymentSchema = new Schema<IPayment>(
     {
         applicantId: { type: Schema.Types.ObjectId, ref: 'Applicant', required: true },
         applicationId: { type: Schema.Types.ObjectId, ref: 'Application' },
-        provider: { type: String, enum: ['paystack', 'flutterwave'], default: 'paystack' },
+        provider: { type: String, enum: ['paystack', 'flutterwave'], default: 'flutterwave' },
         providerRef: { type: String, required: true, unique: true },
         amount: { type: Number, required: true },
         currency: { type: String, default: 'NGN' },

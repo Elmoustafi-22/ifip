@@ -226,7 +226,7 @@ export const sendPaymentSuccessEmail = async (to: string, resumeToken: string, c
     const isNigeria = country.toLowerCase() === 'nigeria';
     const amountText = isNigeria ? '₦20,000' : '$30';
     const amountSummary = isNigeria ? '₦20,000.00' : '$30.00';
-    const method = isNigeria ? 'Paystack Checkout' : 'Stripe / Cards';
+    const method = 'Flutterwave Checkout';
     const formattedDate = new Date().toLocaleDateString('en-US', {
         month: 'long',
         day: 'numeric',

@@ -4,10 +4,9 @@ import { env } from "../config/env.js";
 const paystackApi = axios.create({
     baseURL: "https://api.paystack.co",
     headers: {
-        Authorization: `Bearer ${env.PAYSTACK_SECRET_KEY}`
+        Authorization: `Bearer ${env.PAYSTACK_SECRET_KEY ?? ''}`
     },
     timeout: 15000,
-
 });
 
 interface InitializeParams {

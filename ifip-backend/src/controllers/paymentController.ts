@@ -105,21 +105,22 @@ export const initiatePayment = async (req: Request, res: Response) => {
     let currency: string;
     let provider: 'paystack' | 'flutterwave';
 
-    if (isNigeria) {
-        provider = 'paystack';
-        currency = 'NGN';
-        amount = Number(env.LEVY_AMOUNT_NGN) * 100;
+    provider = 'flutterwave';
 
-        const paystackResponse = await paystackService.initializeTransaction({
+    if (isNigeria) {
+        currency = 'NGN';
+        const rawAmount = Number(env.LEVY_AMOUNT_NGN);
+        amount = rawAmount * 100;
+
+        const flutterwaveResponse = await flutterwaveService.initializeTransaction({
             email: applicant.email,
-            amountKobo: amount,
+            amount: rawAmount,
             reference,
             currency,
             metadata: { applicantId: applicant.id },
         });
-        authorizationUrl = paystackResponse.authorization_url;
+        authorizationUrl = flutterwaveResponse.link;
     } else {
-        provider = 'flutterwave';
         currency = 'USD';
         const rawAmount = Number(env.LEVY_AMOUNT_USD);
         amount = rawAmount * 100;
@@ -305,6 +306,10 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
 };
 
 export const handlePaystackWebhook = async (req: Request, res: Response) => {
+    if (!env.PAYSTACK_SECRET_KEY) {
+        res.status(200).end();
+        return;
+    }
     const signature = req.headers['x-paystack-signature'] as string | undefined;
     const expectedSignature = crypto
         .createHmac('sha512', env.PAYSTACK_SECRET_KEY)
