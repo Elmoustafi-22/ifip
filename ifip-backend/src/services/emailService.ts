@@ -131,7 +131,7 @@ export const sendResumeLinkEmail = async (to: string, resumeToken: string, isPai
             <td style="vertical-align: top; width: 32px; font-size: 18px; color: #006591;">ℹ️</td>
             <td style="vertical-align: top;">
                 <p style="font-size: 13px; color: #454652; line-height: 1.6; margin: 0;">
-                    You can use this link to resume your registration from where you stopped at any time over the next 5 days. Your draft progress will be saved temporarily.
+                    You can use this link to resume your registration from where you stopped at any time. Your draft progress is saved and will remain available until the cohort closes.
                 </p>
             </td>
            </tr>`;
