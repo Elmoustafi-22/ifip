@@ -162,14 +162,14 @@ export const getDashboardStats = async (req: Request, res: Response) => {
             return { step, label, count };
         });
 
-        // Find the step with the greatest absolute drop-off
+        // Find the step with the greatest absolute drop-off (the step WHERE applicants dropped off)
         let dropOffStep: number | null = null;
         let maxDrop = 0;
         for (let i = 1; i < byStep.length; i++) {
             const drop = byStep[i - 1].count - byStep[i].count;
             if (drop > maxDrop) {
                 maxDrop = drop;
-                dropOffStep = byStep[i].step;
+                dropOffStep = byStep[i - 1].step; // The step where candidates abandoned
             }
         }
 
@@ -181,11 +181,20 @@ export const getDashboardStats = async (req: Request, res: Response) => {
             ? parseFloat(((totalApplications / totalStarted) * 100).toFixed(1))
             : 0;
 
+        // Accurate checkoutStarted count: applicants with actual Payment records OR at step 6 with checkoutStartedAt
+        const paymentAttemptApplicantIds = await Payment.distinct('applicantId');
+        const checkoutStartedCount = await Applicant.countDocuments({
+            $or: [
+                { _id: { $in: paymentAttemptApplicantIds } },
+                { checkoutStartedAt: { $ne: null }, currentStep: { $gte: 6 } },
+            ],
+        });
+
         const registrationFunnel = {
             totalStarted,
             inProgress: meta.totalStarted,   // still in Applicant collection
             byStep,
-            checkoutStarted: meta.checkoutStarted,
+            checkoutStarted: checkoutStartedCount,
             paymentCompleted: meta.paymentCompleted,
             fullyConverted: totalApplications,
             dropOffStep,
