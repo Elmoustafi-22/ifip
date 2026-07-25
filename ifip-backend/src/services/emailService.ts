@@ -996,8 +996,6 @@ export const sendPendingReminderEmail = async (
     to: string,
     fullName: string | undefined,
     currentStep: number,
-    daysLeft: number,
-    hoursLeft: number,
     resumeToken?: string,
     customSubject?: string,
     customMessage?: string,
@@ -1005,21 +1003,16 @@ export const sendPendingReminderEmail = async (
 ) => {
     const resumeUrl = resumeToken ? `${env.CLIENT_URL}/apply?token=${resumeToken}` : `${env.CLIENT_URL}/apply`;
     const firstName = fullName ? fullName.trim().split(' ')[0] : 'Applicant';
-    const timeText = daysLeft > 0 ? `${daysLeft} day${daysLeft > 1 ? 's' : ''}` : `${hoursLeft} hour${hoursLeft > 1 ? 's' : ''}`;
 
-    let subject = customSubject?.trim() || `Reminder: Complete Your IFIP Application (${timeText} remaining)`;
+    let subject = customSubject?.trim() || `Don't Miss Out — Complete Your IFIP Application`;
     subject = subject
         .replace(/\{\{firstName\}\}/g, firstName)
-        .replace(/\{\{daysLeft\}\}/g, timeText)
-        .replace(/\{\{hoursLeft\}\}/g, `${hoursLeft} hours`)
         .replace(/\{\{currentStep\}\}/g, currentStep.toString());
 
     let bodyHtml = '';
     if (customMessage && customMessage.trim()) {
         let processedMessage = customMessage.trim()
             .replace(/\{\{firstName\}\}/g, firstName)
-            .replace(/\{\{daysLeft\}\}/g, timeText)
-            .replace(/\{\{hoursLeft\}\}/g, `${hoursLeft} hours`)
             .replace(/\{\{currentStep\}\}/g, currentStep.toString());
 
         const paragraphs = processedMessage.split('\n\n').map(p =>
@@ -1028,7 +1021,7 @@ export const sendPendingReminderEmail = async (
         bodyHtml = paragraphs;
     } else {
         bodyHtml = `
-            <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 16px 0;">Don't Lose Your Application Progress</h1>
+            <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 16px 0;">Don't Miss Out on Your IFIP Spot</h1>
             <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
                 Hello ${firstName},
             </p>
@@ -1036,12 +1029,12 @@ export const sendPendingReminderEmail = async (
                 We noticed you started your application for the Islamic Finance Internship Program (IFIP) and reached <strong>Step ${currentStep} of 7</strong>.
             </p>
 
-            <div style="background-color: #FFF3CD; border: 1px solid #FFEBAA; border-radius: 8px; padding: 20px; margin-bottom: 28px; text-align: center;">
-                <p style="font-size: 14px; color: #856404; font-weight: bold; margin: 0 0 6px 0;">
-                    ⏰ Application Expiration Notice
+            <div style="background-color: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 8px; padding: 20px; margin-bottom: 28px; text-align: center;">
+                <p style="font-size: 14px; color: #3730A3; font-weight: bold; margin: 0 0 6px 0;">
+                    🟡 Cohort Spots Are Filling Up
                 </p>
-                <p style="font-size: 13px; color: #856404; margin: 0; line-height: 1.5;">
-                    Your saved draft will expire in <strong>${timeText}</strong>. After this period, unsubmitted details are automatically purged for security.
+                <p style="font-size: 13px; color: #4338CA; margin: 0; line-height: 1.5;">
+                    Spots in Batch 2026 Fall-A26 are <strong>limited and filling up fast</strong>. Complete and submit your application before the cohort reaches capacity — your progress is saved and waiting for you.
                 </p>
             </div>
         `;

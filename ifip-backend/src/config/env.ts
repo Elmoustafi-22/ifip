@@ -11,7 +11,6 @@ const envSchema = z.object({
     JWT_REFRESH_EXPIRY: z.string().default('7d'),
     APPLICANT_SESSION_SECRET: z.string().min(32),
     APPLICANT_SESSION_EXPIRY: z.string().default('2h'),
-    RESUME_TOKEN_EXPIRY_HOURS: z.string().default('48'),
     OTP_EXPIRY_MINUTES: z.string().default('10'),
     SET_PASSWORD_TOKEN_SECRET: z.string().min(32),
     SET_PASSWORD_TOKEN_EXPIRY: z.string().default('24h'),

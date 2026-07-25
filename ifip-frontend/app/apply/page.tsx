@@ -425,6 +425,8 @@ export default function ApplyPage() {
   const [careerGoals, setCareerGoals] = useState("");
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [cvUrl, setCvUrl] = useState("");
+  const [cvUploading, setCvUploading] = useState(false);
+  const [cvUploadError, setCvUploadError] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [portfolioUrl, setPortfolioUrl] = useState("");
   const [leadSource, setLeadSource] = useState("LinkedIn");
@@ -920,21 +922,14 @@ export default function ApplyPage() {
     setErrorMsg("");
     setLoading(true);
 
-    let currentCvUrl = cvUrl;
-
-    // If on Step 5 going to Step 6, and a new CV file was selected, upload it first
-    if (nextStep === 6 && cvFile) {
-      try {
-        const uploadData = await uploadCv(cvFile);
-        currentCvUrl = uploadData.cvUrl;
-        setCvUrl(currentCvUrl);
-        setCvFile(null); // Clear cvFile once uploaded successfully
-      } catch (err: any) {
-        setErrorMsg(err.message || "Failed to upload CV.");
-        setLoading(false);
-        return;
-      }
+    // CV is uploaded eagerly on file selection — cvUrl is already populated.
+    // Guard: if upload is still in progress, block saving.
+    if (cvUploading) {
+      setErrorMsg("Please wait for your CV to finish uploading.");
+      setLoading(false);
+      return;
     }
+    const currentCvUrl = cvUrl;
 
     const relevantSkills = skillsText.split(",").map(s => s.trim()).filter(Boolean);
     const tools = toolsText.split(",").map(t => t.trim()).filter(Boolean);
@@ -994,25 +989,39 @@ export default function ApplyPage() {
     }
   };
 
-  // Step 5 CV change handler
-  const handleCvChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Step 5 CV change handler — uploads immediately on file selection
+  const handleCvChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (file.type !== "application/pdf") {
-        setErrorMsg("Please upload a PDF file only.");
+        setCvUploadError("Please upload a PDF file only.");
         return;
       }
       if (file.size > 10 * 1024 * 1024) {
-        setErrorMsg("File size exceeds 10MB limit. Please upload a smaller PDF file.");
+        setCvUploadError("File size exceeds 10MB limit. Please upload a smaller PDF file.");
         return;
       }
+
+      // Reset previous state
       setCvFile(file);
-      setErrorMsg(""); // Clear any previous errors
-      setErrors((prev) => {
-        const copy = { ...prev };
-        delete copy.cvUrl;
-        return copy;
-      });
+      setCvUrl("");
+      setCvUploadError("");
+      setErrors((prev) => { const copy = { ...prev }; delete copy.cvUrl; return copy; });
+
+      // Upload immediately
+      setCvUploading(true);
+      try {
+        const result = await uploadCv(file);
+        setCvUrl(result.cvUrl);
+        setCvFile(null); // clear the raw file — URL is now saved server-side
+        setCvUploadError("");
+      } catch (err: any) {
+        setCvUploadError(err.message || "CV upload failed. Please try again.");
+        setCvUrl("");
+        // Keep cvFile so user can retry without re-selecting
+      } finally {
+        setCvUploading(false);
+      }
     }
   };
 
@@ -2350,30 +2359,68 @@ export default function ApplyPage() {
                   <label className="text-xs font-bold uppercase text-primary block">Upload CV (PDF required)</label>
                   <div
                     id="cvUrl"
-                    className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center gap-3 bg-white text-center hover:bg-slate-50 transition-colors relative cursor-pointer min-h-[140px] ${
-                      errors.cvUrl ? "border-red-300" : "border-outline-variant/40"
+                    className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center gap-3 bg-white text-center transition-colors relative min-h-[140px] ${
+                      cvUploadError || errors.cvUrl
+                        ? "border-red-300 bg-red-50/10"
+                        : cvUrl
+                        ? "border-emerald-400 bg-emerald-50/20"
+                        : cvUploading
+                        ? "border-primary/40 bg-primary/5 cursor-wait"
+                        : "border-outline-variant/40 hover:bg-slate-50 cursor-pointer"
                     }`}
                   >
-                    <input
-                      type="file"
-                      accept=".pdf"
-                      onChange={handleCvChange}
-                      className="absolute inset-0 opacity-0 cursor-pointer"
-                    />
-                    <div className="p-3 bg-primary/5 rounded-full text-primary">
-                      <HiPaperClip className="w-6 h-6" />
-                    </div>
-                    {cvFile ? (
-                      <span className="text-sm font-bold text-primary">{cvFile.name}</span>
+                    {/* Only allow file selection when not uploading */}
+                    {!cvUploading && (
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={handleCvChange}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                    )}
+
+                    {cvUploading ? (
+                      /* Uploading state */
+                      <>
+                        <div className="flex flex-col items-center gap-3 py-1">
+                          <div className="w-10 h-10 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+                          <span className="text-sm font-semibold text-primary">Uploading CV…</span>
+                          <span className="text-xs text-on-surface-variant">{cvFile?.name}</span>
+                        </div>
+                      </>
                     ) : cvUrl ? (
-                      <span className="text-sm font-bold text-emerald-600 flex items-center gap-1.5 justify-center">
-                        <HiCheckCircle className="w-5 h-5" /> CV Uploaded
-                      </span>
+                      /* Success state */
+                      <>
+                        <div className="p-3 bg-emerald-100 rounded-full text-emerald-600">
+                          <HiCheckCircle className="w-6 h-6" />
+                        </div>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-sm font-bold text-emerald-700">CV Uploaded Successfully</span>
+                          <span className="text-xs text-emerald-600/80">Click to replace</span>
+                        </div>
+                      </>
                     ) : (
-                      <span className="text-xs text-on-surface-variant font-semibold">Click to browse or drag and drop</span>
+                      /* Idle state */
+                      <>
+                        <div className="p-3 bg-primary/5 rounded-full text-primary">
+                          <HiPaperClip className="w-6 h-6" />
+                        </div>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-sm font-semibold text-on-surface-variant">Click to browse or drag and drop</span>
+                          <span className="text-xs text-on-surface-variant/60">PDF only · Max 10 MB</span>
+                        </div>
+                      </>
                     )}
                   </div>
-                  {errors.cvUrl && (
+
+                  {/* Upload error message */}
+                  {cvUploadError && (
+                    <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5">
+                      <span className="text-red-500 mt-0.5">⚠</span>
+                      <span className="text-red-600 text-xs font-semibold">{cvUploadError} — click the box above to retry.</span>
+                    </div>
+                  )}
+                  {errors.cvUrl && !cvUploadError && (
                     <span className="text-red-500 text-xs mt-1 block">{errors.cvUrl}</span>
                   )}
                 </div>
@@ -2453,10 +2500,10 @@ export default function ApplyPage() {
                 </button>
                 <button
                   onClick={() => saveAllData(6)}
-                  disabled={loading || !whyApplying || !careerGoals || (!cvFile && !cvUrl)}
+                  disabled={loading || cvUploading || !whyApplying || !careerGoals || !cvUrl}
                   className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap"
                 >
-                  {loading ? "Saving..." : "Save & Continue →"}
+                  {loading ? "Saving..." : cvUploading ? "Uploading CV…" : "Save & Continue →"}
                 </button>
               </div>
             </div>

@@ -1,5 +1,4 @@
 import { Schema, model, Document, Types } from 'mongoose';
-import { env } from '../config/env.js';
 
 export interface IApplicant extends Document {
     email: string;
@@ -39,6 +38,14 @@ export interface IApplicant extends Document {
     expiresAt?: Date;
     cohortId?: Types.ObjectId;
     checkoutStartedAt?: Date;
+    lastReminderSentAt?: Date;
+    reminderCount?: number;
+    reminderHistory?: Array<{
+        sentAt: Date;
+        sentBy?: string;
+        subject?: string;
+        includeResumeLink?: boolean;
+    }>;
     updatedAt: Date;
     refreshExpiry(): void;
 }
@@ -77,22 +84,27 @@ const applicantSchema = new Schema<IApplicant>(
         expiresAt: { type: Date, required: false },
         cohortId: { type: Schema.Types.ObjectId, ref: 'Cohort' },
         checkoutStartedAt: Date,
+        lastReminderSentAt: Date,
+        reminderCount: { type: Number, default: 0 },
+        reminderHistory: [
+            {
+                sentAt: { type: Date, default: Date.now },
+                sentBy: String,
+                subject: String,
+                includeResumeLink: Boolean,
+            },
+        ],
     },
     { timestamps: true }
 );
 
-// TTL — self-deletes; Mongoose lifecycle hooks (pre/post 'deleteOne') do NOT
-// fire for TTL-driven deletions, since they happen at the MongoDB server level.
-// (This is why the Cloudinary purge job below exists as a separate safeguard.)
-applicantSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+// No TTL index — applicant documents are kept indefinitely until the cohort closes.
+// Deletion is handled manually by admins only.
 
 applicantSchema.methods.refreshExpiry = function (this: IApplicant) {
-    if (this.isPaid) {
-        this.expiresAt = undefined;
-        return;
-    }
-    const hours = Number(env.RESUME_TOKEN_EXPIRY_HOURS);
-    this.expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
+    // Applicant data is retained indefinitely — no rolling TTL.
+    // Always clear expiresAt so the (now-removed) TTL index never triggers.
+    this.expiresAt = undefined;
 };
 
 export const Applicant = model<IApplicant>('Applicant', applicantSchema);

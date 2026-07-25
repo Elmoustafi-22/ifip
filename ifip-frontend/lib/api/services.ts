@@ -274,11 +274,20 @@ export interface PendingApplicant {
   currentStep: number;
   isPaid?: boolean;
   expiresAt?: string;
-  daysLeft: number;
-  hoursLeft: number;
-  secondsRemaining: number;
+  daysSinceActivity: number;
   paymentAttemptsCount: number;
   paymentAttempts: PendingPaymentAttempt[];
+  reminderCount?: number;
+  lastReminderSentAt?: string | null;
+  reminderHistory?: Array<{
+    sentAt: string;
+    sentBy?: string;
+    subject?: string;
+    includeResumeLink?: boolean;
+  }>;
+  hoursSinceLastReminder?: number | null;
+  daysSinceLastReminder?: number | null;
+  cooldownActive?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -287,7 +296,11 @@ export interface PendingApplicantsSummary {
   totalPending: number;
   attemptedPaymentCount: number;
   noAttemptCount: number;
-  expiringSoonCount: number;
+  inactiveDays30Count: number;
+  neverRemindedCount?: number;
+  recentlyRemindedCount?: number;
+  eligibleRemindedCount?: number;
+  cooldownHours?: number;
   distinctCountries: string[];
   stepBreakdown: Record<number, number>;
 }
@@ -306,9 +319,11 @@ export interface GetPendingApplicantsParams {
   step?: number;
   hasPaymentAttempt?: 'true' | 'false' | 'all';
   paymentStatus?: string;
-  expiringSoon?: 'true' | 'false';
+
   programInterest?: string;
   leadSource?: string;
+  reminderStatus?: 'all' | 'never' | 'cooldown_active' | 'eligible';
+  cooldownHours?: number;
   page?: number;
   limit?: number;
 }

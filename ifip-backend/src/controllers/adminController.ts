@@ -654,7 +654,7 @@ export const getRegistrationApplicants = async (req: Request, res: Response) => 
 
 // ── GET /api/v1/admin/pending-applicants ────────────────────────────────────────
 // Paginated list of pending (unpaid) applicants with full details, payment attempts,
-// country/stage filters, and computed expiration time remaining.
+// country/stage filters, and activity data.
 export const getPendingApplicants = async (req: Request, res: Response) => {
     try {
         const {
@@ -663,9 +663,10 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
             step,
             hasPaymentAttempt,
             paymentStatus,
-            expiringSoon,
             programInterest,
             leadSource,
+            reminderStatus,
+            cooldownHours = '48',
             page = '1',
             limit = '50',
         } = req.query;
@@ -673,6 +674,8 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
         const pageNum = Math.max(1, parseInt(page as string, 10));
         const limitNum = Math.min(1000, Math.max(1, parseInt(limit as string, 10)));
         const skip = (pageNum - 1) * limitNum;
+        const cooldownMs = (parseInt(cooldownHours as string, 10) || 48) * 60 * 60 * 1000;
+        const cooldownThreshold = new Date(Date.now() - cooldownMs);
 
         const match: any = { isPaid: { $ne: true } };
 
@@ -689,11 +692,18 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
 
         if (search) {
             const searchRegex = new RegExp((search as string).trim(), 'i');
-            match.$or = [
+            const searchOr = [
                 { fullName: searchRegex },
                 { email: searchRegex },
                 { phone: searchRegex },
             ];
+            if (match.$or) {
+                match.$and = match.$and || [];
+                match.$and.push({ $or: match.$or }, { $or: searchOr });
+                delete match.$or;
+            } else {
+                match.$or = searchOr;
+            }
         }
 
         if (programInterest) {
@@ -704,9 +714,36 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
             match.leadSource = { $regex: new RegExp(leadSource as string, 'i') };
         }
 
-        if (expiringSoon === 'true') {
-            const next24h = new Date(Date.now() + 24 * 60 * 60 * 1000);
-            match.expiresAt = { $lte: next24h };
+        // expiresAt filter removed — applicant data is now retained indefinitely.
+
+        if (reminderStatus === 'never') {
+            const neverOr = [
+                { lastReminderSentAt: { $exists: false } },
+                { lastReminderSentAt: null },
+                { reminderCount: 0 },
+            ];
+            if (match.$or) {
+                match.$and = match.$and || [];
+                match.$and.push({ $or: match.$or }, { $or: neverOr });
+                delete match.$or;
+            } else {
+                match.$or = neverOr;
+            }
+        } else if (reminderStatus === 'cooldown_active') {
+            match.lastReminderSentAt = { $gte: cooldownThreshold };
+        } else if (reminderStatus === 'eligible') {
+            const eligibleOr = [
+                { lastReminderSentAt: { $exists: false } },
+                { lastReminderSentAt: null },
+                { lastReminderSentAt: { $lt: cooldownThreshold } },
+            ];
+            if (match.$or) {
+                match.$and = match.$and || [];
+                match.$and.push({ $or: match.$or }, { $or: eligibleOr });
+                delete match.$or;
+            } else {
+                match.$or = eligibleOr;
+            }
         }
 
         if (hasPaymentAttempt === 'true' || hasPaymentAttempt === 'false') {
@@ -729,7 +766,16 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
             }
         }
 
-        const [applicants, total, allPendingCount, attemptedCount, distinctCountries, stepAgg] = await Promise.all([
+        const [
+            applicants,
+            total,
+            allPendingCount,
+            attemptedCount,
+            distinctCountries,
+            stepAgg,
+            neverRemindedCount,
+            recentlyRemindedCount,
+        ] = await Promise.all([
             Applicant.find(match)
                 .sort({ updatedAt: -1 })
                 .skip(skip)
@@ -743,6 +789,14 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
                 { $match: { isPaid: { $ne: true } } },
                 { $group: { _id: '$currentStep', count: { $sum: 1 } } }
             ]),
+            Applicant.countDocuments({
+                isPaid: { $ne: true },
+                $or: [{ lastReminderSentAt: { $exists: false } }, { lastReminderSentAt: null }, { reminderCount: 0 }],
+            }),
+            Applicant.countDocuments({
+                isPaid: { $ne: true },
+                lastReminderSentAt: { $gte: cooldownThreshold },
+            }),
         ]);
 
         const applicantIds = applicants.map((a: any) => a._id);
@@ -769,19 +823,29 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
 
         const now = Date.now();
         const enrichedApplicants = applicants.map((a: any) => {
-            const expiresAtMs = a.expiresAt ? new Date(a.expiresAt).getTime() : 0;
-            const diffMs = Math.max(0, expiresAtMs - now);
-            const daysLeft = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-            const hoursLeft = Math.floor(diffMs / (1000 * 60 * 60));
             const paymentAttempts = paymentsByApplicant[a._id.toString()] || [];
+
+            // Days since last activity (based on updatedAt) — replaces the old expiresAt countdown.
+            const updatedAtMs = a.updatedAt ? new Date(a.updatedAt).getTime() : now;
+            const daysSinceActivity = Math.floor((now - updatedAtMs) / (1000 * 60 * 60 * 24));
+
+            const lastRemindedMs = a.lastReminderSentAt ? new Date(a.lastReminderSentAt).getTime() : 0;
+            const timeSinceLastRemindedMs = lastRemindedMs ? Math.max(0, now - lastRemindedMs) : null;
+            const hoursSinceLastReminder = timeSinceLastRemindedMs !== null ? Math.floor(timeSinceLastRemindedMs / (1000 * 60 * 60)) : null;
+            const daysSinceLastReminder = timeSinceLastRemindedMs !== null ? Math.floor(timeSinceLastRemindedMs / (1000 * 60 * 60 * 24)) : null;
+            const cooldownActive = lastRemindedMs > 0 && (now - lastRemindedMs) < cooldownMs;
 
             return {
                 ...a,
-                daysLeft,
-                hoursLeft,
-                secondsRemaining: Math.floor(diffMs / 1000),
+                daysSinceActivity,
                 paymentAttemptsCount: paymentAttempts.length,
                 paymentAttempts,
+                reminderCount: a.reminderCount || 0,
+                lastReminderSentAt: a.lastReminderSentAt || null,
+                reminderHistory: a.reminderHistory || [],
+                hoursSinceLastReminder,
+                daysSinceLastReminder,
+                cooldownActive,
             };
         });
 
@@ -790,7 +854,9 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
             if (item._id) stepBreakdown[item._id] = item.count;
         });
 
-        const expiringSoonCount = enrichedApplicants.filter((a: any) => a.hoursLeft <= 24).length;
+        // Applicants inactive for 30+ days (useful for prioritising outreach).
+        const inactiveDays30Count = enrichedApplicants.filter((a: any) => a.daysSinceActivity >= 30).length;
+        const eligibleRemindedCount = allPendingCount - recentlyRemindedCount;
 
         res.json({
             applicants: enrichedApplicants,
@@ -801,7 +867,11 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
                 totalPending: allPendingCount,
                 attemptedPaymentCount: attemptedCount,
                 noAttemptCount: allPendingCount - attemptedCount,
-                expiringSoonCount,
+                inactiveDays30Count,
+                neverRemindedCount,
+                recentlyRemindedCount,
+                eligibleRemindedCount,
+                cooldownHours: parseInt(cooldownHours as string, 10) || 48,
                 distinctCountries: distinctCountries.filter(Boolean).sort(),
                 stepBreakdown,
             },
@@ -823,25 +893,26 @@ export const sendPendingApplicantReminder = async (req: Request, res: Response) 
             return;
         }
 
-        const now = Date.now();
-        const expiresAtMs = applicant.expiresAt ? new Date(applicant.expiresAt).getTime() : now + 5 * 24 * 3600 * 1000;
-        const diffMs = Math.max(0, expiresAtMs - now);
-        const daysLeft = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-        const hoursLeft = Math.floor(diffMs / (1000 * 60 * 60));
-
         // Generate a proper opaque resume token (raw/hash pair) — NOT a JWT.
         // The resumeApplication endpoint looks up by hash, so using a JWT here
         // would never match and would produce "This resume link is invalid or has expired."
         const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
         applicant.resumeTokenHash = resumeTokenHash;
+        applicant.lastReminderSentAt = new Date();
+        applicant.reminderCount = (applicant.reminderCount || 0) + 1;
+        if (!applicant.reminderHistory) applicant.reminderHistory = [];
+        applicant.reminderHistory.push({
+            sentAt: new Date(),
+            sentBy: (req as any).user?.email || 'admin',
+            subject: subject || undefined,
+            includeResumeLink: includeResumeLink !== false,
+        });
         await applicant.save();
 
         await sendPendingReminderEmail(
             applicant.email,
             applicant.fullName,
             applicant.currentStep,
-            daysLeft,
-            hoursLeft,
             resumeTokenRaw,
             subject,
             message,
@@ -882,7 +953,7 @@ export const sendBulkPendingApplicantReminders = async (req: Request, res: Respo
 
         let sentCount = 0;
         let failCount = 0;
-        const now = Date.now();
+
 
         // Process in concurrent chunks of 5
         const CHUNK_SIZE = 5;
@@ -891,23 +962,25 @@ export const sendBulkPendingApplicantReminders = async (req: Request, res: Respo
             await Promise.all(
                 chunk.map(async (applicant) => {
                     try {
-                        const expiresAtMs = applicant.expiresAt ? new Date(applicant.expiresAt).getTime() : now + 5 * 24 * 3600 * 1000;
-                        const diffMs = Math.max(0, expiresAtMs - now);
-                        const daysLeft = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-                        const hoursLeft = Math.floor(diffMs / (1000 * 60 * 60));
-
                         // Generate a proper opaque resume token (raw/hash pair) — NOT a JWT.
                         // resumeApplication looks up by hash; a JWT would never match.
                         const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
                         applicant.resumeTokenHash = resumeTokenHash;
+                        applicant.lastReminderSentAt = new Date();
+                        applicant.reminderCount = (applicant.reminderCount || 0) + 1;
+                        if (!applicant.reminderHistory) applicant.reminderHistory = [];
+                        applicant.reminderHistory.push({
+                            sentAt: new Date(),
+                            sentBy: (req as any).user?.email || 'admin',
+                            subject: subject || undefined,
+                            includeResumeLink: includeResumeLink !== false,
+                        });
                         await applicant.save();
 
                         await sendPendingReminderEmail(
                             applicant.email,
                             applicant.fullName,
                             applicant.currentStep,
-                            daysLeft,
-                            hoursLeft,
                             resumeTokenRaw,
                             subject,
                             message,
