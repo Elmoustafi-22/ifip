@@ -16,12 +16,15 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use((config) => {
   if (config.data instanceof FormData && config.headers) {
-    // Let the browser set Content-Type automatically so it includes
-    // the multipart boundary. Deleting from all header tiers is required
-    // because Axios merges instance defaults, common, method, and per-request.
-    delete (config.headers as any)["Content-Type"];
-    delete (config.headers as any).common?.["Content-Type"];
-    (config.headers as any)["Content-Type"] = undefined;
+    if (typeof (config.headers as any).delete === "function") {
+      (config.headers as any).delete("Content-Type");
+      if ((config.headers as any).common) {
+        (config.headers as any).common.delete?.("Content-Type");
+      }
+    } else {
+      delete (config.headers as any)["Content-Type"];
+      delete (config.headers as any).common?.["Content-Type"];
+    }
   }
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("applicantToken");
@@ -90,9 +93,15 @@ export const authClient = axios.create({
 
 authClient.interceptors.request.use((config) => {
   if (config.data instanceof FormData && config.headers) {
-    delete (config.headers as any)["Content-Type"];
-    delete (config.headers as any).common?.["Content-Type"];
-    (config.headers as any)["Content-Type"] = undefined;
+    if (typeof (config.headers as any).delete === "function") {
+      (config.headers as any).delete("Content-Type");
+      if ((config.headers as any).common) {
+        (config.headers as any).common.delete?.("Content-Type");
+      }
+    } else {
+      delete (config.headers as any)["Content-Type"];
+      delete (config.headers as any).common?.["Content-Type"];
+    }
   }
   if (typeof window !== "undefined") {
     const token =

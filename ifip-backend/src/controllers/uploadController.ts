@@ -23,9 +23,20 @@ export const uploadCv = async (req: Request, res: Response) => {
         }
 
         const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                reject(new Error('Cloud storage upload timed out. Please try again.'));
+            }, 45000);
+
             const stream = cloudinary.uploader.upload_stream(
                 { resource_type: 'auto', folder: 'ifipp/cvs' },
-                (error, result) => (error || !result ? reject(error) : resolve(result as { secure_url: string }))
+                (error, result) => {
+                    clearTimeout(timer);
+                    if (error || !result) {
+                        reject(error || new Error('Cloudinary upload returned empty result'));
+                    } else {
+                        resolve(result as { secure_url: string });
+                    }
+                }
             );
             stream.end(req.file!.buffer);
         });
@@ -61,9 +72,20 @@ export const uploadCvAuth = async (req: Request, res: Response) => {
         }
 
         const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                reject(new Error('Cloud storage upload timed out. Please try again.'));
+            }, 45000);
+
             const stream = cloudinary.uploader.upload_stream(
                 { resource_type: 'auto', folder: 'ifipp/cvs' },
-                (error, result) => (error || !result ? reject(error) : resolve(result as { secure_url: string }))
+                (error, result) => {
+                    clearTimeout(timer);
+                    if (error || !result) {
+                        reject(error || new Error('Cloudinary upload returned empty result'));
+                    } else {
+                        resolve(result as { secure_url: string });
+                    }
+                }
             );
             stream.end(req.file!.buffer);
         });
