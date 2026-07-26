@@ -31,6 +31,7 @@ import {
   getPendingApplicants,
   sendPendingApplicantReminder,
   sendBulkPendingApplicantReminders,
+  uploadPendingApplicantCv,
   PendingApplicant,
   PendingApplicantsSummary,
   GetPendingApplicantsParams,
@@ -71,6 +72,9 @@ export default function PendingApplicantsPage() {
   // Selection & Bulk Outreach State
   const [selectedApplicantIds, setSelectedApplicantIds] = useState<string[]>([]);
   const [isBulkEmailModalOpen, setIsBulkEmailModalOpen] = useState(false);
+
+  // CV Upload State
+  const [uploadingCv, setUploadingCv] = useState(false);
 
   // Email Modal State
   const [emailModalApplicant, setEmailModalApplicant] = useState<PendingApplicant | null>(null);
@@ -1346,9 +1350,17 @@ export default function PendingApplicantsPage() {
 
                   {/* Step 5: Skills & CV */}
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                    <div className="flex items-center gap-2 text-xs font-bold text-sky-800 uppercase tracking-wider">
-                      <HiOutlinePaperClip className="w-4 h-4" /> 4. Skills & CV Document
+                    <div className="flex items-center justify-between text-xs font-bold text-sky-800 uppercase tracking-wider">
+                      <div className="flex items-center gap-2">
+                        <HiOutlinePaperClip className="w-4 h-4" /> 4. Skills & CV Document
+                      </div>
+                      {selectedApplicant.cvUrl && (
+                        <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200">
+                          <HiOutlineCheckCircle className="w-3.5 h-3.5" /> CV Attached
+                        </span>
+                      )}
                     </div>
+
                     {selectedApplicant.skills || selectedApplicant.cvUrl ? (
                       <div className="space-y-3 text-xs">
                         {selectedApplicant.cvUrl && (
@@ -1358,7 +1370,7 @@ export default function PendingApplicantsPage() {
                               href={selectedApplicant.cvUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 text-sky-700 font-bold hover:underline mt-1"
+                              className="inline-flex items-center gap-1.5 text-sky-700 font-bold hover:underline mt-1 bg-sky-50 px-2.5 py-1 rounded border border-sky-200"
                             >
                               <HiOutlinePaperClip className="w-4 h-4" /> View / Download Uploaded CV
                             </a>
@@ -1393,6 +1405,69 @@ export default function PendingApplicantsPage() {
                     ) : (
                       <div className="text-xs text-slate-500 italic">No skills or CV uploaded yet (Stopped before Step 5).</div>
                     )}
+
+                    {/* Admin Action: Upload / Replace CV on Behalf of Applicant */}
+                    <div className="pt-3 border-t border-slate-200/80">
+                      <div className="text-xs font-semibold text-slate-800 mb-1.5 flex items-center justify-between">
+                        <span>Admin Action: Upload / Replace CV</span>
+                        {uploadingCv && <span className="text-xs text-sky-600 animate-pulse font-medium">Uploading CV...</span>}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx"
+                          id={`admin-cv-upload-${selectedApplicant._id}`}
+                          className="hidden"
+                          disabled={uploadingCv}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            if (file.size > 10 * 1024 * 1024) {
+                              setToastMessage({ text: "File size exceeds 10MB limit.", type: "error" });
+                              return;
+                            }
+                            setUploadingCv(true);
+                            try {
+                              const res = await uploadPendingApplicantCv(selectedApplicant._id, file);
+                              setToastMessage({ text: "CV uploaded successfully on behalf of applicant!", type: "success" });
+
+                              const updatedApp = { ...selectedApplicant, cvUrl: res.cvUrl };
+                              setSelectedApplicant(updatedApp);
+
+                              setApplicants((prev) =>
+                                prev.map((item) => (item._id === selectedApplicant._id ? { ...item, cvUrl: res.cvUrl } : item))
+                              );
+                            } catch (err: any) {
+                              setToastMessage({
+                                text: err.response?.data?.message || err.message || "Failed to upload CV for applicant",
+                                type: "error",
+                              });
+                            } finally {
+                              setUploadingCv(false);
+                              e.target.value = "";
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={`admin-cv-upload-${selectedApplicant._id}`}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all shadow-sm ${
+                            uploadingCv
+                              ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                              : "bg-sky-600 text-white hover:bg-sky-700 active:scale-95"
+                          }`}
+                        >
+                          <HiOutlinePaperClip className="w-4 h-4" />
+                          {uploadingCv
+                            ? "Uploading File..."
+                            : selectedApplicant.cvUrl
+                            ? "Replace Applicant CV"
+                            : "Upload CV for Applicant"}
+                        </label>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Accepted formats: PDF, DOC, DOCX (Max 10MB). Once uploaded, the applicant will see their CV attached when opening Step 5.
+                      </p>
+                    </div>
                   </div>
 
                   {/* Step 6: Motivation & Lead Source */}

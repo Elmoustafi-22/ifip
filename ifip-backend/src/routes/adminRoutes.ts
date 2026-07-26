@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { authenticate, authorize } from '../middleware/auth.js';
 import {
     getDashboardStats,
@@ -21,6 +22,7 @@ import {
     getPendingApplicants,
     sendPendingApplicantReminder,
     sendBulkPendingApplicantReminders,
+    uploadPendingApplicantCv,
     getAdminPayments,
     getAdminPaymentById,
     resolvePayment,
@@ -87,10 +89,32 @@ router.patch('/applications/:id/withdraw', withdrawApplication);
 router.post('/notifications/broadcast', broadcastCustomNotification);
 
 // ── Registration Funnel & Pending Applicants ──────────────────────────
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+});
+
+const handleUpload = (fieldName: string) => {
+    return (req: any, res: any, next: any) => {
+        upload.single(fieldName)(req, res, (err: any) => {
+            if (err instanceof multer.MulterError) {
+                if (err.code === 'LIMIT_FILE_SIZE') {
+                    return res.status(400).json({ message: 'File size exceeds 10MB limit. Please upload a smaller file.' });
+                }
+                return res.status(400).json({ message: `Upload error: ${err.message}` });
+            } else if (err) {
+                return res.status(400).json({ message: err.message || 'File upload failed' });
+            }
+            next();
+        });
+    };
+};
+
 router.get('/registration-funnel/applicants', getRegistrationApplicants);
 router.get('/pending-applicants', getPendingApplicants);
 router.post('/pending-applicants/bulk-remind-email', sendBulkPendingApplicantReminders);
 router.post('/pending-applicants/:applicantId/remind-email', sendPendingApplicantReminder);
+router.post('/pending-applicants/:applicantId/upload-cv', handleUpload('cv'), uploadPendingApplicantCv);
 
 // ── Payment Tracking & Resolution ────────────────────────────────────
 router.get('/payments', getAdminPayments);

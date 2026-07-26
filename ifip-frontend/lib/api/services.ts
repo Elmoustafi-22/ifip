@@ -418,6 +418,21 @@ export const sendBulkPendingApplicantReminders = async (payload: {
   return data;
 };
 
+export const uploadPendingApplicantCv = async (
+  applicantId: string,
+  file: File
+): Promise<{ message: string; applicantId: string; cvUrl: string }> => {
+  const formData = new FormData();
+  formData.append("cv", file);
+  const { data } = await authClient.post<{ message: string; applicantId: string; cvUrl: string }>(
+    `/admin/pending-applicants/${applicantId}/upload-cv`,
+    formData,
+    { timeout: 60000 }
+  );
+  return data;
+};
+
+
 export interface AdminUser {
   _id: string;
   email: string;
