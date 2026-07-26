@@ -151,17 +151,24 @@ authClient.interceptors.response.use(
 
       isRefreshing = true;
       try {
+        const storedRefreshToken = typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null;
         const { data } = await axios.post(
           `${API_BASE_URL}/auth/refresh`,
-          {},
-          { withCredentials: true }
+          { refreshToken: storedRefreshToken },
+          {
+            withCredentials: true,
+            headers: storedRefreshToken ? { "x-refresh-token": storedRefreshToken } : {},
+          }
         );
         const newToken: string = data.accessToken;
+        const newRefreshToken: string = data.refreshToken;
 
-        // Persist the new token in localStorage
+        // Persist the new tokens in localStorage
         if (typeof window !== "undefined") {
           localStorage.setItem("accessToken", newToken);
-          localStorage.removeItem("refreshToken");
+          if (newRefreshToken) {
+            localStorage.setItem("refreshToken", newRefreshToken);
+          }
         }
 
         // Drain the queue
@@ -176,6 +183,7 @@ authClient.interceptors.response.use(
         if (typeof window !== "undefined") {
           sessionStorage.removeItem("accessToken");
           localStorage.removeItem("accessToken");
+          localStorage.removeItem("refreshToken");
           window.location.href = "/login?session=expired";
         }
         return Promise.reject(error);

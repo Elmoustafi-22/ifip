@@ -71,8 +71,8 @@ export const setPassword = async (req: Request<{}, {}, SetPasswordInput>, res: R
     user.lastLoginAt = new Date();
     await user.save();
 
-    const { accessToken } = issueTokens(res, user.id, user.role, req);
-    res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
+    const { accessToken, refreshToken } = issueTokens(res, user.id, user.role, req);
+    res.json({ accessToken, refreshToken, user: { id: user.id, email: user.email, role: user.role } });
 };
 
 // ── GET /api/v1/auth/token-info ──────────────────────────────────────
@@ -122,7 +122,7 @@ export const login = async (req: Request<{}, {}, LoginInput>, res: Response) => 
     user.lastLoginAt = new Date();
     await user.save();
 
-    const { accessToken } = issueTokens(res, user.id, user.role, req);
+    const { accessToken, refreshToken } = issueTokens(res, user.id, user.role, req);
 
     // Audit — fire-and-forget, do not block the response
     const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
@@ -138,7 +138,7 @@ export const login = async (req: Request<{}, {}, LoginInput>, res: Response) => 
         userAgent: req.headers['user-agent'],
     });
 
-    res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
+    res.json({ accessToken, refreshToken, user: { id: user.id, email: user.email, role: user.role } });
 };
 
 // ── POST /api/v1/auth/refresh ─────────────────────────────────────────
@@ -174,8 +174,8 @@ export const refresh = async (req: Request, res: Response) => {
     }
 
     // Issue a fresh access token (and rotate the refresh cookie/token)
-    const { accessToken } = issueTokens(res, user.id, user.role, req);
-    res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
+    const { accessToken, refreshToken: newRefreshToken } = issueTokens(res, user.id, user.role, req);
+    res.json({ accessToken, refreshToken: newRefreshToken, user: { id: user.id, email: user.email, role: user.role } });
 };
 
 // ── POST /api/v1/auth/logout ──────────────────────────────────────────
@@ -302,8 +302,8 @@ export const loginMfaVerify = async (req: Request, res: Response) => {
         user.lastLoginAt = new Date();
         await user.save();
 
-        const { accessToken } = issueTokens(res, user.id, user.role, req);
-        res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
+        const { accessToken, refreshToken } = issueTokens(res, user.id, user.role, req);
+        res.json({ accessToken, refreshToken, user: { id: user.id, email: user.email, role: user.role } });
     } catch (e: any) {
         res.status(500).json({ message: 'Error verifying code.', error: e.message });
     }
