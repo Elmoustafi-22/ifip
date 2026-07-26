@@ -1216,27 +1216,53 @@ export const uploadPendingApplicantCv = async (req: Request, res: Response) => {
             stream.end(req.file!.buffer);
         });
 
-        applicant.cvUrl = uploadResult.secure_url;
-        applicant.updatedAt = new Date();
-        applicant.refreshExpiry();
-        await applicant.save();
+        const shouldNotify = req.body.notifyApplicant !== 'false' && req.body.notifyApplicant !== false;
+        let emailSent = false;
 
-        if (applicant.email) {
-            await Application.updateMany(
-                { email: applicant.email.toLowerCase() },
-                { $set: { cvUrl: uploadResult.secure_url } }
-            );
+        if (shouldNotify && applicant.email) {
+            const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
+            applicant.resumeTokenHash = resumeTokenHash;
+            applicant.lastReminderSentAt = new Date();
+            applicant.reminderCount = (applicant.reminderCount || 0) + 1;
+            if (!applicant.reminderHistory) applicant.reminderHistory = [];
+            applicant.reminderHistory.push({
+                sentAt: new Date(),
+                sentBy: (req as any).user?.email || 'admin',
+                subject: 'Your CV Has Been Uploaded — Resume Your IFIP Application',
+                includeResumeLink: true,
+            });
+            await applicant.save();
+
+            try {
+                const subject = 'Your CV Has Been Uploaded — Resume Your IFIP Application';
+                const customMessage = `Great news! Our support team has successfully uploaded your CV to your Islamic Finance Internship Program (IFIP) application.\n\nYou are currently at Step {{currentStep}} of 7. Click the button below to resume your application with your CV attached and complete the remaining sections.`;
+                await sendPendingReminderEmail(
+                    applicant.email,
+                    applicant.fullName,
+                    applicant.currentStep,
+                    resumeTokenRaw,
+                    subject,
+                    customMessage,
+                    true
+                );
+                emailSent = true;
+            } catch (emailErr) {
+                console.error('Failed to send CV upload notification email:', emailErr);
+            }
         }
 
-        await logAction(req, 'ADMIN_UPLOAD_CV', `Admin uploaded CV for applicant ${applicant.email || applicant._id}`, {
+        await logAction(req, 'ADMIN_UPLOAD_CV', `Admin uploaded CV for applicant ${applicant.email || applicant._id}${emailSent ? ' (notification email sent)' : ''}`, {
             targetId: applicant._id.toString(),
             targetType: 'Applicant',
         });
 
         res.json({
-            message: 'CV uploaded successfully for applicant',
+            message: emailSent
+                ? 'CV uploaded successfully and notification email with resume link sent to applicant'
+                : 'CV uploaded successfully for applicant',
             applicantId: applicant._id,
             cvUrl: applicant.cvUrl,
+            emailSent,
             applicant,
         });
     } catch (err: any) {

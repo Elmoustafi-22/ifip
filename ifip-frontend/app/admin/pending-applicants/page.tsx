@@ -75,6 +75,7 @@ export default function PendingApplicantsPage() {
 
   // CV Upload State
   const [uploadingCv, setUploadingCv] = useState(false);
+  const [notifyOnCvUpload, setNotifyOnCvUpload] = useState(true);
 
   // Email Modal State
   const [emailModalApplicant, setEmailModalApplicant] = useState<PendingApplicant | null>(null);
@@ -1407,12 +1408,23 @@ export default function PendingApplicantsPage() {
                     )}
 
                     {/* Admin Action: Upload / Replace CV on Behalf of Applicant */}
-                    <div className="pt-3 border-t border-slate-200/80">
-                      <div className="text-xs font-semibold text-slate-800 mb-1.5 flex items-center justify-between">
+                    <div className="pt-3 border-t border-slate-200/80 space-y-2">
+                      <div className="text-xs font-semibold text-slate-800 flex items-center justify-between">
                         <span>Admin Action: Upload / Replace CV</span>
-                        {uploadingCv && <span className="text-xs text-sky-600 animate-pulse font-medium">Uploading CV...</span>}
+                        {uploadingCv && <span className="text-xs text-sky-600 animate-pulse font-medium">Uploading & Notifying...</span>}
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
+
+                      <label className="flex items-center gap-2 text-[11px] font-medium text-slate-700 cursor-pointer select-none bg-sky-50/60 p-2 rounded-lg border border-sky-100">
+                        <input
+                          type="checkbox"
+                          checked={notifyOnCvUpload}
+                          onChange={(e) => setNotifyOnCvUpload(e.target.checked)}
+                          className="w-3.5 h-3.5 text-sky-600 rounded border-slate-300 focus:ring-sky-500"
+                        />
+                        <span>Send notification email with 1-click resume link to candidate</span>
+                      </label>
+
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
                         <input
                           type="file"
                           accept=".pdf,.doc,.docx"
@@ -1428,8 +1440,13 @@ export default function PendingApplicantsPage() {
                             }
                             setUploadingCv(true);
                             try {
-                              const res = await uploadPendingApplicantCv(selectedApplicant._id, file);
-                              setToastMessage({ text: "CV uploaded successfully on behalf of applicant!", type: "success" });
+                              const res = await uploadPendingApplicantCv(selectedApplicant._id, file, notifyOnCvUpload);
+                              setToastMessage({
+                                text: res.emailSent
+                                  ? "CV uploaded & notification email with 1-click resume link sent!"
+                                  : "CV uploaded successfully on behalf of applicant!",
+                                type: "success",
+                              });
 
                               const updatedApp = { ...selectedApplicant, cvUrl: res.cvUrl };
                               setSelectedApplicant(updatedApp);
@@ -1464,8 +1481,8 @@ export default function PendingApplicantsPage() {
                             : "Upload CV for Applicant"}
                         </label>
                       </div>
-                      <p className="text-[11px] text-slate-500 mt-1">
-                        Accepted formats: PDF, DOC, DOCX (Max 10MB). Once uploaded, the applicant will see their CV attached when opening Step 5.
+                      <p className="text-[11px] text-slate-500">
+                        Accepted formats: PDF, DOC, DOCX (Max 10MB). Once uploaded, candidate can resume directly at Step 5.
                       </p>
                     </div>
                   </div>

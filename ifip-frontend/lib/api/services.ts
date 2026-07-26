@@ -420,11 +420,13 @@ export const sendBulkPendingApplicantReminders = async (payload: {
 
 export const uploadPendingApplicantCv = async (
   applicantId: string,
-  file: File
-): Promise<{ message: string; applicantId: string; cvUrl: string }> => {
+  file: File,
+  notifyApplicant: boolean = true
+): Promise<{ message: string; applicantId: string; cvUrl: string; emailSent?: boolean }> => {
   const formData = new FormData();
   formData.append("cv", file);
-  const { data } = await authClient.post<{ message: string; applicantId: string; cvUrl: string }>(
+  formData.append("notifyApplicant", String(notifyApplicant));
+  const { data } = await authClient.post<{ message: string; applicantId: string; cvUrl: string; emailSent?: boolean }>(
     `/admin/pending-applicants/${applicantId}/upload-cv`,
     formData,
     { timeout: 60000 }
