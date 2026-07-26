@@ -363,6 +363,46 @@ export default function ApplyPage() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [dob, setDob] = useState("");
+  const [dobDay, setDobDay] = useState("");
+  const [dobMonth, setDobMonth] = useState("");
+  const [dobYear, setDobYear] = useState("");
+
+  // Sync individual DOB parts when dob state is loaded or updated externally
+  useEffect(() => {
+    if (dob && dob.includes("-")) {
+      const parts = dob.split("-");
+      if (parts.length === 3) {
+        if (parts[0] && parts[0] !== dobYear) setDobYear(parts[0]);
+        if (parts[1] && parts[1] !== dobMonth) setDobMonth(parts[1]);
+        if (parts[2] && parts[2] !== dobDay) setDobDay(parts[2]);
+      }
+    }
+  }, [dob]);
+
+  const handleDobPartChange = (part: 'day' | 'month' | 'year', value: string) => {
+    const d = part === 'day' ? value.replace(/\D/g, "").slice(0, 2) : dobDay;
+    const m = part === 'month' ? value : dobMonth;
+    const y = part === 'year' ? value.replace(/\D/g, "").slice(0, 4) : dobYear;
+
+    setDobDay(d);
+    setDobMonth(m);
+    setDobYear(y);
+
+    if (d && m && y.length === 4) {
+      const paddedDay = d.padStart(2, "0");
+      const formatted = `${y}-${m}-${paddedDay}`;
+      handleInputChange("dob", formatted, setDob);
+    } else {
+      if (errors.dob) {
+        setErrors((prev) => {
+          const copy = { ...prev };
+          delete copy.dob;
+          return copy;
+        });
+      }
+      setDob("");
+    }
+  };
   const [gender, setGender] = useState("");
   const [country, setCountry] = useState("");
   const [stateCity, setStateCity] = useState("");
@@ -1792,17 +1832,69 @@ export default function ApplyPage() {
 
                 <div>
                   <label className="text-xs font-bold uppercase text-primary block mb-2">Date of Birth</label>
-                  <input
-                    id="dob"
-                    type="date"
-                    value={dob}
-                    onChange={(e) => handleInputChange("dob", e.target.value, setDob)}
-                    className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
-                      errors.dob
-                        ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                        : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                    }`}
-                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-on-surface-variant/70 block mb-1">Day</span>
+                      <input
+                        id="dob-day"
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={2}
+                        placeholder="DD"
+                        value={dobDay}
+                        onChange={(e) => handleDobPartChange('day', e.target.value)}
+                        className={`w-full border rounded-[6px] px-3 py-3 text-sm focus:outline-none ${
+                          errors.dob
+                            ? "border-red-300 focus:border-red-500 bg-red-50/10"
+                            : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-on-surface-variant/70 block mb-1">Month</span>
+                      <select
+                        id="dob-month"
+                        value={dobMonth}
+                        onChange={(e) => handleDobPartChange('month', e.target.value)}
+                        className={`w-full border rounded-[6px] px-2 py-3 text-sm focus:outline-none ${
+                          errors.dob
+                            ? "border-red-300 focus:border-red-500 bg-red-50/10"
+                            : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
+                        }`}
+                      >
+                        <option value="">Month</option>
+                        <option value="01">01 - Jan</option>
+                        <option value="02">02 - Feb</option>
+                        <option value="03">03 - Mar</option>
+                        <option value="04">04 - Apr</option>
+                        <option value="05">05 - May</option>
+                        <option value="06">06 - Jun</option>
+                        <option value="07">07 - Jul</option>
+                        <option value="08">08 - Aug</option>
+                        <option value="09">09 - Sep</option>
+                        <option value="10">10 - Oct</option>
+                        <option value="11">11 - Nov</option>
+                        <option value="12">12 - Dec</option>
+                      </select>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-on-surface-variant/70 block mb-1">Year</span>
+                      <input
+                        id="dob-year"
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={4}
+                        placeholder="YYYY"
+                        value={dobYear}
+                        onChange={(e) => handleDobPartChange('year', e.target.value)}
+                        className={`w-full border rounded-[6px] px-3 py-3 text-sm focus:outline-none ${
+                          errors.dob
+                            ? "border-red-300 focus:border-red-500 bg-red-50/10"
+                            : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
+                        }`}
+                      />
+                    </div>
+                  </div>
                   {errors.dob && (
                     <span className="text-red-500 text-xs mt-1 block">{errors.dob}</span>
                   )}
@@ -1938,18 +2030,20 @@ export default function ApplyPage() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
+              <div className="flex items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
                 <button
+                  type="button"
                   onClick={() => setStep(1)}
-                  className="border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-4 py-2.5 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all"
+                  className="flex-1 sm:flex-none justify-center border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-5 py-3 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all h-12"
                 >
                   <HiOutlineChevronLeft className="w-4 h-4" />
                   Back
                 </button>
                 <button
+                  type="button"
                   onClick={() => saveAllData(3)}
                   disabled={loading || !fullName || !phone || !dob || !gender || !stateCity}
-                  className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap"
+                  className="flex-1 sm:flex-none justify-center bg-primary hover:bg-primary/95 text-white font-bold text-sm px-6 sm:px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap h-12 flex items-center"
                 >
                   {loading ? "Saving..." : "Save & Continue →"}
                 </button>
@@ -2095,18 +2189,20 @@ export default function ApplyPage() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
+              <div className="flex items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
                 <button
+                  type="button"
                   onClick={() => setStep(2)}
-                  className="border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-4 py-2.5 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all"
+                  className="flex-1 sm:flex-none justify-center border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-5 py-3 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all h-12"
                 >
                   <HiOutlineChevronLeft className="w-4 h-4" />
                   Back
                 </button>
                 <button
+                  type="button"
                   onClick={() => saveAllData(4)}
                   disabled={loading || !academicStatus || !institution || !fieldOfStudy || !qualification}
-                  className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap"
+                  className="flex-1 sm:flex-none justify-center bg-primary hover:bg-primary/95 text-white font-bold text-sm px-6 sm:px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap h-12 flex items-center"
                 >
                   {loading ? "Saving..." : "Save & Continue →"}
                 </button>
@@ -2198,18 +2294,20 @@ export default function ApplyPage() {
                 </>
               )}
 
-              <div className="flex flex-wrap items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
+              <div className="flex items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
                 <button
+                  type="button"
                   onClick={() => setStep(3)}
-                  className="border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-4 py-2.5 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all"
+                  className="flex-1 sm:flex-none justify-center border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-5 py-3 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all h-12"
                 >
                   <HiOutlineChevronLeft className="w-4 h-4" />
                   Back
                 </button>
                 <button
+                  type="button"
                   onClick={() => saveAllData(5)}
                   disabled={loading || primaryInterest.length === 0}
-                  className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap"
+                  className="flex-1 sm:flex-none justify-center bg-primary hover:bg-primary/95 text-white font-bold text-sm px-6 sm:px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap h-12 flex items-center"
                 >
                   {loading ? "Saving..." : "Save & Continue →"}
                 </button>
@@ -2490,18 +2588,20 @@ export default function ApplyPage() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
+              <div className="flex items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
                 <button
+                  type="button"
                   onClick={() => setStep(4)}
-                  className="border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-4 py-2.5 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all"
+                  className="flex-1 sm:flex-none justify-center border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-5 py-3 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all h-12"
                 >
                   <HiOutlineChevronLeft className="w-4 h-4" />
                   Back
                 </button>
                 <button
+                  type="button"
                   onClick={() => saveAllData(6)}
                   disabled={loading || cvUploading || !whyApplying || !careerGoals || !cvUrl}
-                  className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white font-bold text-sm px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap"
+                  className="flex-1 sm:flex-none justify-center bg-primary hover:bg-primary/95 text-white font-bold text-sm px-6 sm:px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap h-12 flex items-center"
                 >
                   {loading ? "Saving..." : cvUploading ? "Uploading CV…" : "Save & Continue →"}
                 </button>
@@ -2639,25 +2739,28 @@ export default function ApplyPage() {
                 {/* Back and Action Buttons */}
                 <div className="flex items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
                   <button
+                    type="button"
                     onClick={() => setStep(5)}
-                    className="border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-4 py-2.5 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all shrink-0"
+                    className="flex-1 sm:flex-none justify-center border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-5 py-3 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all h-12"
                   >
                     <HiOutlineChevronLeft className="w-4 h-4" />
                     Back
                   </button>
                   {!paymentVerified ? (
                     <button
+                      type="button"
                       onClick={handlePayRedirect}
                       disabled={loading || !declarationConfirmed || !signature}
-                      className="bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-sm px-6 py-2.5 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap shrink-0 font-sans"
+                      className="flex-1 sm:flex-none justify-center bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-sm px-6 sm:px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap h-12 flex items-center font-sans"
                     >
                       {loading ? "Processing..." : "Submit & Pay"}
                     </button>
                   ) : (
                     <button
+                      type="button"
                       onClick={handleSubmitApplication}
                       disabled={loading || !declarationConfirmed || !signature}
-                      className="bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-sm px-6 py-2.5 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap shrink-0 font-sans"
+                      className="flex-1 sm:flex-none justify-center bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-sm px-6 sm:px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap h-12 flex items-center font-sans"
                     >
                       {loading ? "Submitting..." : "Submit Application"}
                     </button>
