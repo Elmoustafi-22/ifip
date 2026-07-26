@@ -1,3 +1,4 @@
+import axios from "axios";
 import apiClient, { authClient } from "./client";
 import {
   Applicant,
@@ -34,13 +35,46 @@ export const updateApplicantProfile = async (payload: Partial<Applicant>): Promi
   return data;
 };
 
+interface CloudinarySignatureResponse {
+  signature: string;
+  timestamp: number;
+  apiKey: string;
+  cloudName: string;
+  folder: string;
+}
+
 export const uploadCv = async (file: File): Promise<{ cvUrl: string }> => {
-  const formData = new FormData();
-  formData.append("cv", file);
-  const { data } = await apiClient.post<{ cvUrl: string }>("/uploads/cv", formData, {
-    timeout: 60000,
-  });
-  return data;
+  try {
+    // Step 1: Request signed upload token from backend
+    const { data: sig } = await apiClient.get<CloudinarySignatureResponse>("/uploads/signature");
+
+    // Step 2: Upload directly to Cloudinary CDN from browser
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("api_key", sig.apiKey);
+    formData.append("timestamp", sig.timestamp.toString());
+    formData.append("signature", sig.signature);
+    formData.append("folder", sig.folder);
+
+    const cloudUrl = `https://api.cloudinary.com/v1_1/${sig.cloudName}/auto/upload`;
+    const cloudRes = await axios.post<{ secure_url: string }>(cloudUrl, formData, {
+      timeout: 120000,
+    });
+
+    const cvUrl = cloudRes.data.secure_url;
+
+    // Step 3: Save Cloudinary URL to applicant DB record
+    const { data: savedData } = await apiClient.post<{ cvUrl: string }>("/uploads/save-cv", { cvUrl });
+    return savedData;
+  } catch (err: any) {
+    console.warn("Direct Cloudinary upload failed, using server upload fallback:", err);
+    const legacyFormData = new FormData();
+    legacyFormData.append("cv", file);
+    const { data } = await apiClient.post<{ cvUrl: string }>("/uploads/cv", legacyFormData, {
+      timeout: 60000,
+    });
+    return data;
+  }
 };
 
 export const submitApplication = async (): Promise<SubmitApplicationResponse> => {
@@ -104,12 +138,37 @@ export const updateMyApplication = async (payload: any): Promise<any> => {
 };
 
 export const uploadCvAuth = async (file: File): Promise<{ cvUrl: string }> => {
-  const formData = new FormData();
-  formData.append("cv", file);
-  const { data } = await authClient.post<{ cvUrl: string }>("/uploads/cv-auth", formData, {
-    timeout: 60000,
-  });
-  return data;
+  try {
+    // Step 1: Request signed upload token from backend
+    const { data: sig } = await authClient.get<CloudinarySignatureResponse>("/uploads/signature-auth");
+
+    // Step 2: Upload directly to Cloudinary CDN from browser
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("api_key", sig.apiKey);
+    formData.append("timestamp", sig.timestamp.toString());
+    formData.append("signature", sig.signature);
+    formData.append("folder", sig.folder);
+
+    const cloudUrl = `https://api.cloudinary.com/v1_1/${sig.cloudName}/auto/upload`;
+    const cloudRes = await axios.post<{ secure_url: string }>(cloudUrl, formData, {
+      timeout: 120000,
+    });
+
+    const cvUrl = cloudRes.data.secure_url;
+
+    // Step 3: Save Cloudinary URL to user application DB record
+    const { data: savedData } = await authClient.post<{ cvUrl: string }>("/uploads/save-cv-auth", { cvUrl });
+    return savedData;
+  } catch (err: any) {
+    console.warn("Direct Cloudinary auth upload failed, using server upload fallback:", err);
+    const legacyFormData = new FormData();
+    legacyFormData.append("cv", file);
+    const { data } = await authClient.post<{ cvUrl: string }>("/uploads/cv-auth", legacyFormData, {
+      timeout: 60000,
+    });
+    return data;
+  }
 };
 
 export const uploadAvatarAuth = async (file: File): Promise<{ avatarUrl: string }> => {

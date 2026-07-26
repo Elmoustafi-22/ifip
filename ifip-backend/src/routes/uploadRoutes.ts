@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { authenticateApplicant } from '../middleware/applicantAuth.js';
 import { authenticate, authorize } from '../middleware/auth.js';
-import { uploadCv, uploadCvAuth, uploadLogo, uploadBrochure, uploadAvatarAuth } from '../controllers/uploadController.js';
+import { uploadCv, uploadCvAuth, uploadLogo, uploadBrochure, uploadAvatarAuth, getUploadSignature, saveCvUrl, saveCvUrlAuth } from '../controllers/uploadController.js';
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -27,8 +27,18 @@ const handleUpload = (fieldName: string) => {
 
 const router = Router();
 
+// Signature generation for direct Cloudinary upload from browser
+router.get('/signature', authenticateApplicant, getUploadSignature);
+router.get('/signature-auth', authenticate, getUploadSignature);
+
+// Save Cloudinary secure URL directly
+router.post('/save-cv', authenticateApplicant, saveCvUrl);
+router.post('/save-cv-auth', authenticate, saveCvUrlAuth);
+
+// Fallback legacy proxy uploads
 router.post('/cv', authenticateApplicant, handleUpload('cv'), uploadCv);
 router.post('/cv-auth', authenticate, handleUpload('cv'), uploadCvAuth);
+
 router.post('/avatar', authenticate, handleUpload('avatar'), uploadAvatarAuth);
 // Public — used by partner applicants uploading their company logo (no auth needed)
 router.post('/logo', handleUpload('logo'), uploadLogo);

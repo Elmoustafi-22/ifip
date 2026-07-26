@@ -1,9 +1,11 @@
 import type { Request, Response } from 'express';
 import cloudinary from '../config/cloudinary.js';
+import { env } from '../config/env.js';
 import { Applicant } from '../models/Applicants.js';
 import { CohortConfig } from '../models/CohortConfig.js';
 import { logAction } from '../utils/auditLogger.js';
 import { updateContentVersion } from './contentVersionController.js';
+
 
 export const uploadCv = async (req: Request, res: Response) => {
     if (!req.file) {
@@ -211,3 +213,77 @@ export const uploadBrochure = async (req: Request, res: Response) => {
         res.status(500).json({ message: 'Brochure upload failed', error: err.message });
     }
 };
+
+export const getUploadSignature = async (req: Request, res: Response) => {
+    try {
+        const timestamp = Math.round(new Date().getTime() / 1000);
+        const folder = req.query.folder ? String(req.query.folder) : 'ifipp/cvs';
+
+        const paramsToSign = {
+            folder,
+            timestamp,
+        };
+
+        const signature = cloudinary.utils.api_sign_request(paramsToSign, env.CLOUDINARY_API_SECRET);
+
+        res.json({
+            signature,
+            timestamp,
+            apiKey: env.CLOUDINARY_API_KEY,
+            cloudName: env.CLOUDINARY_CLOUD_NAME,
+            folder,
+        });
+    } catch (err: any) {
+        console.error('Error generating upload signature:', err);
+        res.status(500).json({ message: 'Failed to generate upload signature' });
+    }
+};
+
+export const saveCvUrl = async (req: Request, res: Response) => {
+    const { cvUrl } = req.body;
+    if (!cvUrl || typeof cvUrl !== 'string' || !cvUrl.startsWith('http')) {
+        res.status(400).json({ message: 'Valid CV URL is required' });
+        return;
+    }
+
+    try {
+        const applicant = await Applicant.findById(req.applicant!.id);
+        if (!applicant) {
+            res.status(404).json({ message: 'Session expired — please resume via your email link.' });
+            return;
+        }
+
+        applicant.cvUrl = cvUrl;
+        applicant.refreshExpiry();
+        await applicant.save();
+
+        res.json({ cvUrl: applicant.cvUrl });
+    } catch (err: any) {
+        console.error('Save CV URL error:', err);
+        res.status(500).json({ message: err.message || 'Failed to save CV URL' });
+    }
+};
+
+export const saveCvUrlAuth = async (req: Request, res: Response) => {
+    const { cvUrl } = req.body;
+    if (!cvUrl || typeof cvUrl !== 'string' || !cvUrl.startsWith('http')) {
+        res.status(400).json({ message: 'Valid CV URL is required' });
+        return;
+    }
+
+    try {
+        const application = await Application.findOne({ userId: req.user!.id });
+        if (!application) {
+            res.status(404).json({ message: 'Application not found.' });
+            return;
+        }
+
+        application.cvUrl = cvUrl;
+        await application.save();
+
+        res.json({ cvUrl: application.cvUrl });
+    } catch (err: any) {
+        console.error('Save CV URL auth error:', err);
+        res.status(500).json({ message: err.message || 'Failed to save CV URL' });
+    }
+};

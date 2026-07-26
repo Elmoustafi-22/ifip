@@ -997,8 +997,8 @@ export default function ApplyPage() {
         setCvUploadError("Please upload a PDF file only.");
         return;
       }
-      if (file.size > 10 * 1024 * 1024) {
-        setCvUploadError("File size exceeds 10MB limit. Please upload a smaller PDF file.");
+      if (file.size > 5 * 1024 * 1024) {
+        setCvUploadError("File size exceeds 5MB limit. Please compress your PDF resume or upload a smaller file.");
         return;
       }
 
