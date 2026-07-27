@@ -263,17 +263,33 @@ export default function SettingsPage() {
       return;
     }
 
+    // Guard: verify the access token is still present before trying to upload.
+    const accessToken =
+      typeof window !== "undefined"
+        ? sessionStorage.getItem("accessToken") ?? localStorage.getItem("accessToken")
+        : null;
+    if (!accessToken) {
+      setCvError("Your session has expired. Please log in again.");
+      return;
+    }
+
     setCvError("");
     setUploadingCv(true);
     try {
       const res = await uploadCvAuth(file);
       setCvUrl(res.cvUrl);
     } catch (err: any) {
-      setCvError(err.message || "Failed to upload CV. Please try again.");
+      const isSessionError = (err as any)?.status === 401 || (err as any)?.status === 403;
+      setCvError(
+        isSessionError
+          ? "Your session has expired. Please log in again."
+          : err.message || "Failed to upload CV. Please try again."
+      );
     } finally {
       setUploadingCv(false);
     }
   };
+
 
   // Profile Form Submit Handler
   const handleSaveProfile = async (e: React.FormEvent) => {

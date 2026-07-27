@@ -41,39 +41,83 @@ interface CloudinarySignatureResponse {
   apiKey: string;
   cloudName: string;
   folder: string;
+  /** 'raw' for PDFs; 'image' for images; 'auto' for generic uploads */
+  resource_type: string;
 }
 
+/** Helper — returns true for errors that will never succeed on a retry (auth/client errors). */
+const isNonRetriable = (err: any): boolean => {
+  const status: number | undefined = err?.status;
+  return status === 400 || status === 401 || status === 403 || status === 404;
+};
+
 export const uploadCv = async (file: File): Promise<{ cvUrl: string }> => {
+  // Step 1: Request signed upload token from backend.
+  // This is outside the fallback catch so a 401 (expired session) surfaces immediately.
+  const { data: sig } = await apiClient.get<CloudinarySignatureResponse>("/uploads/signature");
+
+  // Step 2: Upload directly to Cloudinary CDN from browser.
+  // Retry once on transient failures before falling back to the server proxy.
+  const buildCloudForm = () => {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("api_key", sig.apiKey);
+    fd.append("timestamp", sig.timestamp.toString());
+    fd.append("signature", sig.signature);
+    fd.append("folder", sig.folder);
+    fd.append("resource_type", sig.resource_type);
+    fd.append("allowed_formats", "pdf");
+    return fd;
+  };
+
+  const cloudUrl = `https://api.cloudinary.com/v1_1/${sig.cloudName}/${sig.resource_type}/upload`;
+
+  let cloudinarySecureUrl: string | null = null;
   try {
-    // Step 1: Request signed upload token from backend
-    const { data: sig } = await apiClient.get<CloudinarySignatureResponse>("/uploads/signature");
-
-    // Step 2: Upload directly to Cloudinary CDN from browser
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("api_key", sig.apiKey);
-    formData.append("timestamp", sig.timestamp.toString());
-    formData.append("signature", sig.signature);
-    formData.append("folder", sig.folder);
-
-    const cloudUrl = `https://api.cloudinary.com/v1_1/${sig.cloudName}/auto/upload`;
-    const cloudRes = await axios.post<{ secure_url: string }>(cloudUrl, formData, {
+    const cloudRes = await axios.post<{ secure_url: string }>(cloudUrl, buildCloudForm(), {
       timeout: 120000,
     });
+    cloudinarySecureUrl = cloudRes.data.secure_url;
+  } catch (cloudErr: any) {
+    // Retry once on transient Cloudinary errors (network blip, 5xx)
+    console.warn("Cloudinary direct upload failed, retrying once:", cloudErr?.message);
+    try {
+      const retryRes = await axios.post<{ secure_url: string }>(cloudUrl, buildCloudForm(), {
+        timeout: 120000,
+      });
+      cloudinarySecureUrl = retryRes.data.secure_url;
+    } catch (retryErr: any) {
+      // Both Cloudinary attempts failed — fall through to server proxy
+      console.warn("Cloudinary retry also failed, using server upload fallback:", retryErr?.message);
+    }
+  }
 
-    const cvUrl = cloudRes.data.secure_url;
-
-    // Step 3: Save Cloudinary URL to applicant DB record
-    const { data: savedData } = await apiClient.post<{ cvUrl: string }>("/uploads/save-cv", { cvUrl });
+  if (cloudinarySecureUrl) {
+    // Step 3: Save the Cloudinary URL to the applicant's DB record.
+    const { data: savedData } = await apiClient.post<{ cvUrl: string }>("/uploads/save-cv", {
+      cvUrl: cloudinarySecureUrl,
+    });
     return savedData;
-  } catch (err: any) {
-    console.warn("Direct Cloudinary upload failed, using server upload fallback:", err);
+  }
+
+  // Fallback: stream through the server proxy (only reached when Cloudinary CDN is unreachable).
+  // Non-retriable errors (401, 400 etc.) from the proxy are thrown as-is so the real
+  // error message (e.g. "Session expired") reaches the user instead of a generic network error.
+  try {
     const legacyFormData = new FormData();
     legacyFormData.append("cv", file);
     const { data } = await apiClient.post<{ cvUrl: string }>("/uploads/cv", legacyFormData, {
       timeout: 60000,
     });
     return data;
+  } catch (fallbackErr: any) {
+    if (isNonRetriable(fallbackErr)) {
+      throw fallbackErr; // surface the real error (e.g. session expired)
+    }
+    throw new Error(
+      fallbackErr?.message ??
+        "CV upload failed. Please check your connection and try again."
+    );
   }
 };
 
@@ -138,36 +182,70 @@ export const updateMyApplication = async (payload: any): Promise<any> => {
 };
 
 export const uploadCvAuth = async (file: File): Promise<{ cvUrl: string }> => {
+  // Step 1: Request signed upload token from backend.
+  // Outside the fallback catch so a 401 (expired access token) surfaces immediately.
+  const { data: sig } = await authClient.get<CloudinarySignatureResponse>("/uploads/signature-auth");
+
+  // Step 2: Upload directly to Cloudinary CDN from browser.
+  // Retry once on transient failures before falling back to the server proxy.
+  const buildCloudForm = () => {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("api_key", sig.apiKey);
+    fd.append("timestamp", sig.timestamp.toString());
+    fd.append("signature", sig.signature);
+    fd.append("folder", sig.folder);
+    fd.append("resource_type", sig.resource_type);
+    fd.append("allowed_formats", "pdf");
+    return fd;
+  };
+
+  const cloudUrl = `https://api.cloudinary.com/v1_1/${sig.cloudName}/${sig.resource_type}/upload`;
+
+  let cloudinarySecureUrl: string | null = null;
   try {
-    // Step 1: Request signed upload token from backend
-    const { data: sig } = await authClient.get<CloudinarySignatureResponse>("/uploads/signature-auth");
-
-    // Step 2: Upload directly to Cloudinary CDN from browser
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("api_key", sig.apiKey);
-    formData.append("timestamp", sig.timestamp.toString());
-    formData.append("signature", sig.signature);
-    formData.append("folder", sig.folder);
-
-    const cloudUrl = `https://api.cloudinary.com/v1_1/${sig.cloudName}/auto/upload`;
-    const cloudRes = await axios.post<{ secure_url: string }>(cloudUrl, formData, {
+    const cloudRes = await axios.post<{ secure_url: string }>(cloudUrl, buildCloudForm(), {
       timeout: 120000,
     });
+    cloudinarySecureUrl = cloudRes.data.secure_url;
+  } catch (cloudErr: any) {
+    // Retry once on transient Cloudinary errors (network blip, 5xx)
+    console.warn("Cloudinary direct upload failed, retrying once:", cloudErr?.message);
+    try {
+      const retryRes = await axios.post<{ secure_url: string }>(cloudUrl, buildCloudForm(), {
+        timeout: 120000,
+      });
+      cloudinarySecureUrl = retryRes.data.secure_url;
+    } catch (retryErr: any) {
+      // Both Cloudinary attempts failed — fall through to server proxy
+      console.warn("Cloudinary retry also failed, using server upload fallback:", retryErr?.message);
+    }
+  }
 
-    const cvUrl = cloudRes.data.secure_url;
-
-    // Step 3: Save Cloudinary URL to user application DB record
-    const { data: savedData } = await authClient.post<{ cvUrl: string }>("/uploads/save-cv-auth", { cvUrl });
+  if (cloudinarySecureUrl) {
+    // Step 3: Save the Cloudinary URL to the user's application DB record.
+    const { data: savedData } = await authClient.post<{ cvUrl: string }>("/uploads/save-cv-auth", {
+      cvUrl: cloudinarySecureUrl,
+    });
     return savedData;
-  } catch (err: any) {
-    console.warn("Direct Cloudinary auth upload failed, using server upload fallback:", err);
+  }
+
+  // Fallback: stream through the server proxy.
+  try {
     const legacyFormData = new FormData();
     legacyFormData.append("cv", file);
     const { data } = await authClient.post<{ cvUrl: string }>("/uploads/cv-auth", legacyFormData, {
       timeout: 60000,
     });
     return data;
+  } catch (fallbackErr: any) {
+    if (isNonRetriable(fallbackErr)) {
+      throw fallbackErr; // surface the real error (e.g. expired access token)
+    }
+    throw new Error(
+      fallbackErr?.message ??
+        "CV upload failed. Please check your connection and try again."
+    );
   }
 };
 

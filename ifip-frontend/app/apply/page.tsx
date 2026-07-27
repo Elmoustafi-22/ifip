@@ -1042,6 +1042,15 @@ export default function ApplyPage() {
         return;
       }
 
+      // Guard: verify the applicant session token is still present before trying to upload.
+      // A missing token means the session has expired; we surface a clear message instead of
+      // letting the request fail with a misleading "Network error".
+      const sessionToken = typeof window !== "undefined" ? localStorage.getItem("applicantToken") : null;
+      if (!sessionToken) {
+        setCvUploadError("Your session has expired. Please refresh the page and resume your application via the link in your email.");
+        return;
+      }
+
       // Reset previous state
       setCvFile(file);
       setCvUrl("");
@@ -1056,7 +1065,12 @@ export default function ApplyPage() {
         setCvFile(null); // clear the raw file — URL is now saved server-side
         setCvUploadError("");
       } catch (err: any) {
-        setCvUploadError(err.message || "CV upload failed. Please try again.");
+        const isSessionError = (err as any)?.status === 401 || (err as any)?.status === 403;
+        setCvUploadError(
+          isSessionError
+            ? "Your session has expired. Please refresh the page and resume your application via the link in your email."
+            : err.message || "CV upload failed. Please try again."
+        );
         setCvUrl("");
         // Keep cvFile so user can retry without re-selecting
       } finally {
@@ -1064,6 +1078,7 @@ export default function ApplyPage() {
       }
     }
   };
+
 
   // Final submit application
   const handleSubmitApplication = async () => {

@@ -218,10 +218,15 @@ export const getUploadSignature = async (req: Request, res: Response) => {
     try {
         const timestamp = Math.round(new Date().getTime() / 1000);
         const folder = req.query.folder ? String(req.query.folder) : 'ifipp/cvs';
+        // PDFs are treated as 'raw' in Cloudinary's resource-type model.
+        // Signing resource_type keeps the signature consistent with the upload URL.
+        const resource_type = 'raw';
 
         const paramsToSign = {
             folder,
             timestamp,
+            resource_type,
+            allowed_formats: 'pdf',
         };
 
         const signature = cloudinary.utils.api_sign_request(paramsToSign, env.CLOUDINARY_API_SECRET);
@@ -232,12 +237,14 @@ export const getUploadSignature = async (req: Request, res: Response) => {
             apiKey: env.CLOUDINARY_API_KEY,
             cloudName: env.CLOUDINARY_CLOUD_NAME,
             folder,
+            resource_type,
         });
     } catch (err: any) {
         console.error('Error generating upload signature:', err);
         res.status(500).json({ message: 'Failed to generate upload signature' });
     }
 };
+
 
 export const saveCvUrl = async (req: Request, res: Response) => {
     const { cvUrl } = req.body;
