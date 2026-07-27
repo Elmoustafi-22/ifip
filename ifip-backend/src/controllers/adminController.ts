@@ -1217,6 +1217,13 @@ export const uploadPendingApplicantCv = async (req: Request, res: Response) => {
             stream.end(req.file!.buffer);
         });
 
+        // ── Save the CV URL to the applicant record ───────────────────────────
+        // This must happen unconditionally, before any optional email logic,
+        // so the applicant sees their CV regardless of notification settings.
+        applicant.cvUrl = uploadResult.secure_url;
+        applicant.refreshExpiry();
+        await applicant.save();
+
         const shouldNotify = req.body.notifyApplicant !== 'false' && req.body.notifyApplicant !== false;
         let emailSent = false;
 
@@ -1271,6 +1278,7 @@ export const uploadPendingApplicantCv = async (req: Request, res: Response) => {
         res.status(500).json({ message: err.message || 'Failed to upload CV for applicant' });
     }
 };
+
 
 // ── POST /api/v1/admin/pending-applicants/:applicantId/record-manual-payment ─
 // Admin action: record an offline/manual payment, upload a receipt, and complete candidate enrollment.
