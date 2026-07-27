@@ -46,6 +46,7 @@ const STATUS_STYLES: Record<string, string> = {
 const PROVIDER_STYLES: Record<string, string> = {
   paystack: "bg-[#0BA4DB]/10 text-[#0BA4DB] border border-[#0BA4DB]/20",
   flutterwave: "bg-[#F6821F]/10 text-[#F6821F] border border-[#F6821F]/20",
+  manual: "bg-emerald-100/80 text-emerald-800 border border-emerald-300",
 };
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -627,6 +628,34 @@ export default function AdminPaymentsPage() {
                           Submitted: {formatDate(drawerPayment.applicationId.submittedAt)}
                         </span>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Receipt Preview (if manual or uploaded) */}
+                  {(drawerPayment.receiptUrl || drawerPayment.provider === "manual") && (
+                    <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-4 space-y-2.5">
+                      <p className="text-[10px] font-bold uppercase text-emerald-800 tracking-wider">Manual Payment Receipt</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-emerald-900">
+                          Method: {drawerPayment.paymentMethod || "Bank Transfer"}
+                        </span>
+                        {drawerPayment.receiptUrl && (
+                          <a
+                            href={drawerPayment.receiptUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
+                          >
+                            <Hi2.HiOutlinePaperClip className="w-3.5 h-3.5" />
+                            View Receipt File
+                          </a>
+                        )}
+                      </div>
+                      {drawerPayment.manualPaymentNotes && (
+                        <p className="text-xs text-emerald-800 bg-white/80 p-2.5 rounded-lg border border-emerald-100 italic leading-relaxed">
+                          "{drawerPayment.manualPaymentNotes}"
+                        </p>
+                      )}
                     </div>
                   )}
 

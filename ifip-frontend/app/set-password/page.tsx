@@ -49,6 +49,8 @@ function SetPasswordInner() {
   const [submitError, setSubmitError] = useState("");
   const [success, setSuccess] = useState(false);
 
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
   const reqs = checkRequirements(password);
   const allReqsMet = Object.values(reqs).every(Boolean);
   const passwordsMatch = password === confirm && confirm.length > 0;
@@ -92,6 +94,7 @@ function SetPasswordInner() {
     setSubmitError("");
     if (!allReqsMet) { setSubmitError("Your password does not meet all security requirements."); return; }
     if (!passwordsMatch) { setSubmitError("Passwords do not match."); return; }
+    if (!termsAccepted) { setSubmitError("Please acknowledge and accept the Program Terms & Declaration to proceed."); return; }
 
     setLoading(true);
     try {
@@ -260,11 +263,32 @@ function SetPasswordInner() {
                 </ul>
               </div>
 
+              {/* Program Terms & Declaration */}
+              <div className="bg-slate-50/80 border border-outline-variant/30 rounded-xl p-4 flex flex-col gap-3">
+                <p className="text-xs font-bold uppercase text-primary tracking-wide">Program Terms &amp; Declaration</p>
+                <ul className="list-disc pl-4 text-xs text-on-surface-variant flex flex-col gap-1.5 font-medium leading-relaxed">
+                  <li>I confirm that the information provided is accurate and complete.</li>
+                  <li>I understand that internship placement is subject to screening and matching after program completion.</li>
+                  <li>I agree to participate in assessments and training.</li>
+                </ul>
+                <label className="flex items-start gap-2.5 cursor-pointer pt-2 border-t border-outline-variant/20">
+                  <input
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    className="w-4 h-4 text-primary rounded mt-0.5 border-outline-variant/50 focus:ring-primary/20"
+                  />
+                  <span className="text-xs text-primary font-bold leading-snug">
+                    I acknowledge, declare, and confirm all statements above.
+                  </span>
+                </label>
+              </div>
+
               {/* Submit */}
               <button
                 id="set-password-submit"
                 type="submit"
-                disabled={loading || !allReqsMet || !passwordsMatch}
+                disabled={loading || !allReqsMet || !passwordsMatch || !termsAccepted}
                 className="w-full bg-primary hover:bg-primary/90 disabled:bg-primary/40 disabled:cursor-not-allowed text-white font-semibold text-sm py-3.5 px-6 rounded-[6px] flex items-center justify-center gap-2 shadow-sm hover-lift transition-all mt-1"
               >
                 {loading ? (

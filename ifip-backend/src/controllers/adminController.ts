@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import cloudinary from '../config/cloudinary.js';
@@ -1270,4 +1271,133 @@ export const uploadPendingApplicantCv = async (req: Request, res: Response) => {
         res.status(500).json({ message: err.message || 'Failed to upload CV for applicant' });
     }
 };
+
+// ── POST /api/v1/admin/pending-applicants/:applicantId/record-manual-payment ─
+// Admin action: record an offline/manual payment, upload a receipt, and complete candidate enrollment.
+export const recordManualPaymentForApplicant = async (req: Request, res: Response) => {
+    const { applicantId } = req.params;
+    const { amount, currency, paymentMethod, reference, notes, notifyApplicant } = req.body;
+
+    try {
+        const applicant = await Applicant.findById(applicantId);
+        if (!applicant) {
+            // Check if an application already exists for this applicant's ID or email
+            res.status(404).json({ message: 'Pending applicant record not found (may have already completed registration).' });
+            return;
+        }
+
+        // Upload receipt to Cloudinary if provided
+        let receiptUrl: string | undefined = undefined;
+        if (req.file) {
+            const allowedMimeTypes = [
+                'image/jpeg',
+                'image/png',
+                'image/webp',
+                'application/pdf',
+            ];
+            if (!allowedMimeTypes.includes(req.file.mimetype)) {
+                res.status(400).json({ message: 'Only JPEG, PNG, WEBP images and PDF receipts are accepted' });
+                return;
+            }
+
+            receiptUrl = await new Promise<string>((resolve, reject) => {
+                const timer = setTimeout(() => {
+                    reject(new Error('Cloud storage receipt upload timed out. Please try again.'));
+                }, 45000);
+
+                const stream = cloudinary.uploader.upload_stream(
+                    { resource_type: 'auto', folder: 'ifipp/receipts' },
+                    (error, result) => {
+                        clearTimeout(timer);
+                        if (error || !result) {
+                            reject(error || new Error('Cloudinary receipt upload returned empty result'));
+                        } else {
+                            resolve(result.secure_url);
+                        }
+                    }
+                );
+                stream.end(req.file!.buffer);
+            });
+        }
+
+        // Determine currency and amount in sub-units (kobo/cents)
+        const selectedCurrency = currency || (applicant.country === 'Nigeria' ? 'NGN' : 'USD');
+        let amountInSubunits: number;
+        if (amount && !isNaN(Number(amount))) {
+            amountInSubunits = Number(amount) * 100;
+        } else {
+            amountInSubunits = selectedCurrency === 'NGN' ? 20000 * 100 : 30 * 100;
+        }
+
+        // Ensure declaration is populated on applicant
+        if (!applicant.declaration?.confirmed || !applicant.declaration?.signature) {
+            applicant.declaration = {
+                confirmed: true,
+                signature: applicant.fullName || 'Admin Offline Payment',
+                date: new Date(),
+            };
+        }
+
+        // Assign active cohort if missing
+        if (!applicant.cohortId) {
+            const currentDate = new Date();
+            const activeCohort = await Cohort.findOne({
+                registrationStartDate: { $lte: currentDate },
+                registrationEndDate: { $gte: currentDate },
+                status: 'upcoming',
+            });
+            if (activeCohort) {
+                applicant.cohortId = activeCohort._id as any;
+            }
+        }
+
+        applicant.isPaid = true;
+        await applicant.save();
+
+        const providerRef = reference && reference.trim().length > 0
+            ? reference.trim()
+            : `MANUAL-IFIP-${crypto.randomUUID().substring(0, 8).toUpperCase()}`;
+
+        // Create manual payment record
+        const payment = await Payment.create({
+            applicantId: applicant._id,
+            provider: 'manual',
+            providerRef,
+            amount: amountInSubunits,
+            currency: selectedCurrency,
+            status: 'success',
+            type: 'commitment_levy',
+            webhookVerified: true,
+            receiptUrl,
+            paymentMethod: paymentMethod || 'Bank Transfer',
+            manualPaymentNotes: notes || undefined,
+            recordedByAdminId: (req as any).user?.id,
+        });
+
+        // Execute application submission (creates User + Application, sends password email, cleans up Applicant)
+        const submission = await executeApplicationSubmission(applicant._id, payment._id);
+
+        const adminUser = await User.findById((req as any).user?.id);
+        await logRawAction({
+            userId: (req as any).user?.id,
+            userEmail: adminUser?.email || 'admin',
+            userRole: (req as any).user?.role || 'admin',
+            action: 'ADMIN_MANUAL_PAYMENT_RECORDED',
+            description: `Admin recorded manual payment of ${amountInSubunits / 100} ${selectedCurrency} for applicant ${applicant.email} (ref: ${providerRef})${receiptUrl ? ' with receipt upload' : ''}`,
+            targetId: payment.id,
+            targetType: 'Payment',
+        });
+
+        res.json({
+            message: 'Manual payment recorded successfully and applicant enrolled.',
+            payment,
+            application: submission.application,
+            setPasswordToken: submission.setPasswordToken,
+        });
+    } catch (err: any) {
+        console.error('Admin record manual payment error:', err);
+        res.status(500).json({ message: err.message || 'Failed to record manual payment for applicant.' });
+    }
+};
+
 

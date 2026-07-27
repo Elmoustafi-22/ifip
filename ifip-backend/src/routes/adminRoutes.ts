@@ -23,6 +23,7 @@ import {
     sendPendingApplicantReminder,
     sendBulkPendingApplicantReminders,
     uploadPendingApplicantCv,
+    recordManualPaymentForApplicant,
     getAdminPayments,
     getAdminPaymentById,
     resolvePayment,
@@ -115,6 +116,7 @@ router.get('/pending-applicants', getPendingApplicants);
 router.post('/pending-applicants/bulk-remind-email', sendBulkPendingApplicantReminders);
 router.post('/pending-applicants/:applicantId/remind-email', sendPendingApplicantReminder);
 router.post('/pending-applicants/:applicantId/upload-cv', handleUpload('cv'), uploadPendingApplicantCv);
+router.post('/pending-applicants/:applicantId/record-manual-payment', handleUpload('receipt'), recordManualPaymentForApplicant);
 
 // ── Payment Tracking & Resolution ────────────────────────────────────
 router.get('/payments', getAdminPayments);

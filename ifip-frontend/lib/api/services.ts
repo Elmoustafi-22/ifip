@@ -1142,13 +1142,17 @@ export interface AdminPayment {
     submittedAt: string;
     userId?: { email: string };
   };
-  provider: 'paystack' | 'flutterwave';
+  provider: 'paystack' | 'flutterwave' | 'manual';
   providerRef: string;
   amount: number;
   currency: string;
   status: 'pending' | 'success' | 'failed';
   type: string;
   webhookVerified: boolean;
+  receiptUrl?: string;
+  paymentMethod?: string;
+  manualPaymentNotes?: string;
+  recordedByAdminId?: string;
   paystackVerification?: Record<string, unknown>;
   flutterwaveVerification?: Record<string, unknown>;
   createdAt: string;
@@ -1191,6 +1195,18 @@ export const resolveAdminPayment = async (
   const { data } = await authClient.patch<{ message: string; payment: AdminPayment }>(
     `/admin/payments/${id}/resolve`,
     payload
+  );
+  return data;
+};
+
+export const recordManualPayment = async (
+  applicantId: string,
+  formData: FormData
+): Promise<{ message: string; payment: AdminPayment; application: any; setPasswordToken?: string }> => {
+  const { data } = await authClient.post<{ message: string; payment: AdminPayment; application: any; setPasswordToken?: string }>(
+    `/admin/pending-applicants/${applicantId}/record-manual-payment`,
+    formData,
+    { timeout: 60000 }
   );
   return data;
 };
