@@ -985,7 +985,7 @@ export default function ApplyPage() {
     }
     const compiledPhone = `${dialCode}${cleanPhone}`;
 
-    const payload = {
+    const payload: Record<string, any> = {
       fullName,
       phone: compiledPhone,
       dob: dob ? new Date(dob) : undefined,
@@ -1015,12 +1015,17 @@ export default function ApplyPage() {
         whyApplying,
         careerGoals
       },
-      cvUrl: currentCvUrl,
       linkedinUrl,
       portfolioUrl,
       leadSource,
       currentStep: nextStep
     };
+
+    // Only send cvUrl when it has a value — never overwrite an existing CV
+    // (e.g. one uploaded by an admin) with an empty string from a fresh session.
+    if (currentCvUrl) {
+      payload.cvUrl = currentCvUrl;
+    }
 
     try {
       await updateApplicantProfile(payload);
