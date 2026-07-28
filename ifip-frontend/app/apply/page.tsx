@@ -753,8 +753,11 @@ export default function ApplyPage() {
         // again and risk being charged a second time.
         if (applicant.isPaid) setPaymentVerified(true);
 
-        // Move to the step retrieved from the backend (fall back to step 2 if none)
-        const savedStep = applicant.currentStep || 2;
+        // Move to the step retrieved from the backend.
+        // If currentStep is 1 (default — email verified but no profile started),
+        // skip back to step 1 is wrong because the resume token already proves
+        // email ownership. Always advance to at least step 2 when resuming.
+        const savedStep = (applicant.currentStep && applicant.currentStep > 1) ? applicant.currentStep : 2;
         setStep(savedStep);
       }
 
