@@ -1289,4 +1289,18 @@ export const recordManualPayment = async (
   return data;
 };
 
+export const adminBroadcastNotification = async (payload: {
+  targetType: 'all_paid' | 'cohort' | 'individual';
+  targetUserId?: string;
+  targetCohortId?: string;
+  title: string;
+  message: string;
+  notificationType?: 'info' | 'success' | 'warning' | 'alert';
+  link?: string;
+}): Promise<{ message: string }> => {
+  const { data } = await authClient.post<{ message: string }>("/admin/notifications/broadcast", payload);
+  return data;
+};
+
+
 

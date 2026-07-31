@@ -462,7 +462,7 @@ export const deleteModule = async (req: Request, res: Response) => {
 
 export const broadcastCustomNotification = async (req: Request, res: Response) => {
     try {
-        const { targetType, targetUserId, title, message, notificationType, link } = req.body;
+        const { targetType, targetUserId, targetCohortId, title, message, notificationType, link } = req.body;
         if (!title || !message) {
             res.status(400).json({ message: 'title and message are required.' });
             return;
@@ -471,10 +471,15 @@ export const broadcastCustomNotification = async (req: Request, res: Response) =
             res.status(400).json({ message: 'targetUserId is required for targetType: individual.' });
             return;
         }
+        if (targetType === 'cohort' && !targetCohortId) {
+            res.status(400).json({ message: 'targetCohortId is required for targetType: cohort.' });
+            return;
+        }
 
         notificationEmitter.emit('admin.broadcast', {
             targetType,
             targetUserId,
+            targetCohortId,
             title,
             message,
             notificationType,

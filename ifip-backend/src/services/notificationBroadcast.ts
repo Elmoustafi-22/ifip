@@ -294,37 +294,39 @@ notificationEmitter.on('partner.reviewed', async ({ email, companyName, contactP
     }
 });
 
-notificationEmitter.on('admin.broadcast', async ({ targetType, targetUserId, title, message, notificationType, link }) => {
+notificationEmitter.on('admin.broadcast', async ({ targetType, targetUserId, targetCohortId, title, message, notificationType, link }) => {
     try {
-        // 1. In-app
+        let recipientUserIds: Types.ObjectId[] = [];
+
         if (targetType === 'individual' && targetUserId) {
-            await Notification.create({
-                userId: new Types.ObjectId(targetUserId as string),
-                title,
-                message,
-                type: notificationType || 'info',
-                link: link || '/dashboard'
+            recipientUserIds = [new Types.ObjectId(targetUserId as string)];
+        } else if (targetType === 'cohort' && targetCohortId) {
+            const apps = await Application.find({
+                cohortId: new Types.ObjectId(targetCohortId as string),
+                status: { $in: ['payment_confirmed', 'active', 'completed'] }
             });
-            const user = await User.findById(targetUserId);
-            if (user) {
-                await sendCustomBroadcastEmail(user.email, title, message);
-            }
+            recipientUserIds = apps.map(app => app.userId);
         } else {
-            // Broadcast to all active participants
-            const activeApps = await Application.find({ status: 'active' });
-            const notifications = activeApps.map(app => ({
-                userId: app.userId,
+            // Target all applicants who have paid (all_paid / all)
+            const apps = await Application.find({
+                status: { $in: ['payment_confirmed', 'active', 'completed'] }
+            });
+            recipientUserIds = apps.map(app => app.userId);
+        }
+
+        if (recipientUserIds.length > 0) {
+            // 1. In-app
+            const notifications = recipientUserIds.map(userId => ({
+                userId,
                 title,
                 message,
                 type: notificationType || 'info',
                 link: link || '/dashboard'
             }));
-            if (notifications.length > 0) {
-                await Notification.insertMany(notifications);
-            }
+            await Notification.insertMany(notifications);
 
-            // Email to all active participants
-            const users = await User.find({ _id: { $in: activeApps.map(app => app.userId) } });
+            // 2. Email
+            const users = await User.find({ _id: { $in: recipientUserIds } });
             for (const user of users) {
                 try {
                     await sendCustomBroadcastEmail(user.email, title, message);
