@@ -462,24 +462,28 @@ export const deleteModule = async (req: Request, res: Response) => {
 
 export const broadcastCustomNotification = async (req: Request, res: Response) => {
     try {
-        const { targetType, targetUserId, targetCohortId, title, message, notificationType, link } = req.body;
+        const { targetType, targetCohortId, targetEmail, title, message, notificationType, link } = req.body;
         if (!title || !message) {
             res.status(400).json({ message: 'title and message are required.' });
             return;
         }
-        if (targetType === 'individual' && !targetUserId) {
-            res.status(400).json({ message: 'targetUserId is required for targetType: individual.' });
+        if (!targetType) {
+            res.status(400).json({ message: 'targetType is required.' });
             return;
         }
-        if (targetType === 'cohort' && !targetCohortId) {
-            res.status(400).json({ message: 'targetCohortId is required for targetType: cohort.' });
+        if (targetType === 'individual' && !targetEmail) {
+            res.status(400).json({ message: 'targetEmail is required for targetType: individual.' });
+            return;
+        }
+        if (['paid', 'pending', 'all_applicants'].includes(targetType) && !targetCohortId) {
+            res.status(400).json({ message: 'targetCohortId is required for cohort-based broadcasts.' });
             return;
         }
 
         notificationEmitter.emit('admin.broadcast', {
             targetType,
-            targetUserId,
             targetCohortId,
+            targetEmail,
             title,
             message,
             notificationType,

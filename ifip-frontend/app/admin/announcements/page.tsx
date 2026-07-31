@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import {
   HiOutlineMegaphone,
   HiOutlineBell,
@@ -11,69 +11,52 @@ import {
   HiOutlineUser,
   HiOutlineEnvelope,
   HiOutlineArrowRight,
-  HiOutlinePaperAirplane
+  HiOutlinePaperAirplane,
+  HiOutlineAcademicCap
 } from "react-icons/hi2";
 import {
-  getCohorts,
   getAdminUsers,
   adminBroadcastNotification,
-  Cohort,
   AdminUser
 } from "@/lib/api/services";
+import { AdminCohortContext } from "../layout";
 
 export default function AdminAnnouncementsPage() {
-  const [cohorts, setCohorts] = useState<Cohort[]>([]);
-  const [cohortsLoading, setCohortsLoading] = useState(true);
+  const { selectedCohortId, cohorts } = useContext(AdminCohortContext);
 
   // Form Fields State
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [link, setLink] = useState("");
   const [notificationType, setNotificationType] = useState<"info" | "success" | "warning" | "alert">("info");
-  const [targetType, setTargetType] = useState<"all_paid" | "cohort" | "individual">("all_paid");
-  const [selectedCohortId, setSelectedCohortId] = useState("");
+  const [targetType, setTargetType] = useState<"paid" | "pending" | "all_applicants" | "individual">("paid");
   
   // Individual Target State
   const [userEmail, setUserEmail] = useState("");
   const [resolvedUser, setResolvedUser] = useState<AdminUser | null>(null);
   const [searchingUser, setSearchingUser] = useState(false);
-  const [userError, setUserError] = useState("");
+  const [userStatusNote, setUserStatusNote] = useState("");
 
   // UI State
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [alertMsg, setAlertMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  useEffect(() => {
-    const fetchCohortsData = async () => {
-      try {
-        setCohortsLoading(true);
-        const data = await getCohorts();
-        setCohorts(data);
-        if (data.length > 0) {
-          setSelectedCohortId(data[0]._id);
-        }
-      } catch (err) {
-        console.error("Failed to load cohorts for targeting:", err);
-        showAlert("error", "Failed to load academic cohorts.");
-      } finally {
-        setCohortsLoading(false);
-      }
-    };
-    fetchCohortsData();
-  }, []);
+  // Resolve Cohort Name from Navbar context
+  const currentCohort = cohorts.find((c) => c._id === selectedCohortId);
+  const currentCohortName = currentCohort ? currentCohort.name : "Active Cohort";
 
   // Individual User Email Lookup
   useEffect(() => {
     if (targetType !== "individual" || !userEmail.trim()) {
       setResolvedUser(null);
-      setUserError("");
+      setUserStatusNote("");
       return;
     }
 
     const delayDebounce = setTimeout(async () => {
       setSearchingUser(true);
-      setUserError("");
+      setUserStatusNote("");
       try {
         const response = await getAdminUsers({ search: userEmail.trim(), limit: 1 });
         const matched = response.users.find(
@@ -81,13 +64,14 @@ export default function AdminAnnouncementsPage() {
         );
         if (matched) {
           setResolvedUser(matched);
+          setUserStatusNote(`Matched active user: ${matched.fullName} (${matched.role}). Will receive in-app notification & email.`);
         } else {
           setResolvedUser(null);
-          setUserError("No registered user found with this email.");
+          setUserStatusNote("No registered active user account found. Announcement will be delivered via email only.");
         }
       } catch (err) {
         console.error("User search failed:", err);
-        setUserError("Error verifying email address.");
+        setUserStatusNote("Error checking email status. Announcement will default to email delivery.");
       } finally {
         setSearchingUser(false);
       }
@@ -107,13 +91,13 @@ export default function AdminAnnouncementsPage() {
       return;
     }
 
-    if (targetType === "cohort" && !selectedCohortId) {
-      showAlert("error", "Please select a target Cohort.");
+    if (targetType !== "individual" && !selectedCohortId) {
+      showAlert("error", "Please select a cohort in the top navigation dropdown first.");
       return;
     }
 
-    if (targetType === "individual" && !resolvedUser) {
-      showAlert("error", "Please specify a valid individual user email.");
+    if (targetType === "individual" && !userEmail.trim()) {
+      showAlert("error", "Please specify a recipient email address.");
       return;
     }
 
@@ -131,8 +115,8 @@ export default function AdminAnnouncementsPage() {
         message: message.trim(),
         notificationType,
         link: link.trim() || undefined,
-        targetCohortId: targetType === "cohort" ? selectedCohortId : undefined,
-        targetUserId: targetType === "individual" ? resolvedUser?._id : undefined
+        targetCohortId: targetType !== "individual" ? selectedCohortId : undefined,
+        targetEmail: targetType === "individual" ? userEmail.trim() : undefined
       });
 
       showAlert("success", "Announcement broadcast has been successfully queued.");
@@ -142,6 +126,7 @@ export default function AdminAnnouncementsPage() {
       setLink("");
       setUserEmail("");
       setResolvedUser(null);
+      setUserStatusNote("");
     } catch (err: any) {
       console.error("Announcement failed:", err);
       showAlert("error", err?.response?.data?.message || "Failed to broadcast announcement.");
@@ -175,7 +160,7 @@ export default function AdminAnnouncementsPage() {
             Send Announcements
           </h1>
           <p className="text-xs text-slate-400 mt-1 font-semibold">
-            Broadcast in-app notifications and corresponding emails to paid applicants.
+            Broadcast in-app notifications and corresponding emails to cohort applicants.
           </p>
         </div>
       </div>
@@ -284,87 +269,80 @@ export default function AdminAnnouncementsPage() {
             {/* Divider */}
             <div className="border-t border-slate-100 my-6" />
 
-            {/* Target Audience */}
+            {/* Target Audience & Cohort info */}
             <div className="space-y-4">
-              <div>
-                <span className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   Target Audience
                 </span>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setTargetType("all_paid")}
-                    className={`px-4 py-3 rounded-xl border flex flex-col items-center justify-center text-center gap-1 cursor-pointer transition-all ${
-                      targetType === "all_paid"
-                        ? "border-[#00B0FF] bg-[#00B0FF]/5 text-[#000666] font-bold"
-                        : "border-slate-200 bg-white hover:bg-slate-50 text-slate-600"
-                    }`}
-                  >
-                    <span className="text-xs font-bold">All Paid Applicants</span>
-                    <span className="text-[9px] text-slate-400 font-semibold uppercase">Any Cohort</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setTargetType("cohort")}
-                    className={`px-4 py-3 rounded-xl border flex flex-col items-center justify-center text-center gap-1 cursor-pointer transition-all ${
-                      targetType === "cohort"
-                        ? "border-[#00B0FF] bg-[#00B0FF]/5 text-[#000666] font-bold"
-                        : "border-slate-200 bg-white hover:bg-slate-50 text-slate-600"
-                    }`}
-                  >
-                    <span className="text-xs font-bold">By Program Cohort</span>
-                    <span className="text-[9px] text-slate-400 font-semibold uppercase">Filter by Cohort</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setTargetType("individual")}
-                    className={`px-4 py-3 rounded-xl border flex flex-col items-center justify-center text-center gap-1 cursor-pointer transition-all ${
-                      targetType === "individual"
-                        ? "border-[#00B0FF] bg-[#00B0FF]/5 text-[#000666] font-bold"
-                        : "border-slate-200 bg-white hover:bg-slate-50 text-slate-600"
-                    }`}
-                  >
-                    <span className="text-xs font-bold">Individual User</span>
-                    <span className="text-[9px] text-slate-400 font-semibold uppercase">Single Applicant</span>
-                  </button>
-                </div>
+                {targetType !== "individual" && (
+                  <span className="flex items-center gap-1 bg-[#000666]/5 px-2.5 py-1 rounded-full text-[10px] text-[#000666] font-bold">
+                    <HiOutlineAcademicCap className="w-3.5 h-3.5" />
+                    Targeting: {currentCohortName}
+                  </span>
+                )}
               </div>
 
-              {/* Conditional Target Options */}
-              {targetType === "cohort" && (
-                <div className="p-4 bg-slate-50/50 border border-slate-200/70 rounded-xl space-y-2 animate-fadeIn">
-                  <label htmlFor="cohort-select" className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                    Select Target Cohort
-                  </label>
-                  {cohortsLoading ? (
-                    <div className="flex items-center gap-2 text-xs text-slate-400 py-2">
-                      <HiOutlineArrowPath className="w-4 h-4 animate-spin text-[#00B0FF]" />
-                      Loading program cohorts...
-                    </div>
-                  ) : (
-                    <select
-                      id="cohort-select"
-                      value={selectedCohortId}
-                      onChange={(e) => setSelectedCohortId(e.target.value)}
-                      className="w-full text-xs px-3 py-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#00B0FF]/25 font-bold text-[#000666]"
-                    >
-                      {cohorts.map((c) => (
-                        <option key={c._id} value={c._id}>
-                          {c.name} ({c.status.toUpperCase()})
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              )}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setTargetType("paid")}
+                  className={`px-3 py-3 rounded-xl border flex flex-col items-center justify-center text-center gap-1 cursor-pointer transition-all ${
+                    targetType === "paid"
+                      ? "border-[#00B0FF] bg-[#00B0FF]/5 text-[#000666] font-bold"
+                      : "border-slate-200 bg-white hover:bg-slate-50 text-slate-600"
+                  }`}
+                >
+                  <span className="text-[11px] font-bold">Paid Applicants</span>
+                  <span className="text-[8px] text-slate-400 font-semibold uppercase">In-app + Email</span>
+                </button>
 
+                <button
+                  type="button"
+                  onClick={() => setTargetType("pending")}
+                  className={`px-3 py-3 rounded-xl border flex flex-col items-center justify-center text-center gap-1 cursor-pointer transition-all ${
+                    targetType === "pending"
+                      ? "border-[#00B0FF] bg-[#00B0FF]/5 text-[#000666] font-bold"
+                      : "border-slate-200 bg-white hover:bg-slate-50 text-slate-600"
+                  }`}
+                >
+                  <span className="text-[11px] font-bold">Pending (Unpaid)</span>
+                  <span className="text-[8px] text-slate-400 font-semibold uppercase">Email Only</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTargetType("all_applicants")}
+                  className={`px-3 py-3 rounded-xl border flex flex-col items-center justify-center text-center gap-1 cursor-pointer transition-all ${
+                    targetType === "all_applicants"
+                      ? "border-[#00B0FF] bg-[#00B0FF]/5 text-[#000666] font-bold"
+                      : "border-slate-200 bg-white hover:bg-slate-50 text-slate-600"
+                  }`}
+                >
+                  <span className="text-[11px] font-bold">All Applicants</span>
+                  <span className="text-[8px] text-slate-400 font-semibold uppercase">Both Groups</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTargetType("individual")}
+                  className={`px-3 py-3 rounded-xl border flex flex-col items-center justify-center text-center gap-1 cursor-pointer transition-all ${
+                    targetType === "individual"
+                      ? "border-[#00B0FF] bg-[#00B0FF]/5 text-[#000666] font-bold"
+                      : "border-slate-200 bg-white hover:bg-slate-50 text-slate-600"
+                  }`}
+                >
+                  <span className="text-[11px] font-bold">Individual User</span>
+                  <span className="text-[8px] text-slate-400 font-semibold uppercase">Single Recipient</span>
+                </button>
+              </div>
+
+              {/* Individual Target Options */}
               {targetType === "individual" && (
                 <div className="p-4 bg-slate-50/50 border border-slate-200/70 rounded-xl space-y-3 animate-fadeIn">
                   <div>
                     <label htmlFor="user-email-search" className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                      Applicant Email Address
+                      Recipient Email Address
                     </label>
                     <div className="relative">
                       <HiOutlineEnvelope className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
@@ -373,7 +351,7 @@ export default function AdminAnnouncementsPage() {
                         type="email"
                         value={userEmail}
                         onChange={(e) => setUserEmail(e.target.value)}
-                        placeholder="applicant@domain.com"
+                        placeholder="recipient@domain.com"
                         className="w-full text-xs pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#00B0FF]/25 font-medium"
                       />
                     </div>
@@ -383,23 +361,22 @@ export default function AdminAnnouncementsPage() {
                   {searchingUser && (
                     <div className="flex items-center gap-2 text-[11px] text-slate-400">
                       <HiOutlineArrowPath className="w-3.5 h-3.5 animate-spin text-[#00B0FF]" />
-                      Verifying account status...
+                      Verifying recipient status...
                     </div>
                   )}
 
-                  {resolvedUser && (
-                    <div className="flex items-center gap-2.5 p-2 bg-emerald-50 border border-emerald-100 rounded-lg text-emerald-800 text-[11px] font-bold animate-fadeIn">
-                      <HiOutlineUser className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <div>
-                        Matched: <span className="underline">{resolvedUser.fullName}</span> ({resolvedUser.role})
-                      </div>
-                    </div>
-                  )}
-
-                  {userError && (
-                    <div className="flex items-center gap-2 p-2 bg-rose-50 border border-rose-100 rounded-lg text-rose-800 text-[11px] font-semibold animate-fadeIn">
-                      <HiOutlineExclamationTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-                      {userError}
+                  {userStatusNote && (
+                    <div className={`flex items-center gap-2.5 p-2 border rounded-lg text-[11px] font-bold animate-fadeIn ${
+                      resolvedUser 
+                        ? "bg-emerald-50 border-emerald-100 text-emerald-800" 
+                        : "bg-amber-50 border-amber-100 text-amber-800"
+                    }`}>
+                      {resolvedUser ? (
+                        <HiOutlineUser className="w-4 h-4 text-emerald-600 shrink-0" />
+                      ) : (
+                        <HiOutlineEnvelope className="w-4 h-4 text-amber-600 shrink-0" />
+                      )}
+                      <div>{userStatusNote}</div>
                     </div>
                   )}
                 </div>
@@ -493,21 +470,31 @@ export default function AdminAnnouncementsPage() {
             
             <p className="text-xs text-slate-500 leading-relaxed font-medium">
               You are about to broadcast the announcement <strong className="text-[#000666]">"{title}"</strong> to{" "}
-              {targetType === "all_paid" && <span className="font-bold text-sky-600">all paid applicants</span>}
-              {targetType === "cohort" && (
+              {targetType === "paid" && (
                 <>
-                  applicants in the cohort{" "}
-                  <strong className="text-sky-600">
-                    "{cohorts.find((c) => c._id === selectedCohortId)?.name || "selected"}"
-                  </strong>
+                  <strong className="text-emerald-600">paid applicants</strong> in cohort{" "}
+                  <strong className="text-[#000666]">"{currentCohortName}"</strong>
+                </>
+              )}
+              {targetType === "pending" && (
+                <>
+                  <strong className="text-amber-600">pending (unpaid) applicants</strong> in cohort{" "}
+                  <strong className="text-[#000666]">"{currentCohortName}"</strong> (will receive via email only)
+                </>
+              )}
+              {targetType === "all_applicants" && (
+                <>
+                  <strong className="text-sky-600">all applicants (both paid and unpaid)</strong> in cohort{" "}
+                  <strong className="text-[#000666]">"{currentCohortName}"</strong>
                 </>
               )}
               {targetType === "individual" && (
                 <>
-                  the individual user <strong className="text-sky-600">"{resolvedUser?.fullName}"</strong>
+                  the individual email <strong className="text-sky-600">"{userEmail.trim()}"</strong>
+                  {resolvedUser ? ` (${resolvedUser.fullName})` : " (will receive via email only)"}
                 </>
-              )}. 
-              This will create in-app notifications and trigger an email dispatch. Are you sure you wish to continue?
+              )}.
+              Are you sure you wish to continue?
             </p>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">

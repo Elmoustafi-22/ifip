@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 import { Notification } from '../models/Notification.js';
 import { User } from '../models/User.js';
 import { Application } from '../models/Application.js';
+import { Applicant } from '../models/Applicants.js';
 import {
     sendOtpEmail,
     sendResumeLinkEmail,
@@ -294,44 +295,96 @@ notificationEmitter.on('partner.reviewed', async ({ email, companyName, contactP
     }
 });
 
-notificationEmitter.on('admin.broadcast', async ({ targetType, targetUserId, targetCohortId, title, message, notificationType, link }) => {
+notificationEmitter.on('admin.broadcast', async ({ targetType, targetCohortId, targetEmail, title, message, notificationType, link }) => {
     try {
-        let recipientUserIds: Types.ObjectId[] = [];
+        if (targetType === 'individual') {
+            if (!targetEmail) return;
+            const emailLower = targetEmail.trim().toLowerCase();
 
-        if (targetType === 'individual' && targetUserId) {
-            recipientUserIds = [new Types.ObjectId(targetUserId as string)];
-        } else if (targetType === 'cohort' && targetCohortId) {
-            const apps = await Application.find({
-                cohortId: new Types.ObjectId(targetCohortId as string),
-                status: { $in: ['payment_confirmed', 'active', 'completed'] }
-            });
-            recipientUserIds = apps.map(app => app.userId);
+            // Look up User
+            const user = await User.findOne({ email: emailLower });
+            if (user) {
+                // Paid user / Admin / Participant
+                await Notification.create({
+                    userId: user._id,
+                    title,
+                    message,
+                    type: notificationType || 'info',
+                    link: link || '/dashboard'
+                });
+                await sendCustomBroadcastEmail(user.email, title, message);
+            } else {
+                // Not a user, check if Applicant
+                const applicant = await Applicant.findOne({ email: emailLower });
+                if (applicant) {
+                    await sendCustomBroadcastEmail(applicant.email, title, message);
+                } else {
+                    // Send directly to the email
+                    await sendCustomBroadcastEmail(emailLower, title, message);
+                }
+            }
         } else {
-            // Target all applicants who have paid (all_paid / all)
-            const apps = await Application.find({
-                status: { $in: ['payment_confirmed', 'active', 'completed'] }
-            });
-            recipientUserIds = apps.map(app => app.userId);
-        }
+            // Target is cohort-based. cohortId is required.
+            if (!targetCohortId) {
+                console.error('[Event:admin.broadcast] targetCohortId is required for cohort-based broadcast.');
+                return;
+            }
 
-        if (recipientUserIds.length > 0) {
-            // 1. In-app
-            const notifications = recipientUserIds.map(userId => ({
-                userId,
-                title,
-                message,
-                type: notificationType || 'info',
-                link: link || '/dashboard'
-            }));
-            await Notification.insertMany(notifications);
+            const cohortIdObj = new Types.ObjectId(targetCohortId as string);
+            let recipientUserIds: Types.ObjectId[] = [];
+            let recipientEmails: string[] = [];
 
-            // 2. Email
-            const users = await User.find({ _id: { $in: recipientUserIds } });
-            for (const user of users) {
+            if (targetType === 'paid') {
+                const apps = await Application.find({
+                    cohortId: cohortIdObj,
+                    status: { $in: ['payment_confirmed', 'active', 'completed'] }
+                });
+                recipientUserIds = apps.map((app: any) => app.userId);
+            } else if (targetType === 'pending') {
+                const applicants = await Applicant.find({
+                    cohortId: cohortIdObj,
+                    isPaid: { $ne: true }
+                });
+                recipientEmails = applicants.map((app: any) => app.email);
+            } else if (targetType === 'all_applicants') {
+                const apps = await Application.find({
+                    cohortId: cohortIdObj,
+                    status: { $in: ['payment_confirmed', 'active', 'completed'] }
+                });
+                recipientUserIds = apps.map((app: any) => app.userId);
+
+                const applicants = await Applicant.find({
+                    cohortId: cohortIdObj,
+                    isPaid: { $ne: true }
+                });
+                recipientEmails = applicants.map((app: any) => app.email);
+            }
+
+            // A. Send to Paid Applicants (In-app + Email)
+            if (recipientUserIds.length > 0) {
+                const notifications = recipientUserIds.map(userId => ({
+                    userId,
+                    title,
+                    message,
+                    type: notificationType || 'info',
+                    link: link || '/dashboard'
+                }));
+                await Notification.insertMany(notifications);
+
+                const users = await User.find({ _id: { $in: recipientUserIds } });
+                for (const user of users) {
+                    recipientEmails.push(user.email);
+                }
+            }
+
+            // B. Send Email to everyone in the final recipient list
+            // De-duplicate emails
+            const uniqueEmails = Array.from(new Set(recipientEmails.map(e => e.toLowerCase())));
+            for (const email of uniqueEmails) {
                 try {
-                    await sendCustomBroadcastEmail(user.email, title, message);
+                    await sendCustomBroadcastEmail(email, title, message);
                 } catch (err) {
-                    console.error('[Event:admin.broadcast] Email send fail to', user.email, err);
+                    console.error('[Event:admin.broadcast] Email send fail to', email, err);
                 }
             }
         }

@@ -1290,8 +1290,8 @@ export const recordManualPayment = async (
 };
 
 export const adminBroadcastNotification = async (payload: {
-  targetType: 'all_paid' | 'cohort' | 'individual';
-  targetUserId?: string;
+  targetType: 'paid' | 'pending' | 'all_applicants' | 'individual';
+  targetEmail?: string;
   targetCohortId?: string;
   title: string;
   message: string;
