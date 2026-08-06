@@ -64,7 +64,7 @@ export default function AboutIfipPage() {
     detectIp();
   }, []);
 
-  const fallbackBrochureUrl = "/docs/Islamic Finance Internship Preparatory & Placement Program_20260716_181547_0000.pdf";
+  const fallbackBrochureUrl = "/docs/IFIPP_Program_Pamphlet.pdf";
   const activeBrochureUrl = brochureUrl || fallbackBrochureUrl;
 
   const partnerInstitutions = [
@@ -74,7 +74,7 @@ export default function AboutIfipPage() {
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] font-sans text-on-surface flex flex-col pb-16 md:pb-0">
-      
+
       {/* Navigation Header */}
       <header className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-outline-variant/30">
         <div className="max-w-[1280px] mx-auto px-3 md:px-8 h-20 flex items-center justify-between">
@@ -315,7 +315,7 @@ export default function AboutIfipPage() {
             <div className="bg-[#000666]/5 border border-[#000666]/10 p-6 rounded-xl flex flex-col items-center justify-center min-h-[220px] w-full text-center">
               <span className="text-[10px] font-black uppercase text-[#FF9800] tracking-wider mb-2">Registration levy</span>
               <h3 className="font-bold text-[#000666] text-lg font-display mb-4">Program Commitment Levy</h3>
-              
+
               {isNigeria === null ? (
                 <div className="animate-pulse flex flex-col items-center gap-2 w-full">
                   <div className="h-8 bg-slate-200 rounded w-1/3"></div>

@@ -71,7 +71,7 @@ export default function Home() {
             <p className="text-body-md text-on-surface-variant">Our rigorous curriculum ensures you are fully prepared for the most demanding roles.</p>
             <div className="mt-6 flex justify-center">
               <a
-                href="/docs/Islamic Finance Internship Preparatory & Placement Program_20260716_181547_0000.pdf"
+                href="/docs/IFIPP_Program_Pamphlet.pdf"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-impact-orange hover:bg-impact-orange/95 text-white font-semibold text-sm px-6 py-3 rounded-[6px] shadow-md hover-lift transition-all inline-flex items-center gap-2 cursor-pointer font-sans"
@@ -451,7 +451,7 @@ export default function Home() {
               Join the Next Cohort
             </Link>
             <a
-              href="/docs/Islamic Finance Internship Preparatory & Placement Program_20260716_181547_0000.pdf"
+              href="/docs/IFIPP_Program_Pamphlet.pdf"
               target="_blank"
               rel="noopener noreferrer"
               className="border border-white/20 hover:bg-white/10 text-white font-semibold text-sm sm:text-base py-3 sm:py-4 px-6 sm:px-8 rounded-[4px] hover-lift transition-all text-center flex items-center justify-center gap-2"
