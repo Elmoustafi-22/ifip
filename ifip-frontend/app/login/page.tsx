@@ -7,18 +7,23 @@ import {
   HiBars3,
   HiXMark,
   HiArrowRight,
+  HiArrowLeft,
   HiEye,
   HiEyeSlash,
   HiEnvelope,
   HiLockClosed,
   HiShare,
   HiGlobeAlt,
+  HiCheckCircle,
+  HiInformationCircle,
 } from "react-icons/hi2";
-import { login as loginApi, getAccessToken, loginMfaVerify } from "@/lib/api/auth";
+import { login as loginApi, getAccessToken, loginMfaVerify, forgotPassword as forgotPasswordApi } from "@/lib/api/auth";
 import { useEffect } from "react";
 
 export default function LoginPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"login" | "forgot-password">("login");
+  const [forgotSubmitted, setForgotSubmitted] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -49,6 +54,10 @@ export default function LoginPage() {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const session = params.get("session");
+      const view = params.get("view");
+      if (view === "forgot-password") {
+        setViewMode("forgot-password");
+      }
       if (session === "expired") {
         setSessionMsg("Your session has expired. Please log in again.");
       } else if (session === "idle") {
@@ -94,6 +103,25 @@ export default function LoginPage() {
     } catch (err: any) {
       const errMsg = err.response?.data?.message || err.message || "Incorrect credentials.";
       setError(errMsg);
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setError("Please enter your email address to request a password reset.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await forgotPasswordApi(cleanEmail);
+      setForgotSubmitted(true);
+    } catch {
+      setForgotSubmitted(true);
+    } finally {
       setLoading(false);
     }
   };
@@ -221,8 +249,22 @@ export default function LoginPage() {
                 className="w-14 h-14 object-contain"
               />
             </div>
-            <h1 className="text-headline-md text-primary text-center">Program Platform</h1>
-            <p className="text-sm text-on-surface-variant text-center mt-1">Islamic Finance Prep &amp; Placement</p>
+            {mfaRequired ? (
+              <>
+                <h1 className="text-headline-md text-primary text-center">Two-Factor Authentication</h1>
+                <p className="text-sm text-on-surface-variant text-center mt-1">Verify your identity</p>
+              </>
+            ) : viewMode === "forgot-password" ? (
+              <>
+                <h1 className="text-headline-md text-primary text-center">Reset Your Password</h1>
+                <p className="text-sm text-on-surface-variant text-center mt-1">We&apos;ll send a reset link to your email</p>
+              </>
+            ) : (
+              <>
+                <h1 className="text-headline-md text-primary text-center">Program Platform</h1>
+                <p className="text-sm text-on-surface-variant text-center mt-1">Islamic Finance Prep &amp; Placement</p>
+              </>
+            )}
           </div>
 
           {/* Session message */}
@@ -301,6 +343,97 @@ export default function LoginPage() {
                 &larr; Back to password login
               </button>
             </form>
+          ) : viewMode === "forgot-password" ? (
+            forgotSubmitted ? (
+              <div className="flex flex-col items-center gap-5 text-center">
+                <div className="w-16 h-16 rounded-full bg-green-50 border border-green-200 flex items-center justify-center">
+                  <HiCheckCircle className="w-9 h-9 text-green-500" />
+                </div>
+                <h2 className="text-lg font-bold text-primary">Check Your Inbox</h2>
+                <p className="text-sm text-on-surface-variant leading-relaxed">
+                  If an account with <strong>{email}</strong> exists, we&apos;ve sent a password reset link. It expires in <strong>1 hour</strong>.
+                </p>
+                <div className="w-full bg-primary/5 border border-primary/10 rounded-xl p-4 flex items-start gap-3 text-left">
+                  <HiInformationCircle className="w-5 h-5 text-vibrant-blue shrink-0 mt-0.5" />
+                  <p className="text-xs text-on-surface-variant leading-relaxed">
+                    If you do not receive an email within 5 minutes, please check your spam folder or contact{" "}
+                    <a href="mailto:ifip.program@gmail.com" className="text-vibrant-blue hover:underline font-semibold">ifip.program@gmail.com</a>.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode("login");
+                    setForgotSubmitted(false);
+                    setError("");
+                  }}
+                  className="mt-2 flex items-center justify-center gap-2 text-sm font-semibold text-primary hover:text-primary/80 transition-colors cursor-pointer"
+                >
+                  <HiArrowLeft className="w-4 h-4" />
+                  Back to Login
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPasswordSubmit} noValidate className="flex flex-col gap-5">
+                <div>
+                  <label htmlFor="forgot-email" className="block text-xs font-bold uppercase text-primary mb-2 tracking-wide">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <HiEnvelope className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/60 pointer-events-none" />
+                    <input
+                      id="forgot-email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="e.g. your.email@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      aria-invalid={!!error}
+                      aria-describedby={error ? "login-error-alert" : undefined}
+                      className="w-full pl-10 pr-4 py-3 border border-outline-variant/40 rounded-[6px] text-sm bg-slate-50/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
+                    />
+                  </div>
+                  <p className="text-xs text-on-surface-variant/70 mt-2 leading-relaxed text-left">
+                    Enter the email address associated with your IFIP account to receive a reset link.
+                  </p>
+                </div>
+
+                {/* Submit */}
+                <button
+                  id="forgot-password-submit"
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-white font-semibold text-sm py-3.5 px-6 rounded-[6px] flex items-center justify-center gap-2 shadow-sm hover-lift transition-all mt-1"
+                >
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Sending Link…
+                    </>
+                  ) : (
+                    <>
+                      Send Reset Link
+                      <HiArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode("login");
+                    setError("");
+                  }}
+                  className="flex items-center justify-center gap-1.5 text-xs text-on-surface-variant hover:text-primary transition-colors font-semibold cursor-pointer"
+                >
+                  <HiArrowLeft className="w-4 h-4" />
+                  Back to Login
+                </button>
+              </form>
+            )
           ) : (
             <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
 
@@ -331,9 +464,16 @@ export default function LoginPage() {
                   <label htmlFor="login-password" className="text-xs font-bold uppercase text-primary tracking-wide">
                     Password
                   </label>
-                  <Link href="/forgot-password" className="text-xs text-vibrant-blue font-semibold hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewMode("forgot-password");
+                      setError("");
+                    }}
+                    className="text-xs text-vibrant-blue font-semibold hover:underline cursor-pointer"
+                  >
                     Forgot Password?
-                  </Link>
+                  </button>
                 </div>
                 <div className="relative">
                   <HiLockClosed className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/60 pointer-events-none" />
