@@ -14,7 +14,7 @@ import { Payment } from '../models/Payments.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { signSetPasswordToken, signApplicantSessionToken } from '../utils/jwt.js';
 import { generateResumeToken } from '../services/tokenService.js';
-import { sendAdminInvitationEmail, sendPendingReminderEmail } from '../services/emailService.js';
+import { sendAdminInvitationEmail, sendSetPasswordEmail, sendPendingReminderEmail } from '../services/emailService.js';
 import { logAction, logRawAction } from '../utils/auditLogger.js';
 import { executeApplicationSubmission } from './applicantController.js';
 
@@ -555,15 +555,20 @@ export const resendSetPasswordLink = async (req: Request, res: Response) => {
 
 
         const token = signSetPasswordToken(user.id, user.email);
-        await sendAdminInvitationEmail(
-            user.email,
-            user.fullName || user.email,
-            user.role,
-            user.title || user.role,
-            token
-        );
 
-        logAction(req, 'RESEND_INVITE', `Resent set-password link to ${user.role} "${user.fullName}" (${user.email})`, { targetId: user.id, targetType: 'User' });
+        if (user.role === 'admin' || user.role === 'superadmin') {
+            await sendAdminInvitationEmail(
+                user.email,
+                user.fullName || user.email,
+                user.role,
+                user.title || user.role,
+                token
+            );
+        } else {
+            await sendSetPasswordEmail(user.email, token, user.country || 'Nigeria');
+        }
+
+        logAction(req, 'RESEND_INVITE', `Resent set-password link to ${user.role} "${user.fullName || user.email}" (${user.email})`, { targetId: user.id, targetType: 'User' });
 
         res.json({ message: 'Set-password link resent successfully.' });
     } catch (e: any) {
