@@ -64,7 +64,7 @@ export const getAdminUsers = async (req: Request, res: Response) => {
                 $addFields: {
                     isConfigured: {
                         $cond: {
-                            if: { $and: [{ $ne: ["$passwordHash", null] }, { $ne: ["$passwordHash", ""] }] },
+                            if: { $gt: [{ $strLenCP: { $ifNull: ['$passwordHash', ''] } }, 0] },
                             then: true,
                             else: false
                         }
