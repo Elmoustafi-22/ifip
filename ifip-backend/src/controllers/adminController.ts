@@ -552,10 +552,7 @@ export const resendSetPasswordLink = async (req: Request, res: Response) => {
             return;
         }
 
-        if (user.role !== 'admin' && user.role !== 'superadmin') {
-            res.status(400).json({ message: 'Set-password link can only be resent to admin or superadmin users.' });
-            return;
-        }
+
 
         const token = signSetPasswordToken(user.id, user.email);
         await sendAdminInvitationEmail(

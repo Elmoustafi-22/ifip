@@ -104,7 +104,17 @@ export const login = async (req: Request<{}, {}, LoginInput>, res: Response) => 
     const { password } = req.body;
     const user = await User.findOne({ email });
 
-    if (!user || !(await user.comparePassword(password))) {
+    if (!user) {
+        res.status(401).json({ message: 'Invalid credentials.' });
+        return;
+    }
+
+    if (!user.passwordHash) {
+        res.status(401).json({ message: 'Your password has not been set yet. Please check your email for the password setup link, or click "Forgot Password?" to set your password.' });
+        return;
+    }
+
+    if (!(await user.comparePassword(password))) {
         res.status(401).json({ message: 'Invalid credentials.' });
         return;
     }
@@ -197,7 +207,7 @@ export const forgotPassword = async (req: Request<{}, {}, ForgotPasswordInput>, 
     res.json({ message: 'If an account with that email exists, a reset link has been sent.' });
 
     // Fire-and-forget after responding — avoids leaking timing differences
-    if (user && user.passwordHash) {
+    if (user) {
         const resetToken = signResetPasswordToken(user.id);
         await sendPasswordResetEmail(user.email, resetToken);
     }

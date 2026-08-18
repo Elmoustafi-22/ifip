@@ -402,7 +402,7 @@ export default function AdminUsersPage() {
                         {user.lastLoginAt ? formatDate(user.lastLoginAt) : "Never"}
                       </td>
                       <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
-                        {currentUserRole === "superadmin" && (user.role === "admin" || user.role === "superadmin") ? (
+                        {!user.isConfigured || user.role === "admin" || user.role === "superadmin" ? (
                           <button
                             onClick={(e) => handleResendInvite(e, user._id)}
                             disabled={resendingInviteId === user._id}
@@ -748,10 +748,27 @@ export default function AdminUsersPage() {
               )}
 
               {/* Action Controls Section */}
-              <div className="border-t border-slate-100 pt-6 flex justify-end">
+              <div className="border-t border-slate-100 pt-6 flex items-center justify-between gap-3">
+                {!selectedUser.isConfigured && (
+                  <button
+                    onClick={(e) => handleResendInvite(e, selectedUser._id)}
+                    disabled={resendingInviteId === selectedUser._id}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-xl border transition-all disabled:opacity-50 bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 cursor-pointer"
+                  >
+                    {resendingInviteId === selectedUser._id ? (
+                      "Sending..."
+                    ) : resendSuccessId === selectedUser._id ? (
+                      "✓ Set-Password Link Sent!"
+                    ) : resendErrorId === selectedUser._id ? (
+                      "✗ Failed to Send"
+                    ) : (
+                      "↗ Resend Set-Password Link"
+                    )}
+                  </button>
+                )}
                 <button
                   onClick={() => setSelectedUser(null)}
-                  className="bg-[#000666] hover:bg-[#000666]/95 text-white font-bold text-xs tracking-wider uppercase px-6 py-2.5 rounded-xl shadow-xs transition-all"
+                  className="bg-[#000666] hover:bg-[#000666]/95 text-white font-bold text-xs tracking-wider uppercase px-6 py-2.5 rounded-xl shadow-xs transition-all ml-auto"
                 >
                   Close Profile
                 </button>
