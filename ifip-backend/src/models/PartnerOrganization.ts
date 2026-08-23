@@ -42,7 +42,7 @@ const partnerOrganizationSchema = new Schema<IPartnerOrganization>({
     hasOpenings:   { type: Boolean, default: false },
     openings:      { type: [partnerOpeningSchema], default: [] },
     inviteSentAt:  { type: Date },
-    portalEnabled: { type: Boolean, default: true },
+    portalEnabled: { type: Boolean, default: false },
     createdAt:     { type: Date, default: Date.now },
 });
 
