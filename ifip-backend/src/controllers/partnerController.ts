@@ -178,6 +178,54 @@ export const getPartnerApplicationById = async (req: Request, res: Response) => 
  *   - Sets PartnerApplication.status = 'declined'
  *   - Sends decline email with optional reason
  */
+/**
+ * Helper to generate user, set password token, and send invite email.
+ */
+const executePartnerInvite = async (org: any) => {
+    if (!org.contactEmail) {
+        throw new Error('Partner organization does not have a contact email configured.');
+    }
+
+    const email = org.contactEmail.trim().toLowerCase();
+
+    // Check if user already exists
+    let user = await User.findOne({ email });
+    if (!user) {
+        user = await User.create({
+            email,
+            role: 'partner',
+            fullName: org.contactPerson || org.name,
+            phone: org.contactPhone,
+            orgId: org._id,
+            emailVerified: true,
+        });
+    } else {
+        // Update role & org link if needed
+        user.role = 'partner';
+        user.orgId = org._id as Types.ObjectId;
+        if (org.contactPerson) user.fullName = org.contactPerson;
+        await user.save();
+    }
+
+    // Generate set-password token
+    const setPasswordToken = signSetPasswordToken(user.id, user.email);
+
+    // Update org audit timestamp
+    org.inviteSentAt = new Date();
+    org.portalEnabled = true;
+    await org.save();
+
+    // Send invite email
+    await sendPartnerPortalInvite(
+        user.email,
+        org.contactPerson || org.name,
+        org.name,
+        setPasswordToken
+    );
+
+    return org.inviteSentAt;
+};
+
 export const reviewPartnerApplication = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
@@ -222,6 +270,13 @@ export const reviewPartnerApplication = async (req: Request, res: Response) => {
                 openings:      application.openings || [],
             });
 
+            // Automatically send the portal invite immediately on approval
+            try {
+                await executePartnerInvite(newOrg);
+            } catch (inviteErr: any) {
+                console.error(`Failed to send automated partner invite on approval:`, inviteErr.message);
+            }
+
             application.status = 'approved';
             await application.save();
 
@@ -235,7 +290,7 @@ export const reviewPartnerApplication = async (req: Request, res: Response) => {
 
             await updateContentVersion('partners');
             res.json({
-                message: `${application.companyName} has been approved and added as an active partner.`,
+                message: `${application.companyName} has been approved and added as an active partner. Portal invitation email has been sent.`,
                 partnerOrganization: newOrg,
             });
         } else {
@@ -411,51 +466,11 @@ export const sendPartnerInvite = async (req: Request, res: Response) => {
             return;
         }
 
-        if (!org.contactEmail) {
-            res.status(400).json({ message: 'Partner organization does not have a contact email configured.' });
-            return;
-        }
-
-        const email = org.contactEmail.trim().toLowerCase();
-
-        // Check if user already exists
-        let user = await User.findOne({ email });
-        if (!user) {
-            user = await User.create({
-                email,
-                role: 'partner',
-                fullName: org.contactPerson || org.name,
-                phone: org.contactPhone,
-                orgId: org._id,
-                emailVerified: true,
-            });
-        } else {
-            // Update role & org link if needed
-            user.role = 'partner';
-            user.orgId = org._id as Types.ObjectId;
-            if (org.contactPerson) user.fullName = org.contactPerson;
-            await user.save();
-        }
-
-        // Generate set-password token (24h expiry)
-        const setPasswordToken = signSetPasswordToken(user.id, user.email);
-
-        // Update org audit timestamp
-        org.inviteSentAt = new Date();
-        org.portalEnabled = true;
-        await org.save();
-
-        // Send invite email
-        await sendPartnerPortalInvite(
-            user.email,
-            org.contactPerson || org.name,
-            org.name,
-            setPasswordToken
-        );
+        const inviteSentAt = await executePartnerInvite(org);
 
         res.json({
-            message: `Portal invite email sent to ${user.email}.`,
-            inviteSentAt: org.inviteSentAt,
+            message: `Portal invite email sent to ${org.contactEmail}.`,
+            inviteSentAt,
         });
     } catch (err: any) {
         res.status(500).json({ message: 'Error sending partner portal invite.', error: err.message });
