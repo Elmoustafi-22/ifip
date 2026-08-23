@@ -160,7 +160,7 @@ export const getInternPool = async (req: Request, res: Response) => {
                 const ciLower = ci.toLowerCase();
                 return targetKeywords.some(tk =>
                     tk.includes(ciLower) || ciLower.includes(tk) ||
-                    tk.split(/\s+/).some(w => w.length > 3 && ciLower.includes(w))
+                    tk.split(/\s+/).some((w: string) => w.length > 3 && ciLower.includes(w))
                 );
             });
             const isInterestMatch = matchedInterests.length > 0;
@@ -281,7 +281,7 @@ export const getInternById = async (req: Request, res: Response) => {
             const ciLower = ci.toLowerCase();
             return targetKeywords.some(tk =>
                 tk.includes(ciLower) || ciLower.includes(tk) ||
-                tk.split(/\s+/).some(w => w.length > 3 && ciLower.includes(w))
+                tk.split(/\s+/).some((w: string) => w.length > 3 && ciLower.includes(w))
             );
         });
 
