@@ -28,6 +28,7 @@ import {
     sendOutcomeLoggedAlert,
     sendOfferExtendedToIntern,
     sendAccountActivatedWelcomeEmail,
+    sendPartnerActivatedWelcomeEmail,
 } from './emailService.js';
 
 export const notificationEmitter = new EventEmitter();
@@ -96,17 +97,32 @@ notificationEmitter.on('application.enrolled', async ({ user, application }) => 
 
 notificationEmitter.on('auth.password_set', async ({ user }) => {
     try {
-        // In-app Welcome Notification
-        await Notification.create({
-            userId: user._id,
-            title: 'Welcome to IFIP!',
-            message: `Welcome, ${user.fullName || 'Candidate'}! Your account has been activated and your password is set. You now have full access to your participant dashboard.`,
-            type: 'success',
-            link: '/dashboard',
-        });
-        // Welcome Email
-        if (user.email) {
-            await sendAccountActivatedWelcomeEmail(user.email, user.fullName || '');
+        if (user.role === 'partner') {
+            // In-app Welcome Notification
+            await Notification.create({
+                userId: user._id,
+                title: 'Welcome to the IFIP Partner Portal!',
+                message: `Welcome, ${user.fullName || 'Partner'}! Your account has been activated and your password is set. You now have full access to your partner portal.`,
+                type: 'success',
+                link: '/partner-portal',
+            });
+            // Welcome Email
+            if (user.email) {
+                await sendPartnerActivatedWelcomeEmail(user.email, user.fullName || '');
+            }
+        } else {
+            // In-app Welcome Notification
+            await Notification.create({
+                userId: user._id,
+                title: 'Welcome to IFIP!',
+                message: `Welcome, ${user.fullName || 'Candidate'}! Your account has been activated and your password is set. You now have full access to your participant dashboard.`,
+                type: 'success',
+                link: '/dashboard',
+            });
+            // Welcome Email
+            if (user.email) {
+                await sendAccountActivatedWelcomeEmail(user.email, user.fullName || '');
+            }
         }
     } catch (err) {
         console.error('[Event:auth.password_set] Error:', err);

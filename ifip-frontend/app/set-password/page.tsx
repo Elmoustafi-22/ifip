@@ -39,6 +39,7 @@ function SetPasswordInner() {
   const token = params.get("token") ?? "";
 
   const [email, setEmail] = useState("");
+  const [role, setRole] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -55,6 +56,8 @@ function SetPasswordInner() {
   const allReqsMet = Object.values(reqs).every(Boolean);
   const passwordsMatch = password === confirm && confirm.length > 0;
 
+  const isPartner = role === "partner";
+
   // Decode the token client-side to extract the email for display (UX only — never trusted server-side)
   useEffect(() => {
     if (!token) {
@@ -65,16 +68,28 @@ function SetPasswordInner() {
     try {
       const payload = JSON.parse(atob(token.split(".")[1]));
       if (payload.purpose !== "set-password") throw new Error("wrong purpose");
-      if (payload.exp < Date.now() / 1000) throw new Error("expired");
 
       if (payload.email) {
         setEmail(payload.email);
-        setTokenLoading(false);
+        if (payload.role) {
+          setRole(payload.role);
+          setTokenLoading(false);
+        } else {
+          // If role is missing from token payload, fetch it
+          getTokenInfo(token)
+            .then((data) => {
+              if (data.role) setRole(data.role);
+            })
+            .finally(() => {
+              setTokenLoading(false);
+            });
+        }
       } else {
-        // Fallback for older tokens: fetch user email from backend
+        // Fallback for older tokens: fetch user email & role from backend
         getTokenInfo(token)
           .then((data) => {
             setEmail(data.email);
+            if (data.role) setRole(data.role);
           })
           .catch(() => {
             setEmail("Your Registered Email");
@@ -94,13 +109,13 @@ function SetPasswordInner() {
     setSubmitError("");
     if (!allReqsMet) { setSubmitError("Your password does not meet all security requirements."); return; }
     if (!passwordsMatch) { setSubmitError("Passwords do not match."); return; }
-    if (!termsAccepted) { setSubmitError("Please acknowledge and accept the Program Terms & Declaration to proceed."); return; }
+    if (!termsAccepted) { setSubmitError("Please acknowledge and accept the terms to proceed."); return; }
 
     setLoading(true);
     try {
       await setPasswordApi(token, password);
       setSuccess(true);
-      setTimeout(() => { window.location.href = "/dashboard"; }, 1800);
+      setTimeout(() => { window.location.href = isPartner ? "/partner-portal" : "/dashboard"; }, 1800);
     } catch (err: unknown) {
       setSubmitError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -159,9 +174,13 @@ function SetPasswordInner() {
             height={80}
             className="w-16 h-16 object-contain mb-4"
           />
-          <h1 className="text-headline-md text-primary text-center">Secure Your Account</h1>
+          <h1 className="text-headline-md text-primary text-center">
+            {isPartner ? "Partner Portal Setup" : "Secure Your Account"}
+          </h1>
           <p className="text-sm text-on-surface-variant text-center mt-1">
-            Welcome to IFIP Batch 2026. Set a strong password to access your participant dashboard.
+            {isPartner
+              ? "Welcome to the IFIP Partner Network. Set a strong password to access your partner portal dashboard."
+              : "Welcome to IFIP Batch 2026. Set a strong password to access your participant dashboard."}
           </p>
         </div>
 
@@ -184,10 +203,10 @@ function SetPasswordInner() {
 
             <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
 
-              {/* Participant Email (read-only display) */}
+              {/* Email (read-only display) */}
               <div>
                 <label className="block text-xs font-bold uppercase text-primary mb-2 tracking-wide">
-                  Participant Email
+                  {isPartner ? "Partner Email" : "Participant Email"}
                 </label>
                 <div className="relative">
                   <HiEnvelope className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/50 pointer-events-none" />
@@ -263,13 +282,25 @@ function SetPasswordInner() {
                 </ul>
               </div>
 
-              {/* Program Terms & Declaration */}
+              {/* Program/Partner Terms & Declaration */}
               <div className="bg-slate-50/80 border border-outline-variant/30 rounded-xl p-4 flex flex-col gap-3">
-                <p className="text-xs font-bold uppercase text-primary tracking-wide">Program Terms &amp; Declaration</p>
+                <p className="text-xs font-bold uppercase text-primary tracking-wide">
+                  {isPartner ? "Partner Terms & Code of Conduct" : "Program Terms & Declaration"}
+                </p>
                 <ul className="list-disc pl-4 text-xs text-on-surface-variant flex flex-col gap-1.5 font-medium leading-relaxed">
-                  <li>I confirm that the information provided is accurate and complete.</li>
-                  <li>I understand that internship placement is subject to screening and matching after program completion.</li>
-                  <li>I agree to participate in assessments and training.</li>
+                  {isPartner ? (
+                    <>
+                      <li>I confirm that our organization details are accurate and complete.</li>
+                      <li>I agree to adhere to the IFIP Ethical Guidelines and Code of Conduct when hosting interns.</li>
+                      <li>I understand that match requests and placement confirmations are subject to approval.</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>I confirm that the information provided is accurate and complete.</li>
+                      <li>I understand that internship placement is subject to screening and matching after program completion.</li>
+                      <li>I agree to participate in assessments and training.</li>
+                    </>
+                  )}
                 </ul>
                 <label className="flex items-start gap-2.5 cursor-pointer pt-2 border-t border-outline-variant/20">
                   <input

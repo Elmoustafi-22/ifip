@@ -81,8 +81,8 @@ export const setPassword = async (
  * GET /auth/token-info
  * Gets user details associated with set-password token.
  */
-export const getTokenInfo = async (token: string): Promise<{ email: string }> => {
-  const { data } = await authClient.get<{ email: string }>(`/auth/token-info?token=${encodeURIComponent(token)}`);
+export const getTokenInfo = async (token: string): Promise<{ email: string; role?: string }> => {
+  const { data } = await authClient.get<{ email: string; role?: string }>(`/auth/token-info?token=${encodeURIComponent(token)}`);
   return data;
 };
 

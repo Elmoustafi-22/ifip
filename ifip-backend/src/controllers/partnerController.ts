@@ -208,7 +208,7 @@ const executePartnerInvite = async (org: any) => {
     }
 
     // Generate set-password token
-    const setPasswordToken = signSetPasswordToken(user.id, user.email);
+    const setPasswordToken = signSetPasswordToken(user.id, user.email, 'partner');
 
     // Update org audit timestamp
     org.inviteSentAt = new Date();

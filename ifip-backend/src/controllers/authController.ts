@@ -94,7 +94,7 @@ export const getTokenInfo = async (req: Request, res: Response) => {
             res.status(404).json({ message: 'User not found.' });
             return;
         }
-        res.json({ email: user.email });
+        res.json({ email: user.email, role: user.role });
     } catch {
         res.status(400).json({ message: 'Invalid or expired token.' });
     }

@@ -1420,3 +1420,61 @@ export const sendAccountActivatedWelcomeEmail = async (to: string, fullName: str
 
     await send(to, 'Welcome to IFIP — Account Activated!', html);
 };
+
+/**
+ * Partner Account Activated Welcome Email — sent to partners when they set their password.
+ */
+export const sendPartnerActivatedWelcomeEmail = async (to: string, fullName: string) => {
+    const portalUrl = `${env.CLIENT_URL}/partner-portal`;
+    const nameStr = fullName ? fullName.trim() : 'Partner';
+
+    const html = `
+    <div style="${partnerWrapperStyle}">
+        <div style="${partnerCardStyle}">
+            <!-- Header Logo -->
+            <div style="${partnerHeaderStyle}">
+                <img src="${LOGO_WHITE_WORDMARK_URL}" style="height: 40px; width: auto; display: block; margin: 0 auto;" alt="IFIP">
+            </div>
+            
+            <div style="${partnerContentStyle}">
+                <h1 style="font-size: 24px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0; text-align: center;">
+                    Welcome to the IFIP Partner Network!
+                </h1>
+                
+                <p style="font-size: 15px; color: #475569; line-height: 1.7; margin: 0 0 20px 0;">
+                    Dear <strong>${nameStr}</strong>,
+                </p>
+
+                <p style="font-size: 15px; color: #475569; line-height: 1.7; margin: 0 0 20px 0;">
+                    Congratulations! Your IFIP Partner Portal setup is complete and your password has been set successfully. We are excited to officially welcome you as a partner in the <strong>Islamic Finance Internship Preparatory &amp; Placement Program (IFIP)</strong>.
+                </p>
+
+                <!-- Highlight Box -->
+                <div style="background-color: #f8fafc; border-left: 4px solid #0d9373; border-radius: 6px; padding: 20px; margin: 0 0 24px 0;">
+                    <h3 style="font-size: 14px; font-weight: bold; color: #0f172a; margin: 0 0 8px 0;">Your Partner Account is Active</h3>
+                    <p style="font-size: 13px; color: #475569; line-height: 1.6; margin: 0;">
+                        You now have full access to your Partner Portal, where you can browse placement-ready candidates, manage match requests, express interest in interns, and track your placements.
+                    </p>
+                </div>
+
+                <!-- CTA Button -->
+                <div style="text-align: center; margin: 32px 0;">
+                    <a href="${portalUrl}" style="${partnerBtnStyle}">
+                        Access Partner Portal &rarr;
+                    </a>
+                </div>
+
+                <p style="font-size: 14px; color: #64748b; line-height: 1.6; text-align: center; margin: 24px 0 0 0;">
+                    If you have any questions or need support, simply reply directly to this email or reach out to our partnerships team.
+                </p>
+            </div>
+
+            <!-- Footer -->
+            <div style="${partnerFooterStyle}">
+                <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &mdash; Islamic Finance Internship Preparatory &amp; Placement Program &copy; 2026</p>
+            </div>
+        </div>
+    </div>`;
+
+    await send(to, 'Welcome to the IFIP Partner Network — Account Activated!', html);
+};
