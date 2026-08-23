@@ -33,6 +33,7 @@ import {
   sendBulkPendingApplicantReminders,
   uploadPendingApplicantCv,
   recordManualPayment,
+  getRegistrationStatus,
   PendingApplicant,
   PendingApplicantsSummary,
   GetPendingApplicantsParams,
@@ -57,6 +58,7 @@ export default function PendingApplicantsPage() {
   const [limit, setLimit] = useState(25);
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
+  const [activeCohortName, setActiveCohortName] = useState("the upcoming cohort");
 
   // Filters State
   const [search, setSearch] = useState("");
@@ -200,6 +202,19 @@ export default function PendingApplicantsPage() {
   };
 
   useEffect(() => {
+    (async () => {
+      try {
+        const regStatus = await getRegistrationStatus();
+        if (regStatus && regStatus.cohortName) {
+          setActiveCohortName(regStatus.cohortName);
+        }
+      } catch (err) {
+        console.error("Failed to load registration status:", err);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
     startTransition(() => {
       fetchApplicants();
     });
@@ -244,7 +259,7 @@ export default function PendingApplicantsPage() {
     if (key === "expiration_reminder") {
       setEmailSubject(`Don't Miss Out — Complete Your IFIP Application`);
       setEmailBody(
-        `Hello ${firstName},\n\nWe noticed you started your application for the Islamic Finance Internship Program (IFIP) and reached Step ${applicant.currentStep} (${stageName}).\n\nSpots in Batch 2026 Fall-A26 are limited and filling up fast. Your progress is saved — complete your application before the cohort reaches capacity.\n\nPlease resume your registration to secure your spot.`
+        `Hello ${firstName},\n\nWe noticed you started your application for the Islamic Finance Internship Program (IFIP) and reached Step ${applicant.currentStep} (${stageName}).\n\nSpots in ${activeCohortName} are limited and filling up fast. Your progress is saved — complete your application before the cohort reaches capacity.\n\nPlease resume your registration to secure your spot.`
       );
       setIncludeResumeLink(true);
     } else if (key === "assistance_inquiry") {
@@ -256,7 +271,7 @@ export default function PendingApplicantsPage() {
     } else if (key === "payment_assistance") {
       setEmailSubject(`IFIP Admissions: Commitment Levy Payment Support`);
       setEmailBody(
-        `Hello ${firstName},\n\nWe noticed you reached Step 7 (Levy Payment & Final Review) for the Islamic Finance Internship Program (IFIP).\n\nSpots in Batch 2026 Fall-A26 are filling up fast. Please complete your payment to secure your place in the cohort.\n\nIf you are experiencing any issues with your payment transaction or have questions regarding commitment levy payment options, please reach out to our team at +234 906 035 6610 or reply directly to this email so we can assist you.`
+        `Hello ${firstName},\n\nWe noticed you reached Step 7 (Levy Payment & Final Review) for the Islamic Finance Internship Program (IFIP).\n\nSpots in ${activeCohortName} are filling up fast. Please complete your payment to secure your place in the cohort.\n\nIf you are experiencing any issues with your payment transaction or have questions regarding commitment levy payment options, please reach out to our team at +234 906 035 6610 or reply directly to this email so we can assist you.`
       );
       setIncludeResumeLink(true);
     } else if (key === "custom") {
@@ -272,7 +287,7 @@ export default function PendingApplicantsPage() {
     if (key === "expiration_reminder") {
       setEmailSubject(`Don't Miss Out — Complete Your IFIP Application`);
       setEmailBody(
-        `Hello {{firstName}},\n\nWe noticed you started your application for the Islamic Finance Internship Program (IFIP) and reached Step {{currentStep}}.\n\nSpots in Batch 2026 Fall-A26 are limited and filling up fast. Your progress is saved — complete your application before the cohort reaches capacity.\n\nPlease resume your registration to secure your spot.`
+        `Hello {{firstName}},\n\nWe noticed you started your application for the Islamic Finance Internship Program (IFIP) and reached Step {{currentStep}}.\n\nSpots in ${activeCohortName} are limited and filling up fast. Your progress is saved — complete your application before the cohort reaches capacity.\n\nPlease resume your registration to secure your spot.`
       );
       setIncludeResumeLink(true);
     } else if (key === "assistance_inquiry") {
@@ -284,7 +299,7 @@ export default function PendingApplicantsPage() {
     } else if (key === "payment_assistance") {
       setEmailSubject(`IFIP Admissions: Commitment Levy Payment Support`);
       setEmailBody(
-        `Hello {{firstName}},\n\nWe noticed you reached Step 7 (Levy Payment & Final Review) for the Islamic Finance Internship Program (IFIP).\n\nSpots in Batch 2026 Fall-A26 are filling up fast. Please complete your payment to secure your place in the cohort.\n\nIf you are experiencing any issues with your payment transaction or have questions regarding commitment levy payment options, please reach out to our team at +234 906 035 6610 or reply directly to this email so we can assist you.`
+        `Hello {{firstName}},\n\nWe noticed you reached Step 7 (Levy Payment & Final Review) for the Islamic Finance Internship Program (IFIP).\n\nSpots in ${activeCohortName} are filling up fast. Please complete your payment to secure your place in the cohort.\n\nIf you are experiencing any issues with your payment transaction or have questions regarding commitment levy payment options, please reach out to our team at +234 906 035 6610 or reply directly to this email so we can assist you.`
       );
       setIncludeResumeLink(true);
     } else if (key === "custom") {

@@ -1,7 +1,7 @@
-import { Schema, model, Document } from 'mongoose';
+import { Schema, model, Document, Types } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-export type UserRole = 'applicant' | 'participant' | 'admin' | 'superadmin';
+export type UserRole = 'applicant' | 'participant' | 'admin' | 'superadmin' | 'partner';
 
 export interface IUser extends Document {
     email: string;
@@ -19,6 +19,7 @@ export interface IUser extends Document {
     mfaEnabled: boolean;
     mfaSecret?: string;
     lastLoginAt?: Date;
+    orgId?: Types.ObjectId; // links partner user to their PartnerOrganization
     comparePassword(candidate: string): Promise<boolean>;
 }
 
@@ -26,7 +27,7 @@ const userSchema = new Schema<IUser>(
     {
         email: { type: String, required: true, unique: true, lowercase: true, trim: true },
         passwordHash: { type: String },
-        role: { type: String, enum: ['applicant', 'participant', 'admin', 'superadmin'], default: 'applicant' },
+        role: { type: String, enum: ['applicant', 'participant', 'admin', 'superadmin', 'partner'], default: 'applicant' },
         emailVerified: { type: Boolean, default: true },
         fullName: { type: String },
         phone: { type: String },
@@ -39,6 +40,7 @@ const userSchema = new Schema<IUser>(
         mfaEnabled: { type: Boolean, default: false },
         mfaSecret: { type: String },
         lastLoginAt: { type: Date },
+        orgId: { type: Schema.Types.ObjectId, ref: 'PartnerOrganization' },
     },
     { timestamps: true }
 );

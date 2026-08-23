@@ -127,13 +127,28 @@ export const submitApplication = async (): Promise<SubmitApplicationResponse> =>
 };
 
 export interface InitiatePaymentResponse {
-  authorizationUrl: string;
+  authorizationUrl?: string;
   reference: string;
-  pollingToken: string;
+  pollingToken?: string;
+  status?: string;
+  bypassPayment?: boolean;
+  setPasswordToken?: string;
 }
 
-export const initiatePayment = async (): Promise<InitiatePaymentResponse> => {
-  const { data } = await apiClient.post<InitiatePaymentResponse>("/payments/initiate");
+export const initiatePayment = async (couponCode?: string): Promise<InitiatePaymentResponse> => {
+  const { data } = await apiClient.post<InitiatePaymentResponse>("/payments/initiate", { couponCode });
+  return data;
+};
+
+export interface ValidateCouponResponse {
+  valid: boolean;
+  code: string;
+  discountPercent: number;
+  message: string;
+}
+
+export const validateCoupon = async (code: string): Promise<ValidateCouponResponse> => {
+  const { data } = await apiClient.post<ValidateCouponResponse>("/payments/coupon/validate", { code });
   return data;
 };
 
@@ -525,6 +540,7 @@ export interface AdminUser {
   isConfigured?: boolean;
   lastLoginAt?: string;
   application?: {
+    _id?: string;
     status: string;
     submittedAt: string;
     cohortId?: string;
@@ -616,6 +632,12 @@ export const assignCohort = async (applicationId: string, cohortId: string): Pro
 
 export const withdrawApplication = async (applicationId: string): Promise<any> => {
   const { data } = await authClient.patch(`/admin/applications/${applicationId}/withdraw`);
+  return data;
+};
+
+/** Manually promote a candidate to placement_ready (admin override). */
+export const setApplicationPlacementReady = async (applicationId: string): Promise<any> => {
+  const { data } = await authClient.patch(`/admin/applications/${applicationId}/set-placement-ready`);
   return data;
 };
 
@@ -1299,6 +1321,98 @@ export const adminBroadcastNotification = async (payload: {
   link?: string;
 }): Promise<{ message: string }> => {
   const { data } = await authClient.post<{ message: string }>("/admin/notifications/broadcast", payload);
+  return data;
+};
+
+export interface BroadcastRecord {
+  _id: string;
+  senderEmail: string;
+  targetType: 'paid' | 'pending' | 'all_applicants' | 'individual';
+  targetCohortName?: string;
+  targetEmail?: string;
+  title: string;
+  message: string;
+  link?: string;
+  notificationType: string;
+  sentAt: string;
+}
+
+export const getAdminBroadcasts = async (): Promise<BroadcastRecord[]> => {
+  const { data } = await authClient.get<BroadcastRecord[]>("/admin/notifications/broadcasts");
+  return data;
+};
+
+export interface Coupon {
+  _id: string;
+  code: string;
+  discountPercent: number;
+  expiresAt: string;
+  expiredMessage: string;
+  isActive: boolean;
+  maxUses?: number;
+  usedCount: number;
+  createdByAdminId?: { _id: string; fullName?: string; email?: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminCouponsResponse {
+  coupons: Coupon[];
+  total: number;
+  page: number;
+  pages: number;
+  summary: {
+    totalCoupons: number;
+    activeCoupons: number;
+    expiredCoupons: number;
+    totalRedemptions: number;
+  };
+}
+
+export const getAdminCoupons = async (params?: {
+  status?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<AdminCouponsResponse> => {
+  const { data } = await authClient.get<AdminCouponsResponse>("/admin/coupons", { params });
+  return data;
+};
+
+export const getAdminCouponById = async (id: string): Promise<{ coupon: Coupon; redemptions: any[] }> => {
+  const { data } = await authClient.get<{ coupon: Coupon; redemptions: any[] }>(`/admin/coupons/${id}`);
+  return data;
+};
+
+export const createAdminCoupon = async (payload: {
+  code: string;
+  discountPercent: number;
+  expiresAt: string;
+  expiredMessage: string;
+  maxUses?: number | null;
+  isActive?: boolean;
+}): Promise<{ message: string; coupon: Coupon }> => {
+  const { data } = await authClient.post<{ message: string; coupon: Coupon }>("/admin/coupons", payload);
+  return data;
+};
+
+export const updateAdminCoupon = async (
+  id: string,
+  payload: {
+    code?: string;
+    discountPercent?: number;
+    expiresAt?: string;
+    expiredMessage?: string;
+    maxUses?: number | null;
+    isActive?: boolean;
+  }
+): Promise<{ message: string; coupon: Coupon }> => {
+  const { data } = await authClient.patch<{ message: string; coupon: Coupon }>(`/admin/coupons/${id}`, payload);
+  return data;
+};
+
+export const deleteAdminCoupon = async (id: string): Promise<{ message: string }> => {
+  const { data } = await authClient.delete<{ message: string }>(`/admin/coupons/${id}`);
   return data;
 };
 

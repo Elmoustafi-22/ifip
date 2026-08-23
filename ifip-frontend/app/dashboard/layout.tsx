@@ -57,10 +57,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           setIsAuthorized(true);
 
 
-          // Auto-redirect admin to admin control panel
+          // Auto-redirect admin to admin control panel, partner to partner portal
           const role = application.role;
           if (role === "admin" || role === "superadmin") {
             router.push("/admin");
+            return;
+          }
+          if (role === "partner") {
+            router.push("/partner-portal");
             return;
           }
         } else {

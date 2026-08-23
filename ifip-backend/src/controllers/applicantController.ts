@@ -41,9 +41,16 @@ export const startApplication = async (req: Request, res: Response) => {
         cap = config.cohortCap;
     }
     if (activeApplicationsCount >= cap) {
+        const currentDate = new Date();
+        const activeCohort = await Cohort.findOne({
+            registrationStartDate: { $lte: currentDate },
+            registrationEndDate: { $gte: currentDate },
+            status: 'upcoming'
+        });
+        const cohortName = activeCohort ? activeCohort.name : 'The cohort';
         res.status(403).json({
             code: 'COHORT_FULL',
-            message: 'Batch 2026 Fall-A26 is now full. Please join the waitlist.',
+            message: `${cohortName} is now full. Please join the waitlist.`,
         });
         return;
     }

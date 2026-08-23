@@ -18,6 +18,9 @@ export interface IPayment extends Document {
     recordedByAdminId?: Types.ObjectId;
     paystackVerification?: Record<string, unknown>;
     flutterwaveVerification?: Record<string, unknown>;
+    couponId?: Types.ObjectId;
+    discountPercent?: number;
+    originalAmount?: number;
 }
 
 const paymentSchema = new Schema<IPayment>(
@@ -37,6 +40,9 @@ const paymentSchema = new Schema<IPayment>(
         recordedByAdminId: { type: Schema.Types.ObjectId, ref: 'User' },
         paystackVerification: Schema.Types.Mixed,
         flutterwaveVerification: Schema.Types.Mixed,
+        couponId: { type: Schema.Types.ObjectId, ref: 'Coupon' },
+        discountPercent: { type: Number },
+        originalAmount: { type: Number },
     },
     { timestamps: true }
 );

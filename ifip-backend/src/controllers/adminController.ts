@@ -11,6 +11,7 @@ import { Notification } from '../models/Notification.js';
 import { Module } from '../models/Module.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { Payment } from '../models/Payments.js';
+import { Broadcast } from '../models/Broadcast.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { signSetPasswordToken, signApplicantSessionToken } from '../utils/jwt.js';
 import { generateResumeToken } from '../services/tokenService.js';
@@ -56,7 +57,7 @@ export const getAdminUsers = async (req: Request, res: Response) => {
                     localField: '_id',
                     foreignField: 'userId',
                     as: 'application',
-                    pipeline: [{ $project: { status: 1, submittedAt: 1, cohortId: 1, country: 1, stateCity: 1, fullName: 1, phone: 1, dob: 1, gender: 1, academicInfo: 1, programInterest: 1, skills: 1, motivation: 1, cvUrl: 1, avatarUrl: 1, linkedinUrl: 1, portfolioUrl: 1, leadSource: 1, declaration: 1 } }],
+                    pipeline: [{ $project: { _id: 1, status: 1, submittedAt: 1, cohortId: 1, country: 1, stateCity: 1, fullName: 1, phone: 1, dob: 1, gender: 1, academicInfo: 1, programInterest: 1, skills: 1, motivation: 1, cvUrl: 1, avatarUrl: 1, linkedinUrl: 1, portfolioUrl: 1, leadSource: 1, declaration: 1 } }],
                 }
             },
             { $addFields: { application: { $arrayElemAt: ['$application', 0] } } },
@@ -308,6 +309,54 @@ export const withdrawApplication = async (req: Request, res: Response) => {
     }
 };
 
+/**
+ * PATCH /api/v1/admin/applications/:id/set-placement-ready
+ *
+ * Manual admin override to promote a candidate to placement_ready.
+ * Useful for candidates who completed older cohorts before automation existed,
+ * or where assessments were waived by the coordinator.
+ *
+ * Guards:
+ *  - Cannot promote withdrawn candidates.
+ *  - No-op if already placement_ready (returns 200 with existing state).
+ */
+export const setPlacementReady = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        const app = await Application.findById(id);
+        if (!app) {
+            res.status(404).json({ message: 'Application not found.' });
+            return;
+        }
+
+        if (app.status === 'withdrawn') {
+            res.status(400).json({ message: 'Cannot promote a withdrawn participant to placement-ready.' });
+            return;
+        }
+
+        if (app.status === 'placement_ready') {
+            res.json({ message: 'Candidate is already placement-ready.', application: app });
+            return;
+        }
+
+        const previousStatus = app.status;
+        app.status = 'placement_ready';
+        await app.save();
+
+        // Fire in-app notification to candidate and admin digest
+        notificationEmitter.emit('participant.placement_ready', { userId: app.userId });
+
+        res.json({
+            message: 'Candidate successfully promoted to placement-ready.',
+            previousStatus,
+            application: app,
+        });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error setting placement-ready status.', error: e.message });
+    }
+};
+
 // --- CRUD COHORTS ---
 export const getCohorts = async (req: Request, res: Response) => {
     try {
@@ -480,6 +529,29 @@ export const broadcastCustomNotification = async (req: Request, res: Response) =
             return;
         }
 
+        let cohortName = undefined;
+        if (targetCohortId) {
+            const cohort = await Cohort.findById(targetCohortId);
+            if (cohort) {
+                cohortName = cohort.name;
+            }
+        }
+
+        // Record the broadcast log
+        await Broadcast.create({
+            senderId: new Types.ObjectId((req as any).user.id),
+            senderEmail: (req as any).user.email,
+            targetType,
+            targetCohortId: targetCohortId ? new Types.ObjectId(targetCohortId) : undefined,
+            targetCohortName: cohortName,
+            targetEmail,
+            title,
+            message,
+            link,
+            notificationType: notificationType || 'info',
+            sentAt: new Date()
+        });
+
         notificationEmitter.emit('admin.broadcast', {
             targetType,
             targetCohortId,
@@ -493,6 +565,17 @@ export const broadcastCustomNotification = async (req: Request, res: Response) =
         res.json({ message: 'Notification broadcast queued successfully.' });
     } catch (e: any) {
         res.status(500).json({ message: 'Error broadcasting notification.', error: e.message });
+    }
+};
+
+export const getBroadcasts = async (req: Request, res: Response) => {
+    try {
+        const broadcasts = await Broadcast.find()
+            .sort({ sentAt: -1 })
+            .limit(50);
+        res.json(broadcasts);
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error retrieving broadcasts.', error: e.message });
     }
 };
 

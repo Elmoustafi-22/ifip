@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { generateSecret, generateURI, verifySync } from 'otplib';
 import QRCode from 'qrcode';
-import { User } from '../models/User.js';
+import { User, type UserRole } from '../models/User.js';
 import {
     signAccessToken,
     signRefreshToken,
@@ -40,7 +40,7 @@ const getCookieOptions = (req?: Request) => {
     return options;
 };
 
-const issueTokens = (res: Response, userId: string, role: 'applicant' | 'participant' | 'admin' | 'superadmin', req?: Request) => {
+const issueTokens = (res: Response, userId: string, role: UserRole, req?: Request) => {
     const accessToken = signAccessToken(userId, role);
     const refreshExpiry = '7d';
 
@@ -70,6 +70,9 @@ export const setPassword = async (req: Request<{}, {}, SetPasswordInput>, res: R
     user.passwordHash = await bcrypt.hash(password, 12);
     user.lastLoginAt = new Date();
     await user.save();
+
+    // Trigger welcome notification & welcome email for account completion
+    notificationEmitter.emit('auth.password_set', { user });
 
     const { accessToken, refreshToken } = issueTokens(res, user.id, user.role, req);
     res.json({ accessToken, refreshToken, user: { id: user.id, email: user.email, role: user.role } });

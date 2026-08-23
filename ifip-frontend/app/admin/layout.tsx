@@ -26,6 +26,7 @@ import {
   HiOutlineClock,
   HiArrowLeftOnRectangle,
   HiOutlineBell,
+  HiOutlineTag,
 } from "react-icons/hi2";
 import { getMyApplication, getCohorts, Cohort } from "@/lib/api/services";
 import { clearAuth, logout, startSilentRefresh, stopSilentRefresh } from "@/lib/api/auth";
@@ -72,8 +73,9 @@ const NAV_GROUPS = [
   {
     label: "Placements",
     items: [
-      { href: "/admin/partners",      label: "Partners",      icon: HiOutlineBuildingOffice2 },
-      { href: "/admin/opportunities", label: "Opportunities", icon: HiOutlineBriefcase },
+      { href: "/admin/partners",          label: "Partners",         icon: HiOutlineBuildingOffice2 },
+      { href: "/admin/partner-interests", label: "Partner Requests", icon: HiOutlineArrowsRightLeft },
+      { href: "/admin/opportunities",     label: "Opportunities",    icon: HiOutlineBriefcase },
     ],
   },
   {
@@ -87,6 +89,7 @@ const NAV_GROUPS = [
     label: "Finance",
     items: [
       { href: "/admin/payments", label: "Payment Records", icon: HiOutlineCreditCard },
+      { href: "/admin/coupons",  label: "Coupon Codes",    icon: HiOutlineTag, roles: ["superadmin"] },
     ],
   },
   {

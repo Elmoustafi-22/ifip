@@ -17,8 +17,11 @@ import {
 import {
   getAdminUsers,
   adminBroadcastNotification,
-  AdminUser
+  getAdminBroadcasts,
+  AdminUser,
+  BroadcastRecord
 } from "@/lib/api/services";
+
 import { AdminCohortContext } from "../layout";
 
 export default function AdminAnnouncementsPage() {
@@ -42,9 +45,29 @@ export default function AdminAnnouncementsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [alertMsg, setAlertMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // Broadcast History
+  const [broadcasts, setBroadcasts] = useState<BroadcastRecord[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+
+
   // Resolve Cohort Name from Navbar context
   const currentCohort = cohorts.find((c) => c._id === selectedCohortId);
   const currentCohortName = currentCohort ? currentCohort.name : "Active Cohort";
+
+  const fetchBroadcasts = async () => {
+    try {
+      setHistoryLoading(true);
+      const data = await getAdminBroadcasts();
+      setBroadcasts(data);
+    } catch (err) {
+      console.error("Failed to load broadcast history:", err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchBroadcasts(); }, []);
+
 
   // Individual User Email Lookup
   useEffect(() => {
@@ -120,7 +143,9 @@ export default function AdminAnnouncementsPage() {
       });
 
       showAlert("success", "Announcement broadcast has been successfully queued.");
+      await fetchBroadcasts();
       // Reset form
+
       setTitle("");
       setMessage("");
       setLink("");
@@ -459,8 +484,78 @@ export default function AdminAnnouncementsPage() {
         </div>
       </div>
 
+      {/* Broadcast History */}
+      <div className="bg-white border border-slate-200/60 rounded-2xl shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h2 className="text-sm font-bold text-[#000666] flex items-center gap-2">
+            <HiOutlineBell className="w-4 h-4 text-[#00B0FF]" />
+            Broadcast History
+          </h2>
+          <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+            Last 50 broadcasts
+          </span>
+        </div>
+
+        {historyLoading ? (
+          <div className="divide-y divide-slate-50">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="px-6 py-4 animate-pulse flex gap-4">
+                <div className="w-2 h-2 rounded-full bg-slate-100 mt-1.5 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="w-40 h-2.5 bg-slate-100 rounded" />
+                  <div className="w-full h-2 bg-slate-100 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : broadcasts.length === 0 ? (
+          <div className="px-6 py-12 text-center">
+            <HiOutlineMegaphone className="w-8 h-8 text-slate-200 mx-auto mb-3" />
+            <p className="text-slate-400 text-xs font-semibold">No broadcasts sent yet.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-50">
+            {broadcasts.map((b) => {
+              const accent = getAccentStyles(b.notificationType);
+              const targetLabel =
+                b.targetType === "paid" ? `Paid Applicants${b.targetCohortName ? ` — ${b.targetCohortName}` : ""}` :
+                b.targetType === "pending" ? `Pending Applicants${b.targetCohortName ? ` — ${b.targetCohortName}` : ""}` :
+                b.targetType === "all_applicants" ? `All Applicants${b.targetCohortName ? ` — ${b.targetCohortName}` : ""}` :
+                `Individual: ${b.targetEmail || ""}`;
+
+              return (
+                <div key={b._id} className={`px-6 py-4 flex gap-4 border-l-2 ${accent.border}`}>
+                  <div className={`mt-1.5 shrink-0 w-2 h-2 rounded-full ${accent.dot}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <span className="font-bold text-[#000666] text-xs truncate">{b.title}</span>
+                      <span className="text-[10px] text-slate-400 font-semibold shrink-0">
+                        {new Date(b.sentAt).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed line-clamp-2">{b.message}</p>
+                    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">To: {targetLabel}</span>
+                      <span className="text-[10px] text-slate-300">·</span>
+                      <span className="text-[10px] text-slate-400">By: {b.senderEmail}</span>
+                      {b.link && (
+                        <>
+                          <span className="text-[10px] text-slate-300">·</span>
+                          <span className="text-[10px] text-[#00B0FF] font-semibold">Link: {b.link}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Double Confirmation Modal */}
       {showConfirmModal && (
+
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white border border-slate-100 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-scaleUp">
             <div className="flex items-center gap-3 text-amber-600">

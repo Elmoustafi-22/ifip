@@ -19,6 +19,8 @@ import {
   HiOutlineClock,
   HiShare,
   HiUserGroup,
+  HiTag,
+  HiGift,
 } from "react-icons/hi2";
 import { FaWhatsapp } from "react-icons/fa";
 import {
@@ -50,6 +52,7 @@ import {
   getCohortStatus,
   getRegistrationStatus,
   joinWaitlist,
+  validateCoupon,
 } from "@/lib/api/services";
 import { getAccessToken } from "@/lib/api/auth";
 import {
@@ -334,7 +337,7 @@ export default function ApplyPage() {
   const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [waitlistError, setWaitlistError] = useState("");
   const [waitlistSuccessMsg, setWaitlistSuccessMsg] = useState("");
-  const [cohortName, setCohortName] = useState("Batch 2026 Fall-A26");
+  const [cohortName, setCohortName] = useState("The Current Cohort");
 
   // Resume/session restoration states
   const [isResuming, setIsResuming] = useState(false);
@@ -478,6 +481,51 @@ export default function ApplyPage() {
   const [declarationDate, setDeclarationDate] = useState(
     new Date().toISOString().substring(0, 10)
   );
+
+  // Step 6 State (Coupon Code)
+  const [couponOpen, setCouponOpen] = useState(false);
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discountPercent: number;
+    message: string;
+  } | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState("");
+  const [couponSuccessMsg, setCouponSuccessMsg] = useState("");
+
+  const handleApplyCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCouponError("");
+    setCouponSuccessMsg("");
+    if (!couponInput || !couponInput.trim()) {
+      setCouponError("Please enter a coupon code.");
+      return;
+    }
+    setCouponLoading(true);
+    try {
+      const res = await validateCoupon(couponInput.trim());
+      setAppliedCoupon({
+        code: res.code,
+        discountPercent: res.discountPercent,
+        message: res.message,
+      });
+      setCouponSuccessMsg(res.message);
+      setCouponError("");
+    } catch (err: any) {
+      setCouponError(err.message || "Failed to validate coupon code.");
+      setAppliedCoupon(null);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    setCouponError("");
+    setCouponSuccessMsg("");
+  };
 
   const handleInputChange = (field: string, value: any, setter: Function) => {
     setter(value);
@@ -1143,17 +1191,25 @@ export default function ApplyPage() {
       };
       await updateApplicantProfile(payload);
 
-      const data = await initiatePayment();
-      if (data.authorizationUrl) {
+      const data = await initiatePayment(appliedCoupon?.code);
+      if (data.bypassPayment) {
+        // 100% Waiver applied — bypassed payment gateway completely!
+        if (data.setPasswordToken) {
+          setCreatedPasswordToken(data.setPasswordToken);
+        }
+        localStorage.removeItem("applicantToken");
+        setStep(7); // Advance directly to Success / Password Creation screen
+      } else if (data.authorizationUrl) {
         // Persist polling credentials so /verify-payment can use them after redirect
         localStorage.setItem("paymentReference", data.reference);
-        localStorage.setItem("paymentPollingToken", data.pollingToken);
+        localStorage.setItem("paymentPollingToken", data.pollingToken || "");
         window.location.href = data.authorizationUrl;
       } else {
         throw new Error("Unable to obtain checkout authorization URL.");
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to initialize payment gateway. Please try again.");
+    } finally {
       setLoading(false);
     }
   };
@@ -2648,11 +2704,45 @@ export default function ApplyPage() {
                     </span>
                   </div>
 
-                  <div className="bg-white border border-outline-variant/20 rounded-xl p-4 flex flex-col gap-1">
-                    <span className="text-[10px] uppercase font-bold text-on-surface-variant">Commitment Levy</span>
-                    <span className="text-3xl font-display font-black text-primary">
-                      {country === "Nigeria" ? "₦20,000" : "$30"}
-                    </span>
+                  <div className="bg-white border border-outline-variant/20 rounded-xl p-4 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase font-bold text-on-surface-variant">Base Levy</span>
+                      <span className={`text-sm font-bold ${appliedCoupon ? "line-through text-on-surface-variant/60" : "text-primary"}`}>
+                        {country === "Nigeria" ? "₦20,000" : "$30"}
+                      </span>
+                    </div>
+
+                    {appliedCoupon && (
+                      <div className="flex flex-col gap-0.5 pt-1.5 border-t border-dashed border-outline-variant/20 text-emerald-600 text-xs font-semibold">
+                        <div className="flex items-center justify-between">
+                          <span className="truncate max-w-[150px]" title={`Discount (${appliedCoupon.code})`}>
+                            Waiver ({appliedCoupon.code})
+                          </span>
+                          <span className="whitespace-nowrap">
+                            -{country === "Nigeria" ? `₦${Math.round((20000 * appliedCoupon.discountPercent) / 100).toLocaleString()}` : `$${Math.round((30 * appliedCoupon.discountPercent) / 100)}`}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-emerald-500 font-medium">
+                          {appliedCoupon.discountPercent}% Discount Applied
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="pt-2 border-t border-outline-variant/20 flex items-center justify-between gap-2">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase font-bold text-primary">Total Due</span>
+                        {appliedCoupon?.discountPercent === 100 && (
+                          <span className="text-[8px] uppercase font-extrabold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded w-max mt-0.5">
+                            100% Waived
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-2xl font-sans font-black text-primary whitespace-nowrap">
+                        {country === "Nigeria" 
+                          ? `₦${Math.max(0, 20000 - Math.round((20000 * (appliedCoupon?.discountPercent || 0)) / 100)).toLocaleString()}` 
+                          : `$${Math.max(0, 30 - Math.round((30 * (appliedCoupon?.discountPercent || 0)) / 100))}`}
+                      </span>
+                    </div>
                   </div>
 
                   <p className="text-[10px] text-on-surface-variant/85 leading-relaxed">
@@ -2673,6 +2763,86 @@ export default function ApplyPage() {
 
               {/* Terms & Action Container */}
               <div className="flex-1 flex flex-col gap-6">
+
+                {/* Coupon Code Section */}
+                {!paymentVerified && (
+                  <div className="bg-white border border-outline-variant/30 rounded-2xl p-5 flex flex-col gap-4 shadow-sm animate-fadeIn">
+                    <div
+                      onClick={() => setCouponOpen(!couponOpen)}
+                      className="flex items-center justify-between cursor-pointer select-none"
+                    >
+                      <div className="flex items-center gap-2.5 text-sm font-bold text-primary">
+                        <HiTag className="w-5 h-5 text-impact-orange shrink-0" />
+                        <span>Have a coupon or scholarship code?</span>
+                      </div>
+                      <span className="text-xs text-primary font-bold hover:underline transition-all">
+                        {couponOpen ? "Hide" : "Click to apply"}
+                      </span>
+                    </div>
+
+                    {(couponOpen || appliedCoupon || couponError) && (
+                      <div className="pt-3 border-t border-outline-variant/20 flex flex-col gap-3">
+                        {appliedCoupon ? (
+                          <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs">
+                                ✓
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-xs font-mono font-bold text-emerald-900 tracking-wide uppercase">
+                                  {appliedCoupon.code}
+                                </span>
+                                <span className="text-xs text-emerald-700 font-medium">
+                                  {appliedCoupon.discountPercent}% Discount Applied! ({appliedCoupon.discountPercent === 100 ? "100% Free Pass Waiver" : "Reduced Levy Rate"})
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleRemoveCoupon}
+                              className="text-xs font-semibold text-red-600 hover:text-red-800 underline cursor-pointer"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ) : (
+                          <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder=""
+                              value={couponInput}
+                              onChange={(e) => {
+                                setCouponInput(e.target.value.toUpperCase());
+                                if (couponError) setCouponError("");
+                              }}
+                              className="flex-1 border border-outline-variant/40 rounded-[6px] px-4 py-2.5 text-sm uppercase font-mono font-semibold tracking-wider focus:outline-none focus:border-primary bg-slate-50"
+                            />
+                            <button
+                              type="submit"
+                              disabled={couponLoading || !couponInput.trim()}
+                              className="bg-primary hover:bg-primary/95 text-white font-bold text-xs px-5 py-2.5 rounded-[6px] transition-all disabled:bg-slate-300 cursor-pointer whitespace-nowrap"
+                            >
+                              {couponLoading ? "Validating..." : "Apply Code"}
+                            </button>
+                          </form>
+                        )}
+
+                        {couponError && (
+                          <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-3.5 rounded-xl font-semibold flex items-start gap-2">
+                            <span className="mt-0.5 text-red-500">⚠</span>
+                            <span>{couponError}</span>
+                          </div>
+                        )}
+                        {couponSuccessMsg && !couponError && appliedCoupon && (
+                          <div className="text-emerald-600 text-xs font-semibold">
+                            {couponSuccessMsg}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* 1. Payment/Declaration Info Banners */}
                 {paymentVerified ? (
                   <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 flex items-start gap-4">
@@ -2680,7 +2850,7 @@ export default function ApplyPage() {
                     <div className="flex flex-col gap-1">
                       <h4 className="text-sm font-bold text-emerald-900">Levy Paid & Verified</h4>
                       <p className="text-xs text-emerald-700 font-medium">
-                        Your commitment levy of {country === "Nigeria" ? "₦20,000" : "$30"} has been successfully processed and verified. Please finalize your submission below.
+                        Your commitment levy has been successfully processed and verified. Please finalize your submission below.
                       </p>
                     </div>
                   </div>
@@ -2690,7 +2860,7 @@ export default function ApplyPage() {
                     <div className="flex flex-col gap-1">
                       <h4 className="text-sm font-bold text-primary">Declaration & Signature Saved</h4>
                       <p className="text-xs text-primary/80 font-medium">
-                        Your declaration details have been saved. Please click the button below to pay the commitment levy and complete your application.
+                        Your declaration details have been saved. Please click the button below to {appliedCoupon?.discountPercent === 100 ? "complete your registration waiver" : "pay the commitment levy"} and complete your application.
                       </p>
                     </div>
                   </div>
@@ -2774,9 +2944,18 @@ export default function ApplyPage() {
                       type="button"
                       onClick={handlePayRedirect}
                       disabled={loading || !declarationConfirmed || !signature}
-                      className="flex-1 sm:flex-none justify-center bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-sm px-6 sm:px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap h-12 flex items-center font-sans"
+                      className="flex-1 sm:flex-none justify-center bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-sm px-5 sm:px-6 py-2.5 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 min-h-12 h-auto flex items-center justify-center gap-2 font-sans text-center"
                     >
-                      {loading ? "Processing..." : "Submit & Pay"}
+                      {loading ? (
+                        "Processing..."
+                      ) : appliedCoupon?.discountPercent === 100 ? (
+                        <>
+                          <HiGift className="w-5 h-5 text-white shrink-0" />
+                          <span>Complete Registration (100% Waiver)</span>
+                        </>
+                      ) : (
+                        "Submit & Pay"
+                      )}
                     </button>
                   ) : (
                     <button

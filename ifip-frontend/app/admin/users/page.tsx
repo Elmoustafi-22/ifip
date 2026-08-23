@@ -18,7 +18,8 @@ import {
   HiOutlineUser,
   HiOutlinePlus,
 } from "react-icons/hi2";
-import { getAdminUsers, AdminUser, AdminUsersResponse, getMyApplication, inviteAdmin, resendAdminInvite } from "@/lib/api/services";
+import { getAdminUsers, AdminUser, AdminUsersResponse, getMyApplication, inviteAdmin, resendAdminInvite, setApplicationPlacementReady } from "@/lib/api/services";
+
 
 const ROLE_META: Record<string, { label: string; className: string }> = {
   applicant:   { label: "Applicant",   className: "bg-slate-100 text-slate-600" },
@@ -28,11 +29,13 @@ const ROLE_META: Record<string, { label: string; className: string }> = {
 };
 
 const APP_STATUS_META: Record<string, { label: string; className: string }> = {
-  payment_confirmed: { label: "Paid",      className: "bg-blue-50 text-blue-700" },
-  active:            { label: "Active",    className: "bg-emerald-50 text-emerald-700" },
-  completed:         { label: "Completed", className: "bg-purple-50 text-purple-700" },
-  withdrawn:         { label: "Withdrawn", className: "bg-red-50 text-red-600" },
+  payment_confirmed: { label: "Paid",             className: "bg-blue-50 text-blue-700" },
+  active:            { label: "Active",           className: "bg-emerald-50 text-emerald-700" },
+  completed:         { label: "Completed",        className: "bg-purple-50 text-purple-700" },
+  placement_ready:   { label: "Placement Ready",  className: "bg-teal-50 text-teal-700" },
+  withdrawn:         { label: "Withdrawn",        className: "bg-red-50 text-red-600" },
 };
+
 
 const ROLE_TABS = [
   { key: "all",        label: "All Users" },
@@ -75,6 +78,11 @@ export default function AdminUsersPage() {
   const [resendingInviteId, setResendingInviteId] = useState<string | null>(null);
   const [resendSuccessId, setResendSuccessId] = useState<string | null>(null);
   const [resendErrorId, setResendErrorId] = useState<string | null>(null);
+
+  // Placement-ready promotion state
+  const [promotingId, setPromotingId] = useState<string | null>(null);
+  const [promoteSuccessId, setPromoteSuccessId] = useState<string | null>(null);
+
 
   useEffect(() => {
     (async () => {
@@ -138,6 +146,25 @@ export default function AdminUsersPage() {
       setResendingInviteId(null);
     }
   };
+
+  const handleMarkPlacementReady = async (e: React.MouseEvent, applicationId: string, userId: string) => {
+    e.stopPropagation();
+    if (promotingId) return;
+    setPromotingId(userId);
+    try {
+      await setApplicationPlacementReady(applicationId);
+      setPromoteSuccessId(userId);
+      setTimeout(() => {
+        setPromoteSuccessId(null);
+        fetchUsers();
+      }, 2000);
+    } catch {
+      alert('Failed to promote candidate. Please try again.');
+    } finally {
+      setPromotingId(null);
+    }
+  };
+
 
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -402,31 +429,62 @@ export default function AdminUsersPage() {
                         {user.lastLoginAt ? formatDate(user.lastLoginAt) : "Never"}
                       </td>
                       <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
-                        {!user.isConfigured || user.role === "admin" || user.role === "superadmin" ? (
-                          <button
-                            onClick={(e) => handleResendInvite(e, user._id)}
-                            disabled={resendingInviteId === user._id}
-                            className="inline-flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 \
-                              bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 cursor-pointer"
-                          >
-                            {resendingInviteId === user._id ? (
-                              <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                              </svg>
-                            ) : resendSuccessId === user._id ? (
-                              "✓ Sent!"
-                            ) : resendErrorId === user._id ? (
-                              "✗ Failed"
-                            ) : (
-                              "↗ Resend Link"
+                        <div className="flex flex-col gap-1.5">
+                          {/* Resend invite — for unconfigured or admin accounts */}
+                          {(!user.isConfigured || user.role === "admin" || user.role === "superadmin") && (
+                            <button
+                              onClick={(e) => handleResendInvite(e, user._id)}
+                              disabled={resendingInviteId === user._id}
+                              className="inline-flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 \
+                                bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 cursor-pointer"
+                            >
+                              {resendingInviteId === user._id ? (
+                                <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                              ) : resendSuccessId === user._id ? (
+                                "✓ Sent!"
+                              ) : resendErrorId === user._id ? (
+                                "✗ Failed"
+                              ) : (
+                                "↗ Resend Link"
+                              )}
+                            </button>
+                          )}
+
+                          {/* Mark Placement Ready — visible for active/completed participants only */}
+                          {user.role === "participant" &&
+                            (appStatus === "active" || appStatus === "completed") && (
+                              <button
+                                onClick={(e) => handleMarkPlacementReady(e, user.application?._id ?? "", user._id)}
+                                disabled={promotingId === user._id}
+                                className="inline-flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100 cursor-pointer"
+                              >
+                                {promotingId === user._id ? (
+                                  <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                  </svg>
+                                ) : promoteSuccessId === user._id ? (
+                                  "✓ Promoted!"
+                                ) : (
+                                  "Mark Placement Ready"
+                                )}
+                              </button>
                             )}
-                          </button>
-                        ) : (
-                          <span className="text-slate-300 text-xs italic">—</span>
-                        )}
+
+                          {/* No actions available */}
+                          {user.isConfigured &&
+                            user.role === "participant" &&
+                            appStatus !== "active" &&
+                            appStatus !== "completed" && (
+                              <span className="text-slate-300 text-xs italic">—</span>
+                            )}
+                        </div>
                       </td>
                     </tr>
+
                   );
                 })
               )}

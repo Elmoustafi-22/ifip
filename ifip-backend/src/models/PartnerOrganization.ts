@@ -15,6 +15,8 @@ export interface IPartnerOrganization extends Document {
     cohorts: Types.ObjectId[];
     hasOpenings: boolean;
     openings: IPartnerOpening[];
+    inviteSentAt?: Date;
+    portalEnabled?: boolean;
     createdAt: Date;
 }
 
@@ -39,6 +41,8 @@ const partnerOrganizationSchema = new Schema<IPartnerOrganization>({
     cohorts:       [{ type: Schema.Types.ObjectId, ref: 'Cohort', default: [] }],
     hasOpenings:   { type: Boolean, default: false },
     openings:      { type: [partnerOpeningSchema], default: [] },
+    inviteSentAt:  { type: Date },
+    portalEnabled: { type: Boolean, default: true },
     createdAt:     { type: Date, default: Date.now },
 });
 

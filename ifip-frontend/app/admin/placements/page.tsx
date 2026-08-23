@@ -80,9 +80,9 @@ export default function AdminPlacementsPage() {
       ]);
       setStats(statsData);
       
-      // Filter applications that are eligible for placements (status completed or active)
-      // For this workflow, let's allow matching any active or completed student!
-      const eligibleApps = appsData.filter(app => app.status === 'completed' || app.status === 'active');
+      // Candidates eligible for the Matching Desk are those promoted to placement_ready —
+      // meaning they have completed the full IFIP curriculum and assessments.
+      const eligibleApps = appsData.filter(app => app.status === 'placement_ready');
       setApplications(eligibleApps);
       
       setPartners(partnersData);

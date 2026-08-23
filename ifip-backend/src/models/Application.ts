@@ -4,6 +4,7 @@ export type ApplicationStatus =
     | 'payment_confirmed'   // just paid, awaiting cohort assignment
     | 'active'               // assigned to a cohort, has LMS access, in training
     | 'completed'            // finished the training curriculum
+    | 'placement_ready'      // finished training & assessments, ready for placement
     | 'withdrawn';           // participant voluntarily left — not a rejection
 
 export interface IApplication extends Document {
@@ -55,7 +56,7 @@ const applicationSchema = new Schema<IApplication>(
         declaration: { confirmed: Boolean, signature: String, date: Date },
         status: {
             type: String,
-            enum: ['payment_confirmed', 'active', 'completed', 'withdrawn'],
+            enum: ['payment_confirmed', 'active', 'completed', 'placement_ready', 'withdrawn'],
             default: 'payment_confirmed',
         },
         submittedAt: { type: Date, default: Date.now },

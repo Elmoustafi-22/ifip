@@ -1,8 +1,16 @@
 import { Request, Response } from 'express';
 import { PartnerApplication } from '../models/PartnerApplication.js';
 import { PartnerOrganization } from '../models/PartnerOrganization.js';
+import { PartnerInterest } from '../models/PartnerInterest.js';
+import { Placement } from '../models/Placement.js';
+import { User } from '../models/User.js';
+import { Notification } from '../models/Notification.js';
+import { Types } from 'mongoose';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
+import { signSetPasswordToken } from '../utils/jwt.js';
+import { sendPartnerPortalInvite } from '../services/emailService.js';
 import { updateContentVersion } from './contentVersionController.js';
+import { env } from '../config/env.js';
 
 // ─── PUBLIC ───────────────────────────────────────────────────────────────────
 
@@ -353,3 +361,247 @@ export const deletePartnerOrg = async (req: Request, res: Response) => {
         res.status(500).json({ message: 'Error deleting partner organization.', error: err.message });
     }
 };
+
+// ─── ADMIN: Partner Portal Invitations & Interest Requests ────────────────────
+
+/**
+ * POST /api/v1/admin/partners/:id/invite
+ * Trigger a partner portal onboarding invite email.
+ * Creates a User record with role='partner' linked to this PartnerOrganization (if not already existing),
+ * generates a set-password token, and emails the invite.
+ */
+export const sendPartnerInvite = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const org = await PartnerOrganization.findById(id);
+        if (!org) {
+            res.status(404).json({ message: 'Partner organization not found.' });
+            return;
+        }
+
+        if (!org.contactEmail) {
+            res.status(400).json({ message: 'Partner organization does not have a contact email configured.' });
+            return;
+        }
+
+        const email = org.contactEmail.trim().toLowerCase();
+
+        // Check if user already exists
+        let user = await User.findOne({ email });
+        if (!user) {
+            user = await User.create({
+                email,
+                role: 'partner',
+                fullName: org.contactPerson || org.name,
+                phone: org.contactPhone,
+                orgId: org._id,
+                emailVerified: true,
+            });
+        } else {
+            // Update role & org link if needed
+            user.role = 'partner';
+            user.orgId = org._id as Types.ObjectId;
+            if (org.contactPerson) user.fullName = org.contactPerson;
+            await user.save();
+        }
+
+        // Generate set-password token (24h expiry)
+        const setPasswordToken = signSetPasswordToken(user.id, user.email);
+
+        // Update org audit timestamp
+        org.inviteSentAt = new Date();
+        org.portalEnabled = true;
+        await org.save();
+
+        // Send invite email
+        await sendPartnerPortalInvite(
+            user.email,
+            org.contactPerson || org.name,
+            org.name,
+            setPasswordToken
+        );
+
+        res.json({
+            message: `Portal invite email sent to ${user.email}.`,
+            inviteSentAt: org.inviteSentAt,
+        });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error sending partner portal invite.', error: err.message });
+    }
+};
+
+/**
+ * GET /api/v1/admin/partner-interests
+ * List all partner interest requests across all partner orgs.
+ * Filterable by ?status=pending|approved|declined.
+ */
+export const getAdminPartnerInterests = async (req: Request, res: Response) => {
+    try {
+        const { status } = req.query;
+        const filter: any = {};
+        if (status && ['pending', 'approved', 'declined'].includes(status as string)) {
+            filter.status = status;
+        }
+
+        const interests = await PartnerInterest.find(filter)
+            .populate('partnerOrgId', 'name logoUrl contactPerson contactEmail contactPhone')
+            .populate('userId', 'fullName email avatarUrl country')
+            .sort({ requestedAt: -1 })
+            .lean();
+
+        res.json(interests);
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error retrieving partner interest requests.', error: err.message });
+    }
+};
+
+/**
+ * PATCH /api/v1/admin/partner-interests/:id/approve
+ * Approve a partner interest request:
+ * 1. Sets PartnerInterest.status = 'approved'
+ * 2. Auto-creates a confirmed Placement record (status: 'matched')
+ * 3. Fires notifications to partner user & intern
+ */
+export const approvePartnerInterest = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const interest = await PartnerInterest.findById(id);
+        if (!interest) {
+            res.status(404).json({ message: 'Partner interest request not found.' });
+            return;
+        }
+
+        if (interest.status !== 'pending') {
+            res.status(409).json({ message: `Interest request is already ${interest.status}.` });
+            return;
+        }
+
+        const org = await PartnerOrganization.findById(interest.partnerOrgId);
+        const intern = await User.findById(interest.userId);
+        const partnerUser = await User.findOne({ orgId: interest.partnerOrgId, role: 'partner' });
+
+        if (!org || !intern) {
+            res.status(404).json({ message: 'Associated organization or intern user not found.' });
+            return;
+        }
+
+        // Update interest record
+        interest.status = 'approved';
+        interest.reviewedAt = new Date();
+        await interest.save();
+
+        // Create confirmed Placement record if not already existing
+        let placement = await Placement.findOne({
+            userId: interest.userId,
+            partnerOrgId: interest.partnerOrgId,
+        });
+
+        if (!placement) {
+            placement = await Placement.create({
+                userId: interest.userId,
+                partnerOrgId: interest.partnerOrgId,
+                status: 'matched',
+                notes: interest.note ? `Partner note: ${interest.note}` : undefined,
+            });
+        } else {
+            placement.status = 'matched';
+            await placement.save();
+        }
+
+        // Fire notification events
+        notificationEmitter.emit('partner.interest_approved', {
+            partnerUserId: partnerUser?._id?.toString(),
+            partnerEmail: org.contactEmail,
+            contactPerson: org.contactPerson || org.name,
+            orgName: org.name,
+            internUserId: intern._id.toString(),
+            internEmail: intern.email,
+            internName: intern.fullName || 'Intern',
+        });
+
+        res.json({
+            message: `Request approved. Placement created between ${org.name} and ${intern.fullName || intern.email}.`,
+            placement,
+            interest,
+        });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error approving interest request.', error: err.message });
+    }
+};
+
+/**
+ * PATCH /api/v1/admin/partner-interests/:id/decline
+ * Decline a partner interest request with an optional reason.
+ */
+export const declinePartnerInterest = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { adminReason } = req.body;
+
+        const interest = await PartnerInterest.findById(id);
+        if (!interest) {
+            res.status(404).json({ message: 'Partner interest request not found.' });
+            return;
+        }
+
+        if (interest.status !== 'pending') {
+            res.status(409).json({ message: `Interest request is already ${interest.status}.` });
+            return;
+        }
+
+        const org = await PartnerOrganization.findById(interest.partnerOrgId);
+        const intern = await User.findById(interest.userId);
+        const partnerUser = await User.findOne({ orgId: interest.partnerOrgId, role: 'partner' });
+
+        interest.status = 'declined';
+        interest.adminReason = adminReason || undefined;
+        interest.reviewedAt = new Date();
+        await interest.save();
+
+        notificationEmitter.emit('partner.interest_declined', {
+            partnerUserId: partnerUser?._id?.toString(),
+            partnerEmail: org?.contactEmail,
+            contactPerson: org?.contactPerson || org?.name || 'Partner',
+            internName: intern?.fullName || 'Intern',
+            adminReason,
+        });
+
+        res.json({ message: 'Interest request declined.', interest });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error declining interest request.', error: err.message });
+    }
+};
+
+/**
+ * POST /api/v1/admin/notifications/partner
+ * Send an in-app notification directly to a partner user.
+ */
+export const sendPartnerNotification = async (req: Request, res: Response) => {
+    try {
+        const { partnerOrgId, title, message, type = 'info', link } = req.body;
+
+        if (!partnerOrgId || !title || !message) {
+            res.status(400).json({ message: 'partnerOrgId, title, and message are required.' });
+            return;
+        }
+
+        const partnerUser = await User.findOne({ orgId: partnerOrgId, role: 'partner' });
+        if (!partnerUser) {
+            res.status(404).json({ message: 'No active portal user found for this partner organization.' });
+            return;
+        }
+
+        const notification = await Notification.create({
+            userId: partnerUser._id,
+            title,
+            message,
+            type,
+            link: link || '/partner-portal/notifications',
+        });
+
+        res.status(201).json({ message: 'Notification sent to partner user.', notification });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error sending partner notification.', error: err.message });
+    }
+};
+

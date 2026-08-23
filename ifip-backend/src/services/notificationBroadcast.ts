@@ -19,6 +19,15 @@ import {
     sendPartnerApplicationApproved,
     sendPartnerApplicationDeclined,
     sendCustomBroadcastEmail,
+    sendInterestExpressedAlert,
+    sendInterestApprovedToPartner,
+    sendPlacementMatchedToIntern,
+    sendInterestDeclinedToPartner,
+    sendInterviewLoggedAlert,
+    sendInterviewScheduledToIntern,
+    sendOutcomeLoggedAlert,
+    sendOfferExtendedToIntern,
+    sendAccountActivatedWelcomeEmail,
 } from './emailService.js';
 
 export const notificationEmitter = new EventEmitter();
@@ -82,6 +91,25 @@ notificationEmitter.on('application.enrolled', async ({ user, application }) => 
         }
     } catch (err) {
         console.error('[Event:application.enrolled] Error:', err);
+    }
+});
+
+notificationEmitter.on('auth.password_set', async ({ user }) => {
+    try {
+        // In-app Welcome Notification
+        await Notification.create({
+            userId: user._id,
+            title: 'Welcome to IFIP!',
+            message: `Welcome, ${user.fullName || 'Candidate'}! Your account has been activated and your password is set. You now have full access to your participant dashboard.`,
+            type: 'success',
+            link: '/dashboard',
+        });
+        // Welcome Email
+        if (user.email) {
+            await sendAccountActivatedWelcomeEmail(user.email, user.fullName || '');
+        }
+    } catch (err) {
+        console.error('[Event:auth.password_set] Error:', err);
     }
 });
 
@@ -454,5 +482,205 @@ notificationEmitter.on('assessment.attempts_reset', async ({ userId, assessment 
         });
     } catch (err) {
         console.error('[Event:assessment.attempts_reset] Error:', err);
+    }
+});
+
+// ─── Partner Portal Events ────────────────────────────────────────────────────
+
+/**
+ * partner.interest_expressed
+ * Fired when a partner submits an interest request.
+ * Notifies all admins/superadmins in-app and sends an ops email alert.
+ */
+notificationEmitter.on('partner.interest_expressed', async ({ opsEmail, orgName, internName, note }) => {
+    try {
+        const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } });
+        const notifications = admins.map(admin => ({
+            userId: admin._id,
+            title: 'New Partner Interest Request',
+            message: `${orgName} has expressed interest in intern ${internName}.`,
+            type: 'info' as const,
+            link: '/admin/partner-interests',
+        }));
+        if (notifications.length > 0) await Notification.insertMany(notifications);
+        if (opsEmail) await sendInterestExpressedAlert(opsEmail, orgName, internName, note);
+    } catch (err) {
+        console.error('[Event:partner.interest_expressed] Error:', err);
+    }
+});
+
+/**
+ * partner.interest_approved
+ * Fired when admin approves a partner interest request.
+ * Notifies the partner user in-app + email, and the intern in-app + email.
+ */
+notificationEmitter.on('partner.interest_approved', async ({
+    partnerUserId, partnerEmail, contactPerson, orgName,
+    internUserId, internEmail, internName,
+}) => {
+    try {
+        const notifications = [];
+        if (partnerUserId) {
+            notifications.push({
+                userId: new Types.ObjectId(partnerUserId as string),
+                title: 'Placement Request Approved',
+                message: `Your interest request for ${internName} has been approved. Contact details are now visible in your placements.`,
+                type: 'success' as const,
+                link: '/partner-portal/placements',
+            });
+        }
+        if (internUserId) {
+            notifications.push({
+                userId: new Types.ObjectId(internUserId as string),
+                title: 'Internship Match',
+                message: `You have been matched with ${orgName} for your internship placement.`,
+                type: 'success' as const,
+                link: '/dashboard',
+            });
+        }
+        if (notifications.length > 0) await Notification.insertMany(notifications);
+        if (partnerEmail) await sendInterestApprovedToPartner(partnerEmail, contactPerson, orgName, internName);
+        if (internEmail) await sendPlacementMatchedToIntern(internEmail, internName, orgName);
+    } catch (err) {
+        console.error('[Event:partner.interest_approved] Error:', err);
+    }
+});
+
+/**
+ * partner.interest_declined
+ * Fired when admin declines a partner interest request.
+ * Notifies the partner user in-app + email.
+ */
+notificationEmitter.on('partner.interest_declined', async ({
+    partnerUserId, partnerEmail, contactPerson, internName, adminReason,
+}) => {
+    try {
+        if (partnerUserId) {
+            await Notification.create({
+                userId: new Types.ObjectId(partnerUserId as string),
+                title: 'Interest Request Not Approved',
+                message: `Your request for ${internName} was not approved.${adminReason ? ` Reason: ${adminReason}` : ''}`,
+                type: 'warning' as const,
+                link: '/partner-portal/requests',
+            });
+        }
+        if (partnerEmail) await sendInterestDeclinedToPartner(partnerEmail, contactPerson, internName, adminReason);
+    } catch (err) {
+        console.error('[Event:partner.interest_declined] Error:', err);
+    }
+});
+
+/**
+ * partner.interview_logged
+ * Fired when a partner logs interview details.
+ * Notifies all admins in-app + email, and the intern in-app + email.
+ */
+notificationEmitter.on('partner.interview_logged', async ({
+    opsEmail, orgName, internUserId, internEmail, internName, interviewDate, format
+}) => {
+    try {
+        // 1. Send email to admin
+        if (opsEmail) {
+            await sendInterviewLoggedAlert(opsEmail, orgName, internName, interviewDate, format);
+        }
+
+        // 2. Notify all admins in-app
+        const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } });
+        const adminNotifications = admins.map(admin => ({
+            userId: admin._id,
+            title: 'Interview Scheduled by Partner',
+            message: `${orgName} has scheduled an interview with intern ${internName} for ${interviewDate}.`,
+            type: 'info' as const,
+            link: '/admin/partner-interests',
+        }));
+        if (adminNotifications.length > 0) {
+            await Notification.insertMany(adminNotifications);
+        }
+
+        // 3. Notify the intern in-app
+        if (internUserId) {
+            await Notification.create({
+                userId: new Types.ObjectId(internUserId as string),
+                title: 'Interview Scheduled',
+                message: `An interview has been scheduled with ${orgName} on ${interviewDate} via ${format}. Check your email for more details.`,
+                type: 'info' as const,
+                link: '/dashboard/placement',
+            });
+        }
+
+        // 4. Send email to the intern
+        if (internEmail) {
+            await sendInterviewScheduledToIntern(internEmail, internName, orgName, interviewDate, format);
+        }
+    } catch (err) {
+        console.error('[Event:partner.interview_logged] Error:', err);
+    }
+});
+
+/**
+ * partner.outcome_logged
+ * Fired when a partner logs an interview outcome.
+ * If offer extended: notifies intern in-app + email. Always alerts ops.
+ */
+notificationEmitter.on('partner.outcome_logged', async ({
+    opsEmail, orgName, internUserId, internEmail, internName, outcome,
+}) => {
+    try {
+        if (opsEmail) await sendOutcomeLoggedAlert(opsEmail, orgName, internName, outcome);
+        if (outcome === 'offer_extended' && internUserId) {
+            await Notification.create({
+                userId: new Types.ObjectId(internUserId as string),
+                title: 'Placement Offer Extended',
+                message: `${orgName} has extended a placement offer to you. Please respond to them directly.`,
+                type: 'success' as const,
+                link: '/dashboard',
+            });
+            if (internEmail) await sendOfferExtendedToIntern(internEmail, internName, orgName);
+        }
+    } catch (err) {
+        console.error('[Event:partner.outcome_logged] Error:', err);
+    }
+});
+
+/**
+ * participant.placement_ready
+ * Fired automatically when a candidate passes the final module assessment,
+ * OR manually when an admin promotes a candidate via the admin dashboard.
+ *
+ * - Sends the candidate an in-app congratulatory notification.
+ * - Notifies all admins/superadmins that a new candidate is placement-ready.
+ */
+notificationEmitter.on('participant.placement_ready', async ({ userId }) => {
+    try {
+        const userObjId = new Types.ObjectId(userId as string);
+
+        // Resolve user details
+        const user = await User.findById(userObjId);
+        if (!user) return;
+
+        // 1. In-app notification to the candidate
+        await Notification.create({
+            userId: userObjId,
+            title: 'You Are Now Placement-Ready!',
+            message:
+                'Congratulations! You have successfully completed the IFIP curriculum and are now placement-ready. Partner organisations can now view your profile and may reach out with placement opportunities.',
+            type: 'success',
+            link: '/dashboard',
+        });
+
+        // 2. In-app alert to all admins
+        const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } });
+        const adminNotifications = admins.map((admin) => ({
+            userId: admin._id,
+            title: 'Candidate Now Placement-Ready',
+            message: `${user.fullName || user.email} has completed the full IFIP curriculum and is now placement-ready. You can assign them on the Matching Desk.`,
+            type: 'info' as const,
+            link: '/admin/placements',
+        }));
+        if (adminNotifications.length > 0) {
+            await Notification.insertMany(adminNotifications);
+        }
+    } catch (err) {
+        console.error('[Event:participant.placement_ready] Error:', err);
     }
 });

@@ -6,6 +6,7 @@ import {
     getAdminApplications,
     assignApplicationCohort,
     withdrawApplication,
+    setPlacementReady,
     getCohorts,
     createCohort,
     updateCohort,
@@ -15,6 +16,7 @@ import {
     deleteModule,
     getAdminUsers,
     broadcastCustomNotification,
+    getBroadcasts,
     inviteAdmin,
     resendSetPasswordLink,
     getAuditLogs,
@@ -48,6 +50,11 @@ import {
     createPartnerOrg,
     updatePartnerOrg,
     deletePartnerOrg,
+    sendPartnerInvite,
+    getAdminPartnerInterests,
+    approvePartnerInterest,
+    declinePartnerInterest,
+    sendPartnerNotification,
 } from '../controllers/partnerController.js';
 import {
     adminListOptions,
@@ -70,6 +77,13 @@ import {
     adminDeleteOpportunity,
     adminReorderOpportunities,
 } from '../controllers/placementOpportunityController.js';
+import {
+    getAdminCoupons,
+    createCoupon,
+    getCouponById,
+    updateCoupon,
+    deleteCoupon,
+} from '../controllers/couponController.js';
 
 const router = Router();
 
@@ -87,7 +101,9 @@ router.get('/audit-logs', authorize('superadmin'), getAuditLogs);
 router.get('/applications', getAdminApplications);
 router.patch('/applications/:id/cohort', assignApplicationCohort);
 router.patch('/applications/:id/withdraw', withdrawApplication);
+router.patch('/applications/:id/set-placement-ready', setPlacementReady);
 router.post('/notifications/broadcast', broadcastCustomNotification);
+router.get('/notifications/broadcasts', getBroadcasts);
 
 // ── Registration Funnel & Pending Applicants ──────────────────────────
 const upload = multer({
@@ -144,17 +160,33 @@ router.get('/assessments/:id/submissions', getAssessmentSubmissions);
 router.patch('/assessments/:id/submissions/:subId/grade', gradeSubmission);
 router.post('/assessments/:id/submissions/reset', resetAttempts);
 
+// ─── Superadmin Only — Coupon Code Management ─────────────────────────────────
+router.get('/coupons',          authorize('superadmin'), getAdminCoupons);
+router.post('/coupons',         authorize('superadmin'), createCoupon);
+router.get('/coupons/:id',      authorize('superadmin'), getCouponById);
+router.patch('/coupons/:id',    authorize('superadmin'), updateCoupon);
+router.delete('/coupons/:id',   authorize('superadmin'), deleteCoupon);
+
 // ─── Superadmin Only — Partner Management ─────────────────────────────────────
-// Partner Organizations (direct CRUD)
+// Partner Organizations (direct CRUD & Invite)
 router.get('/partners',          authorize('superadmin'), getAdminPartners);
 router.post('/partners',         authorize('superadmin'), createPartnerOrg);
 router.patch('/partners/:id',    authorize('superadmin'), updatePartnerOrg);
 router.delete('/partners/:id',   authorize('superadmin'), deletePartnerOrg);
+router.post('/partners/:id/invite', authorize('superadmin'), sendPartnerInvite);
 
 // Partner Applications (review queue)
 router.get('/partners/applications',          authorize('superadmin'), getPartnerApplications);
 router.get('/partners/applications/:id',      authorize('superadmin'), getPartnerApplicationById);
 router.patch('/partners/applications/:id',    authorize('superadmin'), reviewPartnerApplication);
+
+// Partner Interest Requests (Admin + Superadmin review queue)
+router.get('/partner-interests',               authorize('admin', 'superadmin'), getAdminPartnerInterests);
+router.patch('/partner-interests/:id/approve', authorize('admin', 'superadmin'), approvePartnerInterest);
+router.patch('/partner-interests/:id/decline', authorize('admin', 'superadmin'), declinePartnerInterest);
+
+// Partner Push Notification
+router.post('/notifications/partner',          authorize('superadmin'), sendPartnerNotification);
 
 // ─── Superadmin Only — Form Options CRUD ──────────────────────────────────────
 router.get('/form-options',          authorize('superadmin'), adminListOptions);

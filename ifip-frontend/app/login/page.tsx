@@ -74,6 +74,10 @@ export default function LoginPage() {
         window.location.href = "/admin";
         return;
       }
+      if (payload.role === "partner") {
+        window.location.href = "/partner-portal";
+        return;
+      }
     } catch (tokenErr) {
       console.error("Token parse failed:", tokenErr);
     }

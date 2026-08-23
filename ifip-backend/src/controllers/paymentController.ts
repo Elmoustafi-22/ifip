@@ -6,6 +6,7 @@ import { Payment } from '../models/Payments.js';
 import { Application } from '../models/Application.js';
 import { User } from '../models/User.js';
 import { Cohort } from '../models/Cohort.js';
+import { Coupon } from '../models/Coupon.js';
 import * as paystackService from '../services/paystackService.js';
 import * as flutterwaveService from '../services/flutterwaveService.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
@@ -92,54 +93,131 @@ export const initiatePayment = async (req: Request, res: Response) => {
         return;
     }
 
+    // Check optional coupon code parameter
+    const { couponCode } = req.body;
+    let coupon: any = null;
+    let discountPercent = 0;
+
+    if (couponCode && typeof couponCode === 'string' && couponCode.trim()) {
+        const normalizedCode = couponCode.trim().toUpperCase();
+        coupon = await Coupon.findOne({ code: normalizedCode });
+
+        if (!coupon) {
+            res.status(400).json({ message: 'Invalid coupon code.' });
+            return;
+        }
+        if (!coupon.isActive) {
+            res.status(400).json({ message: 'This coupon code is currently inactive.' });
+            return;
+        }
+        if (coupon.expiresAt && new Date(coupon.expiresAt) <= new Date()) {
+            res.status(400).json({ message: coupon.expiredMessage || 'This coupon code has expired.' });
+            return;
+        }
+        if (coupon.maxUses !== undefined && coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) {
+            res.status(400).json({ message: 'This coupon code has reached its maximum usage limit.' });
+            return;
+        }
+        discountPercent = coupon.discountPercent;
+    }
+
     // Assign cohort association and save checkoutStartedAt lock timestamp
     applicant.cohortId = activeCohort._id as any;
     applicant.checkoutStartedAt = new Date();
     await applicant.save();
 
-    const reference = `IFIP-${crypto.randomUUID()}`;
     const isNigeria = applicant.country === 'Nigeria';
+    const currency = isNigeria ? 'NGN' : 'USD';
+    const rawOriginalAmount = isNigeria ? Number(env.LEVY_AMOUNT_NGN) : Number(env.LEVY_AMOUNT_USD);
+    const originalAmount = rawOriginalAmount * 100;
 
-    let authorizationUrl: string;
-    let amount: number;
-    let currency: string;
-    let provider: 'paystack' | 'flutterwave';
-
-    provider = 'flutterwave';
-
-    if (isNigeria) {
-        currency = 'NGN';
-        const rawAmount = Number(env.LEVY_AMOUNT_NGN);
-        amount = rawAmount * 100;
-
-        const flutterwaveResponse = await flutterwaveService.initializeTransaction({
-            email: applicant.email,
-            amount: rawAmount,
-            reference,
-            currency,
-            metadata: { applicantId: applicant.id },
-        });
-        authorizationUrl = flutterwaveResponse.link;
-    } else {
-        currency = 'USD';
-        const rawAmount = Number(env.LEVY_AMOUNT_USD);
-        amount = rawAmount * 100;
-
-        const flutterwaveResponse = await flutterwaveService.initializeTransaction({
-            email: applicant.email,
-            amount: rawAmount,
-            reference,
-            currency,
-            metadata: { applicantId: applicant.id },
-        });
-        authorizationUrl = flutterwaveResponse.link;
+    let finalAmount = originalAmount;
+    if (discountPercent > 0) {
+        finalAmount = Math.max(0, Math.round(originalAmount * (1 - discountPercent / 100)));
     }
+
+    // ── 100% DISCOUNT WAIVER BYPASS GATEWAY ──────────────────────────────────
+    if (discountPercent === 100 || finalAmount === 0) {
+        const reference = `COUPON-${crypto.randomUUID()}`;
+
+        const payment = await Payment.create({
+            applicantId: applicant._id,
+            provider: 'manual',
+            providerRef: reference,
+            amount: 0,
+            originalAmount,
+            discountPercent: 100,
+            couponId: coupon._id,
+            currency,
+            status: 'success',
+            webhookVerified: true,
+            paymentMethod: 'coupon_100_waiver',
+            manualPaymentNotes: `100% Commitment Levy Waiver Coupon: ${coupon.code}`,
+        });
+
+        // Increment coupon used count atomically
+        await Coupon.findByIdAndUpdate(coupon._id, { $inc: { usedCount: 1 } });
+
+        applicant.isPaid = true;
+        applicant.expiresAt = undefined;
+        await applicant.save();
+
+        let setPasswordToken: string | undefined = undefined;
+
+        if (applicant.declaration?.confirmed && applicant.declaration?.signature) {
+            try {
+                const submission = await executeApplicationSubmission(applicant._id, payment._id);
+                payment.applicationId = submission.application._id as any;
+                await payment.save();
+                setPasswordToken = submission.setPasswordToken;
+                console.log(`[initiatePayment Waiver] Auto-submitted application for ${applicant.email}`);
+            } catch (err) {
+                console.error(`[initiatePayment Waiver] Auto-submit failed:`, err);
+            }
+        } else {
+            const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
+            applicant.resumeTokenHash = resumeTokenHash;
+            await applicant.save();
+            notificationEmitter.emit('payment.success', { email: applicant.email, resumeToken: resumeTokenRaw, country: applicant.country });
+        }
+
+        // Audit — PAYMENT_CONFIRMED via 100% coupon waiver
+        logRawAction({
+            userId: applicant.id,
+            userEmail: applicant.email,
+            userRole: 'applicant',
+            action: 'PAYMENT_CONFIRMED',
+            description: `100% coupon waiver applied ('${coupon.code}') for "${applicant.email}" — ref: ${reference}`,
+            targetId: payment.id,
+            targetType: 'Payment',
+        });
+
+        res.json({ status: 'success', bypassPayment: true, reference, setPasswordToken });
+        return;
+    }
+
+    // ── PARTIAL DISCOUNT OR STANDARD PAYMENT GATEWAY INITIATION ─────────────
+    const reference = `IFIP-${crypto.randomUUID()}`;
+    const provider: 'paystack' | 'flutterwave' = 'flutterwave';
+    const rawDiscountedAmount = finalAmount / 100;
+
+    const flutterwaveResponse = await flutterwaveService.initializeTransaction({
+        email: applicant.email,
+        amount: rawDiscountedAmount,
+        reference,
+        currency,
+        metadata: { applicantId: applicant.id, couponId: coupon?._id ? String(coupon._id) : undefined },
+    });
+    const authorizationUrl = flutterwaveResponse.link;
 
     await Payment.create({
         applicantId: applicant._id,
         provider,
         providerRef: reference,
-        amount,
+        amount: finalAmount,
+        originalAmount,
+        discountPercent: discountPercent > 0 ? discountPercent : undefined,
+        couponId: coupon?._id,
         currency,
         status: 'pending',
     });
@@ -152,7 +230,7 @@ export const initiatePayment = async (req: Request, res: Response) => {
         userEmail: applicant.email,
         userRole: 'applicant',
         action: 'PAYMENT_INITIATED',
-        description: `Payment initiated for "${applicant.email}" via ${provider.toUpperCase()} — ref: ${reference}, amount: ${amount / 100} ${currency}`,
+        description: `Payment initiated for "${applicant.email}" via ${provider.toUpperCase()} — ref: ${reference}, amount: ${finalAmount / 100} ${currency}${discountPercent > 0 ? ` (${discountPercent}% off coupon)` : ''}`,
         targetId: applicant.id,
         targetType: 'Applicant',
     });
@@ -214,6 +292,10 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
                         payment.flutterwaveVerification = verified as unknown as Record<string, unknown>;
                         await payment.save();
 
+                        if (payment.couponId) {
+                            await Coupon.findByIdAndUpdate(payment.couponId, { $inc: { usedCount: 1 } });
+                        }
+
                         // Mark applicant as paid and remove TTL expiresAt field to prevent auto-deletion
                         const applicant = await Applicant.findById(payment.applicantId);
                         if (applicant && !applicant.isPaid) {
@@ -252,6 +334,10 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
                     payment.status = 'success';
                     payment.paystackVerification = verified as unknown as Record<string, unknown>;
                     await payment.save();
+
+                    if (payment.couponId) {
+                        await Coupon.findByIdAndUpdate(payment.couponId, { $inc: { usedCount: 1 } });
+                    }
 
                     // Mark applicant as paid and remove TTL expiresAt field to prevent auto-deletion
                     const applicant = await Applicant.findById(payment.applicantId);
@@ -356,6 +442,10 @@ export const handlePaystackWebhook = async (req: Request, res: Response) => {
     payment.paystackVerification = verified as unknown as Record<string, unknown>;
     await payment.save();
 
+    if (payment.couponId) {
+        await Coupon.findByIdAndUpdate(payment.couponId, { $inc: { usedCount: 1 } });
+    }
+
     // Mark applicant as paid and remove TTL expiresAt field to prevent auto-deletion
     const applicant = await Applicant.findById(payment.applicantId);
     if (applicant && !applicant.isPaid) {
@@ -438,6 +528,10 @@ export const handleFlutterwaveWebhook = async (req: Request, res: Response) => {
         payment.webhookVerified = true;
         payment.flutterwaveVerification = verified as unknown as Record<string, unknown>;
         await payment.save();
+
+        if (payment.couponId) {
+            await Coupon.findByIdAndUpdate(payment.couponId, { $inc: { usedCount: 1 } });
+        }
 
         const applicant = await Applicant.findById(payment.applicantId);
         if (applicant && !applicant.isPaid) {

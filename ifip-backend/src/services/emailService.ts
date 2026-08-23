@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { env } from '../config/env.js';
+import { Cohort } from '../models/Cohort.js';
 
 const brevoApi = axios.create({
     baseURL: 'https://api.brevo.com/v3',
@@ -1009,6 +1010,14 @@ export const sendPendingReminderEmail = async (
         .replace(/\{\{firstName\}\}/g, firstName)
         .replace(/\{\{currentStep\}\}/g, currentStep.toString());
 
+    const currentDate = new Date();
+    const activeCohort = await Cohort.findOne({
+        registrationStartDate: { $lte: currentDate },
+        registrationEndDate: { $gte: currentDate },
+        status: 'upcoming'
+    });
+    const cohortName = activeCohort ? activeCohort.name : 'the program';
+
     let bodyHtml = '';
     if (customMessage && customMessage.trim()) {
         let processedMessage = customMessage.trim()
@@ -1034,7 +1043,7 @@ export const sendPendingReminderEmail = async (
                     🟡 Cohort Spots Are Filling Up
                 </p>
                 <p style="font-size: 13px; color: #4338CA; margin: 0; line-height: 1.5;">
-                    Spots in Batch 2026 Fall-A26 are <strong>limited and filling up fast</strong>. Complete and submit your application before the cohort reaches capacity — your progress is saved and waiting for you.
+                    Spots in ${cohortName} are <strong>limited and filling up fast</strong>. Complete and submit your application before the cohort reaches capacity — your progress is saved and waiting for you.
                 </p>
             </div>
         `;
@@ -1077,4 +1086,337 @@ export const sendPendingReminderEmail = async (
     `;
 
     await send(to, subject, html);
+};
+
+// ─── Partner Portal Emails ─────────────────────────────────────────────────────
+
+const partnerWrapperStyle = "background-color: #f0f4f8; padding: 40px 16px; font-family: 'Inter', 'Segoe UI', Arial, sans-serif; min-height: 100%;";
+const partnerCardStyle = "max-width: 600px; margin: 0 auto; background-color: #FFFFFF; border: 1px solid #d1d9e0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.06);";
+const partnerHeaderStyle = "background-color: #0f172a; padding: 28px 32px; text-align: center;";
+const partnerContentStyle = "padding: 36px 32px;";
+const partnerBtnStyle = "display: inline-block; background-color: #0d9373; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 15px; font-weight: 600; letter-spacing: 0.2px; margin: 24px 0;";
+const partnerFooterStyle = "background-color: #f8fafc; padding: 20px 32px; text-align: center; border-top: 1px solid #d1d9e0;";
+
+export const sendPartnerPortalInvite = async (
+    to: string,
+    contactPerson: string,
+    orgName: string,
+    setPasswordToken: string
+) => {
+    const setupUrl = `${env.CLIENT_URL}/set-password?token=${setPasswordToken}`;
+    const html = `
+    <div style="${partnerWrapperStyle}">
+        <div style="${partnerCardStyle}">
+            <div style="${partnerHeaderStyle}">
+                <img src="${LOGO_WHITE_WORDMARK_URL}" style="height: 40px; width: auto; display: block; margin: 0 auto;" alt="IFIP">
+            </div>
+            <div style="${partnerContentStyle}">
+                <h1 style="font-size: 24px; font-weight: 700; color: #0f172a; margin: 0 0 12px 0;">Partner Portal Access</h1>
+                <p style="font-size: 15px; color: #475569; line-height: 1.7; margin: 0 0 20px 0;">
+                    Dear ${contactPerson},<br><br>
+                    Your organisation, <strong style="color: #0f172a;">${orgName}</strong>, has been approved as a partner on the IFIP platform. Your portal account is now ready.
+                </p>
+                <p style="font-size: 15px; color: #475569; line-height: 1.7; margin: 0 0 20px 0;">
+                    Through the Partner Portal you can browse placement-ready interns, express interest in candidates, and track your placements from matching to confirmed offer.
+                </p>
+                <div style="text-align: center;">
+                    <a href="${setupUrl}" style="${partnerBtnStyle}">Set Your Password &amp; Access Portal</a>
+                </div>
+                <p style="font-size: 13px; color: #94a3b8; line-height: 1.6; margin: 20px 0 0 0; text-align: center;">
+                    This link expires in 48 hours. If you did not request access, please ignore this email.
+                </p>
+            </div>
+            <div style="${partnerFooterStyle}">
+                <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &mdash; Islamic Finance Internship Preparatory &amp; Placement Program &copy; 2026</p>
+            </div>
+        </div>
+    </div>`;
+    await send(to, `Your IFIP Partner Portal Access — ${orgName}`, html);
+};
+
+export const sendInterestExpressedAlert = async (
+    opsEmail: string,
+    orgName: string,
+    internName: string,
+    note?: string
+) => {
+    const html = `
+    <div style="${partnerWrapperStyle}">
+        <div style="${partnerCardStyle}">
+            <div style="${partnerHeaderStyle}">
+                <img src="${LOGO_WHITE_WORDMARK_URL}" style="height: 40px; width: auto; display: block; margin: 0 auto;" alt="IFIP">
+            </div>
+            <div style="${partnerContentStyle}">
+                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">New Interest Request</h1>
+                <p style="font-size: 15px; color: #475569; line-height: 1.7; margin: 0 0 16px 0;">
+                    <strong>${orgName}</strong> has expressed interest in intern <strong>${internName}</strong>.
+                </p>
+                ${note ? `<div style="background:#f1f5f9; border-left: 4px solid #0d9373; padding: 14px 16px; border-radius: 6px; margin-bottom: 16px;"><p style="margin:0; font-size:14px; color:#334155;"><em>"${note}"</em></p></div>` : ''}
+                <p style="font-size: 14px; color: #64748b;">Please review this request in the admin panel.</p>
+                <a href="${env.CLIENT_URL}/admin/partner-interests" style="${partnerBtnStyle}">Review Request</a>
+            </div>
+            <div style="${partnerFooterStyle}">
+                <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026</p>
+            </div>
+        </div>
+    </div>`;
+    await send(opsEmail, `Interest Request: ${orgName} — ${internName}`, html);
+};
+
+export const sendInterestApprovedToPartner = async (
+    to: string,
+    contactPerson: string,
+    orgName: string,
+    internName: string
+) => {
+    const html = `
+    <div style="${partnerWrapperStyle}">
+        <div style="${partnerCardStyle}">
+            <div style="${partnerHeaderStyle}">
+                <img src="${LOGO_WHITE_WORDMARK_URL}" style="height: 40px; width: auto; display: block; margin: 0 auto;" alt="IFIP">
+            </div>
+            <div style="${partnerContentStyle}">
+                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">Placement Approved</h1>
+                <p style="font-size: 15px; color: #475569; line-height: 1.7; margin: 0 0 16px 0;">
+                    Dear ${contactPerson},<br><br>
+                    Your interest request for <strong>${internName}</strong> has been approved. A confirmed placement has been created and the intern's contact details are now available in your portal.
+                </p>
+                <a href="${env.CLIENT_URL}/partner-portal/placements" style="${partnerBtnStyle}">View Placements</a>
+            </div>
+            <div style="${partnerFooterStyle}">
+                <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026</p>
+            </div>
+        </div>
+    </div>`;
+    await send(to, `Placement Confirmed — ${internName} at ${orgName}`, html);
+};
+
+export const sendPlacementMatchedToIntern = async (
+    to: string,
+    internName: string,
+    orgName: string
+) => {
+    const html = `
+    <div style="${partnerWrapperStyle}">
+        <div style="${partnerCardStyle}">
+            <div style="${partnerHeaderStyle}">
+                <img src="${LOGO_WHITE_WORDMARK_URL}" style="height: 40px; width: auto; display: block; margin: 0 auto;" alt="IFIP">
+            </div>
+            <div style="${partnerContentStyle}">
+                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">You Have Been Matched</h1>
+                <p style="font-size: 15px; color: #475569; line-height: 1.7; margin: 0 0 16px 0;">
+                    Dear ${internName},<br><br>
+                    You have been matched with <strong>${orgName}</strong> for your internship placement. The organisation will be in touch to arrange next steps.
+                </p>
+                <a href="${env.CLIENT_URL}/dashboard" style="${partnerBtnStyle}">View Your Dashboard</a>
+            </div>
+            <div style="${partnerFooterStyle}">
+                <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026</p>
+            </div>
+        </div>
+    </div>`;
+    await send(to, `Internship Match — ${orgName}`, html);
+};
+
+export const sendInterestDeclinedToPartner = async (
+    to: string,
+    contactPerson: string,
+    internName: string,
+    reason?: string
+) => {
+    const html = `
+    <div style="${partnerWrapperStyle}">
+        <div style="${partnerCardStyle}">
+            <div style="${partnerHeaderStyle}">
+                <img src="${LOGO_WHITE_WORDMARK_URL}" style="height: 40px; width: auto; display: block; margin: 0 auto;" alt="IFIP">
+            </div>
+            <div style="${partnerContentStyle}">
+                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">Request Update</h1>
+                <p style="font-size: 15px; color: #475569; line-height: 1.7; margin: 0 0 16px 0;">
+                    Dear ${contactPerson},<br><br>
+                    Your interest request for <strong>${internName}</strong> was not approved at this time.
+                </p>
+                ${reason ? `<div style="background:#fef9f0; border-left: 4px solid #f59e0b; padding: 14px 16px; border-radius: 6px; margin-bottom: 16px;"><p style="margin:0; font-size:14px; color:#334155;"><strong>Reason:</strong> ${reason}</p></div>` : ''}
+                <p style="font-size: 15px; color: #475569; line-height: 1.7;">You may continue browsing the intern pool and express interest in other candidates.</p>
+                <a href="${env.CLIENT_URL}/partner-portal/interns" style="${partnerBtnStyle}">Browse Intern Pool</a>
+            </div>
+            <div style="${partnerFooterStyle}">
+                <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026</p>
+            </div>
+        </div>
+    </div>`;
+    await send(to, `Request Update — ${internName}`, html);
+};
+
+export const sendInterviewLoggedAlert = async (
+    opsEmail: string,
+    orgName: string,
+    internName: string,
+    interviewDate: string,
+    format: string
+) => {
+    const html = `
+    <div style="${partnerWrapperStyle}">
+        <div style="${partnerCardStyle}">
+            <div style="${partnerHeaderStyle}">
+                <img src="${LOGO_WHITE_WORDMARK_URL}" style="height: 40px; width: auto; display: block; margin: 0 auto;" alt="IFIP">
+            </div>
+            <div style="${partnerContentStyle}">
+                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">Interview Scheduled</h1>
+                <p style="font-size: 15px; color: #475569; line-height: 1.7;">
+                    <strong>${orgName}</strong> has logged an interview with <strong>${internName}</strong>.<br>
+                    Date: <strong>${interviewDate}</strong> &bull; Format: <strong>${format}</strong>
+                </p>
+                <a href="${env.CLIENT_URL}/admin/partner-interests" style="${partnerBtnStyle}">View Pipeline</a>
+            </div>
+            <div style="${partnerFooterStyle}">
+                <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026</p>
+            </div>
+        </div>
+    </div>`;
+    await send(opsEmail, `Interview Logged: ${orgName} with ${internName}`, html);
+};
+
+export const sendInterviewScheduledToIntern = async (
+    internEmail: string,
+    internName: string,
+    orgName: string,
+    interviewDate: string,
+    format: string
+) => {
+    const html = `
+    <div style="${partnerWrapperStyle}">
+        <div style="${partnerCardStyle}">
+            <div style="${partnerHeaderStyle}">
+                <img src="${LOGO_WHITE_WORDMARK_URL}" style="height: 40px; width: auto; display: block; margin: 0 auto;" alt="IFIP">
+            </div>
+            <div style="${partnerContentStyle}">
+                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">Interview Scheduled</h1>
+                <p style="font-size: 15px; color: #475569; line-height: 1.7;">
+                    Hello <strong>${internName}</strong>,<br><br>
+                    An interview has been scheduled with <strong>${orgName}</strong>.<br><br>
+                    <strong>Interview Details:</strong><br>
+                    📅 Date: <strong>${interviewDate}</strong><br>
+                    💻 Format: <strong>${format}</strong><br><br>
+                    The partner organisation will contact you directly with instructions and links.
+                </p>
+                <a href="${env.CLIENT_URL}/dashboard" style="${partnerBtnStyle}">Go to Dashboard</a>
+            </div>
+            <div style="${partnerFooterStyle}">
+                <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026</p>
+            </div>
+        </div>
+    </div>`;
+    await send(internEmail, `IFIP: Interview Scheduled with ${orgName}`, html);
+};
+
+export const sendOutcomeLoggedAlert = async (
+    opsEmail: string,
+    orgName: string,
+    internName: string,
+    outcome: 'offer_extended' | 'not_selected'
+) => {
+    const outcomeLabel = outcome === 'offer_extended' ? 'Offer Extended' : 'Not Selected';
+    const html = `
+    <div style="${partnerWrapperStyle}">
+        <div style="${partnerCardStyle}">
+            <div style="${partnerHeaderStyle}">
+                <img src="${LOGO_WHITE_WORDMARK_URL}" style="height: 40px; width: auto; display: block; margin: 0 auto;" alt="IFIP">
+            </div>
+            <div style="${partnerContentStyle}">
+                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">Placement Outcome</h1>
+                <p style="font-size: 15px; color: #475569; line-height: 1.7;">
+                    <strong>${orgName}</strong> has recorded outcome <strong>${outcomeLabel}</strong> for <strong>${internName}</strong>.
+                </p>
+                <a href="${env.CLIENT_URL}/admin/partner-interests" style="${partnerBtnStyle}">View Pipeline</a>
+            </div>
+            <div style="${partnerFooterStyle}">
+                <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026</p>
+            </div>
+        </div>
+    </div>`;
+    await send(opsEmail, `Outcome: ${outcomeLabel} — ${internName} at ${orgName}`, html);
+};
+
+export const sendOfferExtendedToIntern = async (to: string, internName: string, orgName: string) => {
+    const html = `
+    <div style="${partnerWrapperStyle}">
+        <div style="${partnerCardStyle}">
+            <div style="${partnerHeaderStyle}">
+                <img src="${LOGO_WHITE_WORDMARK_URL}" style="height: 40px; width: auto; display: block; margin: 0 auto;" alt="IFIP">
+            </div>
+            <div style="${partnerContentStyle}">
+                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">Placement Offer</h1>
+                <p style="font-size: 15px; color: #475569; line-height: 1.7; margin: 0 0 16px 0;">
+                    Dear ${internName},<br><br>
+                    <strong>${orgName}</strong> has extended a placement offer to you following your interview. Please respond to them directly to confirm acceptance.
+                </p>
+                <a href="${env.CLIENT_URL}/dashboard" style="${partnerBtnStyle}">View Dashboard</a>
+            </div>
+            <div style="${partnerFooterStyle}">
+                <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026</p>
+            </div>
+        </div>
+    </div>`;
+    await send(to, `Placement Offer from ${orgName}`, html);
+};
+
+/**
+ * Account Activated Welcome Email — sent to applicants/participants when they set their password.
+ */
+export const sendAccountActivatedWelcomeEmail = async (to: string, fullName: string) => {
+    const dashboardUrl = `${env.CLIENT_URL}/dashboard`;
+    const nameStr = fullName ? fullName.trim() : 'Candidate';
+
+    const html = `
+    <div style="${wrapperStyle}">
+        <div style="${cardStyle}">
+            <!-- Header Logo -->
+            <div style="padding: 40px 32px 0 32px; text-align: center;">
+                <img src="${LOGO_HEADER_URL}" style="height: 64px; max-height: 64px; width: auto; display: block; margin: 0 auto;" alt="IFIP Logo">
+                <div style="width: 80px; height: 4px; background-color: #000666; margin: 24px auto 0 auto; border-radius: 2px;"></div>
+            </div>
+            
+            <div style="${contentContainerStyle}">
+                <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 16px 0;">
+                    Welcome to IFIP!
+                </h1>
+                
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    Dear <strong>${nameStr}</strong>,
+                </p>
+
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    Congratulations! Your account setup is complete and your password has been set successfully. We are thrilled to officially welcome you to the <strong>Islamic Finance Internship Preparatory &amp; Placement Program (IFIP)</strong>.
+                </p>
+
+                <!-- Highlight Box -->
+                <div style="background-color: #F0FFF4; border-left: 4px solid #16a34a; border-radius: 6px; padding: 20px; margin: 0 0 24px 0;">
+                    <h3 style="font-size: 14px; font-weight: bold; color: #15803d; margin: 0 0 8px 0;">Your Account is Activated</h3>
+                    <p style="font-size: 13px; color: #454652; line-height: 1.6; margin: 0;">
+                        You can now log into your participant workspace at any time to track your progress, access training materials, and prepare for placement opportunities.
+                    </p>
+                </div>
+
+                <!-- CTA Button -->
+                <div style="text-align: center; margin: 32px 0;">
+                    <a href="${dashboardUrl}" style="display: inline-block; background-color: #000666; color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 15px; font-weight: bold; letter-spacing: 0.3px;">
+                        Access Your Dashboard &rarr;
+                    </a>
+                </div>
+
+                <p style="font-size: 14px; color: #767683; line-height: 1.6; text-align: center; margin: 24px 0 0 0;">
+                    If you have any questions or need support, simply reply directly to this email.
+                </p>
+            </div>
+
+            <!-- Footer -->
+            <div style="background-color: #FDFBF7; padding: 24px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <h3 style="font-family: Georgia, serif; font-size: 14px; font-weight: bold; color: #000666; margin: 0 0 4px 0;">Islamic Finance Internship Program</h3>
+                <p style="font-size: 11px; color: #767683; margin: 0;">&copy; 2026 Islamic Finance Academy. All rights reserved.</p>
+            </div>
+        </div>
+    </div>`;
+
+    await send(to, 'Welcome to IFIP — Account Activated!', html);
 };
