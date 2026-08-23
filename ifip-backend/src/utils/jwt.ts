@@ -34,9 +34,7 @@ export const verifyApplicantSessionToken = (token: string): ApplicantSessionPayl
     jwt.verify(token, env.APPLICANT_SESSION_SECRET) as ApplicantSessionPayload;
 
 export const signSetPasswordToken = (userId: string, email: string): string =>
-    jwt.sign({ userId, email, purpose: 'set-password' } as SetPasswordPayload, env.SET_PASSWORD_TOKEN_SECRET, {
-        expiresIn: env.SET_PASSWORD_TOKEN_EXPIRY,
-    } as jwt.SignOptions);
+    jwt.sign({ userId, email, purpose: 'set-password' } as SetPasswordPayload, env.SET_PASSWORD_TOKEN_SECRET);
 
 export const verifySetPasswordToken = (token: string): SetPasswordPayload =>
     jwt.verify(token, env.SET_PASSWORD_TOKEN_SECRET) as SetPasswordPayload;

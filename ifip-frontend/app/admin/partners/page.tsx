@@ -267,7 +267,15 @@ export default function AdminPartnersPage() {
 
   const handleOrgSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || submitting) return;
+    if (!name.trim()) {
+      alert("Organization name is required.");
+      return;
+    }
+    if (!contactEmail.trim()) {
+      alert("Contact email is required.");
+      return;
+    }
+    if (submitting) return;
 
     if (hasOpenings) {
       for (let i = 0; i < openings.length; i++) {
@@ -777,7 +785,7 @@ export default function AdminPartnersPage() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="font-bold text-slate-700 text-xs">Contact Email <span className="text-emerald-600">*</span></label>
-                  <input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)}
+                  <input type="email" required value={contactEmail} onChange={(e) => setContactEmail(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-500 text-sm"
                     placeholder="e.g. partner@company.com" />
                   <span className="text-[10px] text-slate-400">Used to send the portal invite email.</span>

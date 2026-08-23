@@ -1123,7 +1123,7 @@ export const sendPartnerPortalInvite = async (
                     <a href="${setupUrl}" style="${partnerBtnStyle}">Set Your Password &amp; Access Portal</a>
                 </div>
                 <p style="font-size: 13px; color: #94a3b8; line-height: 1.6; margin: 20px 0 0 0; text-align: center;">
-                    This link expires in 48 hours. If you did not request access, please ignore this email.
+                    If you did not request access, please ignore this email.
                 </p>
             </div>
             <div style="${partnerFooterStyle}">

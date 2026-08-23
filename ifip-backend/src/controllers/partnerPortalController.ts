@@ -690,13 +690,47 @@ export const updatePartnerSettings = async (req: Request, res: Response) => {
 
         if (contactPerson  !== undefined) org.contactPerson  = contactPerson;
         if (contactPhone   !== undefined) org.contactPhone   = contactPhone;
-        if (contactEmail   !== undefined) org.contactEmail   = contactEmail;
+        
+        if (contactEmail   !== undefined) {
+            if (!contactEmail || !contactEmail.trim()) {
+                res.status(400).json({ message: 'contactEmail is required.' });
+                return;
+            }
+            const normalizedEmail = contactEmail.trim().toLowerCase();
+            if (normalizedEmail !== org.contactEmail) {
+                const existingUser = await User.findOne({ email: normalizedEmail });
+                if (existingUser && String(existingUser.orgId) !== String(org._id)) {
+                    res.status(400).json({ message: `The email ${normalizedEmail} is already taken.` });
+                    return;
+                }
+            }
+            org.contactEmail = normalizedEmail;
+        }
+
         if (website        !== undefined) org.website        = website;
         if (description    !== undefined) org.description    = description;
         if (sectorTags     !== undefined) org.sectorTags     = Array.isArray(sectorTags) ? sectorTags : [];
         if (logoUrl        !== undefined) org.logoUrl        = logoUrl;
 
         await org.save();
+
+        // Sync with associated User if it exists
+        const user = await User.findOne({ orgId: org._id, role: 'partner' });
+        if (user) {
+            let userChanged = false;
+            if (org.contactEmail !== user.email) {
+                user.email = org.contactEmail;
+                userChanged = true;
+            }
+            if (org.contactPerson && org.contactPerson !== user.fullName) {
+                user.fullName = org.contactPerson;
+                userChanged = true;
+            }
+            if (userChanged) {
+                await user.save();
+            }
+        }
+
         res.json({ message: 'Settings updated.', org });
     } catch (err: any) {
         res.status(500).json({ message: 'Error updating settings.', error: err.message });

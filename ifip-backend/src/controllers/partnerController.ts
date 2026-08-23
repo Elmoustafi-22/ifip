@@ -280,8 +280,8 @@ export const getAdminPartners = async (_req: Request, res: Response) => {
 export const createPartnerOrg = async (req: Request, res: Response) => {
     try {
         const { name, logoUrl, description, sectorTags, activeSlots, website, cohorts, contactEmail, contactPerson, contactPhone, status, hasOpenings, openings } = req.body;
-        if (!name) {
-            res.status(400).json({ message: 'name is required.' });
+        if (!name || !contactEmail || !contactEmail.trim()) {
+            res.status(400).json({ message: 'name and contactEmail are required.' });
             return;
         }
         const org = await PartnerOrganization.create({
@@ -292,7 +292,7 @@ export const createPartnerOrg = async (req: Request, res: Response) => {
             activeSlots:   activeSlots !== undefined ? Number(activeSlots) : 5,
             website:       website || undefined,
             cohorts:       Array.isArray(cohorts) ? cohorts : [],
-            contactEmail:  contactEmail || undefined,
+            contactEmail:  contactEmail.trim().toLowerCase(),
             contactPerson: contactPerson || undefined,
             contactPhone:  contactPhone || undefined,
             status:        status || 'active',
@@ -328,7 +328,21 @@ export const updatePartnerOrg = async (req: Request, res: Response) => {
         if (activeSlots   !== undefined) org.activeSlots   = Number(activeSlots);
         if (website       !== undefined) org.website       = website;
         if (cohorts       !== undefined) org.cohorts       = cohorts;
-        if (contactEmail  !== undefined) org.contactEmail  = contactEmail;
+        if (contactEmail  !== undefined) {
+            if (!contactEmail || !contactEmail.trim()) {
+                res.status(400).json({ message: 'contactEmail is required.' });
+                return;
+            }
+            const normalizedEmail = contactEmail.trim().toLowerCase();
+            if (normalizedEmail !== org.contactEmail) {
+                const existingUser = await User.findOne({ email: normalizedEmail });
+                if (existingUser && String(existingUser.orgId) !== String(org._id)) {
+                    res.status(400).json({ message: `The email ${normalizedEmail} is already taken.` });
+                    return;
+                }
+            }
+            org.contactEmail = normalizedEmail;
+        }
         if (contactPerson !== undefined) org.contactPerson = contactPerson;
         if (contactPhone  !== undefined) org.contactPhone  = contactPhone;
         if (status        !== undefined) org.status        = status;
@@ -336,6 +350,24 @@ export const updatePartnerOrg = async (req: Request, res: Response) => {
         if (openings      !== undefined) org.openings      = Array.isArray(openings) ? openings : [];
 
         await org.save();
+
+        // Sync with associated User if it exists
+        const user = await User.findOne({ orgId: org._id, role: 'partner' });
+        if (user) {
+            let userChanged = false;
+            if (org.contactEmail !== user.email) {
+                user.email = org.contactEmail;
+                userChanged = true;
+            }
+            if (org.contactPerson && org.contactPerson !== user.fullName) {
+                user.fullName = org.contactPerson;
+                userChanged = true;
+            }
+            if (userChanged) {
+                await user.save();
+            }
+        }
+
         await updateContentVersion('partners');
         res.json({ message: 'Partner organization updated.', partnerOrganization: org });
     } catch (err: any) {

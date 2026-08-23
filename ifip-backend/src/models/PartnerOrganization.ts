@@ -8,7 +8,7 @@ export interface IPartnerOrganization extends Document {
     sectorTags: string[];
     activeSlots: number;
     status: 'active' | 'inactive';
-    contactEmail?: string;
+    contactEmail: string;
     contactPerson?: string;
     contactPhone?: string;
     website?: string;
@@ -34,7 +34,7 @@ const partnerOrganizationSchema = new Schema<IPartnerOrganization>({
     sectorTags:    { type: [String], default: [] },
     activeSlots:   { type: Number, required: true, default: 5 },
     status:        { type: String, enum: ['active', 'inactive'], default: 'active' },
-    contactEmail:  { type: String },
+    contactEmail:  { type: String, required: true },
     contactPerson: { type: String },
     contactPhone:  { type: String },
     website:       { type: String },
