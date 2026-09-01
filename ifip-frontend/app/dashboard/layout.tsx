@@ -57,12 +57,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           setIsAuthorized(true);
 
 
-          // Auto-redirect admin to admin control panel, partner to partner portal
+          // Auto-redirect partner to partner portal
           const role = application.role;
-          if (role === "admin" || role === "superadmin") {
-            router.push("/admin");
-            return;
-          }
           if (role === "partner") {
             router.push("/partner-portal");
             return;
@@ -167,18 +163,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   const isLaunched = getIsLaunched();
+  const isAdmin = userData?.role === "admin" || userData?.role === "superadmin";
 
   const getDashboardTitle = () => {
-    const role = userData?.role || "participant";
-    if (role === "admin") return "Admin Dashboard";
-    if (role === "superadmin") return "Superadmin Dashboard";
-    if (role === "applicant") return "Applicant Dashboard";
+    if (isAdmin) return "Candidate Workspace (Admin Preview)";
+    if (userData?.role === "applicant") return "Applicant Dashboard";
     return "Participant Dashboard";
   };
 
   const getDashboardSubtitle = () => {
-    const role = userData?.role || "participant";
-    if (role === "admin" || role === "superadmin") return "Administrative & Management Workspace";
+    if (isAdmin) return "Previewing as Administrator";
     return "Islamic Finance Internship Program";
   };
 
@@ -254,6 +248,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Sidebar Footer */}
         <div className="p-4 border-t border-white/5 flex flex-col gap-2 bg-black/10">
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold bg-white/10 hover:bg-white/20 text-sky-300 hover:text-white transition-colors border border-sky-400/20 cursor-pointer"
+            >
+              <HiOutlineShieldCheck className="w-4 h-4 text-sky-400" />
+              Admin Control Panel
+            </Link>
+          )}
           <button
             onClick={handleLogout}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-xs font-bold hover:bg-red-900/10 text-red-400 hover:text-red-300 transition-colors border border-red-900/20 cursor-pointer"
@@ -266,6 +269,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main Workspace Frame */}
       <div className="flex-1 flex flex-col min-h-screen md:h-screen md:overflow-y-auto">
+        {/* Admin Preview Mode Top Banner */}
+        {isAdmin && (
+          <div className="bg-gradient-to-r from-[#000666] via-slate-900 to-[#0E1B5D] text-white px-4 md:px-8 py-2.5 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-md border-b border-sky-500/30 shrink-0 select-none">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="bg-sky-400 text-slate-950 font-black text-[10px] uppercase px-2 py-0.5 rounded shadow-xs tracking-wider">
+                Admin Preview Mode
+              </span>
+              <span className="text-slate-200">
+                You are currently viewing the candidate workspace as an administrator.
+              </span>
+            </div>
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 hover:bg-white/20 text-sky-300 hover:text-white rounded-lg text-xs font-bold transition border border-white/10 self-start sm:self-auto shrink-0"
+            >
+              &larr; Return to Admin Dashboard
+            </Link>
+          </div>
+        )}
+
         {/* Top Header Navbar */}
         <header className="sticky top-0 z-40 bg-white border-b border-slate-200/50 py-3 md:py-5 px-4 md:px-12 flex items-center justify-between shadow-sm select-none shrink-0">
           {/* Logo — shown only on mobile (sidebar hidden) */}

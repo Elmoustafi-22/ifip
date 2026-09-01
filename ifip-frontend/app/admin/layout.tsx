@@ -24,10 +24,11 @@ import {
   HiOutlineChartBar,
   HiOutlineCreditCard,
   HiOutlineClock,
-  HiArrowLeftOnRectangle,
   HiOutlineBell,
   HiOutlineTag,
   HiOutlineInboxStack,
+  HiOutlineEye,
+  HiArrowLeftOnRectangle,
 } from "react-icons/hi2";
 import { getMyApplication, getCohorts, Cohort } from "@/lib/api/services";
 import { clearAuth, logout, startSilentRefresh, stopSilentRefresh } from "@/lib/api/auth";
@@ -305,6 +306,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Footer */}
           <div className="border-t border-white/10 shrink-0 py-3 px-2 space-y-0.5">
+            <div className="relative group/tip">
+              <Link
+                href="/dashboard"
+                className={`flex items-center gap-3 rounded-xl text-sm font-semibold text-sky-300 hover:text-white hover:bg-white/10 transition-all
+                  ${!isExpanded ? "justify-center p-2.5" : "px-3 py-2.5"}`}
+              >
+                <HiOutlineEye className="w-[18px] h-[18px] shrink-0 text-sky-400" />
+                {isExpanded && <span>Candidate Workspace</span>}
+              </Link>
+              {!isExpanded && (
+                <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-[60] bg-slate-900 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-xl opacity-0 group-hover/tip:opacity-100 transition-opacity">
+                  Candidate Workspace
+                  <span className="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-slate-900" />
+                </span>
+              )}
+            </div>
+
             <div className="relative group/tip">
               <a
                 href="/"
