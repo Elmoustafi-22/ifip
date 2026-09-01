@@ -29,6 +29,9 @@ import {
     getAdminPayments,
     getAdminPaymentById,
     resolvePayment,
+    getWaitlist,
+    deleteWaitlistEntry,
+    exportApplicantsCSV,
 } from '../controllers/adminController.js';
 import {
     getAssessments,
@@ -99,6 +102,7 @@ router.post('/users/invite', authorize('superadmin'), inviteAdmin);
 router.post('/users/:id/resend-invite', authorize('superadmin'), resendSetPasswordLink);
 router.get('/audit-logs', authorize('superadmin'), getAuditLogs);
 router.get('/applications', getAdminApplications);
+router.get('/applicants/export-csv', exportApplicantsCSV);
 router.patch('/applications/:id/cohort', assignApplicationCohort);
 router.patch('/applications/:id/withdraw', withdrawApplication);
 router.patch('/applications/:id/set-placement-ready', setPlacementReady);
@@ -138,6 +142,10 @@ router.post('/pending-applicants/:applicantId/record-manual-payment', handleUplo
 router.get('/payments', getAdminPayments);
 router.get('/payments/:id', getAdminPaymentById);
 router.patch('/payments/:id/resolve', resolvePayment);
+
+// ── Waitlist Management ──────────────────────────────────────────────
+router.get('/waitlist', getWaitlist);
+router.delete('/waitlist/:id', deleteWaitlistEntry);
 
 router.get('/cohorts', getCohorts);
 router.post('/cohorts', createCohort);

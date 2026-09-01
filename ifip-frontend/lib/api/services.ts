@@ -625,6 +625,54 @@ export const getAdminApplications = async (status?: string, search?: string, coh
   return data;
 };
 
+export interface ExportApplicantsParams {
+  type?: 'all' | 'paid' | 'unpaid';
+  cohortId?: string;
+  status?: string;
+  step?: number;
+  hasPaymentAttempt?: 'true' | 'false' | 'all';
+  paymentStatus?: string;
+  country?: string;
+  programInterest?: string;
+  leadSource?: string;
+  search?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export const downloadApplicantsCSV = async (params: ExportApplicantsParams = {}): Promise<void> => {
+  const cleanParams: any = {};
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== "" && v !== "all") {
+      cleanParams[k] = v;
+    } else if (k === "type" && v) {
+      cleanParams[k] = v;
+    }
+  });
+
+  const response = await authClient.get("/admin/applicants/export-csv", {
+    params: cleanParams,
+    responseType: "blob",
+  });
+
+  let filename = `ifip-applicants-insights-${params.type || "all"}-${new Date().toISOString().split("T")[0]}.csv`;
+  const disposition = response.headers?.["content-disposition"];
+  if (disposition && disposition.includes("filename=")) {
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    if (match && match[1]) filename = match[1];
+  }
+
+  const blob = new Blob([response.data], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
 export const assignCohort = async (applicationId: string, cohortId: string): Promise<any> => {
   const { data } = await authClient.patch(`/admin/applications/${applicationId}/cohort`, { cohortId });
   return data;
@@ -1413,6 +1461,33 @@ export const updateAdminCoupon = async (
 
 export const deleteAdminCoupon = async (id: string): Promise<{ message: string }> => {
   const { data } = await authClient.delete<{ message: string }>(`/admin/coupons/${id}`);
+  return data;
+};
+
+export interface WaitlistEntry {
+  _id: string;
+  email: string;
+  createdAt: string;
+}
+
+export interface WaitlistResponse {
+  waitlist: WaitlistEntry[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+export const getAdminWaitlist = async (params?: {
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<WaitlistResponse> => {
+  const { data } = await authClient.get<WaitlistResponse>("/admin/waitlist", { params });
+  return data;
+};
+
+export const deleteWaitlistEntry = async (id: string): Promise<{ message: string }> => {
+  const { data } = await authClient.delete<{ message: string }>(`/admin/waitlist/${id}`);
   return data;
 };
 

@@ -14,10 +14,12 @@ import {
   HiOutlineInboxStack,
   HiOutlineUsers,
   HiOutlineSparkles,
-  HiOutlineClipboardDocumentCheck
+  HiOutlineClipboardDocumentCheck,
+  HiOutlineArrowDownTray,
 } from "react-icons/hi2";
 import { useContext } from "react";
 import { AdminCohortContext } from "../layout";
+import ExportApplicantsModal from "@/components/admin/ExportApplicantsModal";
 import { 
   getAdminStats, 
   getAdminApplications, 
@@ -32,6 +34,7 @@ export default function AdminApplicationsPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   
   // Search & Filter state
   const [search, setSearch] = useState("");
@@ -164,13 +167,16 @@ export default function AdminApplicationsPage() {
             <div className="text-2xl font-black text-[#000666]">{stats.completedCount}</div>
           </div>
 
-          <div className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow">
+          <Link
+            href="/admin/waitlist"
+            className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-amber-300 transition-all cursor-pointer group"
+          >
             <div className="flex items-center justify-between mb-3 text-slate-400">
-              <span className="text-xs font-bold uppercase tracking-wider">Waitlist</span>
-              <HiOutlineInboxStack className="w-5 h-5 text-rose-500" />
+              <span className="text-xs font-bold uppercase tracking-wider group-hover:text-amber-600 transition-colors">Waitlist</span>
+              <HiOutlineInboxStack className="w-5 h-5 text-rose-500 group-hover:scale-110 transition-transform" />
             </div>
             <div className="text-2xl font-black text-[#000666]">{stats.waitlistCount}</div>
-          </div>
+          </Link>
         </div>
       )}
 
@@ -187,7 +193,7 @@ export default function AdminApplicationsPage() {
           />
         </div>
 
-        <div className="flex gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -198,6 +204,16 @@ export default function AdminApplicationsPage() {
             <option value="active">Active Participant</option>
             <option value="completed">Curriculum Completed</option>
           </select>
+
+          <button
+            type="button"
+            onClick={() => setExportModalOpen(true)}
+            className="px-4 py-2.5 bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
+            title="Configure filters and download applicants insights in CSV format"
+          >
+            <HiOutlineArrowDownTray className="w-4 h-4" />
+            <span>Export Insights CSV</span>
+          </button>
         </div>
       </div>
 
@@ -610,6 +626,20 @@ export default function AdminApplicationsPage() {
           </div>
         </div>
       )}
+
+      {/* Export Applicants Modal */}
+      <ExportApplicantsModal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        cohorts={cohorts}
+        initialParams={{
+          type: "paid",
+          cohortId: selectedCohortId || undefined,
+          status: statusFilter || undefined,
+          search: search || undefined,
+        }}
+        title="Export Paid Applicants Insights (CSV)"
+      />
     </div>
   );
 }

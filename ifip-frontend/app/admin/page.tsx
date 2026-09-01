@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { 
   HiOutlineUsers, 
   HiOutlineCheckCircle, 
@@ -16,14 +17,16 @@ import {
   HiOutlineFunnel,
   HiChevronRight,
   HiOutlineClock,
+  HiOutlineArrowDownTray,
 } from "react-icons/hi2";
 import { useContext } from "react";
 import { AdminCohortContext } from "./layout";
+import ExportApplicantsModal from "@/components/admin/ExportApplicantsModal";
 import { 
   getAdminStats, 
   getCohortConfig, 
   createCohort, 
-  updateCohort,
+  updateCohort, 
   updateCohortConfig, 
   uploadBrochure,
   getRegistrationApplicants,
@@ -37,6 +40,7 @@ export default function AdminDashboardPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("cohorts"); // cohorts, system, acquisition, funnel
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   // Funnel drill-down state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -251,13 +255,24 @@ export default function AdminDashboardPage() {
   return (
     <div className="max-w-5xl mx-auto py-8 px-5 sm:px-8 font-sans">
       {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight mb-1 flex items-center gap-2">
-          <HiOutlineCog6Tooth className="w-7 h-7 text-[#FF9800]" /> Overview
-        </h1>
-        <p className="text-slate-500 text-sm">
-          Reviewing: <strong className="text-[#000666]">{getCohortScopeName()}</strong> &bull; Configure kickoff milestones, stats, and gating bounds.
-        </p>
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight mb-1 flex items-center gap-2">
+            <HiOutlineCog6Tooth className="w-7 h-7 text-[#FF9800]" /> Overview
+          </h1>
+          <p className="text-slate-500 text-sm">
+            Reviewing: <strong className="text-[#000666]">{getCohortScopeName()}</strong> &bull; Configure kickoff milestones, stats, and gating bounds.
+          </p>
+        </div>
+
+        <button
+          onClick={() => setExportModalOpen(true)}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800 text-white text-xs font-bold transition shadow-sm hover:shadow-md cursor-pointer self-start sm:self-auto"
+          title="Configure filters and download applicants insights in CSV format (Paid or Unpaid)"
+        >
+          <HiOutlineArrowDownTray className="w-4 h-4" />
+          <span>Export Insights CSV</span>
+        </button>
       </div>
 
       {/* KPI Stats widgets */}
@@ -287,13 +302,16 @@ export default function AdminDashboardPage() {
             <div className="text-2xl font-black text-[#000666]">{stats.completedCount}</div>
           </div>
 
-          <div className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
+          <Link
+            href="/admin/waitlist"
+            className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-amber-300 transition-all cursor-pointer group"
+          >
             <div className="flex items-center justify-between mb-3 text-slate-400">
-              <span className="text-[10px] font-bold uppercase tracking-wider">Waitlisted Users</span>
-              <HiOutlineInboxStack className="w-5 h-5 text-rose-500" />
+              <span className="text-[10px] font-bold uppercase tracking-wider group-hover:text-amber-600 transition-colors">Waitlisted Users</span>
+              <HiOutlineInboxStack className="w-5 h-5 text-rose-500 group-hover:scale-110 transition-transform" />
             </div>
             <div className="text-2xl font-black text-[#000666]">{stats.waitlistCount}</div>
-          </div>
+          </Link>
         </div>
       )}
 
@@ -437,13 +455,16 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            <div className="bg-white border border-[#E7E2D8] rounded-2xl p-4 shadow-sm flex flex-col justify-between">
-              <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Waitlist Volume</span>
+            <Link
+              href="/admin/waitlist"
+              className="bg-white border border-[#E7E2D8] rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-amber-300 transition-all flex flex-col justify-between cursor-pointer group"
+            >
+              <span className="text-[9px] uppercase font-bold text-slate-400 group-hover:text-amber-600 transition-colors tracking-wider">Waitlist Volume</span>
               <div className="mt-2">
                 <span className="text-xl font-display font-black text-amber-600">{stats?.waitlistCount || 0}</span>
-                <span className="text-[10px] text-slate-500 font-bold block mt-0.5">Inquiries</span>
+                <span className="text-[10px] text-slate-500 font-bold block mt-0.5">Inquiries &rarr;</span>
               </div>
-            </div>
+            </Link>
 
             <div className="col-span-2 bg-white border border-[#E7E2D8] rounded-2xl p-4 shadow-sm flex items-center justify-between">
               <div>
@@ -1018,6 +1039,18 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Export Applicants Insights Modal */}
+      <ExportApplicantsModal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        cohorts={cohorts}
+        initialParams={{
+          type: "all",
+          cohortId: selectedCohortId || undefined,
+        }}
+        title="Export Applicants Insights (CSV)"
+      />
     </div>
   );
 }

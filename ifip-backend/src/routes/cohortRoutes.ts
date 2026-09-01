@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { CohortConfig } from '../models/CohortConfig.js';
+import { Cohort } from '../models/Cohort.js';
 import { env } from '../config/env.js';
 import { getActiveRegistrationCohort, checkCohortCapacity } from '../controllers/paymentController.js';
 import { authenticate, authorize } from '../middleware/auth.js';
@@ -37,9 +38,14 @@ router.get('/active', authenticate, async (req, res) => {
     try {
         const config = await CohortConfig.findOne();
         if (!config) {
+            // Fallback to active/upcoming cohort in database
+            const activeCohort = await Cohort.findOne({ status: { $in: ['active', 'upcoming'] } }).sort({ startDate: 1 });
+            const defaultDate = activeCohort?.startDate || new Date('2026-09-05T00:00:00.000Z');
+            const defaultCap = activeCohort?.cohortCap || Number(env.COHORT_CAP || 100);
+
             res.json({
-                cohortStartDate: env.COHORT_START_DATE,
-                cohortCap: Number(env.COHORT_CAP || 100),
+                cohortStartDate: defaultDate.toISOString(),
+                cohortCap: defaultCap,
                 dashboardViewOverride: 'default'
             });
             return;
@@ -72,7 +78,13 @@ router.post('/active', authenticate, authorize('admin', 'superadmin'), async (re
         let overrideChanged = false;
 
         if (!config) {
-            const start = startDate ? new Date(startDate) : new Date(env.COHORT_START_DATE);
+            let start: Date;
+            if (startDate) {
+                start = new Date(startDate);
+            } else {
+                const activeCohort = await Cohort.findOne({ status: { $in: ['active', 'upcoming'] } }).sort({ startDate: 1 });
+                start = activeCohort?.startDate || new Date('2026-09-05T00:00:00.000Z');
+            }
             const cap = cohortCap !== undefined ? Number(cohortCap) : Number(env.COHORT_CAP || 100);
             const viewOverride = dashboardViewOverride || 'default';
             

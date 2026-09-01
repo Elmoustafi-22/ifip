@@ -530,19 +530,23 @@ export const broadcastCustomNotification = async (req: Request, res: Response) =
         }
 
         let cohortName = undefined;
-        if (targetCohortId) {
+        if (targetCohortId && Types.ObjectId.isValid(targetCohortId)) {
             const cohort = await Cohort.findById(targetCohortId);
             if (cohort) {
                 cohortName = cohort.name;
             }
         }
 
+        // Fetch sender admin email from DB since JWT token only carries { sub, role }
+        const adminUser = await User.findById((req as any).user?.id);
+        const senderEmail = adminUser?.email || 'admin@nextif.org';
+
         // Record the broadcast log
         await Broadcast.create({
             senderId: new Types.ObjectId((req as any).user.id),
-            senderEmail: (req as any).user.email,
+            senderEmail,
             targetType,
-            targetCohortId: targetCohortId ? new Types.ObjectId(targetCohortId) : undefined,
+            targetCohortId: targetCohortId && Types.ObjectId.isValid(targetCohortId) ? new Types.ObjectId(targetCohortId) : undefined,
             targetCohortName: cohortName,
             targetEmail,
             title,
@@ -562,8 +566,11 @@ export const broadcastCustomNotification = async (req: Request, res: Response) =
             link
         });
 
+        logAction(req, 'BROADCAST_SENT', `Admin broadcast notification sent: "${title}" (target: ${targetType})`);
+
         res.json({ message: 'Notification broadcast queued successfully.' });
     } catch (e: any) {
+        console.error('Broadcast notification error:', e);
         res.status(500).json({ message: 'Error broadcasting notification.', error: e.message });
     }
 };
@@ -1501,5 +1508,463 @@ export const recordManualPaymentForApplicant = async (req: Request, res: Respons
         res.status(500).json({ message: err.message || 'Failed to record manual payment for applicant.' });
     }
 };
+
+// ── GET /api/v1/admin/waitlist ──────────────────────────────────────────────────
+// Returns paginated list of waitlisted candidates with search and sorting.
+export const getWaitlist = async (req: Request, res: Response) => {
+    try {
+        const { search, page = '1', limit = '50' } = req.query;
+
+        const pageNum = Math.max(1, parseInt(page as string, 10));
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
+        const skip = (pageNum - 1) * limitNum;
+
+        const query: any = {};
+        if (search) {
+            query.email = new RegExp((search as string).trim(), 'i');
+        }
+
+        const [items, total] = await Promise.all([
+            Waitlist.find(query).sort({ createdAt: -1 }).skip(skip).limit(limitNum),
+            Waitlist.countDocuments(query),
+        ]);
+
+        res.json({
+            waitlist: items,
+            total,
+            page: pageNum,
+            pages: Math.ceil(total / limitNum) || 1,
+        });
+    } catch (err: any) {
+        console.error('Get waitlist error:', err);
+        res.status(500).json({ message: 'Failed to retrieve waitlist entries.' });
+    }
+};
+
+// ── DELETE /api/v1/admin/waitlist/:id ───────────────────────────────────────────
+// Removes a waitlist entry.
+export const deleteWaitlistEntry = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const entry = await Waitlist.findByIdAndDelete(id);
+        if (!entry) {
+            res.status(404).json({ message: 'Waitlist entry not found.' });
+            return;
+        }
+
+        logAction(req, 'ADMIN_WAITLIST_ENTRY_DELETED', `Admin deleted waitlist entry: ${entry.email}`);
+
+        res.json({ message: 'Waitlist entry removed successfully.' });
+    } catch (err: any) {
+        console.error('Delete waitlist entry error:', err);
+        res.status(500).json({ message: 'Failed to remove waitlist entry.' });
+    }
+};
+
+// ── GET /api/v1/admin/applicants/export-csv ─────────────────────────────────────
+// Exports comprehensive applicants data insights in CSV format.
+// Supports filtering by type ('all' | 'paid' | 'unpaid'), cohortId, status, step,
+// country, track/programInterest, paymentStatus, hasPaymentAttempt, search, and date range.
+export const exportApplicantsCSV = async (req: Request, res: Response) => {
+    try {
+        const {
+            type = 'all',
+            cohortId,
+            status,
+            step,
+            hasPaymentAttempt,
+            paymentStatus,
+            country,
+            programInterest,
+            leadSource,
+            search,
+            startDate,
+            endDate,
+        } = req.query;
+
+        const escapeCsv = (val: any): string => {
+            if (val === null || val === undefined) return '""';
+            let str = typeof val === 'object' ? (Array.isArray(val) ? val.join(', ') : JSON.stringify(val)) : String(val).trim();
+            // Neutralize formula injection risk
+            if (/^[=+\-@\t\r]/.test(str)) {
+                str = `'${str}`;
+            }
+            str = str.replace(/"/g, '""');
+            return `"${str}"`;
+        };
+
+        const formatDate = (d: any): string => {
+            if (!d) return '';
+            try {
+                const dateObj = new Date(d);
+                return isNaN(dateObj.getTime()) ? '' : dateObj.toISOString().split('T')[0];
+            } catch {
+                return '';
+            }
+        };
+
+        const formatDateTime = (d: any): string => {
+            if (!d) return '';
+            try {
+                const dateObj = new Date(d);
+                return isNaN(dateObj.getTime()) ? '' : dateObj.toISOString().replace('T', ' ').substring(0, 19);
+            } catch {
+                return '';
+            }
+        };
+
+        const headers = [
+            'Applicant Type',
+            'Full Name',
+            'Email',
+            'Phone',
+            'Gender',
+            'Date of Birth',
+            'Country',
+            'State / City',
+            'Payment Status',
+            'Registration Funnel Stage',
+            'Admission Status',
+            'Cohort',
+            'Primary Tracks',
+            'Secondary Track',
+            'Academic Status',
+            'Institution',
+            'Field of Study',
+            'Qualification / Degree',
+            'Graduation Year',
+            'Relevant Skills',
+            'Tools Known',
+            'Prior Internship Experience',
+            'Prior Internship Details',
+            'Communication Skill Level',
+            'Availability',
+            'Why Applying (Motivation)',
+            'Career Goals',
+            'Lead Source / Referral',
+            'LinkedIn URL',
+            'Portfolio URL',
+            'CV / Resume URL',
+            'Levy Acknowledged',
+            'Declaration Confirmed',
+            'Declaration Date',
+            'Payment Amount',
+            'Payment Currency',
+            'Payment Provider',
+            'Payment Reference',
+            'Payment Method',
+            'Date Paid / Submitted',
+            'Date Registered / Created',
+            'Last Activity Date',
+            'Reminders Sent Count',
+            'Last Reminder Sent Date',
+        ];
+
+        const rows: string[][] = [];
+
+        // 1. Fetch Paid Applicants (Applications) if type is 'paid' or 'all'
+        if (type === 'paid' || type === 'all') {
+            const appMatch: any = {};
+
+            if (cohortId) {
+                if (cohortId === 'unassigned') {
+                    appMatch.cohortId = null;
+                } else {
+                    appMatch.cohortId = new Types.ObjectId(cohortId as string);
+                }
+            }
+
+            if (status && status !== 'all') {
+                appMatch.status = status;
+            }
+
+            if (country) {
+                appMatch.country = new RegExp((country as string).trim(), 'i');
+            }
+
+            if (programInterest) {
+                appMatch['programInterest.primary'] = new RegExp((programInterest as string).trim(), 'i');
+            }
+
+            if (leadSource) {
+                appMatch.leadSource = new RegExp((leadSource as string).trim(), 'i');
+            }
+
+            if (startDate || endDate) {
+                appMatch.submittedAt = {};
+                if (startDate) appMatch.submittedAt.$gte = new Date(startDate as string);
+                if (endDate) {
+                    const end = new Date(endDate as string);
+                    end.setHours(23, 59, 59, 999);
+                    appMatch.submittedAt.$lte = end;
+                }
+            }
+
+            const applications = await Application.find(appMatch)
+                .populate('userId', 'email fullName phone country')
+                .populate('paymentId')
+                .populate('cohortId', 'name')
+                .sort({ submittedAt: -1 })
+                .lean();
+
+            for (const app of applications) {
+                const user = (app.userId as any) || {};
+                const payment = (app.paymentId as any) || {};
+                const cohort = (app.cohortId as any) || {};
+
+                const fullName = app.fullName || user.fullName || '';
+                const email = user.email || '';
+                const phone = app.phone || user.phone || '';
+
+                if (search) {
+                    const searchStr = (search as string).toLowerCase().trim();
+                    const combined = `${fullName} ${email} ${phone}`.toLowerCase();
+                    if (!combined.includes(searchStr)) continue;
+                }
+
+                // If paymentStatus filter was supplied and doesn't match
+                if (paymentStatus && paymentStatus !== 'all' && payment.status !== paymentStatus) {
+                    continue;
+                }
+
+                const academic = (app.academicInfo as any) || {};
+                const skills = (app.skills as any) || {};
+                const motivation = (app.motivation as any) || {};
+                const declaration = (app.declaration as any) || {};
+                const primaryTracks = app.programInterest?.primary || [];
+
+                rows.push([
+                    'Paid Applicant (Participant)',
+                    fullName,
+                    email,
+                    phone,
+                    app.gender || '',
+                    formatDate(app.dob),
+                    app.country || user.country || '',
+                    app.stateCity || '',
+                    payment.status ? payment.status.toUpperCase() : 'PAID',
+                    'Completed & Submitted (Step 6)',
+                    app.status || 'payment_confirmed',
+                    cohort.name || 'Unassigned',
+                    primaryTracks.join(', '),
+                    app.programInterest?.secondary || '',
+                    academic.status || '',
+                    academic.institution || '',
+                    academic.fieldOfStudy || '',
+                    academic.qualification || '',
+                    academic.gradYear ? String(academic.gradYear) : '',
+                    Array.isArray(skills.relevantSkills) ? skills.relevantSkills.join(', ') : '',
+                    Array.isArray(skills.tools) ? skills.tools.join(', ') : '',
+                    skills.hasPriorInternship !== undefined ? (skills.hasPriorInternship ? 'Yes' : 'No') : '',
+                    skills.priorInternshipDesc || '',
+                    skills.commSkillLevel || '',
+                    skills.availability || '',
+                    motivation.whyApplying || '',
+                    motivation.careerGoals || '',
+                    app.leadSource || '',
+                    app.linkedinUrl || '',
+                    app.portfolioUrl || '',
+                    app.cvUrl || '',
+                    app.levyAcknowledged ? 'Yes' : 'No',
+                    declaration.confirmed ? 'Yes' : 'No',
+                    formatDateTime(declaration.date),
+                    payment.amount !== undefined ? (payment.amount >= 1000 ? String(payment.amount / 100) : String(payment.amount)) : '',
+                    payment.currency || '',
+                    payment.provider || '',
+                    payment.providerRef || '',
+                    payment.paymentMethod || '',
+                    formatDateTime(app.submittedAt || (app as any).createdAt),
+                    formatDateTime((app as any).createdAt),
+                    formatDateTime((app as any).updatedAt),
+                    '0',
+                    '',
+                ]);
+            }
+        }
+
+        // 2. Fetch Unpaid Applicants (Applicant collection) if type is 'unpaid' or 'all'
+        if (type === 'unpaid' || type === 'all') {
+            const applicantMatch: any = { isPaid: { $ne: true } };
+
+            if (cohortId) {
+                if (cohortId === 'unassigned') {
+                    applicantMatch.cohortId = null;
+                } else {
+                    applicantMatch.cohortId = new Types.ObjectId(cohortId as string);
+                }
+            }
+
+            if (step) {
+                const stepNum = parseInt(step as string, 10);
+                if (!isNaN(stepNum)) {
+                    applicantMatch.currentStep = stepNum;
+                }
+            }
+
+            if (country) {
+                applicantMatch.country = new RegExp((country as string).trim(), 'i');
+            }
+
+            if (programInterest) {
+                applicantMatch['programInterest.primary'] = new RegExp((programInterest as string).trim(), 'i');
+            }
+
+            if (leadSource) {
+                applicantMatch.leadSource = new RegExp((leadSource as string).trim(), 'i');
+            }
+
+            if (startDate || endDate) {
+                applicantMatch.createdAt = {};
+                if (startDate) applicantMatch.createdAt.$gte = new Date(startDate as string);
+                if (endDate) {
+                    const end = new Date(endDate as string);
+                    end.setHours(23, 59, 59, 999);
+                    applicantMatch.createdAt.$lte = end;
+                }
+            }
+
+            if (search) {
+                const searchRegex = new RegExp((search as string).trim(), 'i');
+                const searchOr = [
+                    { fullName: searchRegex },
+                    { email: searchRegex },
+                    { phone: searchRegex },
+                ];
+                applicantMatch.$or = searchOr;
+            }
+
+            if (hasPaymentAttempt === 'true' || hasPaymentAttempt === 'false') {
+                const attemptedApplicantIds = await Payment.distinct('applicantId');
+                if (hasPaymentAttempt === 'true') {
+                    applicantMatch._id = { $in: attemptedApplicantIds };
+                } else {
+                    applicantMatch._id = { $nin: attemptedApplicantIds };
+                }
+            }
+
+            if (paymentStatus && paymentStatus !== 'all') {
+                const matchingPaymentApplicantIds = await Payment.distinct('applicantId', { status: paymentStatus as any });
+                if (applicantMatch._id?.$in) {
+                    applicantMatch._id.$in = applicantMatch._id.$in.filter((id: any) =>
+                        matchingPaymentApplicantIds.some((pId: any) => pId.toString() === id.toString())
+                    );
+                } else {
+                    applicantMatch._id = { $in: matchingPaymentApplicantIds };
+                }
+            }
+
+            const applicants = await Applicant.find(applicantMatch)
+                .populate('cohortId', 'name')
+                .sort({ updatedAt: -1 })
+                .lean();
+
+            const applicantIds = applicants.map((a: any) => a._id);
+            const payments = await Payment.find({ applicantId: { $in: applicantIds } })
+                .sort({ createdAt: -1 })
+                .lean();
+
+            const latestPaymentByApplicant: Record<string, any> = {};
+            for (const p of payments) {
+                const k = p.applicantId.toString();
+                if (!latestPaymentByApplicant[k]) {
+                    latestPaymentByApplicant[k] = p;
+                }
+            }
+
+            for (const a of applicants) {
+                const cohort = (a.cohortId as any) || {};
+                const p = latestPaymentByApplicant[a._id.toString()];
+
+                const academic = (a.academicInfo as any) || {};
+                const skills = (a.skills as any) || {};
+                const motivation = (a.motivation as any) || {};
+                const declaration = (a.declaration as any) || {};
+                const primaryTracks = a.programInterest?.primary || [];
+
+                let paymentStateDesc = 'UNPAID (No Attempt)';
+                if (p) {
+                    paymentStateDesc = `ATTEMPTED (${p.status ? p.status.toUpperCase() : 'PENDING'})`;
+                }
+
+                const stepLabel = REGISTRATION_STEP_LABELS[a.currentStep]
+                    ? `Step ${a.currentStep}: ${REGISTRATION_STEP_LABELS[a.currentStep]}`
+                    : `Step ${a.currentStep}`;
+
+                rows.push([
+                    'Unpaid Applicant (In Funnel)',
+                    a.fullName || '',
+                    a.email || '',
+                    a.phone || '',
+                    a.gender || '',
+                    formatDate(a.dob),
+                    a.country || '',
+                    a.stateCity || '',
+                    paymentStateDesc,
+                    stepLabel,
+                    'In Funnel / Pre-Payment',
+                    cohort.name || 'Unassigned',
+                    primaryTracks.join(', '),
+                    a.programInterest?.secondary || '',
+                    academic.status || '',
+                    academic.institution || '',
+                    academic.fieldOfStudy || '',
+                    academic.qualification || '',
+                    academic.gradYear ? String(academic.gradYear) : '',
+                    Array.isArray(skills.relevantSkills) ? skills.relevantSkills.join(', ') : '',
+                    Array.isArray(skills.tools) ? skills.tools.join(', ') : '',
+                    skills.hasPriorInternship !== undefined ? (skills.hasPriorInternship ? 'Yes' : 'No') : '',
+                    skills.priorInternshipDesc || '',
+                    skills.commSkillLevel || '',
+                    skills.availability || '',
+                    motivation.whyApplying || '',
+                    motivation.careerGoals || '',
+                    a.leadSource || '',
+                    a.linkedinUrl || '',
+                    a.portfolioUrl || '',
+                    a.cvUrl || '',
+                    a.levyAcknowledged ? 'Yes' : 'No',
+                    declaration.confirmed ? 'Yes' : 'No',
+                    formatDateTime(declaration.date),
+                    p?.amount !== undefined ? (p.amount >= 1000 ? String(p.amount / 100) : String(p.amount)) : '',
+                    p?.currency || '',
+                    p?.provider || '',
+                    p?.providerRef || '',
+                    p?.paymentMethod || '',
+                    '',
+                    formatDateTime((a as any).createdAt),
+                    formatDateTime((a as any).updatedAt),
+                    String(a.reminderCount || 0),
+                    formatDateTime(a.lastReminderSentAt),
+                ]);
+            }
+        }
+
+        // Build CSV formatted string with UTF-8 BOM
+        const csvLines = [
+            headers.map(escapeCsv).join(','),
+            ...rows.map(row => row.map(escapeCsv).join(',')),
+        ];
+
+        const csvContent = '\uFEFF' + csvLines.join('\r\n');
+        const filename = `ifip-applicants-insights-${type}-${new Date().toISOString().split('T')[0]}.csv`;
+
+        logRawAction({
+            userId: (req as any).user?.id || 'admin',
+            userEmail: (req as any).user?.email || 'admin',
+            userRole: (req as any).user?.role || 'admin',
+            action: 'APPLICANTS_CSV_EXPORT',
+            description: `Exported ${rows.length} applicant records in CSV format (Type: ${type})`,
+            targetType: 'Applicant',
+        });
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.status(200).send(csvContent);
+    } catch (err: any) {
+        console.error('Export applicants CSV error:', err);
+        res.status(500).json({ message: 'Failed to export applicants CSV.', error: err.message });
+    }
+};
+
 
 

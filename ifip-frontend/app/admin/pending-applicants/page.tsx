@@ -25,8 +25,12 @@ import {
   HiOutlineMapPin,
   HiOutlineChatBubbleLeftEllipsis,
   HiOutlinePaperAirplane,
+  HiOutlineArrowDownTray,
 } from "react-icons/hi2";
 import { FaWhatsapp } from "react-icons/fa";
+import { useContext } from "react";
+import { AdminCohortContext } from "../layout";
+import ExportApplicantsModal from "@/components/admin/ExportApplicantsModal";
 import {
   getPendingApplicants,
   sendPendingApplicantReminder,
@@ -50,6 +54,7 @@ const STEP_LABELS: Record<number, string> = {
 };
 
 export default function PendingApplicantsPage() {
+  const { selectedCohortId, cohorts } = useContext(AdminCohortContext);
   const [applicants, setApplicants] = useState<PendingApplicant[]>([]);
   const [summary, setSummary] = useState<PendingApplicantsSummary | null>(null);
   const [total, setTotal] = useState(0);
@@ -57,6 +62,7 @@ export default function PendingApplicantsPage() {
   const [pages, setPages] = useState(1);
   const [limit, setLimit] = useState(25);
   const [loading, setLoading] = useState(true);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [activeCohortName, setActiveCohortName] = useState("the upcoming cohort");
 
@@ -526,7 +532,14 @@ export default function PendingApplicantsPage() {
             Monitor non-paid applicants who have not completed checkout. Inspect full form responses, review payment attempt logs, and compose custom message templates or reminders to contact candidates.
           </p>
         </div>
-        <div className="flex items-center gap-3 self-start md:self-auto">
+        <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
+          <button
+            onClick={() => setExportModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs sm:text-sm font-bold transition shadow-md border border-sky-400/30 cursor-pointer"
+            title="Configure filters and download applicants insights in CSV format"
+          >
+            <HiOutlineArrowDownTray className="w-4 h-4" /> Export Insights CSV
+          </button>
           <button
             onClick={() => fetchApplicants()}
             disabled={loading}
@@ -1931,6 +1944,22 @@ export default function PendingApplicantsPage() {
           </div>
         </div>
       )}
+
+      {/* Export Applicants Modal */}
+      <ExportApplicantsModal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        cohorts={cohorts}
+        initialParams={{
+          type: "unpaid",
+          cohortId: selectedCohortId || undefined,
+          step: step ? parseInt(step, 10) : undefined,
+          country: country || undefined,
+          hasPaymentAttempt: hasPaymentAttempt !== "all" ? hasPaymentAttempt : undefined,
+          search: search || undefined,
+        }}
+        title="Export Unpaid / Funnel Applicants Insights (CSV)"
+      />
     </div>
   );
 }

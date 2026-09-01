@@ -27,6 +27,7 @@ import {
   HiArrowLeftOnRectangle,
   HiOutlineBell,
   HiOutlineTag,
+  HiOutlineInboxStack,
 } from "react-icons/hi2";
 import { getMyApplication, getCohorts, Cohort } from "@/lib/api/services";
 import { clearAuth, logout, startSilentRefresh, stopSilentRefresh } from "@/lib/api/auth";
@@ -60,6 +61,7 @@ const NAV_GROUPS = [
     items: [
       { href: "/admin/applications", label: "Applications",  icon: HiOutlineClipboardDocumentList },
       { href: "/admin/pending-applicants", label: "Pending Applicants", icon: HiOutlineClock },
+      { href: "/admin/waitlist", label: "Waitlist", icon: HiOutlineInboxStack },
       { href: "/admin/placements",   label: "Matching Desk", icon: HiOutlineArrowsRightLeft },
     ],
   },

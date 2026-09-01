@@ -196,7 +196,7 @@ export default function DashboardHome() {
               </div>
               <div className="flex flex-col">
                 <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Scheduled Start Date</span>
-                <span className="text-xs font-bold text-white">August 31, 2026</span>
+                <span className="text-xs font-bold text-white">{formatCohortDate(cohortStartDate)}</span>
               </div>
             </div>
 

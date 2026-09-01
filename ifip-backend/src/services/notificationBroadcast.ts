@@ -368,37 +368,36 @@ notificationEmitter.on('admin.broadcast', async ({ targetType, targetCohortId, t
                 }
             }
         } else {
-            // Target is cohort-based. cohortId is required.
-            if (!targetCohortId) {
-                console.error('[Event:admin.broadcast] targetCohortId is required for cohort-based broadcast.');
-                return;
+            // Target is cohort-based.
+            let cohortFilter: any = {};
+            if (targetCohortId && Types.ObjectId.isValid(targetCohortId as string)) {
+                cohortFilter = { cohortId: new Types.ObjectId(targetCohortId as string) };
             }
 
-            const cohortIdObj = new Types.ObjectId(targetCohortId as string);
             let recipientUserIds: Types.ObjectId[] = [];
             let recipientEmails: string[] = [];
 
             if (targetType === 'paid') {
                 const apps = await Application.find({
-                    cohortId: cohortIdObj,
+                    ...cohortFilter,
                     status: { $in: ['payment_confirmed', 'active', 'completed'] }
                 });
                 recipientUserIds = apps.map((app: any) => app.userId);
             } else if (targetType === 'pending') {
                 const applicants = await Applicant.find({
-                    cohortId: cohortIdObj,
+                    ...cohortFilter,
                     isPaid: { $ne: true }
                 });
                 recipientEmails = applicants.map((app: any) => app.email);
             } else if (targetType === 'all_applicants') {
                 const apps = await Application.find({
-                    cohortId: cohortIdObj,
+                    ...cohortFilter,
                     status: { $in: ['payment_confirmed', 'active', 'completed'] }
                 });
                 recipientUserIds = apps.map((app: any) => app.userId);
 
                 const applicants = await Applicant.find({
-                    cohortId: cohortIdObj,
+                    ...cohortFilter,
                     isPaid: { $ne: true }
                 });
                 recipientEmails = applicants.map((app: any) => app.email);
