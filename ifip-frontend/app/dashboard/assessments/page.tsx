@@ -29,9 +29,7 @@ export default function AssessmentsPage() {
           getMyApplication(),
           getCohortConfig()
         ]);
-        // Filter modules that actually have an assessment linked
-        const assessmentModules = modulesData.filter(m => m.assessmentId);
-        setModules(assessmentModules);
+        setModules(modulesData);
         setUserData(profile);
         setCohortStartDate(config.cohortStartDate);
         setDashboardViewOverride(config.dashboardViewOverride || "default");
@@ -55,19 +53,32 @@ export default function AssessmentsPage() {
   const isLaunched = getIsLaunched();
 
   const getCompletedCount = () => {
-    return modules.filter(m => m.assessmentStatus === "passed").length;
+    return modules.filter(m => m.assessmentId && m.assessmentStatus === "passed").length;
+  };
+
+  const getTotalAssessableCount = () => {
+    return modules.filter(m => m.assessmentId).length;
   };
 
   const getProgressPercentage = () => {
-    if (modules.length === 0) return 0;
-    return Math.round((getCompletedCount() / modules.length) * 100);
+    const total = getTotalAssessableCount();
+    if (total === 0) return 0;
+    return Math.round((getCompletedCount() / total) * 100);
   };
 
-  const getStatusBadge = (status: string | undefined, isParentLocked: boolean) => {
+  const getStatusBadge = (status: string | undefined, isParentLocked: boolean, hasAssessment: boolean) => {
     if (isParentLocked) {
       return (
         <span className="inline-flex items-center gap-1 bg-slate-50 text-slate-400 text-[10px] font-bold px-2.5 py-1 rounded-md border border-slate-100">
           <HiOutlineLockClosed className="w-3.5 h-3.5" /> Locked
+        </span>
+      );
+    }
+
+    if (!hasAssessment) {
+      return (
+        <span className="inline-flex items-center gap-1 bg-amber-50/80 text-amber-700 text-[10px] font-bold px-2.5 py-1 rounded-md border border-amber-200/70">
+          <HiOutlineClock className="w-3.5 h-3.5" /> Pending Upload
         </span>
       );
     }
@@ -222,7 +233,7 @@ export default function AssessmentsPage() {
                       Module {mod.order}
                     </span>
                   </div>
-                  {getStatusBadge(assessmentStatus, isModuleLocked)}
+                  {getStatusBadge(assessmentStatus, isModuleLocked, Boolean(mod.assessmentId))}
                 </div>
 
                 <div className="flex gap-3 pl-2 mb-4">
@@ -238,7 +249,9 @@ export default function AssessmentsPage() {
                       {mod.title} Assessment
                     </h3>
                     <p className="text-slate-400 text-[10px] flex items-center gap-1 font-medium">
-                      Est. Duration: {mod.estimatedDuration || 15} mins
+                      {mod.assessmentId 
+                        ? `Est. Duration: ${mod.estimatedDuration || 15} mins`
+                        : "Assessment not yet published"}
                     </p>
                   </div>
                 </div>
@@ -250,16 +263,24 @@ export default function AssessmentsPage() {
                     <HiOutlineLockClosed className="w-4 h-4 text-slate-400" />
                     Complete Module {mod.order} content to unlock.
                   </div>
-                ) : (
+                ) : !mod.assessmentId ? (
                   <Link
                     href={`/dashboard/modules/${mod._id}`}
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs bg-white hover:bg-slate-50 text-slate-700 border border-slate-200"
+                  >
+                    <span>Read Module Coursework</span>
+                    <HiOutlineChevronRight className="w-4 h-4" />
+                  </Link>
+                ) : (
+                  <Link
+                    href={`/dashboard/assessments/${mod._id}`}
                     className={`w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
                       isPassed 
                         ? "bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200" 
                         : "bg-[#000666] hover:bg-[#000666]/90 text-white hover:shadow-md"
                     }`}
                   >
-                    {isPassed ? "Review Results" : "Take Assessment"}
+                    {isPassed ? "Review Results & Solutions" : "Take Assessment"}
                     <HiOutlineChevronRight className="w-4 h-4" />
                   </Link>
                 )}

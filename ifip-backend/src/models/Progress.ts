@@ -3,7 +3,7 @@ import { Schema, model, Document, Types } from 'mongoose';
 export interface IProgress extends Document {
     userId: Types.ObjectId;
     moduleId: Types.ObjectId;
-    status: 'locked' | 'in_progress' | 'completed';
+    status: 'locked' | 'not_started' | 'in_progress' | 'completed';
     completedAt?: Date;
     assessmentStatus?: 'not_started' | 'in_progress' | 'passed' | 'failed' | 'pending_review';
     assessmentSubmissionId?: Types.ObjectId;
@@ -13,7 +13,7 @@ export interface IProgress extends Document {
 const progressSchema = new Schema<IProgress>({
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     moduleId: { type: Schema.Types.ObjectId, ref: 'Module', required: true },
-    status: { type: String, enum: ['locked', 'in_progress', 'completed'], default: 'locked' },
+    status: { type: String, enum: ['locked', 'not_started', 'in_progress', 'completed'], default: 'locked' },
     completedAt: { type: Date },
     assessmentStatus: {
         type: String,

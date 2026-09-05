@@ -7,38 +7,25 @@ import {
   HiOutlinePlay, 
   HiOutlineBookOpen, 
   HiOutlineClipboardDocumentList, 
-  HiOutlineLockClosed, 
   HiOutlineCheckCircle,
   HiOutlineArrowLeft,
   HiOutlineArrowRight,
   HiOutlineArrowPath,
   HiOutlineClock,
   HiOutlineExclamationTriangle,
-  HiOutlineInformationCircle
+  HiOutlineInformationCircle,
+  HiOutlineAcademicCap
 } from "react-icons/hi2";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import { 
   getLMSModules, 
   completeLMSModule, 
   LMSModule,
   getAssessmentForParticipant,
-  startAssessment,
-  submitAssessment,
   getLatestAssessmentResult
 } from "@/lib/api/services";
-
-interface Option {
-  _id: string;
-  text: string;
-}
-
-interface Question {
-  _id: string;
-  text: string;
-  type: 'mcq' | 'multi_select' | 'true_false' | 'short_answer';
-  options: Option[];
-  points: number;
-  order: number;
-}
 
 interface AssessmentData {
   _id: string;
@@ -49,7 +36,6 @@ interface AssessmentData {
   passMark: number;
   maxAttempts: number;
   retakeCooldownHours: number;
-  questions: Question[];
 }
 
 export default function ModuleViewerPage() {
@@ -63,22 +49,12 @@ export default function ModuleViewerPage() {
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Assessment flow states
+  // Assessment metadata and result status
   const [assessment, setAssessment] = useState<AssessmentData | null>(null);
   const [assessmentResult, setAssessmentResult] = useState<any>(null);
   const [loadingAssessment, setLoadingAssessment] = useState(false);
-  const [assessmentStarted, setAssessmentStarted] = useState(false);
-  const [startedAt, setStartedAt] = useState<string | null>(null);
-  
-  // Quiz taking state
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string[]>>({}); // questionId -> selectedOptionIds[]
-  const [textAnswers, setTextAnswers] = useState<Record<string, string>>({}); // questionId -> text
-  const [submittingAssessment, setSubmittingAssessment] = useState(false);
-  const [assessmentError, setAssessmentError] = useState<string | null>(null);
 
-  // Timer state
-  const [timeLeftSeconds, setTimeLeftSeconds] = useState<number | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const assessmentSectionRef = useRef<HTMLDivElement>(null);
 
   const fetchViewerData = async () => {
     try {
@@ -118,14 +94,15 @@ export default function ModuleViewerPage() {
     setLoadingAssessment(true);
     try {
       const [assessmentMeta, resultData] = await Promise.all([
-        getAssessmentForParticipant(modId),
-        getLatestAssessmentResult(modId)
+        getAssessmentForParticipant(modId).catch(() => null),
+        getLatestAssessmentResult(modId).catch(() => null)
       ]);
       setAssessment(assessmentMeta);
-      setAssessmentResult(resultData.status === 'not_attempted' ? null : resultData);
-      setAssessmentStarted(false);
+      setAssessmentResult(resultData && resultData.status !== 'not_attempted' ? resultData : null);
     } catch (err: any) {
       console.error("Failed to load assessment data:", err);
+      setAssessment(null);
+      setAssessmentResult(null);
     } finally {
       setLoadingAssessment(false);
     }
@@ -134,162 +111,38 @@ export default function ModuleViewerPage() {
   useEffect(() => {
     if (!moduleId) return;
     fetchViewerData();
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
   }, [moduleId]);
-
-  // Timer countdown hook
-  useEffect(() => {
-    if (timeLeftSeconds === null) return;
-    if (timeLeftSeconds <= 0) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      // Auto-submit on expiry
-      handleAssessmentSubmit(true);
-      return;
-    }
-
-    timerRef.current = setInterval(() => {
-      setTimeLeftSeconds(prev => (prev !== null ? prev - 1 : null));
-    }, 1000);
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [timeLeftSeconds]);
-
-  // Formats seconds into MM:SS
-  const formatTime = (secs: number) => {
-    const mins = Math.floor(secs / 60);
-    const remainingSecs = secs % 60;
-    return `${String(mins).padStart(2, '0')}:${String(remainingSecs).padStart(2, '0')}`;
-  };
 
   const handleMarkComplete = async () => {
     if (!currentModule || completing) return;
     setCompleting(true);
     try {
       await completeLMSModule(currentModule._id);
-      navigateToNext();
+      await navigateToNext();
     } catch (err: any) {
       console.error("Failed to mark module as complete:", err);
-      alert("Failed to update course progress. Please try again.");
+      alert(err.message || "Failed to update course progress. Please try again.");
     } finally {
       setCompleting(false);
     }
   };
 
   const navigateToNext = async () => {
-    // Refresh modules data to get updated lock states
-    const data = await getLMSModules();
-    const currentIndex = data.findIndex(m => m._id === moduleId);
-    const nextModule = data[currentIndex + 1];
-
-    if (nextModule && nextModule.status !== 'locked') {
-      router.push(`/dashboard/modules/${nextModule._id}`);
-    } else {
-      router.push("/dashboard/modules?completed=cohort");
-    }
-  };
-
-  // --- Assessment taking handlers ---
-
-  const handleStartAssessment = async () => {
-    setLoadingAssessment(true);
-    setAssessmentError(null);
     try {
-      const data = await startAssessment(moduleId);
-      setStartedAt(data.startedAt || new Date().toISOString());
-      setSelectedAnswers({});
-      setTextAnswers({});
-      setAssessmentStarted(true);
+      // Refresh modules data to get updated lock states
+      const data = await getLMSModules();
+      const currIdx = data.findIndex(m => m._id === moduleId);
+      const nextMod = data[currIdx + 1];
 
-      // Start timer if time limit exists
-      if (assessment?.timeLimitMinutes) {
-        setTimeLeftSeconds(assessment.timeLimitMinutes * 60);
+      if (nextMod && nextMod.status !== 'locked') {
+        router.push(`/dashboard/modules/${nextMod._id}`);
       } else {
-        setTimeLeftSeconds(null);
+        router.push("/dashboard/modules?completed=cohort");
       }
     } catch (err: any) {
-      console.error("Failed to start assessment attempt:", err);
-      setAssessmentError(err.response?.data?.message || err.message || "Failed to start assessment.");
-    } finally {
-      setLoadingAssessment(false);
+      console.error("Failed to navigate to next module:", err);
+      router.push("/dashboard/modules");
     }
-  };
-
-  const handleOptionChange = (questionId: string, optionId: string, isMultiSelect: boolean) => {
-    setSelectedAnswers(prev => {
-      const currentSelected = prev[questionId] || [];
-      if (isMultiSelect) {
-        if (currentSelected.includes(optionId)) {
-          return { ...prev, [questionId]: currentSelected.filter(id => id !== optionId) };
-        } else {
-          return { ...prev, [questionId]: [...currentSelected, optionId] };
-        }
-      } else {
-        return { ...prev, [questionId]: [optionId] };
-      }
-    });
-  };
-
-  const handleTextChange = (questionId: string, text: string) => {
-    setTextAnswers(prev => ({ ...prev, [questionId]: text }));
-  };
-
-  const handleAssessmentSubmit = async (isAutoSubmit = false) => {
-    if (submittingAssessment) return;
-    
-    // Check completeness if not auto-submit
-    if (!isAutoSubmit && assessment) {
-      const unanswered = assessment.questions.some(q => {
-        if (q.type === 'short_answer') {
-          return !textAnswers[q._id]?.trim();
-        } else {
-          return !selectedAnswers[q._id] || selectedAnswers[q._id].length === 0;
-        }
-      });
-
-      if (unanswered && !confirm("You have unanswered questions. Are you sure you want to submit your assessment?")) {
-        return;
-      }
-    }
-
-    setSubmittingAssessment(true);
-    setAssessmentError(null);
-
-    // Stop timer
-    if (timerRef.current) clearInterval(timerRef.current);
-    setTimeLeftSeconds(null);
-
-    // Compile payload
-    const compiledAnswers = (assessment?.questions || []).map((q) => ({
-      questionId: q._id,
-      selectedOptionIds: selectedAnswers[q._id] || [],
-      textAnswer: textAnswers[q._id] || '',
-    }));
-
-    try {
-      await submitAssessment(moduleId, {
-        startedAt: startedAt || new Date().toISOString(),
-        answers: compiledAnswers,
-      });
-
-      // Reload assessment state to show result card
-      await fetchAssessmentState(moduleId);
-    } catch (err: any) {
-      console.error("Failed to submit assessment:", err);
-      setAssessmentError(err.response?.data?.message || err.message || "Failed to submit assessment answers.");
-    } finally {
-      setSubmittingAssessment(false);
-    }
-  };
-
-  const getAttemptsRemaining = () => {
-    if (!assessment) return 0;
-    const attemptsTaken = assessmentResult ? assessmentResult.attemptNumber : 0;
-    return Math.max(0, assessment.maxAttempts - attemptsTaken);
   };
 
   // Find index of current module
@@ -297,394 +150,407 @@ export default function ModuleViewerPage() {
   const prevModule = currentIndex > 0 ? modules[currentIndex - 1] : null;
   const nextModule = currentIndex < modules.length - 1 ? modules[currentIndex + 1] : null;
 
-  const currentMod = currentModule!;
-
-  return (
-    <div className="flex min-h-[calc(100vh-64px)] font-sans">
-      {/* 1. Left Course Outline Sidebar */}
-      <aside className="w-72 bg-white border-r border-[#E7E2D8] flex flex-col justify-between shrink-0 select-none hidden md:flex text-left">
-        <div className="py-6 px-4">
-          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 px-2">Course Outline</h2>
-          <div className="space-y-1">
-            {modules.map((mod) => {
-              const isActive = mod._id === moduleId;
-              const isLocked = mod.status === "locked";
-              const isCompleted = mod.status === "completed";
-
-              return (
-                <div key={mod._id}>
-                  {isLocked ? (
-                    <div className="flex items-center justify-between text-slate-400 text-xs px-3 py-3 rounded-xl cursor-not-allowed font-medium">
-                      <span className="truncate pr-2">{mod.title}</span>
-                      <HiOutlineLockClosed className="w-4 h-4 shrink-0" />
-                    </div>
-                  ) : (
-                    <Link
-                      href={`/dashboard/modules/${mod._id}`}
-                      className={`flex items-center justify-between text-xs px-3 py-3 rounded-xl transition-all font-semibold ${
-                        isActive
-                          ? "bg-sky-50 text-[#00B0FF] font-bold border-l-4 border-[#00B0FF]"
-                          : "text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      <span className="truncate pr-2">{mod.title}</span>
-                      {isCompleted && <HiOutlineCheckCircle className="w-4 h-4 shrink-0 text-emerald-600" />}
-                    </Link>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+  if (loading) {
+    return (
+      <div className="flex min-h-[calc(100vh-64px)] items-center justify-center font-sans bg-[#FDFBF7]">
+        <div className="flex flex-col items-center gap-3">
+          <HiOutlineArrowPath className="w-8 h-8 text-[#000666] animate-spin" />
+          <p className="text-slate-500 font-medium text-sm">Loading lesson content...</p>
         </div>
+      </div>
+    );
+  }
 
-        <div className="p-4 border-t border-[#E7E2D8]">
-          <Link 
+  if (error || !currentModule) {
+    return (
+      <div className="flex min-h-[calc(100vh-64px)] items-center justify-center font-sans bg-[#FDFBF7] p-6">
+        <div className="max-w-md w-full bg-white border border-[#E7E2D8] rounded-2xl p-8 text-center shadow-sm">
+          <HiOutlineExclamationTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-[#000666] mb-2 font-display">Module Unavailable</h2>
+          <p className="text-sm text-slate-600 mb-6">{error || "Could not load the requested module."}</p>
+          <Link
             href="/dashboard/modules"
-            className="flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-[#000666] font-bold py-2 border border-slate-200 rounded-xl bg-white transition-colors"
+            className="inline-flex items-center gap-2 bg-[#000666] text-white font-bold text-xs px-6 py-3 rounded-xl hover:bg-[#000666]/90 transition-all"
           >
-            <HiOutlineArrowLeft className="w-3.5 h-3.5" /> Back to Dashboard
+            <HiOutlineArrowLeft className="w-4 h-4" /> Back to Curriculum
           </Link>
         </div>
-      </aside>
+      </div>
+    );
+  }
 
-      {/* 2. Main Content Viewer Pane */}
-      <main className="flex-1 bg-[#FDFBF7] p-6 sm:p-10 lg:p-12 overflow-y-auto text-left">
-        <div className="max-w-3xl mx-auto">
-          {/* Top Breadcrumb */}
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-[10px] uppercase font-bold tracking-widest text-[#00B0FF]">
-              Module {currentMod.order}
+  const currentMod = currentModule;
+
+  // Preprocess body to unwrap markdown headings pasted inside HTML tags and normalize spacing
+  const formatBodyContent = (raw: string) => {
+    if (!raw) return "";
+    return raw
+      // Convert <p>### Heading</p> or <p>## Heading</p> or <p># Heading</p> to real markdown headings
+      .replace(/<p>\s*(#{1,6})\s+([^<]+)<\/p>/gi, "$1 $2\n\n")
+      // Convert <p><strong>1. Heading</strong></p> into structured headings if standalone
+      .replace(/<p>\s*<strong>\s*(\d+\s*[-—–]\s*[^<]+)<\/strong>\s*<\/p>/gi, "### $1\n\n")
+      // Remove repetitive empty paragraph breaks
+      .replace(/(<p>\s*(<br\s*\/?>|&nbsp;|\s*)\s*<\/p>\s*){2,}/gi, "<p><br></p>")
+      .replace(/(\n\s*){3,}/g, "\n\n");
+  };
+
+  return (
+    <div className="min-h-[calc(100vh-64px)] bg-[#FDFBF7] font-sans">
+      {/* Main Content Viewer Pane */}
+      <main className="max-w-4xl mx-auto px-1 sm:px-6 lg:px-8 py-4 sm:py-10 text-left min-w-0 max-w-full">
+        {/* Top Navigation & Breadcrumbs Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6 bg-white border border-[#E7E2D8] rounded-xl p-3 sm:px-4 sm:py-3 shadow-2xs min-w-0 max-w-full">
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            <Link
+              href="/dashboard/modules"
+              className="text-xs font-semibold text-slate-500 hover:text-[#000666] flex items-center gap-1 transition-colors"
+            >
+              <HiOutlineArrowLeft className="w-3.5 h-3.5" /> Modules
+            </Link>
+            <span className="text-slate-300">/</span>
+            <span className="text-[11px] uppercase font-bold tracking-wider text-[#00B0FF]">
+              Week {currentMod.weekNumber || currentMod.order} &bull; Module {currentMod.order}
             </span>
-            <span className="text-slate-300">•</span>
-            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 capitalize">
-              {currentMod.contentType}
+            <span className="text-slate-300 hidden sm:inline">&bull;</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded capitalize hidden sm:inline">
+              {currentMod.contentType === "text" ? "E-Book Document" : currentMod.contentType}
             </span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-black text-[#000666] mb-6 font-display leading-tight">
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
+            {currentMod.assessmentId && assessment ? (
+              <button
+                type="button"
+                onClick={() => assessmentSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#000666] hover:text-[#00B0FF] bg-sky-50 hover:bg-sky-100/70 border border-sky-200 px-3 py-1.5 rounded-lg transition-colors shadow-2xs cursor-pointer"
+                title="Scroll to Assessment"
+              >
+                <HiOutlineClipboardDocumentList className="w-3.5 h-3.5 text-[#00B0FF]" />
+                <span>Knowledge Check</span>
+              </button>
+            ) : (
+              <Link
+                href="/dashboard/assessments"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg transition-colors shadow-2xs"
+                title="View Assessments Hub"
+              >
+                <HiOutlineClipboardDocumentList className="w-3.5 h-3.5 text-slate-400" />
+                <span className="hidden sm:inline">Assessments Hub</span>
+              </Link>
+            )}
+
+            <Link
+              href={`/dashboard/modules/${moduleId}/outline`}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#000666] hover:text-[#FF9800] bg-slate-50 hover:bg-amber-50/60 border border-slate-200 px-3 py-1.5 rounded-lg transition-colors shadow-2xs"
+            >
+              <HiOutlineBookOpen className="w-3.5 h-3.5 text-[#FF9800]" />
+              <span>Syllabus Outline</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Module Title Header */}
+        <div className="mb-6 min-w-0 max-w-full break-words">
+          <h1 className="text-2xl sm:text-3xl font-black text-[#000666] font-display leading-tight tracking-tight break-words">
             {currentMod.title}
           </h1>
+          {currentMod.description && (
+            <p className="text-slate-600 text-sm sm:text-base mt-2 leading-relaxed break-words">
+              {currentMod.description}
+            </p>
+          )}
+        </div>
 
-          {/* Module Content Body */}
-          <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 sm:p-8 shadow-sm mb-8">
-            {/* CONTENT TYPE: VIDEO */}
-            {currentMod.contentType === "video" && (
-              <div className="mb-6">
-                <div className="aspect-video w-full rounded-xl bg-black overflow-hidden relative shadow-inner border border-slate-200">
-                  <video 
-                    src={currentMod.contentUrl} 
-                    controls
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <p className="text-slate-400 text-xs italic mt-3 text-center">Video lesson: Use media controls to pause, review, or adjust speed.</p>
+        {/* Module Content Body */}
+        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-4 sm:p-8 md:p-10 shadow-sm mb-8 min-w-0 max-w-full overflow-x-hidden">
+          {/* CONTENT TYPE: VIDEO */}
+          {currentMod.contentType === "video" && (
+            <div className="mb-6">
+              <div className="aspect-video w-full rounded-xl bg-black overflow-hidden relative shadow-inner border border-slate-200">
+                <video 
+                  src={currentMod.contentUrl} 
+                  controls
+                  className="w-full h-full object-cover"
+                />
               </div>
-            )}
-
-            {/* CONTENT TYPE: TEXT */}
-            {currentMod.body && currentMod.contentType === "text" && (
-              <div className="prose prose-slate max-w-none font-serif text-slate-700 leading-relaxed text-sm sm:text-base space-y-6">
-                {currentMod.body.split("\n\n").map((para, pIdx) => {
-                  if (para.startsWith("###")) {
-                    return <h3 key={pIdx} className="text-lg font-bold font-sans text-[#000666] pt-2">{para.replace("###", "").trim()}</h3>;
-                  }
-                  if (para.startsWith("####")) {
-                    return <h4 key={pIdx} className="text-sm font-bold font-sans text-slate-700 pt-1">{para.replace("####", "").trim()}</h4>;
-                  }
-                  if (para.startsWith("1.") || para.startsWith("-")) {
-                    return (
-                      <ul key={pIdx} className="list-disc pl-5 space-y-2">
-                        {para.split("\n").map((li, lIdx) => (
-                          <li key={lIdx} className="text-slate-600 font-sans text-xs sm:text-sm">{li.replace(/^\d+\.\s*|-\s*/, "").trim()}</li>
-                        ))}
-                      </ul>
-                    );
-                  }
-                  return <p key={pIdx}>{para}</p>;
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* 3. ASSESSMENT RENDERING PANEL */}
-          {currentMod.assessmentId && assessment && (
-            <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 sm:p-8 shadow-sm mb-8 space-y-6">
-              <h2 className="text-lg font-bold font-display text-[#000666] border-b border-slate-100 pb-3">Module Assessment</h2>
-
-              {loadingAssessment ? (
-                <div className="py-8 text-center flex flex-col items-center gap-2 text-slate-400">
-                  <svg className="animate-spin w-6 h-6 text-[#000666]" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  <span className="text-xs font-semibold">Updating evaluation details...</span>
-                </div>
-              ) : !assessmentStarted && !assessmentResult ? (
-                /* Scenario A: Not Started yet */
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-[#000666]">{assessment.title}</h3>
-                  {assessment.instructions && (
-                    <p className="text-xs text-slate-600 leading-relaxed font-semibold bg-slate-50 p-4 rounded-xl border border-slate-100">
-                      {assessment.instructions}
-                    </p>
-                  )}
-                  
-                  <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50/50 p-4 border border-slate-100 rounded-xl">
-                    <div>
-                      <span className="text-slate-400 block font-semibold mb-0.5">Passing Score</span>
-                      <span className="font-bold text-[#000666]">{assessment.passMark}%</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block font-semibold mb-0.5">Max Attempts Allowed</span>
-                      <span className="font-bold text-[#000666]">{assessment.maxAttempts} Attempts</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block font-semibold mb-0.5">Time Limit</span>
-                      <span className="font-bold text-[#000666]">
-                        {assessment.timeLimitMinutes ? `${assessment.timeLimitMinutes} minutes` : "Untimed"}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block font-semibold mb-0.5">Retake Cooldown</span>
-                      <span className="font-bold text-[#000666]">
-                        {assessment.retakeCooldownHours > 0 ? `${assessment.retakeCooldownHours} hours` : "None"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={handleStartAssessment}
-                    className="w-full bg-[#000666] hover:bg-[#000666]/90 text-white font-bold text-xs py-3 rounded-xl shadow transition-all hover:shadow-md cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    Start Assessment Attempt
-                  </button>
-                  {assessmentError && (
-                    <p className="text-red-500 text-xs font-bold text-center mt-2">{assessmentError}</p>
-                  )}
-                </div>
-              ) : !assessmentStarted && assessmentResult ? (
-                /* Scenario B: Attempted - Show Result Badge / Banner */
-                <div className="space-y-6">
-                  {assessmentResult.status === 'passed' && (
-                    <div className="bg-emerald-50 border border-emerald-250 rounded-2xl p-6 flex items-start gap-4">
-                      <HiOutlineCheckCircle className="w-8 h-8 text-emerald-600 shrink-0 mt-0.5 animate-bounce" />
-                      <div className="flex flex-col gap-1">
-                        <h4 className="text-sm font-bold text-emerald-950">Assessment Passed!</h4>
-                        <p className="text-xs text-emerald-700 font-semibold leading-relaxed">
-                          Congratulations! You scored <strong>{assessmentResult.score}%</strong> (Required: {assessment.passMark}%). This module coursework has been successfully credited to your workspace portfolio.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {assessmentResult.status === 'failed' && (
-                    <div className="bg-red-50 border border-red-200 rounded-2xl p-6 flex flex-col gap-4">
-                      <div className="flex items-start gap-4">
-                        <HiOutlineExclamationTriangle className="w-8 h-8 text-red-500 shrink-0 mt-0.5" />
-                        <div className="flex flex-col gap-1">
-                          <h4 className="text-sm font-bold text-red-950">Passing Target Not Met</h4>
-                          <p className="text-xs text-red-700 font-semibold leading-relaxed">
-                            You scored <strong>{assessmentResult.score}%</strong> (Required: {assessment.passMark}%).
-                          </p>
-                        </div>
-                      </div>
-
-                      {getAttemptsRemaining() > 0 ? (
-                        <div className="border-t border-red-100 pt-4 flex flex-col sm:flex-row justify-between items-center gap-3">
-                          <span className="text-xs text-red-700 font-bold">
-                            You have {getAttemptsRemaining()} of {assessment.maxAttempts} attempt(s) remaining.
-                          </span>
-                          <button
-                            onClick={handleStartAssessment}
-                            className="bg-white border border-red-200 hover:bg-red-50 text-red-700 font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer"
-                          >
-                            Re-Attempt Assessment
-                          </button>
-                        </div>
-                      ) : (
-                        <p className="text-xs text-red-700 font-bold border-t border-red-100 pt-4 text-center">
-                          ⚠️ You have exhausted all attempts. Please contact your coordinator to request a reset.
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {assessmentResult.status === 'pending_review' && (
-                    <div className="bg-amber-50 border border-amber-250 rounded-2xl p-6 flex items-start gap-4">
-                      <HiOutlineInformationCircle className="w-8 h-8 text-amber-600 shrink-0 mt-0.5" />
-                      <div className="flex flex-col gap-1">
-                        <h4 className="text-sm font-bold text-amber-950">Submission Under Review</h4>
-                        <p className="text-xs text-amber-700 font-semibold leading-relaxed">
-                          Your assessment has been submitted. Because it contains short-answer text fields, a coordinator must manually verify the scoring before your module lock status is evaluated. You will receive an in-app notification once graded.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {assessmentError && (
-                    <p className="text-red-500 text-xs font-bold text-center mt-2">{assessmentError}</p>
-                  )}
-                </div>
-              ) : (
-                /* Scenario C: Taking Assessment Quiz renderer */
-                <div className="space-y-8 text-left">
-                  {/* Timer Header */}
-                  <div className="flex justify-between items-center border-b border-slate-100 pb-4 shrink-0">
-                    <span className="text-xs font-bold text-[#000666]">Attempt {assessmentResult ? assessmentResult.attemptNumber + 1 : 1} of {assessment.maxAttempts}</span>
-                    {timeLeftSeconds !== null && (
-                      <span className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border ${
-                        timeLeftSeconds < 120 
-                          ? 'bg-red-50 border-red-200 text-red-600 animate-pulse' 
-                          : 'bg-slate-100 border-slate-200 text-slate-700'
-                      }`}>
-                        <HiOutlineClock className="w-4 h-4" />
-                        Timer: {formatTime(timeLeftSeconds)}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Questions list */}
-                  <div className="space-y-6">
-                    {assessment.questions.map((q, idx) => (
-                      <div key={q._id} className="border border-slate-150 rounded-2xl p-5 bg-white space-y-4 shadow-sm">
-                        <div className="flex justify-between">
-                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Question {idx + 1}</h4>
-                          <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{q.points} pt(s)</span>
-                        </div>
-                        <p className="text-sm font-bold text-[#000666] leading-snug">{q.text}</p>
-
-                        {/* RENDER TYPES MCQ & TRUE/FALSE */}
-                        {(q.type === 'mcq' || q.type === 'true_false' || q.type === 'multi_select') && (
-                          <div className="space-y-2.5 pt-2">
-                            {q.options.map((opt) => {
-                              const isChecked = (selectedAnswers[q._id] || []).includes(opt._id);
-                              const isMulti = q.type === 'multi_select';
-
-                              return (
-                                <label 
-                                  key={opt._id} 
-                                  className={`flex items-center gap-3 border rounded-xl p-3 text-xs font-semibold cursor-pointer transition-all hover:bg-slate-50/50 ${
-                                    isChecked 
-                                      ? 'border-[#00B0FF] bg-sky-50/20 text-[#000666]' 
-                                      : 'border-slate-150 text-slate-600'
-                                  }`}
-                                >
-                                  <input
-                                    type={isMulti ? "checkbox" : "radio"}
-                                    name={`take_q_${q._id}`}
-                                    checked={isChecked}
-                                    onChange={() => handleOptionChange(q._id, opt._id, isMulti)}
-                                    className="w-4.5 h-4.5 text-[#00B0FF] border-slate-200 focus:ring-[#00B0FF] cursor-pointer"
-                                  />
-                                  <span>{opt.text}</span>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {/* RENDER TYPE SHORT ANSWER */}
-                        {q.type === 'short_answer' && (
-                          <div className="pt-2">
-                            <textarea
-                              rows={4}
-                              placeholder="Type your answer here (maximum 500 characters)..."
-                              value={textAnswers[q._id] || ''}
-                              onChange={(e) => handleTextChange(q._id, e.target.value)}
-                              className="w-full border border-slate-200 rounded-xl p-4 text-xs focus:outline-none focus:border-[#000666] font-semibold text-[#000666]"
-                              maxLength={500}
-                            />
-                            <div className="text-right text-[10px] text-slate-400 font-semibold mt-1">
-                              {(textAnswers[q._id] || '').length} / 500 chars
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Submission buttons */}
-                  <div className="flex justify-between items-center border-t border-slate-100 pt-6">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (confirm("Are you sure you want to cancel? This attempt history will not be saved.")) {
-                          setAssessmentStarted(false);
-                          if (timerRef.current) clearInterval(timerRef.current);
-                        }
-                      }}
-                      className="border border-slate-250 hover:bg-slate-50 text-slate-600 font-bold text-xs px-4 py-2.5 rounded-xl transition-all bg-white"
-                    >
-                      Cancel Attempt
-                    </button>
-
-                    <button
-                      onClick={() => handleAssessmentSubmit(false)}
-                      disabled={submittingAssessment}
-                      className="bg-emerald-600 hover:bg-emerald-600/90 text-white font-bold text-xs px-6 py-3 rounded-xl shadow transition-all hover:shadow-md cursor-pointer disabled:bg-slate-200 disabled:cursor-not-allowed"
-                    >
-                      {submittingAssessment ? "Submitting Answers..." : "Submit Completed Assessment"}
-                    </button>
-                  </div>
-                  {assessmentError && (
-                    <p className="text-red-500 text-xs font-bold text-center mt-2">{assessmentError}</p>
-                  )}
-                </div>
-              )}
+              <p className="text-slate-400 text-xs italic mt-3 text-center">Video lesson: Use media controls to pause, review, or adjust speed.</p>
             </div>
           )}
 
-          {/* Bottom Module Navigation Panel */}
-          <div className="border-t border-[#E7E2D8] pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            {/* Prev Button */}
-            {prevModule ? (
-              <Link
-                href={`/dashboard/modules/${prevModule._id}`}
-                className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-slate-500 hover:text-[#000666] font-bold text-xs px-5 py-3 border border-slate-200 rounded-xl transition-all hover:bg-slate-50 bg-white"
+          {/* CONTENT TYPE: TEXT */}
+          {currentMod.body && currentMod.contentType === "text" && (
+            <div className="prose prose-slate max-w-full min-w-0 break-words font-sans text-slate-800 text-sm sm:text-base leading-relaxed overflow-hidden">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw]}
+                components={{
+                  h1: ({ node, ...props }) => (
+                    <h1 className="text-2xl sm:text-3xl font-black text-[#000666] font-display mt-8 mb-4 border-b border-slate-200 pb-2.5 leading-tight break-words" {...props} />
+                  ),
+                  h2: ({ node, ...props }) => (
+                    <h2 className="text-xl sm:text-2xl font-bold text-[#000666] font-display mt-6 mb-3 leading-snug break-words" {...props} />
+                  ),
+                  h3: ({ node, ...props }) => (
+                    <h3 className="text-lg font-bold text-[#000666] font-sans mt-5 mb-2 leading-snug break-words" {...props} />
+                  ),
+                  h4: ({ node, ...props }) => (
+                    <h4 className="text-base font-bold text-slate-800 font-sans mt-4 mb-1.5 break-words" {...props} />
+                  ),
+                  p: ({ node, ...props }) => (
+                    <p className="text-sm sm:text-base text-slate-700 leading-relaxed my-3 font-normal break-words" {...props} />
+                  ),
+                  strong: ({ node, ...props }) => (
+                    <strong className="font-bold text-slate-900" {...props} />
+                  ),
+                  em: ({ node, ...props }) => (
+                    <em className="italic text-slate-800" {...props} />
+                  ),
+                  ul: ({ node, ...props }) => (
+                    <ul className="list-disc pl-5 my-3 space-y-1 text-sm sm:text-base text-slate-700 break-words" {...props} />
+                  ),
+                  ol: ({ node, ...props }) => (
+                    <ol className="list-decimal pl-5 my-3 space-y-1 text-sm sm:text-base text-slate-700 font-medium break-words" {...props} />
+                  ),
+                  li: ({ node, ...props }) => (
+                    <li className="leading-relaxed pl-1 break-words" {...props} />
+                  ),
+                  blockquote: ({ node, ...props }) => (
+                    <blockquote className="border-l-4 border-[#00B0FF] bg-sky-50/60 rounded-r-xl p-3.5 my-4 text-slate-700 text-sm sm:text-base italic leading-relaxed break-words" {...props} />
+                  ),
+                  table: ({ node, ...props }) => (
+                    <div className="w-full overflow-x-auto my-5 rounded-xl border border-slate-200 shadow-2xs bg-white">
+                      <table className="w-full text-left border-collapse text-xs sm:text-sm" {...props} />
+                    </div>
+                  ),
+                  thead: ({ node, ...props }) => (
+                    <thead className="bg-slate-100/90 text-[#000666] font-bold border-b border-slate-200" {...props} />
+                  ),
+                  tbody: ({ node, ...props }) => (
+                    <tbody className="divide-y divide-slate-100" {...props} />
+                  ),
+                  tr: ({ node, ...props }) => (
+                    <tr className="hover:bg-slate-50/70 transition-colors even:bg-slate-50/30" {...props} />
+                  ),
+                  th: ({ node, ...props }) => (
+                    <th className="px-4 py-3 font-bold text-slate-800 border-r last:border-r-0 border-slate-200 uppercase tracking-wider text-[11px]" {...props} />
+                  ),
+                  td: ({ node, ...props }) => (
+                    <td className="px-4 py-3 text-slate-600 border-r last:border-r-0 border-slate-200 align-top leading-relaxed" {...props} />
+                  ),
+                  hr: ({ node, ...props }) => (
+                    <hr className="my-6 border-slate-200" {...props} />
+                  ),
+                  code: ({ node, className, children, ...props }) => (
+                    <code className="bg-slate-100 text-[#000666] px-1.5 py-0.5 rounded text-xs font-mono font-medium" {...props}>
+                      {children}
+                    </code>
+                  ),
+                }}
               >
-                <HiOutlineArrowLeft className="w-4 h-4" /> Previous Lesson
-              </Link>
-            ) : (
-              <div className="w-full sm:w-auto invisible" />
-            )}
+                {formatBodyContent(currentMod.body)}
+              </ReactMarkdown>
+            </div>
+          )}
+        </div>
 
-            {/* Complete / Next CTA Button */}
-            {!currentMod.assessmentId ? (
-              /* No assessment, standard Mark Complete button */
-              <button
-                onClick={handleMarkComplete}
-                disabled={completing}
-                className={`w-full sm:w-auto font-bold text-xs tracking-wider uppercase px-8 py-3.5 rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer ${
-                  completing
-                    ? "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
-                    : "bg-[#FF9800] hover:bg-[#FF9800]/95 hover:scale-[1.01] text-white hover:shadow-lg"
-                }`}
+        {/* End of Lesson: Assessment Available State */}
+        {currentMod.assessmentId && assessment && (!assessmentResult || assessmentResult.status !== 'passed') && (
+          <div className="mb-8 border border-amber-200 bg-gradient-to-r from-amber-50/90 to-orange-50/70 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-fadeIn">
+            <div className="flex items-start gap-3.5 text-left">
+              <div className="w-10 h-10 rounded-xl bg-[#FF9800]/20 flex items-center justify-center text-[#FF9800] shrink-0">
+                <HiOutlineAcademicCap className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-[#000666]">Lesson Material Completed</h4>
+                <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+                  You have finished the study material. Proceed to the <strong>Week {currentMod.weekNumber || currentMod.order} Knowledge Check</strong> on the dedicated Assessments Page to test your understanding and unlock the next module.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Link
+                href={`/dashboard/assessments/${currentMod._id}`}
+                className="bg-[#000666] hover:bg-[#000666]/90 text-white font-bold text-xs px-5 py-3 rounded-xl transition-all shadow-sm flex items-center gap-1.5 hover:scale-[1.02]"
               >
-                {completing ? (
-                  <>
-                    <HiOutlineArrowPath className="w-4 h-4 animate-spin" /> Saving progress...
-                  </>
-                ) : (
-                  <>
-                    Mark as Complete & Next <HiOutlineArrowRight className="w-4 h-4" />
-                  </>
+                <span>Take Knowledge Check</span> &rarr;
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* End of Lesson: Assessment Not Uploaded State */}
+        {(!currentMod.assessmentId || !assessment) && (
+          <div className="mb-8 border border-slate-200/80 bg-gradient-to-r from-slate-50 to-blue-50/30 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-2xs">
+            <div className="flex items-start gap-3.5 text-left">
+              <div className="w-10 h-10 rounded-xl bg-slate-200/60 flex items-center justify-center text-slate-600 shrink-0">
+                <HiOutlineInformationCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="text-sm font-bold text-[#000666]">Assessment Not Yet Uploaded</h4>
+                  <span className="bg-amber-100/80 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-md border border-amber-200/60">
+                    Pending Coordinator Upload
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  The knowledge check evaluation for <strong>Module {currentMod.order}: {currentMod.title}</strong> has not yet been uploaded or published. You can mark this lesson as complete below and continue to the next module.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard/assessments"
+              className="shrink-0 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl border border-slate-200 transition-all shadow-xs flex items-center gap-1.5"
+            >
+              <HiOutlineClipboardDocumentList className="w-4 h-4 text-[#000666]" />
+              <span>View All Assessments</span>
+            </Link>
+          </div>
+        )}
+
+        {/* 3. ASSESSMENT CTA / STATUS CARD */}
+        {currentMod.assessmentId && assessment && (
+          <div ref={assessmentSectionRef} className="bg-white border border-[#E7E2D8] rounded-2xl p-6 sm:p-8 shadow-sm mb-8 space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-sky-50 text-[#000666] flex items-center justify-center border border-sky-100 shrink-0">
+                  <HiOutlineClipboardDocumentList className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold font-display text-[#000666]">
+                    Week {currentMod.weekNumber || currentMod.order} Knowledge Check
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium">{assessment.title}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {assessment.timeLimitMinutes && (
+                  <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full flex items-center gap-1">
+                    <HiOutlineClock className="w-3.5 h-3.5 text-[#FF9800]" /> {assessment.timeLimitMinutes} mins
+                  </span>
                 )}
-              </button>
+                <span className="text-xs font-bold text-[#000666] bg-sky-50 px-3 py-1 rounded-full border border-sky-100">
+                  Pass Mark: {assessment.passMark}%
+                </span>
+              </div>
+            </div>
+
+            {assessmentResult ? (
+              /* Already attempted */
+              <div className="space-y-4">
+                {assessmentResult.status === 'passed' ? (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <HiOutlineCheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+                      <div>
+                        <h4 className="text-xs font-bold text-emerald-950">Assessment Passed ({assessmentResult.score}%)</h4>
+                        <p className="text-[11px] text-emerald-700 font-medium">Coursework credited. You may review solutions and feedback anytime.</p>
+                      </div>
+                    </div>
+                    <Link
+                      href={`/dashboard/assessments/${currentMod._id}`}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-xs inline-flex items-center gap-1"
+                    >
+                      Review Solutions &rarr;
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <HiOutlineExclamationTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                      <div>
+                        <h4 className="text-xs font-bold text-amber-950">
+                          Latest Score: {assessmentResult.score}% (Required: {assessment.passMark}%)
+                        </h4>
+                        <p className="text-[11px] text-amber-700 font-medium">
+                          Attempt {assessmentResult.attemptNumber} of {assessment.maxAttempts} completed.
+                        </p>
+                      </div>
+                    </div>
+                    <Link
+                      href={`/dashboard/assessments/${currentMod._id}`}
+                      className="bg-[#000666] hover:bg-[#000666]/90 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-xs inline-flex items-center gap-1"
+                    >
+                      {assessmentResult.attemptNumber < assessment.maxAttempts ? "Re-Attempt on Assessments Page →" : "View Solutions & Review →"}
+                    </Link>
+                  </div>
+                )}
+              </div>
             ) : (
-              /* Has assessment, can only click Next if already passed */
-              <button
-                onClick={navigateToNext}
-                disabled={!assessmentResult || assessmentResult.status !== 'passed'}
-                className={`w-full sm:w-auto font-bold text-xs tracking-wider uppercase px-8 py-3.5 rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-1.5 ${
-                  !assessmentResult || assessmentResult.status !== 'passed'
-                    ? "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
-                    : "bg-emerald-600 hover:bg-emerald-600/95 hover:scale-[1.01] text-white hover:shadow-lg cursor-pointer"
-                }`}
-              >
-                Next Lesson <HiOutlineArrowRight className="w-4 h-4" />
-              </button>
+              /* Not yet attempted */
+              <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h4 className="text-xs font-bold text-[#000666]">Ready for your evaluation?</h4>
+                  <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                    Assessments are conducted in a focused, secure environment on the Assessments Hub to test your understanding.
+                  </p>
+                </div>
+                <Link
+                  href={`/dashboard/assessments/${currentMod._id}`}
+                  className="w-full sm:w-auto bg-[#000666] hover:bg-[#000666]/90 text-white text-xs font-bold px-6 py-3 rounded-xl transition-all shadow-sm hover:shadow-md shrink-0 flex items-center justify-center gap-1.5"
+                >
+                  <span>Take Assessment on Assessments Page</span>
+                  <span>&rarr;</span>
+                </Link>
+              </div>
             )}
           </div>
+        )}
+
+        {/* Bottom Module Navigation Panel */}
+        <div className="border-t border-[#E7E2D8] pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          {/* Prev Button */}
+          {prevModule ? (
+            <Link
+              href={`/dashboard/modules/${prevModule._id}`}
+              className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-slate-500 hover:text-[#000666] font-bold text-xs px-5 py-3 border border-slate-200 rounded-xl transition-all hover:bg-slate-50 bg-white"
+            >
+              <HiOutlineArrowLeft className="w-4 h-4" /> Previous Lesson
+            </Link>
+          ) : (
+            <div className="w-full sm:w-auto invisible" />
+          )}
+
+          {/* Complete / Assessment / Next CTA Action Button */}
+          {currentMod.assessmentId && assessment && assessmentResult?.status === 'passed' ? (
+            /* 1. Has assessment & passed -> Next Lesson */
+            <button
+              onClick={navigateToNext}
+              className="w-full sm:w-auto font-bold text-xs tracking-wider uppercase px-8 py-3.5 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer hover:scale-[1.01]"
+            >
+              <span>Next Lesson</span> <HiOutlineArrowRight className="w-4 h-4" />
+            </button>
+          ) : currentMod.assessmentId && assessment ? (
+            /* 2. Has assessment & NOT passed -> Take Assessment */
+            <Link
+              href={`/dashboard/assessments/${currentMod._id}`}
+              className="w-full sm:w-auto font-bold text-xs tracking-wider uppercase px-8 py-3.5 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-1.5 bg-[#000666] hover:bg-[#000666]/90 text-white cursor-pointer hover:scale-[1.01]"
+            >
+              <HiOutlineAcademicCap className="w-4.5 h-4.5 text-[#FF9800]" />
+              <span>Take Knowledge Check</span> <HiOutlineArrowRight className="w-4 h-4 text-[#FF9800]" />
+            </Link>
+          ) : (
+            /* 3. No gating assessment -> Standard Mark as Complete & Next */
+            <button
+              onClick={handleMarkComplete}
+              disabled={completing}
+              className={`w-full sm:w-auto font-bold text-xs tracking-wider uppercase px-8 py-3.5 rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer ${
+                completing
+                  ? "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
+                  : "bg-[#FF9800] hover:bg-[#FF9800]/95 hover:scale-[1.01] text-white hover:shadow-lg"
+              }`}
+            >
+              {completing ? (
+                <>
+                  <HiOutlineArrowPath className="w-4 h-4 animate-spin" /> Saving progress...
+                </>
+              ) : (
+                <>
+                  Mark as Complete & Next <HiOutlineArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          )}
         </div>
       </main>
     </div>

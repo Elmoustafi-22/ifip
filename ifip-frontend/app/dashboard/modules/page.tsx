@@ -10,7 +10,9 @@ import {
   HiOutlineLockClosed, 
   HiOutlineCheckCircle,
   HiOutlineClipboardDocumentList,
-  HiOutlineClock
+  HiOutlineClock,
+  HiOutlineCalendar,
+  HiOutlineAcademicCap
 } from "react-icons/hi2";
 import { getLMSModules, LMSModule, getMyApplication, getCohortConfig } from "@/lib/api/services";
 
@@ -280,6 +282,7 @@ export default function ModulesPage() {
           const isLocked = mod.status === "locked";
           const isCompleted = mod.status === "completed";
           const isInProgress = mod.status === "in_progress";
+          const isNotStarted = mod.status === "not_started" || (!isLocked && !isCompleted && !isInProgress);
 
           return (
             <div 
@@ -328,6 +331,11 @@ export default function ModulesPage() {
                           In Progress
                         </span>
                       )}
+                      {isNotStarted && (
+                        <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-md border border-slate-200">
+                          Not Started
+                        </span>
+                      )}
                       {isLocked && (
                         <span className="bg-slate-50 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-slate-100">
                           Locked
@@ -346,37 +354,45 @@ export default function ModulesPage() {
                       {mod.description}
                     </p>
 
-                    {/* Metadata Badges */}
-                    <div className="flex flex-wrap gap-2 mt-4">
-                      <span className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-100 text-slate-500 rounded-full px-3 py-1 text-xs font-medium">
-                        <HiOutlineClock className="w-3.5 h-3.5" /> {mod.estimatedDuration} mins
+                    {/* Metadata & Outline Badges */}
+                    <div className="flex flex-wrap items-center gap-2 mt-4">
+                      <span className="inline-flex items-center gap-1.5 bg-[#000666]/5 text-[#000666] border border-[#000666]/10 rounded-full px-3 py-1 text-xs font-bold">
+                        <HiOutlineCalendar className="w-3.5 h-3.5 text-[#000666]" /> Week {mod.weekNumber || mod.order}
                       </span>
-                      <span className="bg-slate-50 border border-slate-100 text-slate-500 rounded-full px-3 py-1 text-xs font-medium capitalize">
-                        {mod.contentType}
-                      </span>
+                      {mod.outline?.topics && mod.outline.topics.length > 0 && (
+                        <span className="bg-sky-50 border border-sky-100 text-sky-700 rounded-full px-3 py-1 text-xs font-semibold">
+                          {mod.outline.topics.length} Syllabus Topics
+                        </span>
+                      )}
+                      {mod.assessmentId && (
+                        <span className="bg-amber-50 border border-amber-200 text-amber-800 rounded-full px-3 py-1 text-xs font-semibold flex items-center gap-1.5">
+                          <HiOutlineAcademicCap className="w-3.5 h-3.5 text-amber-700" /> Weekly Assessment
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                {/* Right Side Buttons */}
-                <div className="sm:text-right shrink-0 flex items-center justify-end">
+                {/* Right Side Button — goes to outline first, then lesson */}
+                <div className="sm:text-right shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5">
                   {isLocked ? (
-                    <button 
+                    <button
                       disabled
-                      className="bg-slate-100 text-slate-400 font-bold text-xs tracking-wider uppercase px-5 py-3 rounded-xl flex items-center gap-1.5 cursor-not-allowed"
+                      className="bg-slate-100 text-slate-400 font-bold text-xs tracking-wider uppercase px-5 py-3 rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed"
                     >
                       <HiOutlineLockClosed className="w-4 h-4" /> Locked
                     </button>
                   ) : (
-                    <Link 
-                      href={`/dashboard/modules/${mod._id}`}
-                      className={`inline-block font-bold text-xs tracking-wider uppercase px-6 py-3.5 rounded-xl shadow-sm transition-all duration-200 text-center ${
+                    <Link
+                      href={`/dashboard/modules/${mod._id}/outline`}
+                      className={`inline-flex items-center justify-center font-bold text-xs tracking-wider uppercase px-6 py-3 rounded-xl shadow-sm transition-all duration-200 text-center ${
                         isCompleted
                           ? "border border-[#E7E2D8] bg-[#FDFBF7] text-slate-600 hover:bg-slate-50"
                           : "bg-[#FF9800] hover:bg-[#FF9800]/90 text-white hover:scale-[1.01] hover:shadow-md"
                       }`}
                     >
-                      {isCompleted ? "Review Module" : isInProgress ? "Resume Course" : "Start Module"}
+                      <HiOutlineBookOpen className="w-4 h-4" />
+                      <span className="ml-1.5">{isCompleted ? "Review Module" : isInProgress ? "Resume Course" : "Start Learning"}</span>
                     </Link>
                   )}
                 </div>

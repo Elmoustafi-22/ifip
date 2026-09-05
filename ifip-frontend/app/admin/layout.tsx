@@ -24,6 +24,7 @@ import {
   HiOutlineChartBar,
   HiOutlineCreditCard,
   HiOutlineClock,
+  HiOutlineCalendar,
   HiOutlineBell,
   HiOutlineTag,
   HiOutlineInboxStack,
@@ -70,7 +71,9 @@ const NAV_GROUPS = [
     label: "Program",
     items: [
       { href: "/admin/modules", label: "LMS Modules", icon: HiOutlineAcademicCap },
+      { href: "/admin/schedule", label: "Schedule & Timetable", icon: HiOutlineCalendar },
       { href: "/admin/assessments", label: "Assessments", icon: HiOutlineClipboardDocumentList },
+      { href: "/admin/resources", label: "Resources", icon: HiOutlineArrowTopRightOnSquare },
     ],
   },
   {

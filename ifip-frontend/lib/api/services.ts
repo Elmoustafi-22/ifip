@@ -285,18 +285,55 @@ export const getCohortConfig = async (): Promise<CohortConfigResponse> => {
   return data;
 };
 
+export interface TopicOutline {
+  title: string;
+  subtopics?: string[];
+  learningActivity?: string;
+  materials?: { label: string; url?: string }[];
+}
+
+export interface ModuleOutline {
+  purpose?: string;
+  learningObjectives?: string[];
+  topics?: TopicOutline[];
+  expectedOutcomes?: string[];
+}
+
 export interface LMSModule {
   _id: string;
   title: string;
   description: string;
   order: number;
+  weekNumber?: number;
   contentType: 'video' | 'text' | 'quiz' | 'assignment';
   contentUrl?: string;
   body?: string;
-  estimatedDuration: number;
-  status: 'locked' | 'in_progress' | 'completed';
+  outline?: ModuleOutline;
+  estimatedDuration?: number;
+  status: 'locked' | 'not_started' | 'in_progress' | 'completed';
+  isLocked?: boolean;
   assessmentId?: string;
   assessmentStatus?: string;
+  createdBy?: any;
+}
+
+export interface ProgrammeSession {
+  _id: string;
+  cohortId?: any;
+  weekNumber: number;
+  sessionDate: string;
+  title: string;
+  sessionType: 'orientation' | 'live_class' | 'async_module' | 'breakout' | 'assessment' | 'other';
+  description?: string;
+  moduleId?: any;
+  meetingUrl?: string;
+  meetingPlatform?: 'zoom' | 'google_meet' | 'teams' | 'other';
+  durationMinutes?: number;
+  isPublished: boolean;
+  order: number;
+  createdBy?: any;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const getLMSModules = async (): Promise<LMSModule[]> => {
@@ -304,8 +341,23 @@ export const getLMSModules = async (): Promise<LMSModule[]> => {
   return data;
 };
 
+export const getModuleOutline = async (moduleId: string): Promise<LMSModule> => {
+  const { data } = await authClient.get<LMSModule>(`/lms/modules/${moduleId}/outline`);
+  return data;
+};
+
 export const completeLMSModule = async (moduleId: string): Promise<any> => {
   const { data } = await authClient.post("/lms/modules/complete", { moduleId });
+  return data;
+};
+
+export const getParticipantSchedule = async (): Promise<ProgrammeSession[]> => {
+  const { data } = await authClient.get<ProgrammeSession[]>("/lms/schedule");
+  return data;
+};
+
+export const getUpcomingSessions = async (): Promise<ProgrammeSession[]> => {
+  const { data } = await authClient.get<ProgrammeSession[]>("/lms/schedule/upcoming");
   return data;
 };
 
@@ -822,18 +874,58 @@ export const createPartner = async (payload: { name: string; logoUrl?: string; d
   return data;
 };
 
-export const createLMSModule = async (payload: { title: string; description: string; order: number; contentType: string; contentUrl?: string; body?: string; estimatedDuration?: number; cohortId?: string }): Promise<any> => {
+export const createLMSModule = async (payload: { title: string; description: string; order: number; weekNumber?: number; contentType: string; contentUrl?: string; body?: string; outline?: ModuleOutline; estimatedDuration?: number; cohortId?: string }): Promise<any> => {
   const { data } = await authClient.post("/admin/modules", payload);
   return data;
 };
 
-export const updateLMSModule = async (id: string, payload: { title?: string; description?: string; order?: number; contentType?: string; contentUrl?: string; body?: string; estimatedDuration?: number; cohortId?: string }): Promise<any> => {
+export const updateLMSModule = async (id: string, payload: { title?: string; description?: string; order?: number; weekNumber?: number; contentType?: string; contentUrl?: string; body?: string; outline?: ModuleOutline; estimatedDuration?: number; cohortId?: string }): Promise<any> => {
   const { data } = await authClient.patch(`/admin/modules/${id}`, payload);
+  return data;
+};
+
+export const getAdminModuleOutline = async (id: string): Promise<any> => {
+  const { data } = await authClient.get(`/admin/modules/${id}/outline`);
+  return data;
+};
+
+export const updateAdminModuleOutline = async (id: string, outline: ModuleOutline): Promise<any> => {
+  const { data } = await authClient.patch(`/admin/modules/${id}/outline`, { outline });
   return data;
 };
 
 export const deleteLMSModule = async (id: string): Promise<any> => {
   const { data } = await authClient.delete(`/admin/modules/${id}`);
+  return data;
+};
+
+export const getAdminSchedule = async (params?: { cohortId?: string; weekNumber?: number; sessionType?: string; isPublished?: boolean }): Promise<ProgrammeSession[]> => {
+  const { data } = await authClient.get<ProgrammeSession[]>("/admin/schedule", { params });
+  return data;
+};
+
+export const createAdminSession = async (payload: Partial<ProgrammeSession>): Promise<{ message: string; session: ProgrammeSession }> => {
+  const { data } = await authClient.post("/admin/schedule", payload);
+  return data;
+};
+
+export const updateAdminSession = async (id: string, payload: Partial<ProgrammeSession>): Promise<{ message: string; session: ProgrammeSession }> => {
+  const { data } = await authClient.patch(`/admin/schedule/${id}`, payload);
+  return data;
+};
+
+export const deleteAdminSession = async (id: string): Promise<any> => {
+  const { data } = await authClient.delete(`/admin/schedule/${id}`);
+  return data;
+};
+
+export const togglePublishSession = async (id: string): Promise<{ message: string; session: ProgrammeSession }> => {
+  const { data } = await authClient.patch(`/admin/schedule/${id}/publish`);
+  return data;
+};
+
+export const bulkPublishScheduleWeek = async (weekNumber: number, isPublished: boolean, cohortId?: string): Promise<any> => {
+  const { data } = await authClient.patch("/admin/schedule/bulk-publish", { weekNumber, isPublished, cohortId });
   return data;
 };
 
@@ -1491,5 +1583,52 @@ export const deleteWaitlistEntry = async (id: string): Promise<{ message: string
   return data;
 };
 
+// ─── Resources ────────────────────────────────────────────────────────────────
 
+export interface Resource {
+  _id: string;
+  title: string;
+  description?: string;
+  category: 'guidelines' | 'templates' | 'supplements';
+  fileUrl: string;
+  fileType: 'pdf' | 'docx' | 'xlsx' | 'link' | 'video' | 'other';
+  fileSize?: string;
+  cohortId?: string;
+  uploadedBy?: { fullName: string; email: string };
+  isPublished?: boolean;
+  tags?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
 
+export const getResources = async (params?: {
+  category?: string;
+}): Promise<Resource[]> => {
+  const { data } = await authClient.get<Resource[]>('/resources', { params });
+  return data;
+};
+
+export interface CreateResourcePayload {
+  title: string;
+  description: string;
+  category: 'guidelines' | 'templates' | 'supplements';
+  fileUrl: string;
+  fileType: 'pdf' | 'docx' | 'xlsx' | 'link' | 'video' | 'other';
+  fileSize?: string;
+  cohortId?: string;
+}
+
+export const createResource = async (payload: CreateResourcePayload): Promise<{ message: string; resource: Resource }> => {
+  const { data } = await authClient.post<{ message: string; resource: Resource }>('/resources', payload);
+  return data;
+};
+
+export const updateResource = async (id: string, payload: Partial<CreateResourcePayload>): Promise<{ message: string; resource: Resource }> => {
+  const { data } = await authClient.put<{ message: string; resource: Resource }>(`/resources/${id}`, payload);
+  return data;
+};
+
+export const deleteResource = async (id: string): Promise<{ message: string }> => {
+  const { data } = await authClient.delete<{ message: string }>(`/resources/${id}`);
+  return data;
+};

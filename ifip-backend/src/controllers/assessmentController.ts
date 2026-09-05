@@ -41,13 +41,15 @@ export const getAssessmentById = async (req: Request, res: Response) => {
 
 // Helper to sanitize option/question IDs and map correctOptionIds correctly
 const sanitizeQuestionsAndOptions = (questions: any[]) => {
+    const isValidObjectId = (id: any): boolean => typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id);
+
     return questions.map((q: any) => {
-        const questionId = q._id ? new Types.ObjectId(q._id) : new Types.ObjectId();
+        const questionId = (q._id && isValidObjectId(q._id)) ? new Types.ObjectId(q._id) : new Types.ObjectId();
         
-        // Generate IDs for options if they don't have them
+        // Generate valid ObjectIds for options and map any temp string IDs
         const optionIdMap = new Map<string, Types.ObjectId>();
         const sanitizedOptions = (q.options || []).map((opt: any) => {
-            const optId = opt._id ? new Types.ObjectId(opt._id) : new Types.ObjectId();
+            const optId = (opt._id && isValidObjectId(opt._id)) ? new Types.ObjectId(opt._id) : new Types.ObjectId();
             if (opt._id) {
                 optionIdMap.set(opt._id.toString(), optId);
             }
@@ -55,11 +57,18 @@ const sanitizeQuestionsAndOptions = (questions: any[]) => {
         });
 
         // Convert correctOptionIds string representations to ObjectIds
-        const sanitizedCorrectOptionIds = (q.correctOptionIds || []).map((idStr: string) => {
-            // If the ID matches a client-submitted temporary ID, replace with generated Mongo ID
-            const mappedId = optionIdMap.get(idStr);
-            return mappedId || new Types.ObjectId(idStr);
-        });
+        const sanitizedCorrectOptionIds = (q.correctOptionIds || [])
+            .map((idStr: string) => {
+                if (!idStr) return null;
+                const idString = idStr.toString();
+                // First try: map from optionIdMap (resolves temp string IDs e.g. opt_xxx -> new ObjectId)
+                const mappedId = optionIdMap.get(idString);
+                if (mappedId) return mappedId;
+                // Second try: valid 24-character hex ObjectId
+                if (isValidObjectId(idString)) return new Types.ObjectId(idString);
+                return null;
+            })
+            .filter(Boolean) as Types.ObjectId[];
 
         return {
             _id: questionId,
@@ -67,9 +76,12 @@ const sanitizeQuestionsAndOptions = (questions: any[]) => {
             type: q.type,
             options: sanitizedOptions,
             correctOptionIds: sanitizedCorrectOptionIds,
+            matchingPairs: q.matchingPairs || [],
+            acceptedKeywords: q.acceptedKeywords || [],
+            explanation: q.explanation || '',
             partialCredit: q.partialCredit || false,
-            points: q.points || 1,
-            order: q.order,
+            points: Number(q.points) || 1,
+            order: Number(q.order) || 1,
         };
     });
 };
@@ -105,6 +117,8 @@ export const createAssessment = async (req: Request, res: Response) => {
 
         const sanitizedQuestions = sanitizeQuestionsAndOptions(data.questions);
 
+        const createdByUserId = req.user?.id ? new Types.ObjectId(req.user.id) : undefined;
+
         const newAssessment = new Assessment({
             moduleId: moduleObjId,
             title: data.title,
@@ -115,7 +129,7 @@ export const createAssessment = async (req: Request, res: Response) => {
             timeLimitMinutes: data.timeLimitMinutes,
             retakeCooldownHours: data.retakeCooldownHours,
             questions: sanitizedQuestions,
-            createdBy: new Types.ObjectId(req.user!.id),
+            createdBy: createdByUserId,
         });
 
         await newAssessment.save();
@@ -124,8 +138,17 @@ export const createAssessment = async (req: Request, res: Response) => {
         linkedModule.assessmentId = newAssessment._id as any;
         await linkedModule.save();
 
+        notificationEmitter.emit('assessment.published', {
+            assessmentTitle: newAssessment.title,
+            moduleId: newAssessment.moduleId,
+            passMark: newAssessment.passMark,
+            timeLimitMinutes: newAssessment.timeLimitMinutes,
+            maxAttempts: newAssessment.maxAttempts,
+        });
+
         res.status(201).json({ message: 'Assessment created successfully.', assessment: newAssessment });
     } catch (e: any) {
+        console.error('Error creating assessment:', e);
         res.status(500).json({ message: 'Error creating assessment.', error: e.message });
     }
 };
@@ -137,11 +160,6 @@ export const updateAssessment = async (req: Request, res: Response) => {
         const assessment = await Assessment.findById(id);
         if (!assessment) {
             res.status(404).json({ message: 'Assessment not found.' });
-            return;
-        }
-
-        if (assessment.status !== 'draft') {
-            res.status(400).json({ message: 'Cannot edit an assessment that is already published or archived.' });
             return;
         }
 
@@ -186,7 +204,19 @@ export const publishAssessment = async (req: Request, res: Response) => {
 
         assessment.status = 'published';
         await assessment.save();
-        notificationEmitter.emit('assessment.published', { assessmentTitle: assessment.title, moduleId: assessment.moduleId });
+
+        // Ensure the connected Module has its assessmentId linked
+        if (assessment.moduleId) {
+            await Module.findByIdAndUpdate(assessment.moduleId, { assessmentId: assessment._id });
+        }
+
+        notificationEmitter.emit('assessment.published', {
+            assessmentTitle: assessment.title,
+            moduleId: assessment.moduleId,
+            passMark: assessment.passMark,
+            timeLimitMinutes: assessment.timeLimitMinutes,
+            maxAttempts: assessment.maxAttempts,
+        });
 
         res.json({ message: 'Assessment published successfully.', status: assessment.status });
     } catch (e: any) {
@@ -207,6 +237,9 @@ export const archiveAssessment = async (req: Request, res: Response) => {
         assessment.status = 'archived';
         await assessment.save();
 
+        // Remove active link from module
+        await Module.updateOne({ assessmentId: assessment._id }, { $unset: { assessmentId: '' } });
+
         res.json({ message: 'Assessment archived successfully.', status: assessment.status });
     } catch (e: any) {
         res.status(500).json({ message: 'Error archiving assessment.', error: e.message });
@@ -220,11 +253,6 @@ export const deleteAssessment = async (req: Request, res: Response) => {
         const assessment = await Assessment.findById(id);
         if (!assessment) {
             res.status(404).json({ message: 'Assessment not found.' });
-            return;
-        }
-
-        if (assessment.status !== 'draft') {
-            res.status(400).json({ message: 'Only draft assessments can be deleted.' });
             return;
         }
 
@@ -354,7 +382,7 @@ export const gradeSubmission = async (req: Request, res: Response) => {
 // ─── POST /api/v1/admin/assessments/:id/submissions/reset ──────────────────────
 export const resetAttempts = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const idStr = String(req.params.id || '');
         const { userId } = req.body;
 
         if (!userId) {
@@ -362,19 +390,26 @@ export const resetAttempts = async (req: Request, res: Response) => {
             return;
         }
 
-        const assessment = await Assessment.findById(id);
+        const isValidObjectId = (val: string): boolean => /^[0-9a-fA-F]{24}$/.test(val);
+
+        const assessment = (isValidObjectId(idStr) ? await Assessment.findById(idStr) : null) ||
+                           (isValidObjectId(idStr) ? await Assessment.findOne({ moduleId: new Types.ObjectId(idStr) }) : null);
+
         if (!assessment) {
             res.status(404).json({ message: 'Assessment not found.' });
             return;
         }
 
-        // Delete all submissions for this assessment & user to reset attempts count
+        // Delete all submissions for this assessment & user so they start completely clean
         await AssessmentSubmission.deleteMany({
-            assessmentId: assessment._id,
+            $or: [
+                { assessmentId: assessment._id },
+                { moduleId: assessment.moduleId }
+            ],
             userId: new Types.ObjectId(userId),
         });
 
-        // Reset progress record to not started
+        // Reset progress record to not_started so participant sees it as though they have not attempted it at all
         const progress = await Progress.findOne({
             userId: new Types.ObjectId(userId),
             moduleId: assessment.moduleId,
@@ -393,7 +428,7 @@ export const resetAttempts = async (req: Request, res: Response) => {
         // Send a notification to the student that attempts were reset via event emitter
         notificationEmitter.emit('assessment.attempts_reset', { userId, assessment });
 
-        res.json({ message: 'Attempts reset successfully.' });
+        res.json({ message: 'Assessment attempts and submissions reset successfully. The participant can now start completely fresh.' });
     } catch (e: any) {
         res.status(500).json({ message: 'Error resetting attempts.', error: e.message });
     }

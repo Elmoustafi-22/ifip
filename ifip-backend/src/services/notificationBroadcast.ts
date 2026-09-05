@@ -4,6 +4,7 @@ import { Notification } from '../models/Notification.js';
 import { User } from '../models/User.js';
 import { Application } from '../models/Application.js';
 import { Applicant } from '../models/Applicants.js';
+import { Module } from '../models/Module.js';
 import {
     sendOtpEmail,
     sendResumeLinkEmail,
@@ -29,6 +30,8 @@ import {
     sendOfferExtendedToIntern,
     sendAccountActivatedWelcomeEmail,
     sendPartnerActivatedWelcomeEmail,
+    sendNewModuleNotificationEmail,
+    sendNewAssessmentNotificationEmail,
 } from './emailService.js';
 
 export const notificationEmitter = new EventEmitter();
@@ -436,36 +439,103 @@ notificationEmitter.on('admin.broadcast', async ({ targetType, targetCohortId, t
     }
 });
 
-notificationEmitter.on('module.published', async ({ moduleTitle }) => {
+notificationEmitter.on('module.published', async ({ moduleId, moduleTitle, moduleOrder, estimatedDuration, description, cohortId }) => {
     try {
-        const activeApps = await Application.find({ status: 'active' });
-        const notifications = activeApps.map(app => ({
-            userId: app.userId,
-            title: 'New Coursework Published',
-            message: `A new learning module "${moduleTitle}" has been published and is available in your outline.`,
-            type: 'info',
-            link: '/dashboard/modules'
-        }));
+        const filter: any = { status: { $in: ['active', 'payment_confirmed', 'placement_ready'] } };
+        if (cohortId) {
+            filter.cohortId = new Types.ObjectId(cohortId as any);
+        }
+        const activeApps = await Application.find(filter).populate<{ userId: { _id: Types.ObjectId; email: string; fullName?: string } }>('userId', 'email fullName');
+        
+        const notifications = activeApps
+            .filter(app => app.userId)
+            .map(app => ({
+                userId: (app.userId as any)._id || app.userId,
+                title: 'New Coursework Published',
+                message: `A new learning module "${moduleTitle}" has been published and is available in your curriculum outline.`,
+                type: 'info' as const,
+                link: '/dashboard/modules'
+            }));
+
         if (notifications.length > 0) {
             await Notification.insertMany(notifications);
+        }
+
+        // Send email notifications to all paid participants in background
+        for (const app of activeApps) {
+            const user = app.userId as any;
+            const email = user?.email;
+            if (email) {
+                const recipientName = app.fullName || user.fullName || 'Participant';
+                sendNewModuleNotificationEmail({
+                    to: email,
+                    recipientName,
+                    moduleTitle,
+                    moduleOrder,
+                    estimatedDuration,
+                    description,
+                }).catch(err => {
+                    console.error('[Event:module.published] Email send error for', email, err?.message || err);
+                });
+            }
         }
     } catch (err) {
         console.error('[Event:module.published] Error:', err);
     }
 });
 
-notificationEmitter.on('assessment.published', async ({ assessmentTitle, moduleId }) => {
+notificationEmitter.on('assessment.published', async ({ assessmentTitle, moduleId, passMark, timeLimitMinutes, maxAttempts }) => {
     try {
-        const activeApps = await Application.find({ status: 'active' });
-        const notifications = activeApps.map(app => ({
-            userId: app.userId,
-            title: 'New Module Assessment Unlocked',
-            message: `An evaluation assessment for "${assessmentTitle}" has been published. Clear it to progress in the curriculum.`,
-            type: 'info',
-            link: `/dashboard/modules/${moduleId}`
-        }));
+        let cohortId: Types.ObjectId | undefined;
+        let moduleTitle: string | undefined;
+
+        if (moduleId) {
+            const mod = await Module.findById(moduleId);
+            if (mod) {
+                cohortId = mod.cohortId;
+                moduleTitle = mod.title;
+            }
+        }
+
+        const filter: any = { status: { $in: ['active', 'payment_confirmed', 'placement_ready'] } };
+        if (cohortId) {
+            filter.cohortId = new Types.ObjectId(cohortId as any);
+        }
+        const activeApps = await Application.find(filter).populate<{ userId: { _id: Types.ObjectId; email: string; fullName?: string } }>('userId', 'email fullName');
+
+        const notifications = activeApps
+            .filter(app => app.userId)
+            .map(app => ({
+                userId: (app.userId as any)._id || app.userId,
+                title: 'New Module Assessment Unlocked',
+                message: `An evaluation assessment for "${assessmentTitle}" has been published. Clear it to progress in the curriculum.`,
+                type: 'info' as const,
+                link: moduleId ? `/dashboard/modules/${moduleId}` : '/dashboard/modules'
+            }));
+
         if (notifications.length > 0) {
             await Notification.insertMany(notifications);
+        }
+
+        // Send email notifications to all paid participants in background
+        for (const app of activeApps) {
+            const user = app.userId as any;
+            const email = user?.email;
+            if (email) {
+                const recipientName = app.fullName || user.fullName || 'Participant';
+                sendNewAssessmentNotificationEmail({
+                    to: email,
+                    recipientName,
+                    assessmentTitle,
+                    moduleTitle,
+                    moduleId: moduleId ? moduleId.toString() : undefined,
+                    passMark,
+                    timeLimitMinutes,
+                    maxAttempts,
+                }).catch(err => {
+                    console.error('[Event:assessment.published] Email send error for', email, err?.message || err);
+                });
+            }
         }
     } catch (err) {
         console.error('[Event:assessment.published] Error:', err);

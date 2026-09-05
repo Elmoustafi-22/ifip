@@ -15,7 +15,8 @@ import {
   HiOutlineUserCircle,
   HiOutlineShieldCheck,
   HiOutlineExclamationTriangle,
-  HiOutlineBell
+  HiOutlineBell,
+  HiOutlineCalendar
 } from "react-icons/hi2";
 import { getAccessToken, clearAuth } from "@/lib/api/auth";
 import { getMyApplication, getCohortConfig } from "@/lib/api/services";
@@ -179,6 +180,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Sidebar Layout Navigation Structure matching screen-7.png
   const menuItems = [
     { name: "Dashboard", href: "/dashboard", icon: HiOutlineSquares2X2, disabled: false },
+    { name: "Schedule", href: "/dashboard/schedule", icon: HiOutlineCalendar, disabled: false },
     { name: "Modules", href: "/dashboard/modules", icon: HiOutlineBookOpen, disabled: false },
     { name: "Assessments", href: "/dashboard/assessments", icon: HiOutlineClipboardDocumentList, disabled: !isLaunched },
     { name: "Resources", href: "/dashboard/resources", icon: HiOutlineFolderMinus, disabled: !isLaunched },
@@ -400,7 +402,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Content Body */}
-        <main className="flex-1 p-4 md:p-8 lg:p-12 max-w-5xl w-full mx-auto flex flex-col gap-6 md:gap-8 pb-24 md:pb-8">
+        <main className="flex-1 p-3 sm:p-6 md:p-8 lg:p-12 max-w-5xl w-full mx-auto flex flex-col gap-6 md:gap-8 pb-24 md:pb-8 min-w-0 max-w-full overflow-x-hidden">
           {children}
         </main>
 

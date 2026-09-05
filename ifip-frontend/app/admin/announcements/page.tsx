@@ -12,7 +12,10 @@ import {
   HiOutlineEnvelope,
   HiOutlineArrowRight,
   HiOutlinePaperAirplane,
-  HiOutlineAcademicCap
+  HiOutlineAcademicCap,
+  HiOutlineDocumentText,
+  HiOutlineTrash,
+  HiOutlineBookmark
 } from "react-icons/hi2";
 import {
   getAdminUsers,
@@ -23,6 +26,18 @@ import {
 } from "@/lib/api/services";
 
 import { AdminCohortContext } from "../layout";
+
+const DRAFT_STORAGE_KEY = "ifip_admin_announcement_draft";
+
+interface AnnouncementDraft {
+  title: string;
+  message: string;
+  link: string;
+  notificationType: "info" | "success" | "warning" | "alert";
+  targetType: "paid" | "pending" | "all_applicants" | "individual";
+  userEmail: string;
+  updatedAt: string;
+}
 
 export default function AdminAnnouncementsPage() {
   const { selectedCohortId, cohorts } = useContext(AdminCohortContext);
@@ -39,6 +54,12 @@ export default function AdminAnnouncementsPage() {
   const [resolvedUser, setResolvedUser] = useState<AdminUser | null>(null);
   const [searchingUser, setSearchingUser] = useState(false);
   const [userStatusNote, setUserStatusNote] = useState("");
+
+  // Draft State
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [draftTimestamp, setDraftTimestamp] = useState<string | null>(null);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [restoredFromDraft, setRestoredFromDraft] = useState(false);
 
   // UI State
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -66,8 +87,96 @@ export default function AdminAnnouncementsPage() {
     }
   };
 
-  useEffect(() => { fetchBroadcasts(); }, []);
+  useEffect(() => {
+    fetchBroadcasts();
 
+    // 1. Load active draft from localStorage on page mount
+    try {
+      const saved = typeof window !== "undefined" ? localStorage.getItem(DRAFT_STORAGE_KEY) : null;
+      if (saved) {
+        const parsed: AnnouncementDraft = JSON.parse(saved);
+        if (parsed.title?.trim() || parsed.message?.trim() || parsed.userEmail?.trim() || parsed.link?.trim()) {
+          setTitle(parsed.title || "");
+          setMessage(parsed.message || "");
+          setLink(parsed.link || "");
+          setNotificationType(parsed.notificationType || "info");
+          setTargetType(parsed.targetType || "paid");
+          setUserEmail(parsed.userEmail || "");
+          setDraftTimestamp(parsed.updatedAt || new Date().toISOString());
+          setRestoredFromDraft(true);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load announcement draft:", err);
+    } finally {
+      setDraftLoaded(true);
+    }
+  }, []);
+
+  // 2. Auto-save active draft to localStorage when user modifies announcement fields
+  useEffect(() => {
+    if (!draftLoaded) return;
+
+    const hasContent = title.trim() || message.trim() || link.trim() || userEmail.trim();
+
+    if (!hasContent) {
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(DRAFT_STORAGE_KEY);
+        }
+        setDraftTimestamp(null);
+        setRestoredFromDraft(false);
+      } catch (err) {}
+      return;
+    }
+
+    setIsSavingDraft(true);
+    const timer = setTimeout(() => {
+      try {
+        const draft: AnnouncementDraft = {
+          title,
+          message,
+          link,
+          notificationType,
+          targetType,
+          userEmail,
+          updatedAt: new Date().toISOString()
+        };
+        if (typeof window !== "undefined") {
+          localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+        }
+        setDraftTimestamp(draft.updatedAt);
+      } catch (err) {
+        console.error("Failed to auto-save draft:", err);
+      } finally {
+        setIsSavingDraft(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [title, message, link, notificationType, targetType, userEmail, draftLoaded]);
+
+  const handleDiscardDraft = () => {
+    if (!confirm("Are you sure you want to discard this announcement draft? All composed content will be cleared.")) {
+      return;
+    }
+    setTitle("");
+    setMessage("");
+    setLink("");
+    setUserEmail("");
+    setNotificationType("info");
+    setTargetType("paid");
+    setResolvedUser(null);
+    setUserStatusNote("");
+    setDraftTimestamp(null);
+    setRestoredFromDraft(false);
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+      }
+    } catch (e) {}
+    showAlert("success", "Announcement draft discarded.");
+  };
 
   // Individual User Email Lookup
   useEffect(() => {
@@ -144,8 +253,17 @@ export default function AdminAnnouncementsPage() {
 
       showAlert("success", "Announcement broadcast has been successfully queued.");
       await fetchBroadcasts();
-      // Reset form
 
+      // Clear draft storage upon successful broadcast
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(DRAFT_STORAGE_KEY);
+        }
+      } catch (e) {}
+      setDraftTimestamp(null);
+      setRestoredFromDraft(false);
+
+      // Reset form
       setTitle("");
       setMessage("");
       setLink("");
@@ -208,14 +326,67 @@ export default function AdminAnnouncementsPage() {
         </div>
       )}
 
+      {/* Restored Draft Alert Banner */}
+      {restoredFromDraft && (title || message || userEmail) && (
+        <div className="bg-sky-50 border border-sky-200 text-sky-900 px-4 py-3 rounded-xl flex items-center justify-between text-xs animate-fadeIn shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <HiOutlineDocumentText className="w-5 h-5 text-[#000666] shrink-0" />
+            <div>
+              <span className="font-bold text-[#000666]">Unsent Draft Restored:</span> You have an active draft from your previous session
+              {draftTimestamp ? ` (${new Date(draftTimestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})` : ""}.
+            </div>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={handleDiscardDraft}
+              className="text-rose-600 hover:text-rose-800 font-bold hover:underline cursor-pointer text-xs"
+            >
+              Discard Draft
+            </button>
+            <button
+              type="button"
+              onClick={() => setRestoredFromDraft(false)}
+              className="text-slate-400 hover:text-slate-600 font-bold text-xs"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Composer Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
         {/* Left Column: Form Composer (3/5 width) */}
         <div className="lg:col-span-3 bg-white border border-slate-200/60 rounded-2xl p-6 shadow-sm space-y-6">
-          <h2 className="text-sm font-bold text-[#000666] border-b border-slate-50 pb-3 flex items-center gap-2">
-            <HiOutlinePaperAirplane className="w-4 h-4 text-sky-500" />
-            Compose Broadcast Message
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <h2 className="text-sm font-bold text-[#000666] flex items-center gap-2">
+              <HiOutlinePaperAirplane className="w-4 h-4 text-sky-500" />
+              Compose Broadcast Message
+            </h2>
+
+            {/* Auto-save & Draft Status */}
+            <div className="flex items-center gap-2">
+              {(title || message || link || userEmail) ? (
+                <>
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">
+                    <span className={`w-2 h-2 rounded-full ${isSavingDraft ? "bg-amber-400 animate-pulse" : "bg-emerald-500"}`} />
+                    <span>{isSavingDraft ? "Saving draft..." : "Draft auto-saved"}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDiscardDraft}
+                    className="text-[11px] text-rose-500 hover:text-rose-700 font-bold hover:bg-rose-50 px-2 py-1 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                    title="Clear current draft"
+                  >
+                    <HiOutlineTrash className="w-3.5 h-3.5" /> Discard
+                  </button>
+                </>
+              ) : (
+                <span className="text-[10px] text-slate-400 font-medium italic">Auto-saves as draft</span>
+              )}
+            </div>
+          </div>
 
           <div className="space-y-4">
             {/* Title */}
@@ -409,7 +580,20 @@ export default function AdminAnnouncementsPage() {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 flex justify-end">
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+            <div>
+              {(title || message || link || userEmail) && (
+                <button
+                  type="button"
+                  onClick={handleDiscardDraft}
+                  className="px-4 py-2.5 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <HiOutlineTrash className="w-4 h-4" />
+                  Discard Draft
+                </button>
+              )}
+            </div>
+
             <button
               onClick={handleSend}
               disabled={submitting}

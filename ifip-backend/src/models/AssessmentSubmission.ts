@@ -8,13 +8,17 @@ export interface IAnswer {
     selectedOptionIds: Types.ObjectId[];
     /** Free text — used for short_answer only */
     textAnswer?: string;
+    /** Matching pairs chosen by student — used for matching questions */
+    matchingAnswers?: { left: string; right: string }[];
     /**
-     * null  = pending manual review (short_answer questions only)
+     * null  = pending manual review (short_answer questions without auto-keywords)
      * true  = correct
      * false = incorrect
      */
     isCorrect: boolean | null;
     pointsAwarded: number;
+    /** AI evaluation or coordinator feedback */
+    feedback?: string;
 }
 
 // ─── AssessmentSubmission document ───────────────────────────────────────────
@@ -57,8 +61,10 @@ const answerSchema = new Schema<IAnswer>(
         questionId: { type: Schema.Types.ObjectId, required: true },
         selectedOptionIds: { type: [Schema.Types.ObjectId], default: [] },
         textAnswer: { type: String, default: '' },
+        matchingAnswers: [{ left: { type: String }, right: { type: String } }],
         isCorrect: { type: Boolean, default: null },
         pointsAwarded: { type: Number, default: 0 },
+        feedback: { type: String, default: '' },
     },
     { _id: false }
 );

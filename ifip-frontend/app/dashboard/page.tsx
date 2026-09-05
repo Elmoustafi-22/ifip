@@ -11,26 +11,30 @@ import {
   HiOutlineBookOpen,
   HiOutlineChevronRight,
   HiOutlineArrowRight,
-  HiOutlineClock
+  HiOutlineClock,
+  HiOutlineVideoCamera
 } from "react-icons/hi2";
-import { getMyApplication, getCohortConfig } from "@/lib/api/services";
+import { getMyApplication, getCohortConfig, getUpcomingSessions, ProgrammeSession } from "@/lib/api/services";
 
 export default function DashboardHome() {
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<any>(null);
   const [cohortStartDate, setCohortStartDate] = useState("2026-08-31T00:00:00.000Z");
   const [dashboardViewOverride, setDashboardViewOverride] = useState<string>("default");
+  const [upcomingSessions, setUpcomingSessions] = useState<ProgrammeSession[]>([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [profile, config] = await Promise.all([
+        const [profile, config, sessions] = await Promise.all([
           getMyApplication(),
-          getCohortConfig()
+          getCohortConfig(),
+          getUpcomingSessions().catch(() => [])
         ]);
         setUserData(profile);
         setCohortStartDate(config.cohortStartDate);
         setDashboardViewOverride(config.dashboardViewOverride || "default");
+        setUpcomingSessions(sessions || []);
       } catch (err) {
         console.error("Failed to load dashboard parameters:", err);
       } finally {
@@ -251,6 +255,99 @@ export default function DashboardHome() {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* Upcoming Timetable Sessions Widget */}
+      <div className="bg-white rounded-2xl border border-slate-200/60 shadow-level1 p-6 flex flex-col gap-5 mt-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+          <div>
+            <h3 className="text-base font-bold text-[#000666] font-display flex items-center gap-2">
+              <HiOutlineCalendar className="w-5 h-5 text-[#FF9800]" />
+              <span>Upcoming Live Sessions &amp; Calendar</span>
+            </h3>
+            <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+              Live lectures, group breakouts, and timetable checkpoints for your cohort.
+            </p>
+          </div>
+          <Link
+            href="/dashboard/schedule"
+            className="text-xs font-bold text-[#000666] hover:text-[#FF9800] inline-flex items-center gap-1 shrink-0"
+          >
+            <span>View Full 4-Week Timetable</span>
+            <HiOutlineArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        {upcomingSessions.length === 0 ? (
+          <div className="p-6 text-center text-slate-400 text-xs bg-slate-50 rounded-xl border border-slate-100">
+            <p>No upcoming live sessions in the next few days.</p>
+            <Link
+              href="/dashboard/schedule"
+              className="mt-2 inline-block text-xs font-bold text-sky-600 hover:underline"
+            >
+              Check the full 4-week timetable &rarr;
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {upcomingSessions.map((sess) => {
+              const dateObj = new Date(sess.sessionDate);
+              return (
+                <div
+                  key={sess._id}
+                  className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 flex flex-col justify-between gap-3 transition-colors"
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono font-bold text-[#000666] bg-white border border-slate-200 px-2 py-0.5 rounded">
+                        Week {sess.weekNumber}
+                      </span>
+                      <span className="text-[10px] uppercase font-bold text-slate-400">
+                        {dateObj.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
+                      </span>
+                    </div>
+
+                    <h4 className="font-bold text-xs text-[#000666] line-clamp-2">
+                      {sess.title}
+                    </h4>
+
+                    <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                      <span className="flex items-center gap-1">
+                        <HiOutlineClock className="w-3 h-3 text-slate-400" />
+                        {dateObj.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                      <span>•</span>
+                      <span>{sess.durationMinutes || 60}m</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
+                    {sess.meetingUrl ? (
+                      <a
+                        href={sess.meetingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] font-bold text-sky-600 hover:underline flex items-center gap-1"
+                      >
+                        <HiOutlineVideoCamera className="w-3.5 h-3.5" />
+                        Join Meeting
+                      </a>
+                    ) : (
+                      <span className="text-[11px] text-slate-400">Scheduled</span>
+                    )}
+
+                    <Link
+                      href="/dashboard/schedule"
+                      className="text-[11px] font-semibold text-[#000666] hover:underline"
+                    >
+                      Details &rarr;
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Next Steps Checklist Section */}

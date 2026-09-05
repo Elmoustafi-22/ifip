@@ -13,6 +13,8 @@ import {
     deleteCohort,
     createModule,
     updateModule,
+    getModuleOutline,
+    updateModuleOutline,
     deleteModule,
     getAdminUsers,
     broadcastCustomNotification,
@@ -87,6 +89,14 @@ import {
     updateCoupon,
     deleteCoupon,
 } from '../controllers/couponController.js';
+import {
+    getAdminSessions,
+    createAdminSession,
+    updateAdminSession,
+    deleteAdminSession,
+    togglePublishSession,
+    bulkPublishWeek,
+} from '../controllers/programmeSessionController.js';
 
 const router = Router();
 
@@ -154,7 +164,17 @@ router.delete('/cohorts/:id', deleteCohort);
 
 router.post('/modules', createModule);
 router.patch('/modules/:id', updateModule);
+router.get('/modules/:id/outline', getModuleOutline);
+router.patch('/modules/:id/outline', updateModuleOutline);
 router.delete('/modules/:id', deleteModule);
+
+// ─── Programme Schedule / Timetable Operations ─────────────────────────
+router.get('/schedule', getAdminSessions);
+router.post('/schedule', createAdminSession);
+router.patch('/schedule/bulk-publish', bulkPublishWeek);
+router.patch('/schedule/:id', updateAdminSession);
+router.patch('/schedule/:id/publish', togglePublishSession);
+router.delete('/schedule/:id', deleteAdminSession);
 
 // ─── Admin + Superadmin — Assessment Operations ──────────────────────────────
 router.get('/assessments', getAssessments);

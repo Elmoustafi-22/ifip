@@ -29,7 +29,16 @@ export const requireActiveApplication = async (req: Request, res: Response, next
             return;
         }
 
-        if (application.status !== 'active' && application.status !== 'completed') {
+        if (application.status === 'withdrawn') {
+            res.status(403).json({
+                code: 'APPLICATION_WITHDRAWN',
+                message: 'Your application has been marked as withdrawn.',
+            });
+            return;
+        }
+
+        const validStatuses = ['active', 'completed', 'placement_ready', 'payment_confirmed'];
+        if (!validStatuses.includes(application.status)) {
             res.status(403).json({
                 code: 'AWAITING_COHORT_ASSIGNMENT',
                 message: 'Your payment is confirmed, but you have not yet been assigned to a training cohort. Please wait for an administrator to assign your cohort.',

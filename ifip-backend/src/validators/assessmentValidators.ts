@@ -5,12 +5,20 @@ const optionSchema = z.object({
     text: z.string().min(1, 'Option text is required'),
 });
 
+const matchingPairSchema = z.object({
+    left: z.string().min(1, 'Left item required'),
+    right: z.string().min(1, 'Right item required'),
+});
+
 const questionSchema = z.object({
     _id: z.string().optional(),
     text: z.string().min(1, 'Question text is required'),
-    type: z.enum(['mcq', 'multi_select', 'true_false', 'short_answer']),
+    type: z.enum(['mcq', 'multi_select', 'true_false', 'short_answer', 'matching']),
     options: z.array(optionSchema).default([]),
     correctOptionIds: z.array(z.string()).default([]),
+    matchingPairs: z.array(matchingPairSchema).optional().default([]),
+    acceptedKeywords: z.array(z.string()).optional().default([]),
+    explanation: z.string().optional(),
     partialCredit: z.boolean().default(false),
     points: z.number().int().min(1).default(1),
     order: z.number().int().nonnegative(),
@@ -33,6 +41,7 @@ export const submitAnswerSchema = z.object({
     questionId: z.string().regex(/^[0-9a-fA-F]{24}$/),
     selectedOptionIds: z.array(z.string()).default([]),
     textAnswer: z.string().optional(),
+    matchingAnswers: z.array(z.object({ left: z.string(), right: z.string() })).optional(),
 });
 
 export const submitAssessmentSchema = z.object({

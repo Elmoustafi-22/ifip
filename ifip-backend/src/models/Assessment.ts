@@ -7,19 +7,28 @@ export interface IQuestionOption {
     text: string;
 }
 
+export interface IMatchingPair {
+    left: string;
+    right: string;
+}
+
 export interface IQuestion {
     _id: Types.ObjectId;
     text: string;
-    type: 'mcq' | 'multi_select' | 'true_false' | 'short_answer';
-    /** Visible answer choices — populated for all types except short_answer */
+    type: 'mcq' | 'multi_select' | 'true_false' | 'short_answer' | 'matching';
+    /** Visible answer choices — populated for all types except short_answer and matching */
     options: IQuestionOption[];
     /**
      * IDs of the correct option(s) — stored server-side ONLY.
      * Never returned in participant-facing GET responses.
-     * For true_false, options are always [{ text: 'True' }, { text: 'False' }]
-     * and correctOptionIds holds the single correct one.
      */
     correctOptionIds: Types.ObjectId[];
+    /** Matching pairs for matching questions (left concept to right definition) */
+    matchingPairs?: IMatchingPair[];
+    /** Auto-accepted keywords for fill-in-the-blank / short answer questions */
+    acceptedKeywords?: string[];
+    /** Explanation or commentary displayed after submission */
+    explanation?: string;
     /** Whether multi_select questions award partial credit per correct option */
     partialCredit: boolean;
     /** Points this question is worth (default 1) */
@@ -66,16 +75,27 @@ const questionOptionSchema = new Schema<IQuestionOption>(
     { _id: true }
 );
 
+const matchingPairSchema = new Schema<IMatchingPair>(
+    {
+        left: { type: String, required: true },
+        right: { type: String, required: true },
+    },
+    { _id: false }
+);
+
 const questionSchema = new Schema<IQuestion>(
     {
         text: { type: String, required: true },
         type: {
             type: String,
-            enum: ['mcq', 'multi_select', 'true_false', 'short_answer'],
+            enum: ['mcq', 'multi_select', 'true_false', 'short_answer', 'matching'],
             required: true,
         },
         options: { type: [questionOptionSchema], default: [] },
         correctOptionIds: { type: [Schema.Types.ObjectId], default: [] },
+        matchingPairs: { type: [matchingPairSchema], default: [] },
+        acceptedKeywords: { type: [String], default: [] },
+        explanation: { type: String },
         partialCredit: { type: Boolean, default: false },
         points: { type: Number, default: 1, min: 1 },
         order: { type: Number, required: true },

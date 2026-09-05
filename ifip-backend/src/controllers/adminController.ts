@@ -439,7 +439,7 @@ export const deleteCohort = async (req: Request, res: Response) => {
 // --- Module CRUD Operations ---
 export const createModule = async (req: Request, res: Response) => {
     try {
-        const { title, description, order, contentType, contentUrl, body, estimatedDuration, cohortId } = req.body;
+        const { title, description, order, weekNumber, contentType, contentUrl, body, outline, estimatedDuration, cohortId } = req.body;
         
         if (!title || !description || order === undefined || !contentType) {
             res.status(400).json({ message: 'title, description, order, and contentType are required.' });
@@ -450,16 +450,25 @@ export const createModule = async (req: Request, res: Response) => {
             title,
             description,
             order,
+            weekNumber: weekNumber || order || 1,
             contentType,
             contentUrl,
             body,
-            estimatedDuration: estimatedDuration || 15,
+            outline: outline || {},
+            estimatedDuration: estimatedDuration || 0,
             cohortId: cohortId ? new Types.ObjectId(cohortId) : undefined,
             createdBy: req.user ? new Types.ObjectId(req.user.id) : undefined
         });
         
         await newModule.save();
-        notificationEmitter.emit('module.published', { moduleTitle: newModule.title });
+        notificationEmitter.emit('module.published', {
+            moduleId: newModule._id,
+            moduleTitle: newModule.title,
+            moduleOrder: newModule.order,
+            estimatedDuration: newModule.estimatedDuration,
+            description: newModule.description,
+            cohortId: newModule.cohortId,
+        });
         res.status(201).json({ message: 'LMS Module created successfully.', module: newModule });
     } catch (e: any) {
         res.status(500).json({ message: 'Error creating module.', error: e.message });
@@ -469,7 +478,7 @@ export const createModule = async (req: Request, res: Response) => {
 export const updateModule = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { title, description, order, contentType, contentUrl, body, estimatedDuration, cohortId } = req.body;
+        const { title, description, order, weekNumber, contentType, contentUrl, body, outline, estimatedDuration, cohortId } = req.body;
         
         const mod = await Module.findById(id);
         if (!mod) {
@@ -480,9 +489,11 @@ export const updateModule = async (req: Request, res: Response) => {
         if (title !== undefined) mod.title = title;
         if (description !== undefined) mod.description = description;
         if (order !== undefined) mod.order = order;
+        if (weekNumber !== undefined) mod.weekNumber = weekNumber;
         if (contentType !== undefined) mod.contentType = contentType;
         if (contentUrl !== undefined) mod.contentUrl = contentUrl;
         if (body !== undefined) mod.body = body;
+        if (outline !== undefined) mod.outline = outline;
         if (estimatedDuration !== undefined) mod.estimatedDuration = estimatedDuration;
         if (cohortId !== undefined) {
             mod.cohortId = cohortId ? new Types.ObjectId(cohortId) : undefined;
@@ -492,6 +503,45 @@ export const updateModule = async (req: Request, res: Response) => {
         res.json({ message: 'LMS Module updated successfully.', module: mod });
     } catch (e: any) {
         res.status(500).json({ message: 'Error updating module.', error: e.message });
+    }
+};
+
+export const getModuleOutline = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const mod = await Module.findById(id).select('title description order weekNumber estimatedDuration outline');
+        if (!mod) {
+            res.status(404).json({ message: 'Module not found.' });
+            return;
+        }
+        res.json({
+            _id: mod._id,
+            title: mod.title,
+            description: mod.description,
+            order: mod.order,
+            weekNumber: mod.weekNumber || mod.order || 1,
+            estimatedDuration: mod.estimatedDuration,
+            outline: mod.outline || {}
+        });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error fetching module outline.', error: e.message });
+    }
+};
+
+export const updateModuleOutline = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { outline } = req.body;
+        const mod = await Module.findById(id);
+        if (!mod) {
+            res.status(404).json({ message: 'Module not found.' });
+            return;
+        }
+        mod.outline = outline || {};
+        await mod.save();
+        res.json({ message: 'Module outline updated successfully.', outline: mod.outline });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error updating module outline.', error: e.message });
     }
 };
 

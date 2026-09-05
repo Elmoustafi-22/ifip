@@ -15,20 +15,20 @@ import {
 import { getMyApplication, updateMyApplication, uploadCvAuth, uploadAvatarAuth } from "@/lib/api/services";
 import { changePassword, mfaSetup, mfaEnable, mfaDisable } from "@/lib/api/auth";
 
-// Common country list for dial codes & location matching screen-7.png
+// Common country list for dial codes & location matching
 const POPULAR_COUNTRIES = [
-  { code: "NG", dialCode: "+234", flag: "🇳🇬", name: "Nigeria" },
-  { code: "AE", dialCode: "+971", flag: "🇦🇪", name: "United Arab Emirates" },
-  { code: "SA", dialCode: "+966", flag: "🇸🇦", name: "Saudi Arabia" },
-  { code: "GB", dialCode: "+44", flag: "🇬🇧", name: "United Kingdom" },
-  { code: "US", dialCode: "+1", flag: "🇺🇸", name: "United States" },
-  { code: "CA", dialCode: "+1", flag: "🇨🇦", name: "Canada" },
-  { code: "MY", dialCode: "+60", flag: "🇲🇾", name: "Malaysia" },
-  { code: "EG", dialCode: "+20", flag: "🇪🇬", name: "Egypt" },
-  { code: "PK", dialCode: "+92", flag: "🇵🇰", name: "Pakistan" },
-  { code: "QA", dialCode: "+974", flag: "🇶🇦", name: "Qatar" },
-  { code: "KW", dialCode: "+965", flag: "🇰🇼", name: "Kuwait" },
-  { code: "BH", dialCode: "+973", flag: "🇧🇭", name: "Bahrain" }
+  { code: "NG", dialCode: "+234", name: "Nigeria" },
+  { code: "AE", dialCode: "+971", name: "United Arab Emirates" },
+  { code: "SA", dialCode: "+966", name: "Saudi Arabia" },
+  { code: "GB", dialCode: "+44",  name: "United Kingdom" },
+  { code: "US", dialCode: "+1",   name: "United States" },
+  { code: "CA", dialCode: "+1",   name: "Canada" },
+  { code: "MY", dialCode: "+60",  name: "Malaysia" },
+  { code: "EG", dialCode: "+20",  name: "Egypt" },
+  { code: "PK", dialCode: "+92",  name: "Pakistan" },
+  { code: "QA", dialCode: "+974", name: "Qatar" },
+  { code: "KW", dialCode: "+965", name: "Kuwait" },
+  { code: "BH", dialCode: "+973", name: "Bahrain" }
 ];
 
 import { useFormOptions } from "@/lib/hooks/useFormOptions";
@@ -530,7 +530,7 @@ export default function SettingsPage() {
                 >
                   {POPULAR_COUNTRIES.map((c) => (
                     <option key={c.code} value={c.dialCode}>
-                      {c.flag} {c.dialCode}
+                      {c.code} {c.dialCode}
                     </option>
                   ))}
                 </select>
