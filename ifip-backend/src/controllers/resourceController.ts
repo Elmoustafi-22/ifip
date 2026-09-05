@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import { Resource } from '../models/Resource.js';
 import { Application } from '../models/Application.js';
+import { notificationEmitter } from '../services/notificationBroadcast.js';
 
 // ─── GET /api/v1/resources ────────────────────────────────────────────────────
 export const getResources = async (req: Request, res: Response) => {
@@ -73,6 +74,16 @@ export const createResource = async (req: Request, res: Response) => {
         });
 
         await newResource.save();
+
+        // Emit notification event to send in-app and email alerts to paid participants
+        notificationEmitter.emit('resource.published', {
+            resourceTitle: newResource.title,
+            category: newResource.category,
+            fileType: newResource.fileType,
+            description: newResource.description,
+            cohortId: newResource.cohortId
+        });
+
         res.status(201).json({ message: 'Resource published successfully.', resource: newResource });
     } catch (e: any) {
         res.status(500).json({ message: 'Error creating resource.', error: e.message });

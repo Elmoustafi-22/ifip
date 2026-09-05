@@ -1637,3 +1637,83 @@ export const sendNewAssessmentNotificationEmail = async (params: {
 
     await send(to, `Assessment Available: ${assessmentTitle} — IFIP`, html);
 };
+
+/**
+ * Resource Notification Email — sent to paid participants when a new resource is published/uploaded.
+ */
+export const sendNewResourceNotificationEmail = async (params: {
+    to: string;
+    recipientName: string;
+    resourceTitle: string;
+    category?: string;
+    fileType?: string;
+    description?: string;
+}) => {
+    const { to, recipientName, resourceTitle, category, fileType, description } = params;
+    const nameStr = recipientName ? recipientName.trim() : 'Participant';
+    const resourcesUrl = `${env.CLIENT_URL}/dashboard/resources`;
+    const categoryText = category ? category.toUpperCase() : 'GENERAL';
+    const typeText = fileType ? fileType.toUpperCase() : 'DOCUMENT';
+
+    const html = `
+    <div style="${wrapperStyle}">
+        <div style="${cardStyle}">
+            <!-- Header Logo -->
+            <div style="padding: 40px 32px 0 32px; text-align: center;">
+                <img src="${LOGO_HEADER_URL}" style="height: 64px; max-height: 64px; width: auto; display: block; margin: 0 auto;" alt="IFIP Logo">
+                <div style="width: 80px; height: 4px; background-color: #000666; margin: 24px auto 0 auto; border-radius: 2px;"></div>
+            </div>
+            
+            <div style="${contentContainerStyle}">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <span style="display: inline-block; background-color: #F0F9FF; color: #006591; font-size: 12px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; padding: 6px 16px; border-radius: 20px;">
+                        📁 New Resource Uploaded
+                    </span>
+                </div>
+
+                <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 16px 0;">
+                    ${resourceTitle}
+                </h1>
+                
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    Dear <strong>${nameStr}</strong>,
+                </p>
+
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 24px 0;">
+                    A new learning & program resource has been uploaded to your IFIP Resource Center. Log in to view or download the file.
+                </p>
+
+                <!-- Resource Details Card -->
+                <div style="background-color: #FDFBF7; border: 1px solid #E7E2D8; border-left: 4px solid #006591; border-radius: 8px; padding: 20px; margin-bottom: 28px;">
+                    <h3 style="font-size: 16px; font-weight: bold; color: #000666; margin: 0 0 8px 0;">
+                        ${resourceTitle}
+                    </h3>
+                    ${description ? `<p style="font-size: 14px; color: #454652; line-height: 1.6; margin: 0 0 12px 0;">${description}</p>` : ''}
+                    <div style="font-size: 13px; color: #767683;">
+                        <span>🏷 <strong>Category:</strong> ${categoryText}</span> &bull;
+                        <span>📄 <strong>Format:</strong> ${typeText}</span>
+                    </div>
+                </div>
+
+                <!-- CTA Button -->
+                <div style="text-align: center; margin: 32px 0;">
+                    <a href="${resourcesUrl}" style="display: inline-block; background-color: #000666; color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 15px; font-weight: bold; letter-spacing: 0.3px; box-shadow: 0 4px 12px rgba(0,6,102,0.15);">
+                        View Resource Center &rarr;
+                    </a>
+                </div>
+
+                <p style="font-size: 13px; color: #767683; line-height: 1.6; text-align: center; margin: 24px 0 0 0;">
+                    Accessing program resources regularly enhances your overall learning experience.
+                </p>
+            </div>
+
+            <!-- Footer -->
+            <div style="background-color: #FDFBF7; padding: 24px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <h3 style="font-family: Georgia, serif; font-size: 14px; font-weight: bold; color: #000666; margin: 0 0 4px 0;">Islamic Finance Internship Program</h3>
+                <p style="font-size: 11px; color: #767683; margin: 0;">&copy; 2026 Islamic Finance Academy. All rights reserved.</p>
+            </div>
+        </div>
+    </div>`;
+
+    await send(to, `New Resource Uploaded: ${resourceTitle} — IFIP`, html);
+};

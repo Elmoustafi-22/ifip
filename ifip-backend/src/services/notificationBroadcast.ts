@@ -32,6 +32,7 @@ import {
     sendPartnerActivatedWelcomeEmail,
     sendNewModuleNotificationEmail,
     sendNewAssessmentNotificationEmail,
+    sendNewResourceNotificationEmail,
 } from './emailService.js';
 
 export const notificationEmitter = new EventEmitter();
@@ -539,6 +540,51 @@ notificationEmitter.on('assessment.published', async ({ assessmentTitle, moduleI
         }
     } catch (err) {
         console.error('[Event:assessment.published] Error:', err);
+    }
+});
+
+notificationEmitter.on('resource.published', async ({ resourceTitle, category, fileType, description, cohortId }) => {
+    try {
+        const filter: any = { status: { $in: ['active', 'payment_confirmed', 'placement_ready'] } };
+        if (cohortId) {
+            filter.cohortId = new Types.ObjectId(cohortId as any);
+        }
+        const activeApps = await Application.find(filter).populate<{ userId: { _id: Types.ObjectId; email: string; fullName?: string } }>('userId', 'email fullName');
+        
+        const notifications = activeApps
+            .filter(app => app.userId)
+            .map(app => ({
+                userId: (app.userId as any)._id || app.userId,
+                title: 'New Program Resource Uploaded',
+                message: `A new learning resource "${resourceTitle}" has been published to your Resource Center.`,
+                type: 'info' as const,
+                link: '/dashboard/resources'
+            }));
+
+        if (notifications.length > 0) {
+            await Notification.insertMany(notifications);
+        }
+
+        // Send email notifications to all paid participants in background
+        for (const app of activeApps) {
+            const user = app.userId as any;
+            const email = user?.email;
+            if (email) {
+                const recipientName = app.fullName || user.fullName || 'Participant';
+                sendNewResourceNotificationEmail({
+                    to: email,
+                    recipientName,
+                    resourceTitle,
+                    category,
+                    fileType,
+                    description,
+                }).catch(err => {
+                    console.error('[Event:resource.published] Email send error for', email, err?.message || err);
+                });
+            }
+        }
+    } catch (err) {
+        console.error('[Event:resource.published] Error:', err);
     }
 });
 
