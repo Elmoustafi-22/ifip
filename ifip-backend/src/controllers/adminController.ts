@@ -437,15 +437,26 @@ export const deleteCohort = async (req: Request, res: Response) => {
 };
 
 // --- Module CRUD Operations ---
+export const getAdminModules = async (req: Request, res: Response) => {
+    try {
+        const modules = await Module.find().populate('createdBy', 'fullName title').sort({ order: 1 });
+        res.json(modules);
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error retrieving modules for admin.', error: e.message });
+    }
+};
+
 export const createModule = async (req: Request, res: Response) => {
     try {
-        const { title, description, order, weekNumber, contentType, contentUrl, body, outline, estimatedDuration, cohortId } = req.body;
+        const { title, description, order, weekNumber, contentType, contentUrl, body, outline, estimatedDuration, cohortId, status } = req.body;
         
         if (!title || !description || order === undefined || !contentType) {
             res.status(400).json({ message: 'title, description, order, and contentType are required.' });
             return;
         }
         
+        const initialStatus = status && ['draft', 'published', 'archived'].includes(status) ? status : 'draft';
+
         const newModule = new Module({
             title,
             description,
@@ -457,18 +468,23 @@ export const createModule = async (req: Request, res: Response) => {
             outline: outline || {},
             estimatedDuration: estimatedDuration || 0,
             cohortId: cohortId ? new Types.ObjectId(cohortId) : undefined,
+            status: initialStatus,
             createdBy: req.user ? new Types.ObjectId(req.user.id) : undefined
         });
         
         await newModule.save();
-        notificationEmitter.emit('module.published', {
-            moduleId: newModule._id,
-            moduleTitle: newModule.title,
-            moduleOrder: newModule.order,
-            estimatedDuration: newModule.estimatedDuration,
-            description: newModule.description,
-            cohortId: newModule.cohortId,
-        });
+
+        if (initialStatus === 'published') {
+            notificationEmitter.emit('module.published', {
+                moduleId: newModule._id,
+                moduleTitle: newModule.title,
+                moduleOrder: newModule.order,
+                estimatedDuration: newModule.estimatedDuration,
+                description: newModule.description,
+                cohortId: newModule.cohortId,
+            });
+        }
+
         res.status(201).json({ message: 'LMS Module created successfully.', module: newModule });
     } catch (e: any) {
         res.status(500).json({ message: 'Error creating module.', error: e.message });
@@ -478,7 +494,7 @@ export const createModule = async (req: Request, res: Response) => {
 export const updateModule = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { title, description, order, weekNumber, contentType, contentUrl, body, outline, estimatedDuration, cohortId } = req.body;
+        const { title, description, order, weekNumber, contentType, contentUrl, body, outline, estimatedDuration, cohortId, status } = req.body;
         
         const mod = await Module.findById(id);
         if (!mod) {
@@ -498,11 +514,64 @@ export const updateModule = async (req: Request, res: Response) => {
         if (cohortId !== undefined) {
             mod.cohortId = cohortId ? new Types.ObjectId(cohortId) : undefined;
         }
+        if (status !== undefined && ['draft', 'published', 'archived'].includes(status)) {
+            mod.status = status;
+        }
         
         await mod.save();
         res.json({ message: 'LMS Module updated successfully.', module: mod });
     } catch (e: any) {
         res.status(500).json({ message: 'Error updating module.', error: e.message });
+    }
+};
+
+export const publishModule = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const mod = await Module.findById(id);
+        if (!mod) {
+            res.status(404).json({ message: 'Module not found.' });
+            return;
+        }
+
+        const wasDraft = mod.status !== 'published';
+        mod.status = 'published';
+        await mod.save();
+
+        if (wasDraft) {
+            notificationEmitter.emit('module.published', {
+                moduleId: mod._id,
+                moduleTitle: mod.title,
+                moduleOrder: mod.order,
+                estimatedDuration: mod.estimatedDuration,
+                description: mod.description,
+                cohortId: mod.cohortId,
+            });
+        }
+
+        logAction(req, 'MODULE_PUBLISH', `Published module "${mod.title}" (Order: ${mod.order})`);
+        res.json({ message: 'Module published successfully.', module: mod });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error publishing module.', error: e.message });
+    }
+};
+
+export const unpublishModule = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const mod = await Module.findById(id);
+        if (!mod) {
+            res.status(404).json({ message: 'Module not found.' });
+            return;
+        }
+
+        mod.status = 'draft';
+        await mod.save();
+
+        logAction(req, 'MODULE_UNPUBLISH', `Unpublished module "${mod.title}" back to draft.`);
+        res.json({ message: 'Module updated back to draft.', module: mod });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error unpublishing module.', error: e.message });
     }
 };
 

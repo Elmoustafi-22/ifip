@@ -13,7 +13,7 @@ import { evaluateOpenAnswerWithAI, generateModelSolutionFromModule } from '../se
 // Helper to verify user module access and initialize progress if unlocked
 const ensureUserModuleAccess = async (userId: string, moduleId: string) => {
     const mod = await Module.findById(moduleId);
-    if (!mod) return null;
+    if (!mod || mod.status === 'draft') return null;
 
     let progress = await Progress.findOne({
         userId: new Types.ObjectId(userId),
@@ -25,8 +25,8 @@ const ensureUserModuleAccess = async (userId: string, moduleId: string) => {
         return progress;
     }
 
-    // Check if previous modules are all completed
-    const previousModules = await Module.find({ order: { $lt: mod.order } });
+    // Check if previous published modules are all completed
+    const previousModules = await Module.find({ order: { $lt: mod.order }, status: { $ne: 'draft' } });
     if (previousModules.length > 0) {
         const prevIds = previousModules.map(m => m._id);
         const completedCount = await Progress.countDocuments({

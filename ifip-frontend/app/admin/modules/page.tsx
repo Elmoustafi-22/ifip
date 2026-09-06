@@ -19,12 +19,19 @@ import {
   HiOutlineClipboardDocumentList,
   HiOutlineBookmark,
   HiOutlineSparkles,
-  HiOutlinePlusCircle
+  HiOutlinePlusCircle,
+  HiOutlineEye,
+  HiOutlineCheckCircle,
+  HiOutlineXCircle,
+  HiOutlineArrowUpTray,
+  HiOutlineArrowDownTray
 } from "react-icons/hi2";
 import { 
-  getLMSModules, 
+  getAdminLMSModules, 
   createLMSModule, 
   updateLMSModule, 
+  publishLMSModule,
+  unpublishLMSModule,
   deleteLMSModule, 
   LMSModule,
   ModuleOutline,
@@ -37,12 +44,17 @@ export default function AdminModulesPage() {
   const { selectedCohortId, cohorts } = useContext(AdminCohortContext);
   const [modules, setModules] = useState<LMSModule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "published" | "archived">("all");
 
   // Modal form states
   const [modalOpen, setModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"outline" | "content">("outline");
   const [editingModule, setEditingModule] = useState<LMSModule | null>(null);
   
+  // Review Drawer state
+  const [reviewModule, setReviewModule] = useState<LMSModule | null>(null);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+
   // Bulk Paste Helper State
   interface BulkPasteConfig {
     title: string;
@@ -63,6 +75,7 @@ export default function AdminModulesPage() {
   const [contentType, setContentType] = useState("text");
   const [contentUrl, setContentUrl] = useState("");
   const [body, setBody] = useState("");
+  const [moduleStatus, setModuleStatus] = useState<"draft" | "published" | "archived">("draft");
   const [moduleCohortId, setModuleCohortId] = useState("");
 
   // Outline Subdocument
@@ -171,7 +184,7 @@ export default function AdminModulesPage() {
 
   const fetchModules = async () => {
     try {
-      const data = await getLMSModules();
+      const data = await getAdminLMSModules();
       const sorted = data.sort((a, b) => a.order - b.order);
       setModules(sorted);
     } catch (err) {
@@ -185,6 +198,46 @@ export default function AdminModulesPage() {
     fetchModules();
   }, []);
 
+  const filteredModules = modules.filter((mod) => {
+    const currentStatus = (mod.moduleStatus || mod.status || "published") as "draft" | "published" | "archived";
+    if (statusFilter === "all") return true;
+    return currentStatus === statusFilter;
+  });
+
+  const handlePublish = async (id: string) => {
+    setPublishingId(id);
+    try {
+      await publishLMSModule(id);
+      alert("Module published successfully! Participant email & in-app notifications dispatched.");
+      if (reviewModule && reviewModule._id === id) {
+        setReviewModule(prev => prev ? { ...prev, status: 'published', moduleStatus: 'published' } : null);
+      }
+      fetchModules();
+    } catch (err: any) {
+      console.error("Failed to publish module:", err);
+      alert("Failed to publish module.");
+    } finally {
+      setPublishingId(null);
+    }
+  };
+
+  const handleUnpublish = async (id: string) => {
+    setPublishingId(id);
+    try {
+      await unpublishLMSModule(id);
+      alert("Module reverted back to draft mode.");
+      if (reviewModule && reviewModule._id === id) {
+        setReviewModule(prev => prev ? { ...prev, status: 'draft', moduleStatus: 'draft' } : null);
+      }
+      fetchModules();
+    } catch (err: any) {
+      console.error("Failed to unpublish module:", err);
+      alert("Failed to unpublish module.");
+    } finally {
+      setPublishingId(null);
+    }
+  };
+
   const handleOpenCreate = () => {
     setEditingModule(null);
     setActiveTab("outline");
@@ -196,6 +249,7 @@ export default function AdminModulesPage() {
     setContentType("text");
     setContentUrl("");
     setBody("");
+    setModuleStatus("draft");
     setModuleCohortId((selectedCohortId === "unassigned") ? "" : selectedCohortId);
     
     // Outline defaults
@@ -220,6 +274,7 @@ export default function AdminModulesPage() {
     setContentType(mod.contentType);
     setContentUrl(mod.contentUrl || "");
     setBody(mod.body || "");
+    setModuleStatus((mod.moduleStatus || mod.status || "draft") as any);
     setModuleCohortId((mod as any).cohortId || "");
 
     setLearningObjectives(out.learningObjectives && out.learningObjectives.length > 0 ? out.learningObjectives : [""]);
@@ -347,7 +402,8 @@ export default function AdminModulesPage() {
       body: body || undefined,
       outline: outlinePayload,
       weekNumber: Number(weekNumber),
-      cohortId: moduleCohortId || undefined
+      cohortId: moduleCohortId || undefined,
+      status: moduleStatus
     };
 
     try {
@@ -416,6 +472,50 @@ export default function AdminModulesPage() {
         </div>
       </div>
 
+      {/* Status Filter Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+        <div className="flex items-center gap-1.5 bg-slate-100/80 p-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">
+          <button
+            type="button"
+            onClick={() => setStatusFilter("all")}
+            className={`px-3.5 py-1.5 rounded-lg transition-all ${
+              statusFilter === "all" ? "bg-white text-[#000666] shadow-sm font-black" : "hover:text-slate-900"
+            }`}
+          >
+            All ({modules.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter("draft")}
+            className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+              statusFilter === "draft" ? "bg-amber-500 text-white shadow-sm font-black" : "hover:text-slate-900"
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-amber-200"></span>
+            Drafts ({modules.filter(m => (m.moduleStatus || m.status || 'published') === 'draft').length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter("published")}
+            className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+              statusFilter === "published" ? "bg-emerald-600 text-white shadow-sm font-black" : "hover:text-slate-900"
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-200"></span>
+            Published ({modules.filter(m => (m.moduleStatus || m.status || 'published') === 'published').length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter("archived")}
+            className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+              statusFilter === "archived" ? "bg-slate-700 text-white shadow-sm font-black" : "hover:text-slate-900"
+            }`}
+          >
+            Archived ({modules.filter(m => (m.moduleStatus || m.status || 'published') === 'archived').length})
+          </button>
+        </div>
+      </div>
+
       {/* Modules Table List */}
       <div className="bg-white border border-[#E7E2D8] rounded-2xl overflow-hidden shadow-sm">
         {/* Desktop View Table */}
@@ -424,78 +524,139 @@ export default function AdminModulesPage() {
             <thead className="bg-slate-50 text-[10px] font-bold uppercase text-slate-400 tracking-wider">
               <tr>
                 <th className="px-6 py-3.5">Order</th>
-                <th className="px-6 py-3.5">Lesson & Outline Status</th>
+                <th className="px-6 py-3.5">Lesson & Outline</th>
+                <th className="px-6 py-3.5">Publish Status</th>
                 <th className="px-6 py-3.5">Schedule / Week</th>
                 <th className="px-6 py-3.5">Assigned Cohort</th>
                 <th className="px-6 py-3.5 text-right">Review Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {modules.length === 0 ? (
+              {filteredModules.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400 text-xs">
-                    No coursework modules configured. Click "Create Module" to begin.
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400 text-xs">
+                    No coursework modules match the selected filter.
                   </td>
                 </tr>
               ) : (
-                modules.map((mod) => (
-                  <tr key={mod._id} className="hover:bg-slate-50/50">
-                    <td className="px-6 py-4 font-mono font-bold text-[#000666]">
-                      #{mod.order}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-[#000666]">{mod.title}</div>
-                      <div className="flex items-center gap-1.5 mt-0.5 text-slate-400 text-xs">
-                        <span className="bg-slate-100 text-slate-600 text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded">
-                          {mod.contentType}
-                        </span>
-                        <span>{mod.description}</span>
-                      </div>
-                      {mod.outline?.topics && mod.outline.topics.length > 0 && (
-                        <div className="mt-1 flex items-center gap-2">
-                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 bg-emerald-50 font-semibold px-2 py-0.5 rounded-full border border-emerald-200">
-                            ✓ {mod.outline.topics.length} Syllabus Topics
+                filteredModules.map((mod) => {
+                  const currentStatus = mod.moduleStatus || mod.status || 'published';
+                  const isDraft = currentStatus === 'draft';
+                  const isPublished = currentStatus === 'published';
+                  const isArchived = currentStatus === 'archived';
+
+                  return (
+                    <tr key={mod._id} className="hover:bg-slate-50/50">
+                      <td className="px-6 py-4 font-mono font-bold text-[#000666]">
+                        #{mod.order}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-[#000666]">{mod.title}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5 text-slate-400 text-xs">
+                          <span className="bg-slate-100 text-slate-600 text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded">
+                            {mod.contentType}
                           </span>
-                          {mod.outline.learningObjectives && mod.outline.learningObjectives.length > 0 && (
-                            <span className="text-[10px] text-slate-500">
-                              {mod.outline.learningObjectives.length} Objectives
-                            </span>
-                          )}
+                          <span className="line-clamp-1">{mod.description}</span>
                         </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200/70">
-                        <HiOutlineCalendar className="w-3.5 h-3.5 text-amber-700" /> Week {mod.weekNumber || mod.order}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {(mod as any).cohortId ? (
-                        <span className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded">
-                          {cohorts.find(c => c._id === (mod as any).cohortId)?.name || "Cohort Linked"}
+                        {mod.outline?.topics && mod.outline.topics.length > 0 && (
+                          <div className="mt-1 flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 bg-emerald-50 font-semibold px-2 py-0.5 rounded-full border border-emerald-200">
+                              ✓ {mod.outline.topics.length} Syllabus Topics
+                            </span>
+                            {mod.outline.learningObjectives && mod.outline.learningObjectives.length > 0 && (
+                              <span className="text-[10px] text-slate-500">
+                                {mod.outline.learningObjectives.length} Objectives
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {isDraft && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300">
+                            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                            Draft (Admin Review)
+                          </span>
+                        )}
+                        {isPublished && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-900 border border-emerald-300">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            Published
+                          </span>
+                        )}
+                        {isArchived && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-slate-100 text-slate-700 border border-slate-300">
+                            <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                            Archived
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200/70">
+                          <HiOutlineCalendar className="w-3.5 h-3.5 text-amber-700" /> Week {mod.weekNumber || mod.order}
                         </span>
-                      ) : (
-                        <span className="bg-slate-50 border border-slate-200 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded">
-                          Global (All Cohorts)
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right space-x-3">
-                      <button
-                        onClick={() => handleOpenEdit(mod)}
-                        className="text-[#00B0FF] hover:text-[#00B0FF]/80 inline-flex items-center gap-1 font-bold text-xs"
-                      >
-                        <HiOutlinePencilSquare className="w-4 h-4" /> Edit Outline & Content
-                      </button>
-                      <button
-                        onClick={() => handleDelete(mod._id)}
-                        className="text-rose-500 hover:text-rose-600 inline-flex items-center gap-1 font-bold text-xs"
-                      >
-                        <HiOutlineTrash className="w-4 h-4" /> Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-6 py-4">
+                        {(mod as any).cohortId ? (
+                          <span className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded">
+                            {cohorts.find(c => c._id === (mod as any).cohortId)?.name || "Cohort Linked"}
+                          </span>
+                        ) : (
+                          <span className="bg-slate-50 border border-slate-200 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded">
+                            Global (All Cohorts)
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col items-end gap-2">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setReviewModule(mod)}
+                              className="text-[#000666] hover:text-[#000666]/80 inline-flex items-center gap-1 font-bold text-xs bg-slate-100 hover:bg-slate-200/70 px-2.5 py-1.5 rounded-lg border border-slate-200 shadow-sm"
+                              title="Review module contents"
+                            >
+                              <HiOutlineEye className="w-3.5 h-3.5" /> Review
+                            </button>
+                            {isDraft && (
+                              <button
+                                onClick={() => handlePublish(mod._id)}
+                                disabled={publishingId === mod._id}
+                                className="text-white bg-emerald-600 hover:bg-emerald-700 inline-flex items-center gap-1 font-bold text-xs px-3 py-1.5 rounded-lg shadow-sm transition-all disabled:opacity-50"
+                              >
+                                <HiOutlineArrowUpTray className="w-3.5 h-3.5" />
+                                {publishingId === mod._id ? "Publishing..." : "Publish"}
+                              </button>
+                            )}
+                            {isPublished && (
+                              <button
+                                onClick={() => handleUnpublish(mod._id)}
+                                disabled={publishingId === mod._id}
+                                className="text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 inline-flex items-center gap-1 font-bold text-xs px-2.5 py-1.5 rounded-lg transition-all disabled:opacity-50"
+                              >
+                                <HiOutlineArrowDownTray className="w-3.5 h-3.5" />
+                                Unpublish
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleOpenEdit(mod)}
+                              className="text-[#00B0FF] hover:text-[#00B0FF]/80 inline-flex items-center gap-1 font-bold text-xs bg-sky-50 hover:bg-sky-100 px-2.5 py-1.5 rounded-lg border border-sky-200"
+                            >
+                              <HiOutlinePencilSquare className="w-4 h-4" /> Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(mod._id)}
+                              className="text-rose-500 hover:text-rose-600 inline-flex items-center gap-1 font-bold text-xs bg-rose-50 hover:bg-rose-100 px-2.5 py-1.5 rounded-lg border border-rose-200"
+                            >
+                              <HiOutlineTrash className="w-4 h-4" /> Delete
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -503,59 +664,105 @@ export default function AdminModulesPage() {
 
         {/* Mobile View Card List */}
         <div className="block md:hidden divide-y divide-slate-100 bg-white">
-          {modules.length === 0 ? (
+          {filteredModules.length === 0 ? (
             <p className="px-6 py-12 text-center text-slate-400 text-xs italic">
-              No coursework modules configured. Click "Create Module" to begin.
+              No coursework modules match the selected filter.
             </p>
           ) : (
-            modules.map((mod) => (
-              <div key={mod._id} className="p-4 space-y-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="font-mono text-xs font-bold text-[#000666] bg-[#000666]/5 px-2 py-0.5 rounded mr-2">
-                      #{mod.order}
-                    </span>
-                    <span className="font-bold text-[#000666] text-sm">{mod.title}</span>
-                  </div>
-                  <span className="bg-slate-100 text-slate-600 text-[9px] uppercase font-black tracking-wider px-2 py-0.5 rounded shrink-0">
-                    {mod.contentType}
-                  </span>
-                </div>
-                {mod.description && (
-                  <p className="text-xs text-slate-500 line-clamp-2">{mod.description}</p>
-                )}
-                <div className="flex flex-wrap items-center justify-between pt-2 border-t border-slate-50 text-xs">
-                  <div className="flex items-center gap-3">
-                    <span className="inline-flex items-center gap-1 text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60 text-[11px]">
-                      <HiOutlineCalendar className="w-3 h-3 text-amber-700" /> Week {mod.weekNumber || mod.order}
-                    </span>
-                    {(mod as any).cohortId ? (
-                      <span className="bg-indigo-50 text-indigo-700 text-[9px] font-bold px-2 py-0.5 rounded">
-                        {cohorts.find(c => c._id === (mod as any).cohortId)?.name || "Cohort Linked"}
+            filteredModules.map((mod) => {
+              const currentStatus = mod.moduleStatus || mod.status || 'published';
+              const isDraft = currentStatus === 'draft';
+              const isPublished = currentStatus === 'published';
+
+              return (
+                <div key={mod._id} className="p-4 space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="font-mono text-xs font-bold text-[#000666] bg-[#000666]/5 px-2 py-0.5 rounded mr-2">
+                        #{mod.order}
                       </span>
-                    ) : (
-                      <span className="bg-slate-50 text-slate-400 text-[9px] font-bold px-2 py-0.5 rounded">
-                        Global
+                      <span className="font-bold text-[#000666] text-sm">{mod.title}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {isDraft && (
+                        <span className="bg-amber-100 text-amber-800 text-[9px] uppercase font-black tracking-wider px-2 py-0.5 rounded shrink-0">
+                          Draft
+                        </span>
+                      )}
+                      {isPublished && (
+                        <span className="bg-emerald-100 text-emerald-800 text-[9px] uppercase font-black tracking-wider px-2 py-0.5 rounded shrink-0">
+                          Published
+                        </span>
+                      )}
+                      <span className="bg-slate-100 text-slate-600 text-[9px] uppercase font-black tracking-wider px-2 py-0.5 rounded shrink-0">
+                        {mod.contentType}
                       </span>
-                    )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <button
-                      onClick={() => handleOpenEdit(mod)}
-                      className="text-[#00B0FF] hover:text-[#00B0FF]/80 inline-flex items-center gap-1 font-bold text-xs"
-                    >
-                      <HiOutlinePencilSquare className="w-3.5 h-3.5" /> Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(mod._id)}
-                      className="text-rose-500 hover:text-rose-600 inline-flex items-center gap-1 font-bold text-xs"
-                    >
-                      <HiOutlineTrash className="w-3.5 h-3.5" /> Delete
-                    </button>
+                  {mod.description && (
+                    <p className="text-xs text-slate-500 line-clamp-2">{mod.description}</p>
+                  )}
+                  <div className="flex flex-col gap-2 pt-2 border-t border-slate-50 text-xs">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1 text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60 text-[11px]">
+                        <HiOutlineCalendar className="w-3 h-3 text-amber-700" /> Week {mod.weekNumber || mod.order}
+                      </span>
+                      {(mod as any).cohortId ? (
+                        <span className="bg-indigo-50 text-indigo-700 text-[9px] font-bold px-2 py-0.5 rounded">
+                          {cohorts.find(c => c._id === (mod as any).cohortId)?.name || "Cohort Linked"}
+                        </span>
+                      ) : (
+                        <span className="bg-slate-50 text-slate-400 text-[9px] font-bold px-2 py-0.5 rounded">
+                          Global
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => setReviewModule(mod)}
+                        className="text-[#000666] font-bold text-xs bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-200"
+                      >
+                        Review
+                      </button>
+                      {isDraft && (
+                        <button
+                          onClick={() => handlePublish(mod._id)}
+                          disabled={publishingId === mod._id}
+                          className="bg-emerald-600 text-white font-bold text-xs px-2.5 py-1.5 rounded-lg"
+                        >
+                          {publishingId === mod._id ? "Publishing..." : "Publish"}
+                        </button>
+                      )}
+                      {!isDraft && (
+                        <button
+                          onClick={() => handleUnpublish(mod._id)}
+                          disabled={publishingId === mod._id}
+                          className="bg-amber-50 text-amber-800 font-bold text-xs px-2.5 py-1.5 rounded-lg border border-amber-200"
+                        >
+                          Unpublish
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleOpenEdit(mod)}
+                        className="text-[#00B0FF] hover:text-[#00B0FF]/80 inline-flex items-center gap-1 font-bold text-xs bg-sky-50 px-2 py-1 rounded-lg border border-sky-200"
+                      >
+                        <HiOutlinePencilSquare className="w-3.5 h-3.5" /> Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(mod._id)}
+                        className="text-rose-500 hover:text-rose-600 inline-flex items-center gap-1 font-bold text-xs bg-rose-50 px-2 py-1 rounded-lg border border-rose-200"
+                      >
+                        <HiOutlineTrash className="w-3.5 h-3.5" /> Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
@@ -638,7 +845,7 @@ export default function AdminModulesPage() {
                     required
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
                       Display Sequence Order *
@@ -665,6 +872,20 @@ export default function AdminModulesPage() {
                       <option value={2}>Week 2 — Core Contracts</option>
                       <option value={3}>Week 3 — Capital Markets</option>
                       <option value={4}>Week 4 — Governance & Capstone</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
+                      Module Status
+                    </label>
+                    <select 
+                      value={moduleStatus}
+                      onChange={(e) => setModuleStatus(e.target.value as any)}
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 text-xs bg-white font-bold text-[#000666]"
+                    >
+                      <option value="draft">Draft (Hidden from participants)</option>
+                      <option value="published">Published (Visible to participants)</option>
+                      <option value="archived">Archived (Hidden / Read-only)</option>
                     </select>
                   </div>
                 </div>
@@ -1296,6 +1517,160 @@ export default function AdminModulesPage() {
                     </span>
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Module Review Modal */}
+      {reviewModule && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white border border-[#E7E2D8] w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            {/* Review Header */}
+            <div className="bg-[#000666] text-white py-4 px-6 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <HiOutlineEye className="w-6 h-6 text-[#FF9800]" />
+                <div>
+                  <h3 className="font-bold text-base flex items-center gap-2">
+                    Review Module: #{reviewModule.order} — {reviewModule.title}
+                  </h3>
+                  <p className="text-xs text-white/70">Inspect module outline & body before publishing to participants</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setReviewModule(null)}
+                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10"
+              >
+                <HiOutlineXMark className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Review Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs sm:text-sm">
+              {/* Status and Meta Bar */}
+              <div className="flex flex-wrap items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-200 gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-500 text-xs">Publish Status:</span>
+                  {(reviewModule.moduleStatus || reviewModule.status || 'published') === 'draft' ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-black bg-amber-100 text-amber-900 border border-amber-300">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                      Draft (Hidden from Participants)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-300">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                      Published (Live for Participants)
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
+                  <span>Week {reviewModule.weekNumber || reviewModule.order}</span>
+                  <span>•</span>
+                  <span className="uppercase font-bold text-slate-700">{reviewModule.contentType}</span>
+                </div>
+              </div>
+
+              {/* Purpose & Overview */}
+              <div>
+                <h4 className="font-bold text-[#000666] text-xs uppercase tracking-wider mb-1">Module Overview / Purpose</h4>
+                <p className="text-slate-600 leading-relaxed bg-slate-50/50 p-3.5 rounded-xl border border-slate-100">{reviewModule.description}</p>
+              </div>
+
+              {/* Learning Objectives */}
+              {reviewModule.outline?.learningObjectives && reviewModule.outline.learningObjectives.length > 0 && (
+                <div>
+                  <h4 className="font-bold text-[#000666] text-xs uppercase tracking-wider mb-2">Learning Objectives</h4>
+                  <ul className="space-y-1.5 pl-2">
+                    {reviewModule.outline.learningObjectives.map((obj, i) => (
+                      <li key={i} className="flex items-start gap-2 text-slate-700">
+                        <span className="text-emerald-600 font-bold">•</span>
+                        <span>{obj}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Topics / Syllabus */}
+              {reviewModule.outline?.topics && reviewModule.outline.topics.length > 0 && (
+                <div>
+                  <h4 className="font-bold text-[#000666] text-xs uppercase tracking-wider mb-2">Syllabus Breakdown ({reviewModule.outline.topics.length} Topics)</h4>
+                  <div className="space-y-3">
+                    {reviewModule.outline.topics.map((topic, i) => (
+                      <div key={i} className="border border-slate-200 rounded-xl p-3.5 bg-white space-y-2">
+                        <div className="font-bold text-[#000666]">Topic {i + 1}: {topic.title}</div>
+                        {topic.subtopics && topic.subtopics.length > 0 && (
+                          <div className="text-xs text-slate-500 pl-3 border-l-2 border-slate-200">
+                            <strong>Subtopics:</strong> {topic.subtopics.join(', ')}
+                          </div>
+                        )}
+                        {topic.learningActivity && (
+                          <div className="text-xs text-amber-800 bg-amber-50 p-2 rounded-lg font-medium">
+                            <strong>Activity:</strong> {topic.learningActivity}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Lesson Body Content Preview */}
+              {reviewModule.body && (
+                <div>
+                  <h4 className="font-bold text-[#000666] text-xs uppercase tracking-wider mb-2">Lesson Material Body Content</h4>
+                  <div 
+                    className="prose prose-sm max-w-none bg-slate-50 p-4 rounded-xl border border-slate-200 max-h-60 overflow-y-auto"
+                    dangerouslySetInnerHTML={{ __html: reviewModule.body }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Review Footer */}
+            <div className="bg-slate-50 p-4 border-t border-slate-200 flex items-center justify-between shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  const modToEdit = reviewModule;
+                  setReviewModule(null);
+                  handleOpenEdit(modToEdit);
+                }}
+                className="px-4 py-2.5 bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs rounded-xl shadow-2xs transition-all flex items-center gap-1.5"
+              >
+                <HiOutlinePencilSquare className="w-4 h-4 text-sky-600" />
+                Edit Module Details
+              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setReviewModule(null)}
+                  className="px-4 py-2.5 text-slate-600 font-bold hover:bg-slate-200/60 rounded-xl text-xs transition-colors"
+                >
+                  Close
+                </button>
+                {(reviewModule.moduleStatus || reviewModule.status || 'published') === 'draft' ? (
+                  <button
+                    type="button"
+                    onClick={() => handlePublish(reviewModule._id)}
+                    disabled={publishingId === reviewModule._id}
+                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <HiOutlineArrowUpTray className="w-4 h-4" />
+                    {publishingId === reviewModule._id ? "Publishing..." : "Approve & Publish Module"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleUnpublish(reviewModule._id)}
+                    disabled={publishingId === reviewModule._id}
+                    className="px-5 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs rounded-xl transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <HiOutlineArrowDownTray className="w-4 h-4 text-amber-700" />
+                    {publishingId === reviewModule._id ? "Updating..." : "Revert to Draft"}
+                  </button>
+                )}
               </div>
             </div>
           </div>

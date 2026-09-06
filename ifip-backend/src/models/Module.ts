@@ -26,6 +26,7 @@ export interface IModule extends Document {
     estimatedDuration?: number; // optional (duration belongs to assessment)
     cohortId?: Types.ObjectId;
     assessmentId?: Types.ObjectId;
+    status: 'draft' | 'published' | 'archived';
     createdBy?: Types.ObjectId;
     createdAt: Date;
 }
@@ -59,9 +60,16 @@ const moduleSchema = new Schema<IModule>({
     estimatedDuration: { type: Number, default: 0 },
     cohortId: { type: Schema.Types.ObjectId, ref: 'Cohort' },
     assessmentId: { type: Schema.Types.ObjectId, ref: 'Assessment' },
+    status: {
+        type: String,
+        enum: ['draft', 'published', 'archived'],
+        default: 'draft'
+    },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
     createdAt: { type: Date, default: Date.now }
 });
+
+moduleSchema.index({ status: 1 });
 
 export const Module = model<IModule>('Module', moduleSchema);
 

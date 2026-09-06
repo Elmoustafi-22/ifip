@@ -35,30 +35,83 @@ app.set('trust proxy', 1);
 
 app.use(helmet());
 
-const allowedOrigins = [
-    env.CLIENT_URL,
-    'https://ifip.nextif.org',
-    'https://www.nextif.org',
-    'https://nextif.org',
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:3002',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:3001',
-    'http://127.0.0.1:3002',
-];
+const normalizeOrigin = (value: string) => {
+    const trimmed = value.trim().replace(/\/+$/, '');
+    if (!trimmed) return '';
+
+    try {
+        return new URL(trimmed).origin;
+    } catch {
+        return trimmed;
+    }
+};
+
+const allowedOrigins = Array.from(
+    new Set(
+        [
+            env.CLIENT_URL,
+            'https://ifip.nextif.org',
+            'https://www.nextif.org',
+            'https://nextif.org',
+            'http://localhost:3000',
+            'http://localhost:3001',
+            'http://localhost:3002',
+            'http://127.0.0.1:3000',
+            'http://127.0.0.1:3001',
+            'http://127.0.0.1:3002',
+            ...(env.CORS_ALLOWED_ORIGINS ? env.CORS_ALLOWED_ORIGINS.split(',') : []),
+        ]
+            .map(normalizeOrigin)
+            .filter(Boolean)
+    )
+);
+
+const isPrivateLocalOrigin = (hostname: string) => {
+    const lowerHost = hostname.toLowerCase();
+
+    if (['localhost', '127.0.0.1', '::1', '0.0.0.0'].includes(lowerHost)) return true;
+    if (lowerHost.endsWith('.localhost')) return true;
+    if (lowerHost.endsWith('.local')) return true;
+    if (lowerHost.endsWith('.internal')) return true;
+
+    const ipv4Parts = lowerHost.split('.');
+    if (ipv4Parts.length !== 4) return false;
+
+    const octets = ipv4Parts.map((part) => Number.parseInt(part, 10));
+    if (octets.some((octet) => Number.isNaN(octet))) return false;
+
+    const [a, b] = octets;
+    const isPrivateIPv4 =
+        (a === 10) ||
+        (a === 192 && b === 168) ||
+        (a === 172 && b >= 16 && b <= 31) ||
+        (a === 169 && b === 254);
+
+    return isPrivateIPv4;
+};
 
 app.use(
     cors({
         origin: (origin, callback) => {
             if (!origin) return callback(null, true);
-            if (
-                allowedOrigins.includes(origin) ||
-                origin.startsWith('http://localhost:') ||
-                origin.startsWith('http://127.0.0.1:')
-            ) {
+
+            const normalizedOrigin = normalizeOrigin(origin);
+            if (allowedOrigins.includes(normalizedOrigin)) {
                 return callback(null, true);
             }
+
+            try {
+                const { hostname, protocol } = new URL(origin);
+                if (protocol === 'http:' || protocol === 'https:') {
+                    const allowedLocalOrigin = isPrivateLocalOrigin(hostname);
+                    if (allowedLocalOrigin) {
+                        return callback(null, true);
+                    }
+                }
+            } catch {
+                // ignore invalid origin URLs and reject below
+            }
+
             return callback(new Error('Not allowed by CORS'));
         },
         credentials: true,

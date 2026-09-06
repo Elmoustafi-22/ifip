@@ -310,7 +310,8 @@ export interface LMSModule {
   body?: string;
   outline?: ModuleOutline;
   estimatedDuration?: number;
-  status: 'locked' | 'not_started' | 'in_progress' | 'completed';
+  status: 'draft' | 'published' | 'archived' | 'locked' | 'not_started' | 'in_progress' | 'completed' | string;
+  moduleStatus?: 'draft' | 'published' | 'archived';
   isLocked?: boolean;
   assessmentId?: string;
   assessmentStatus?: string;
@@ -874,13 +875,28 @@ export const createPartner = async (payload: { name: string; logoUrl?: string; d
   return data;
 };
 
-export const createLMSModule = async (payload: { title: string; description: string; order: number; weekNumber?: number; contentType: string; contentUrl?: string; body?: string; outline?: ModuleOutline; estimatedDuration?: number; cohortId?: string }): Promise<any> => {
+export const getAdminLMSModules = async (): Promise<LMSModule[]> => {
+  const { data } = await authClient.get<LMSModule[]>("/admin/modules");
+  return data;
+};
+
+export const createLMSModule = async (payload: { title: string; description: string; order: number; weekNumber?: number; contentType: string; contentUrl?: string; body?: string; outline?: ModuleOutline; estimatedDuration?: number; cohortId?: string; status?: string }): Promise<any> => {
   const { data } = await authClient.post("/admin/modules", payload);
   return data;
 };
 
-export const updateLMSModule = async (id: string, payload: { title?: string; description?: string; order?: number; weekNumber?: number; contentType?: string; contentUrl?: string; body?: string; outline?: ModuleOutline; estimatedDuration?: number; cohortId?: string }): Promise<any> => {
+export const updateLMSModule = async (id: string, payload: { title?: string; description?: string; order?: number; weekNumber?: number; contentType?: string; contentUrl?: string; body?: string; outline?: ModuleOutline; estimatedDuration?: number; cohortId?: string; status?: string }): Promise<any> => {
   const { data } = await authClient.patch(`/admin/modules/${id}`, payload);
+  return data;
+};
+
+export const publishLMSModule = async (id: string): Promise<any> => {
+  const { data } = await authClient.patch(`/admin/modules/${id}/publish`);
+  return data;
+};
+
+export const unpublishLMSModule = async (id: string): Promise<any> => {
+  const { data } = await authClient.patch(`/admin/modules/${id}/unpublish`);
   return data;
 };
 

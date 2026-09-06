@@ -13,6 +13,9 @@ import {
     deleteCohort,
     createModule,
     updateModule,
+    publishModule,
+    unpublishModule,
+    getAdminModules,
     getModuleOutline,
     updateModuleOutline,
     deleteModule,
@@ -162,8 +165,11 @@ router.post('/cohorts', createCohort);
 router.patch('/cohorts/:id', updateCohort);
 router.delete('/cohorts/:id', deleteCohort);
 
+router.get('/modules', getAdminModules);
 router.post('/modules', createModule);
 router.patch('/modules/:id', updateModule);
+router.patch('/modules/:id/publish', publishModule);
+router.patch('/modules/:id/unpublish', unpublishModule);
 router.get('/modules/:id/outline', getModuleOutline);
 router.patch('/modules/:id/outline', updateModuleOutline);
 router.delete('/modules/:id', deleteModule);

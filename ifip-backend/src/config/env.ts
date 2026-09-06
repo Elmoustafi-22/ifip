@@ -20,6 +20,7 @@ const envSchema = z.object({
     CLOUDINARY_API_KEY: z.string().min(1),
     CLOUDINARY_API_SECRET: z.string().min(1),
     CLIENT_URL: z.string().min(1),
+    CORS_ALLOWED_ORIGINS: z.string().optional(),
     PAYSTACK_SECRET_KEY: z.string().optional(),
     PAYSTACK_CALLBACK_URL: z.string().optional(),
     LEVY_AMOUNT_NGN: z.string().default('20000'),

@@ -8,7 +8,8 @@ import { unlockNextModule } from '../services/lmsService.js';
 export const getModules = async (req: Request, res: Response) => {
     try {
         const userId = req.user!.id;
-        const modules = await Module.find().populate('createdBy', 'fullName title').sort({ order: 1 });
+        // Participants only see published modules (or legacy modules where status is undefined)
+        const modules = await Module.find({ status: { $ne: 'draft' } }).populate('createdBy', 'fullName title').sort({ order: 1 });
         const progressList = await Progress.find({ userId: new Types.ObjectId(userId) });
         const progressMap = new Map(progressList.map(p => [p.moduleId.toString(), p]));
 
@@ -44,6 +45,7 @@ export const getModules = async (req: Request, res: Response) => {
                 assessmentId: publishedAssessmentId,
                 assessmentStatus: prog ? (prog.assessmentStatus || 'not_started') : 'not_started',
                 createdBy: mod.createdBy,
+                moduleStatus: mod.status || 'published',
                 status
             });
             
@@ -63,8 +65,8 @@ export const getModuleOutline = async (req: Request, res: Response) => {
         const { id } = req.params;
 
         const mod = await Module.findById(id).populate('createdBy', 'fullName title');
-        if (!mod) {
-            res.status(404).json({ message: 'Module not found.' });
+        if (!mod || mod.status === 'draft') {
+            res.status(404).json({ message: 'Module not found or not published yet.' });
             return;
         }
 
@@ -73,8 +75,8 @@ export const getModuleOutline = async (req: Request, res: Response) => {
             moduleId: mod._id
         });
 
-        // Find previous modules to check lock status
-        const previousModules = await Module.find({ order: { $lt: mod.order } });
+        // Find previous published modules to check lock status
+        const previousModules = await Module.find({ order: { $lt: mod.order }, status: { $ne: 'draft' } });
         const progressList = await Progress.find({ userId: new Types.ObjectId(userId) });
         const progressMap = new Map(progressList.map(p => [p.moduleId.toString(), p]));
         
@@ -116,8 +118,8 @@ export const getModuleById = async (req: Request, res: Response) => {
         const { id } = req.params;
 
         const mod = await Module.findById(id).populate('createdBy', 'fullName title');
-        if (!mod) {
-            res.status(404).json({ message: 'Module not found.' });
+        if (!mod || mod.status === 'draft') {
+            res.status(404).json({ message: 'Module not found or not published yet.' });
             return;
         }
 
@@ -125,8 +127,8 @@ export const getModuleById = async (req: Request, res: Response) => {
         const progressList = await Progress.find({ userId: new Types.ObjectId(userId) });
         const progressMap = new Map(progressList.map(p => [p.moduleId.toString(), p]));
         
-        // Find previous modules to check completion requirements
-        const previousModules = await Module.find({ order: { $lt: mod.order } });
+        // Find previous published modules to check completion requirements
+        const previousModules = await Module.find({ order: { $lt: mod.order }, status: { $ne: 'draft' } });
         let isLocked = false;
         for (const prevMod of previousModules) {
             const prevProg = progressMap.get(prevMod.id.toString());

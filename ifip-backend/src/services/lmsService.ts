@@ -23,8 +23,8 @@ export const unlockNextModule = async (
     const currentModule = await Module.findById(moduleObjId);
     if (!currentModule) return;
 
-    // Find the next module in the sequence
-    const nextModule = await Module.findOne({ order: { $gt: currentModule.order } }).sort({ order: 1 });
+    // Find the next published module in the sequence
+    const nextModule = await Module.findOne({ order: { $gt: currentModule.order }, status: { $ne: 'draft' } }).sort({ order: 1 });
     
     if (nextModule) {
         // Unlock next module by setting it to in_progress if progress doesn't exist
