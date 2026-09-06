@@ -43,6 +43,7 @@ interface CloudinarySignatureResponse {
   folder: string;
   /** 'raw' for PDFs; 'image' for images; 'auto' for generic uploads */
   resource_type: string;
+  allowed_formats?: string;
 }
 
 /** Helper — returns true for errors that will never succeed on a retry (auth/client errors). */
@@ -299,6 +300,18 @@ export interface ModuleOutline {
   expectedOutcomes?: string[];
 }
 
+export interface ModuleTask {
+  title?: string;
+  description?: string;
+  instructions?: string;
+  requiresUpload?: boolean;
+  evidenceLabel?: string;
+  allowedFileTypes?: string[];
+  dueDate?: string | null;
+  dueText?: string;
+  isRequired?: boolean;
+}
+
 export interface LMSModule {
   _id: string;
   title: string;
@@ -309,6 +322,7 @@ export interface LMSModule {
   contentUrl?: string;
   body?: string;
   outline?: ModuleOutline;
+  moduleTask?: ModuleTask | null;
   estimatedDuration?: number;
   status: 'draft' | 'published' | 'archived' | 'locked' | 'not_started' | 'in_progress' | 'completed' | string;
   moduleStatus?: 'draft' | 'published' | 'archived';
@@ -316,6 +330,34 @@ export interface LMSModule {
   assessmentId?: string;
   assessmentStatus?: string;
   createdBy?: any;
+}
+
+export interface ModuleTaskSubmission {
+  _id: string;
+  fileUrl?: string;
+  fileName?: string;
+  files?: { fileUrl: string; fileName?: string }[];
+  note?: string;
+  status: 'submitted' | 'pending_review' | 'approved' | 'rejected' | 'needs_resubmission' | 'expired';
+  pointsAwarded?: number;
+  adminFeedback?: string;
+  submittedAt?: string;
+  attemptNumber?: number;
+  userId?: { _id?: string; fullName?: string; email?: string };
+}
+
+export interface ModuleTaskStatusResponse {
+  moduleTask: ModuleTask | null;
+  submissionWindowOpen: boolean;
+  latestSubmission: ModuleTaskSubmission | null;
+  progressStatus?: string;
+}
+
+export interface MyTaskRewardSummary {
+  totalAwardedPoints: number;
+  passedModules: number;
+  status: 'qualified' | 'in_progress';
+  message: string;
 }
 
 export interface ProgrammeSession {
@@ -344,6 +386,82 @@ export const getLMSModules = async (): Promise<LMSModule[]> => {
 
 export const getModuleOutline = async (moduleId: string): Promise<LMSModule> => {
   const { data } = await authClient.get<LMSModule>(`/lms/modules/${moduleId}/outline`);
+  return data;
+};
+
+export const uploadModuleTaskEvidenceAuth = async (file: File): Promise<{ fileUrl: string }> => {
+  // Upload via backend proxy — the server streams the file to Cloudinary using
+  // the SDK directly (same as CV/avatar uploads). This avoids all client-side
+  // Cloudinary signature complexity.
+  const fd = new FormData();
+  fd.append("file", file);
+
+  const { data } = await authClient.post<{ fileUrl: string }>("/uploads/module-task-evidence", fd);
+  return { fileUrl: data.fileUrl };
+};
+
+export const uploadResourceFileAuth = async (
+  file: File
+): Promise<{ fileUrl: string; fileSize?: string; fileName?: string }> => {
+  const fd = new FormData();
+  fd.append("file", file);
+  const { data } = await authClient.post<{ fileUrl: string; fileSize?: string; fileName?: string }>("/uploads/resource-file", fd);
+  return data;
+};
+
+export const getModuleTaskStatus = async (moduleId: string): Promise<ModuleTaskStatusResponse> => {
+  const { data } = await authClient.get<ModuleTaskStatusResponse>(`/lms/modules/${moduleId}/task`);
+  return data;
+};
+
+export const submitModuleTask = async (
+  moduleId: string,
+  payload: { fileUrl?: string; fileName?: string; files?: { fileUrl: string; fileName?: string }[]; note?: string }
+): Promise<{ message: string; submission?: ModuleTaskSubmission; progress?: any }> => {
+  const { data } = await authClient.post<{ message: string; submission?: ModuleTaskSubmission; progress?: any }>(
+    `/lms/modules/${moduleId}/task/submit`,
+    payload
+  );
+  return data;
+};
+
+export const getModuleTaskSubmissions = async (moduleId: string): Promise<ModuleTaskSubmission[]> => {
+  const { data } = await authClient.get<ModuleTaskSubmission[]>(`/lms/modules/${moduleId}/task/submissions`);
+  return data;
+};
+
+export const getMyTaskRewardSummary = async (): Promise<MyTaskRewardSummary> => {
+  const { data } = await authClient.get<MyTaskRewardSummary>('/lms/task-rewards/summary');
+  return data;
+};
+
+export const getAdminModuleTaskSubmissions = async (moduleId: string): Promise<ModuleTaskSubmission[]> => {
+  const { data } = await authClient.get<ModuleTaskSubmission[]>(`/admin/modules/${moduleId}/task-submissions`);
+  return data;
+};
+
+export interface TaskRewardSummaryRow {
+  userId: string;
+  fullName: string;
+  email: string;
+  totalAwardedPoints: number;
+  passedModules: number;
+  status: 'qualified' | 'in_progress';
+}
+
+export const getTaskRewardSummary = async (): Promise<{ summary: TaskRewardSummaryRow[]; totalQualified: number; totalParticipants: number }> => {
+  const { data } = await authClient.get<{ summary: TaskRewardSummaryRow[]; totalQualified: number; totalParticipants: number }>('/admin/task-rewards/summary');
+  return data;
+};
+
+export const reviewModuleTaskSubmission = async (
+  submissionId: string,
+  payload: { status: 'approved' | 'rejected' | 'needs_resubmission' | 'pending_review'; pointsAwarded?: number; adminFeedback?: string }
+): Promise<{ message: string; submission?: ModuleTaskSubmission }> => {
+  const { data } = await authClient.patch<{ message: string; submission?: ModuleTaskSubmission }>(
+    `/admin/modules/task-submissions/${submissionId}/review`,
+    payload
+  );
   return data;
 };
 
@@ -880,12 +998,12 @@ export const getAdminLMSModules = async (): Promise<LMSModule[]> => {
   return data;
 };
 
-export const createLMSModule = async (payload: { title: string; description: string; order: number; weekNumber?: number; contentType: string; contentUrl?: string; body?: string; outline?: ModuleOutline; estimatedDuration?: number; cohortId?: string; status?: string }): Promise<any> => {
+export const createLMSModule = async (payload: { title: string; description: string; order: number; weekNumber?: number; contentType: string; contentUrl?: string; body?: string; outline?: ModuleOutline; moduleTask?: ModuleTask | null; estimatedDuration?: number; cohortId?: string; status?: string }): Promise<any> => {
   const { data } = await authClient.post("/admin/modules", payload);
   return data;
 };
 
-export const updateLMSModule = async (id: string, payload: { title?: string; description?: string; order?: number; weekNumber?: number; contentType?: string; contentUrl?: string; body?: string; outline?: ModuleOutline; estimatedDuration?: number; cohortId?: string; status?: string }): Promise<any> => {
+export const updateLMSModule = async (id: string, payload: { title?: string; description?: string; order?: number; weekNumber?: number; contentType?: string; contentUrl?: string; body?: string; outline?: ModuleOutline; moduleTask?: ModuleTask | null; estimatedDuration?: number; cohortId?: string; status?: string }): Promise<any> => {
   const { data } = await authClient.patch(`/admin/modules/${id}`, payload);
   return data;
 };

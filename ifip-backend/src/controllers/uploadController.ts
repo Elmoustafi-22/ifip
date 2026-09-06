@@ -1,4 +1,6 @@
 import type { Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import cloudinary from '../config/cloudinary.js';
 import { env } from '../config/env.js';
 import { Applicant } from '../models/Applicants.js';
@@ -218,15 +220,17 @@ export const getUploadSignature = async (req: Request, res: Response) => {
     try {
         const timestamp = Math.round(new Date().getTime() / 1000);
         const folder = req.query.folder ? String(req.query.folder) : 'ifipp/cvs';
-        // PDFs are treated as 'raw' in Cloudinary's resource-type model.
-        // Signing resource_type keeps the signature consistent with the upload URL.
-        const resource_type = 'raw';
+        const resource_type = req.query.resource_type ? String(req.query.resource_type) : 'raw';
 
+        // resource_type is a URL path segment on Cloudinary's API
+        // (e.g. /v1_1/<cloud>/raw/upload) — it must NOT be included in the
+        // signature params, only body-level parameters are signed.
+        // allowed_formats is omitted — file type validation is enforced at the
+        // application level (module task allowedFileTypes). Including it here
+        // causes 403s for non-PDF files and is unreliable for resource_type=raw.
         const paramsToSign = {
             folder,
             timestamp,
-            resource_type,
-            allowed_formats: 'pdf',
         };
 
         const signature = cloudinary.utils.api_sign_request(paramsToSign, env.CLOUDINARY_API_SECRET);
@@ -242,6 +246,125 @@ export const getUploadSignature = async (req: Request, res: Response) => {
     } catch (err: any) {
         console.error('Error generating upload signature:', err);
         res.status(500).json({ message: 'Failed to generate upload signature' });
+    }
+};
+
+/** POST /uploads/module-task-evidence
+ *  Proxies the file to Cloudinary server-side, avoiding client-side signatures.
+ *  resource_type 'auto' lets Cloudinary handle PDFs, images, and documents. */
+export const uploadModuleTaskEvidence = async (req: Request, res: Response) => {
+    if (!req.file) {
+        res.status(400).json({ message: 'No file uploaded' });
+        return;
+    }
+
+    try {
+        const originalName = req.file.originalname || '';
+        const ext = originalName.split('.').pop()?.toLowerCase() || '';
+        const mime = req.file.mimetype || '';
+
+        const isImageOrPdf =
+            mime.startsWith('image/') ||
+            mime === 'application/pdf' ||
+            ext === 'pdf' ||
+            ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'].includes(ext);
+
+        const isVideoOrAudio = mime.startsWith('video/') || mime.startsWith('audio/');
+
+        const resourceType: 'image' | 'video' | 'raw' | 'auto' = isImageOrPdf
+            ? 'image'
+            : isVideoOrAudio
+            ? 'video'
+            : 'auto';
+
+        const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                reject(new Error('Cloud storage upload timed out. Please try again.'));
+            }, 120000);
+
+            const stream = cloudinary.uploader.upload_stream(
+                { resource_type: resourceType, folder: 'ifipp/module-task-evidence' },
+                (error, result) => {
+                    clearTimeout(timer);
+                    if (error || !result) {
+                        reject(error || new Error('Cloudinary upload returned empty result'));
+                    } else {
+                        resolve(result as { secure_url: string });
+                    }
+                }
+            );
+            stream.end(req.file!.buffer);
+        });
+
+        res.json({ fileUrl: uploadResult.secure_url });
+    } catch (err: any) {
+        console.error('Module task evidence upload error:', err);
+        res.status(500).json({ message: err?.message || 'Cloudinary file upload failed' });
+    }
+};
+
+/** POST /uploads/resource-file
+ *  Proxies admin resource files (PDF, DOCX, XLSX, etc.) to Cloudinary.
+ *  Returns { fileUrl, fileSize, fileName }. */
+export const uploadResourceFile = async (req: Request, res: Response) => {
+    if (!req.file) {
+        res.status(400).json({ message: 'No file uploaded' });
+        return;
+    }
+
+    const originalName = req.file.originalname || 'resource';
+    const bytes = req.file.size || req.file.buffer?.length || 0;
+
+    let fileSizeStr = '';
+    if (bytes >= 1024 * 1024) {
+        fileSizeStr = `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    } else if (bytes >= 1024) {
+        fileSizeStr = `${Math.round(bytes / 1024)} KB`;
+    } else if (bytes > 0) {
+        fileSizeStr = `${bytes} B`;
+    }
+
+    const ext = originalName.split('.').pop()?.toLowerCase() || '';
+    const mime = req.file.mimetype || '';
+
+    const isImageOrPdf =
+        mime.startsWith('image/') ||
+        mime === 'application/pdf' ||
+        ext === 'pdf' ||
+        ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'].includes(ext);
+
+    const isVideoOrAudio = mime.startsWith('video/') || mime.startsWith('audio/');
+
+    const resourceType: 'image' | 'video' | 'raw' | 'auto' = isImageOrPdf
+        ? 'image'
+        : isVideoOrAudio
+        ? 'video'
+        : 'auto';
+
+    try {
+        const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                reject(new Error('Cloud storage upload timed out. Please try again.'));
+            }, 120000);
+
+            const stream = cloudinary.uploader.upload_stream(
+                { resource_type: resourceType, folder: 'ifipp/resources' },
+                (error, result) => {
+                    clearTimeout(timer);
+                    if (error || !result) {
+                        reject(error || new Error('Cloudinary upload returned empty result'));
+                    } else {
+                        resolve(result as { secure_url: string });
+                    }
+                }
+            );
+            stream.end(req.file!.buffer);
+        });
+
+        res.json({ fileUrl: uploadResult.secure_url, fileSize: fileSizeStr, fileName: originalName });
+    } catch (err: any) {
+        console.error('Resource file upload error:', err);
+        res.status(500).json({ message: err?.message || 'Cloudinary resource upload failed' });
     }
 };
 
@@ -293,4 +416,4 @@ export const saveCvUrlAuth = async (req: Request, res: Response) => {
         console.error('Save CV URL auth error:', err);
         res.status(500).json({ message: err.message || 'Failed to save CV URL' });
     }
-};
+};

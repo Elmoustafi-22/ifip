@@ -23,7 +23,7 @@ const resourceSchema = new Schema<IResource>(
             required: true,
             default: 'guidelines',
         },
-        fileUrl: { type: String, required: true, trim: true },
+        fileUrl: { type: String, default: '', trim: true },
         fileType: {
             type: String,
             enum: ['pdf', 'docx', 'xlsx', 'link', 'video', 'other'],

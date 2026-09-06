@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
 
 import { env } from './config/env.js';
 import applicantRoutes from './routes/applicantRoutes.js';
@@ -128,6 +129,7 @@ app.use(
 
 app.use(cookieParser());
 app.use(morgan('dev'));
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // max: 10 gives headroom for shared networks (university campuses, corporate
 // NAT, mobile carriers) without opening the door to abuse.

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { authenticateApplicant } from '../middleware/applicantAuth.js';
 import { authenticate, authorize } from '../middleware/auth.js';
-import { uploadCv, uploadCvAuth, uploadLogo, uploadBrochure, uploadAvatarAuth, getUploadSignature, saveCvUrl, saveCvUrlAuth } from '../controllers/uploadController.js';
+import { uploadCv, uploadCvAuth, uploadLogo, uploadBrochure, uploadAvatarAuth, getUploadSignature, saveCvUrl, saveCvUrlAuth, uploadModuleTaskEvidence, uploadResourceFile } from '../controllers/uploadController.js';
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -40,6 +40,8 @@ router.post('/cv', authenticateApplicant, handleUpload('cv'), uploadCv);
 router.post('/cv-auth', authenticate, handleUpload('cv'), uploadCvAuth);
 
 router.post('/avatar', authenticate, handleUpload('avatar'), uploadAvatarAuth);
+router.post('/module-task-evidence', authenticate, handleUpload('file'), uploadModuleTaskEvidence);
+router.post('/resource-file', authenticate, handleUpload('file'), uploadResourceFile);
 // Public — used by partner applicants uploading their company logo (no auth needed)
 router.post('/logo', handleUpload('logo'), uploadLogo);
 // Admin-only alias kept for backward compatibility

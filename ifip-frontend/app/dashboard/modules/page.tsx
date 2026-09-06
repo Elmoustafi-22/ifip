@@ -14,7 +14,14 @@ import {
   HiOutlineCalendar,
   HiOutlineAcademicCap
 } from "react-icons/hi2";
-import { getLMSModules, LMSModule, getMyApplication, getCohortConfig } from "@/lib/api/services";
+import {
+  getLMSModules,
+  LMSModule,
+  getMyApplication,
+  getCohortConfig,
+  getMyTaskRewardSummary,
+  MyTaskRewardSummary,
+} from "@/lib/api/services";
 
 export default function ModulesPage() {
   const [modules, setModules] = useState<LMSModule[]>([]);
@@ -24,17 +31,20 @@ export default function ModulesPage() {
   const [cohortStartDate, setCohortStartDate] = useState("2026-08-31T00:00:00.000Z");
   const [dashboardViewOverride, setDashboardViewOverride] = useState<string>("default");
   const [isAwaitingAssignment, setIsAwaitingAssignment] = useState(false);
+  const [taskRewardSummary, setTaskRewardSummary] = useState<MyTaskRewardSummary | null>(null);
 
   useEffect(() => {
     const fetchModulesData = async () => {
       try {
-        const [profile, config] = await Promise.all([
+        const [profile, config, rewardSummary] = await Promise.all([
           getMyApplication(),
-          getCohortConfig()
+          getCohortConfig(),
+          getMyTaskRewardSummary().catch(() => null)
         ]);
         setUserData(profile);
         setCohortStartDate(config.cohortStartDate);
         setDashboardViewOverride(config.dashboardViewOverride || "default");
+        setTaskRewardSummary(rewardSummary);
 
         const modulesData = await getLMSModules();
         setModules(modulesData);
@@ -272,6 +282,24 @@ export default function ModulesPage() {
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
+          </div>
+        </div>
+      )}
+
+      {taskRewardSummary && (
+        <div className="bg-gradient-to-r from-[#000666] to-[#0B2A8A] text-white rounded-2xl p-6 shadow-sm mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-sky-200 font-bold mb-2">Task Reward Summary</p>
+            <h2 className="text-xl font-black">{taskRewardSummary.totalAwardedPoints} Points Earned</h2>
+            <p className="text-sm text-sky-100 mt-1">
+              {taskRewardSummary.passedModules} approved task{taskRewardSummary.passedModules === 1 ? "" : "s"} completed.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <span className={`inline-flex items-center rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] ${taskRewardSummary.status === "qualified" ? "bg-emerald-500/20 text-emerald-100 border border-emerald-300/30" : "bg-amber-500/20 text-amber-100 border border-amber-300/30"}`}>
+              {taskRewardSummary.status === "qualified" ? "Qualified" : "In progress"}
+            </span>
+            <p className="text-xs text-sky-100 max-w-xs">{taskRewardSummary.message}</p>
           </div>
         </div>
       )}

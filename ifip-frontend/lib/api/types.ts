@@ -106,6 +106,7 @@ export interface AuthUser {
 
 export interface AuthResponse {
   accessToken?: string;
+  refreshToken?: string;
   user?: AuthUser;
   mfaRequired?: boolean;
   mfaToken?: string;

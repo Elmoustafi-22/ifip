@@ -16,12 +16,16 @@ import {
   HiOutlineExclamationTriangle,
   HiOutlinePlayCircle,
   HiOutlineVideoCamera,
+  HiOutlineArrowUpTray,
+  HiOutlineArrowPath,
+  HiOutlineDocumentCheck,
 } from "react-icons/hi2";
 import {
   getResources,
   createResource,
   updateResource,
   deleteResource,
+  uploadResourceFileAuth,
   Resource,
   CreateResourcePayload,
 } from "@/lib/api/services";
@@ -58,6 +62,8 @@ export default function AdminResourcesPage() {
   const [editTarget, setEditTarget] = useState<Resource | null>(null);
   const [form, setForm] = useState<CreateResourcePayload>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingResource, setUploadingResource] = useState(false);
+  const [uploadedResourceName, setUploadedResourceName] = useState<string | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<Resource | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -91,6 +97,7 @@ export default function AdminResourcesPage() {
   const openCreate = () => {
     setEditTarget(null);
     setForm({ ...EMPTY_FORM, cohortId: selectedCohortId || undefined });
+    setUploadedResourceName(null);
     setModalOpen(true);
   };
 
@@ -105,12 +112,39 @@ export default function AdminResourcesPage() {
       fileSize: r.fileSize || "",
       cohortId: r.cohortId || undefined,
     });
+    setUploadedResourceName(null);
     setModalOpen(true);
   };
 
+  const handleResourceFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingResource(true);
+    try {
+      const result = await uploadResourceFileAuth(file);
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      const autoFileType = ext === 'pdf' ? 'pdf' : ext === 'docx' || ext === 'doc' ? 'docx' : ext === 'xlsx' || ext === 'xls' ? 'xlsx' : 'other';
+
+      setForm((f) => ({
+        ...f,
+        fileUrl: result.fileUrl,
+        fileSize: result.fileSize || f.fileSize,
+        fileType: autoFileType as any,
+      }));
+      setUploadedResourceName(file.name);
+      showToast("success", "File uploaded successfully!");
+    } catch (err: any) {
+      console.error("Resource upload failed:", err);
+      showToast("error", err?.response?.data?.message || err?.message || "File upload failed.");
+    } finally {
+      setUploadingResource(false);
+    }
+  };
+
   const handleSubmit = async () => {
-    if (!form.title.trim() || !form.description.trim() || !form.fileUrl.trim()) {
-      showToast("error", "Title, description, and file URL are required.");
+    if (!form.title.trim() || !form.description.trim()) {
+      showToast("error", "Title and description are required.");
       return;
     }
     setSubmitting(true);
@@ -421,12 +455,45 @@ export default function AdminResourcesPage() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1">
+                  Upload PDF or Document File <span className="text-slate-400 font-normal">(optional)</span>
+                </label>
+                <div className="relative border-2 border-dashed border-slate-200 hover:border-[#000666]/40 rounded-xl p-3.5 transition-all bg-slate-50/50 text-center">
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.xlsx,.doc,.ppt,.pptx,.png,.jpg,.jpeg"
+                    onChange={handleResourceFileUpload}
+                    disabled={uploadingResource}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                  />
+                  <div className="flex flex-col items-center justify-center space-y-1 pointer-events-none">
+                    {uploadingResource ? (
+                      <div className="flex items-center gap-2 text-xs font-bold text-[#000666]">
+                        <HiOutlineArrowPath className="w-4 h-4 animate-spin text-[#FF9800]" />
+                        <span>Uploading resource file...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-7 h-7 rounded-full bg-sky-50 text-[#000666] flex items-center justify-center border border-sky-100 mx-auto">
+                          <HiOutlineArrowUpTray className="w-3.5 h-3.5" />
+                        </div>
+                        <p className="text-xs font-semibold text-slate-700">
+                          {uploadedResourceName ? `Uploaded: ${uploadedResourceName}` : "Click or drag a PDF or document here to upload"}
+                        </p>
+                        <p className="text-[10px] text-slate-400">PDF, DOCX, XLSX up to 10MB</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">
                   {form.fileType === "video"
                     ? "Video / Recording URL"
                     : form.fileType === "link"
                     ? "External Link URL"
                     : "File URL"}{" "}
-                  <span className="text-red-500">*</span>
+                  <span className="text-slate-400 font-normal">(optional if file uploaded)</span>
                 </label>
                 {form.fileType === "video" && (
                   <div className="flex items-center gap-2 mb-2 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">

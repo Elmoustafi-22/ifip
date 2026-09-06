@@ -100,6 +100,11 @@ import {
     togglePublishSession,
     bulkPublishWeek,
 } from '../controllers/programmeSessionController.js';
+import {
+    getAllModuleTaskSubmissions,
+    reviewModuleTaskSubmission,
+    getTaskRewardSummary,
+} from '../controllers/moduleTaskController.js';
 
 const router = Router();
 
@@ -172,6 +177,9 @@ router.patch('/modules/:id/publish', publishModule);
 router.patch('/modules/:id/unpublish', unpublishModule);
 router.get('/modules/:id/outline', getModuleOutline);
 router.patch('/modules/:id/outline', updateModuleOutline);
+router.get('/modules/:id/task-submissions', getAllModuleTaskSubmissions);
+router.patch('/modules/task-submissions/:submissionId/review', reviewModuleTaskSubmission);
+router.get('/task-rewards/summary', getTaskRewardSummary);
 router.delete('/modules/:id', deleteModule);
 
 // ─── Programme Schedule / Timetable Operations ─────────────────────────

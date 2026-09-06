@@ -32,10 +32,13 @@ import {
   updateLMSModule, 
   publishLMSModule,
   unpublishLMSModule,
-  deleteLMSModule, 
+  deleteLMSModule,
+  getAdminModuleTaskSubmissions,
+  reviewModuleTaskSubmission,
   LMSModule,
   ModuleOutline,
-  TopicOutline 
+  TopicOutline,
+  ModuleTaskSubmission 
 } from "@/lib/api/services";
 import { AdminCohortContext } from "../layout";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -54,6 +57,10 @@ export default function AdminModulesPage() {
   // Review Drawer state
   const [reviewModule, setReviewModule] = useState<LMSModule | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [taskSubmissions, setTaskSubmissions] = useState<ModuleTaskSubmission[]>([]);
+  const [taskSubmissionsLoading, setTaskSubmissionsLoading] = useState(false);
+  const [taskReviewDrafts, setTaskReviewDrafts] = useState<Record<string, { status: 'approved' | 'rejected' | 'needs_resubmission' | 'pending_review'; points: number; feedback: string }>>({});
+  const [selectedTaskSubmissionId, setSelectedTaskSubmissionId] = useState<string | null>(null);
 
   // Bulk Paste Helper State
   interface BulkPasteConfig {
@@ -77,6 +84,17 @@ export default function AdminModulesPage() {
   const [body, setBody] = useState("");
   const [moduleStatus, setModuleStatus] = useState<"draft" | "published" | "archived">("draft");
   const [moduleCohortId, setModuleCohortId] = useState("");
+
+  // Module task
+  const [moduleTaskTitle, setModuleTaskTitle] = useState("");
+  const [moduleTaskDescription, setModuleTaskDescription] = useState("");
+  const [moduleTaskInstructions, setModuleTaskInstructions] = useState("");
+  const [moduleTaskRequiresUpload, setModuleTaskRequiresUpload] = useState(false);
+  const [moduleTaskEvidenceLabel, setModuleTaskEvidenceLabel] = useState("");
+  const [moduleTaskAllowedFileTypes, setModuleTaskAllowedFileTypes] = useState("pdf");
+  const [moduleTaskDueDate, setModuleTaskDueDate] = useState("");
+  const [moduleTaskDueText, setModuleTaskDueText] = useState("");
+  const [moduleTaskIsRequired, setModuleTaskIsRequired] = useState(true);
 
   // Outline Subdocument
   const [purpose, setPurpose] = useState("");
@@ -238,6 +256,68 @@ export default function AdminModulesPage() {
     }
   };
 
+  const fetchModuleTaskSubmissions = async (moduleId: string) => {
+    setTaskSubmissionsLoading(true);
+    try {
+      const submissions = await getAdminModuleTaskSubmissions(moduleId);
+      setTaskSubmissions(submissions);
+      const draftMap: Record<string, { status: 'approved' | 'rejected' | 'needs_resubmission' | 'pending_review'; points: number; feedback: string }> = {};
+      submissions.forEach((submission) => {
+        draftMap[submission._id] = {
+          status: (submission.status === 'approved' || submission.status === 'rejected' || submission.status === 'needs_resubmission' || submission.status === 'pending_review') ? submission.status : 'pending_review',
+          points: submission.pointsAwarded || 0,
+          feedback: submission.adminFeedback || '',
+        };
+      });
+      setTaskReviewDrafts(draftMap);
+
+      const nextSelected = submissions.find((submission) => submission.status !== 'approved')
+        ? submissions.find((submission) => submission.status !== 'approved')?._id ?? null
+        : submissions[0]?._id ?? null;
+      setSelectedTaskSubmissionId(nextSelected);
+    } catch (err) {
+      console.error("Failed to load module task submissions:", err);
+      setTaskSubmissions([]);
+    } finally {
+      setTaskSubmissionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (reviewModule && reviewModule.moduleTask) {
+      fetchModuleTaskSubmissions(reviewModule._id);
+    } else {
+      setTaskSubmissions([]);
+      setTaskReviewDrafts({});
+      setSelectedTaskSubmissionId(null);
+    }
+  }, [reviewModule?._id, reviewModule?.moduleTask]);
+
+  const handleTaskReview = async (submissionId: string) => {
+    const draft = taskReviewDrafts[submissionId];
+    if (!draft) return;
+
+    try {
+      await reviewModuleTaskSubmission(submissionId, {
+        status: draft.status,
+        pointsAwarded: Number(draft.points),
+        adminFeedback: draft.feedback,
+      });
+
+      setTaskSubmissions((prev) =>
+        prev.map((submission) =>
+          submission._id === submissionId
+            ? { ...submission, status: draft.status, pointsAwarded: Number(draft.points), adminFeedback: draft.feedback }
+            : submission
+        )
+      );
+      alert("Submission review saved.");
+    } catch (err) {
+      console.error("Failed to review task submission:", err);
+      alert("Failed to save this review.");
+    }
+  };
+
   const handleOpenCreate = () => {
     setEditingModule(null);
     setActiveTab("outline");
@@ -251,6 +331,16 @@ export default function AdminModulesPage() {
     setBody("");
     setModuleStatus("draft");
     setModuleCohortId((selectedCohortId === "unassigned") ? "" : selectedCohortId);
+
+    setModuleTaskTitle("");
+    setModuleTaskDescription("");
+    setModuleTaskInstructions("");
+    setModuleTaskRequiresUpload(false);
+    setModuleTaskEvidenceLabel("");
+    setModuleTaskAllowedFileTypes("");
+    setModuleTaskDueDate("");
+    setModuleTaskDueText("");
+    setModuleTaskIsRequired(true);
     
     // Outline defaults
     setPurpose("");
@@ -276,6 +366,17 @@ export default function AdminModulesPage() {
     setBody(mod.body || "");
     setModuleStatus((mod.moduleStatus || mod.status || "draft") as any);
     setModuleCohortId((mod as any).cohortId || "");
+
+    const task = mod.moduleTask || {};
+    setModuleTaskTitle(task.title || "");
+    setModuleTaskDescription(task.description || "");
+    setModuleTaskInstructions(task.instructions || "");
+    setModuleTaskRequiresUpload(Boolean(task.requiresUpload));
+    setModuleTaskEvidenceLabel(task.evidenceLabel || "");
+    setModuleTaskAllowedFileTypes((task.allowedFileTypes || []).join(", "));
+    setModuleTaskDueDate(task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 16) : "");
+    setModuleTaskDueText(task.dueText || "");
+    setModuleTaskIsRequired(task.isRequired !== false);
 
     setLearningObjectives(out.learningObjectives && out.learningObjectives.length > 0 ? out.learningObjectives : [""]);
     setTopics(
@@ -393,6 +494,26 @@ export default function AdminModulesPage() {
       expectedOutcomes: expectedOutcomes.filter(o => o.trim().length > 0)
     };
 
+    const allowedFileTypes = moduleTaskAllowedFileTypes
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    const moduleTaskPayload =
+      moduleTaskTitle.trim() || moduleTaskDescription.trim() || moduleTaskInstructions.trim() || moduleTaskDueDate || moduleTaskDueText.trim() || moduleTaskEvidenceLabel.trim() || moduleTaskRequiresUpload || allowedFileTypes.length > 0
+        ? {
+            title: moduleTaskTitle.trim() || undefined,
+            description: moduleTaskDescription.trim() || undefined,
+            instructions: moduleTaskInstructions.trim() || undefined,
+            requiresUpload: moduleTaskRequiresUpload,
+            evidenceLabel: moduleTaskEvidenceLabel.trim() || undefined,
+            allowedFileTypes: allowedFileTypes.length > 0 ? allowedFileTypes : undefined,
+            dueDate: moduleTaskDueDate || undefined,
+            dueText: moduleTaskDueText.trim() || undefined,
+            isRequired: moduleTaskIsRequired
+          }
+        : undefined;
+
     const payload = {
       title,
       description,
@@ -401,6 +522,7 @@ export default function AdminModulesPage() {
       contentUrl: contentUrl || undefined,
       body: body || undefined,
       outline: outlinePayload,
+      moduleTask: moduleTaskPayload,
       weekNumber: Number(weekNumber),
       cohortId: moduleCohortId || undefined,
       status: moduleStatus
@@ -887,6 +1009,130 @@ export default function AdminModulesPage() {
                       <option value="published">Published (Visible to participants)</option>
                       <option value="archived">Archived (Hidden / Read-only)</option>
                     </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-700">Module Task</p>
+                    <h4 className="text-sm font-black text-[#000666] mt-1">Ask participants to complete a task linked to this module</h4>
+                  </div>
+                  <label className="inline-flex items-center gap-2 text-[11px] font-bold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={moduleTaskIsRequired}
+                      onChange={(e) => setModuleTaskIsRequired(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-[#000666] focus:ring-[#FF9800]"
+                    />
+                    Required
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
+                      Task title
+                    </label>
+                    <input
+                      type="text"
+                      value={moduleTaskTitle}
+                      onChange={(e) => setModuleTaskTitle(e.target.value)}
+                      placeholder="e.g. Complete the course certificate task"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs bg-white"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
+                      Task description
+                    </label>
+                    <textarea
+                      value={moduleTaskDescription}
+                      onChange={(e) => setModuleTaskDescription(e.target.value)}
+                      placeholder="Brief explanation of the task participants need to do."
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs bg-white h-[72px]"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
+                      Task instructions
+                    </label>
+                    <textarea
+                      value={moduleTaskInstructions}
+                      onChange={(e) => setModuleTaskInstructions(e.target.value)}
+                      placeholder="Explain exactly what the participant should do, such as taking a course or uploading a screenshot and certificate."
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs bg-white h-[90px]"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={moduleTaskRequiresUpload}
+                      onChange={(e) => setModuleTaskRequiresUpload(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-[#000666] focus:ring-[#FF9800]"
+                    />
+                    <label className="text-[11px] font-bold text-slate-700">Require upload of evidence</label>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
+                      Evidence label
+                    </label>
+                    <input
+                      type="text"
+                      value={moduleTaskEvidenceLabel}
+                      onChange={(e) => setModuleTaskEvidenceLabel(e.target.value)}
+                      placeholder="Certificate of completion"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
+                      Accepted file types
+                    </label>
+                    <select
+                      value={moduleTaskAllowedFileTypes}
+                      onChange={(e) => setModuleTaskAllowedFileTypes(e.target.value)}
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs bg-white"
+                    >
+                      <option value="pdf">PDF</option>
+                      <option value="jpg">JPG</option>
+                      <option value="png">PNG</option>
+                      <option value="jpeg">JPEG</option>
+                      <option value="doc">DOC</option>
+                      <option value="docx">DOCX</option>
+                      <option value="xlsx">XLSX</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
+                      Due date & time
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={moduleTaskDueDate}
+                      onChange={(e) => setModuleTaskDueDate(e.target.value)}
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
+                      Optional due note
+                    </label>
+                    <input
+                      type="text"
+                      value={moduleTaskDueText}
+                      onChange={(e) => setModuleTaskDueText(e.target.value)}
+                      placeholder="Due within 7 days of module completion"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs bg-white"
+                    />
                   </div>
                 </div>
               </div>
@@ -1613,6 +1859,225 @@ export default function AdminModulesPage() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Task Review */}
+              {reviewModule.moduleTask && (
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="font-bold text-[#000666] text-xs uppercase tracking-wider">Module Task Submissions</h4>
+                      <p className="text-[11px] text-slate-500 mt-1">Review learner evidence and decide whether to approve, reject, or request a resubmission.</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold uppercase tracking-wider">
+                        {taskSubmissions.length} total
+                      </span>
+                      <span className="inline-flex items-center px-2 py-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider">
+                        {taskSubmissions.filter((submission) => submission.status === 'pending_review' || submission.status === 'needs_resubmission').length} pending
+                      </span>
+                    </div>
+                  </div>
+
+                  {taskSubmissionsLoading ? (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-500 text-sm">Loading submissions…</div>
+                  ) : taskSubmissions.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
+                      No submissions have been received for this task yet.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 xl:grid-cols-[330px_minmax(0,1fr)] gap-4">
+                      <div className="border border-slate-200 rounded-2xl bg-slate-50/60 overflow-hidden">
+                        <div className="px-3 py-3 border-b border-slate-200 bg-white/80">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-bold">Queue</span>
+                            <span className="text-[10px] text-slate-500">{taskSubmissions.filter((submission) => submission.status === 'approved').length} approved</span>
+                          </div>
+                        </div>
+                        <div className="max-h-[420px] overflow-y-auto divide-y divide-slate-200">
+                          {taskSubmissions.map((submission) => {
+                            const isSelected = selectedTaskSubmissionId === submission._id;
+                            const statusTone = submission.status === 'approved'
+                              ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                              : submission.status === 'rejected'
+                                ? 'bg-rose-100 text-rose-700 border-rose-200'
+                                : submission.status === 'needs_resubmission'
+                                  ? 'bg-amber-100 text-amber-700 border-amber-200'
+                                  : 'bg-sky-100 text-sky-700 border-sky-200';
+
+                            return (
+                              <button
+                                key={submission._id}
+                                type="button"
+                                onClick={() => setSelectedTaskSubmissionId(submission._id)}
+                                className={`w-full text-left px-3 py-3 transition-all ${isSelected ? 'bg-white border-l-4 border-[#000666]' : 'hover:bg-white/80'}`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <div className="font-bold text-sm text-slate-800 truncate">
+                                      {submission.userId?.fullName || 'Participant'}
+                                    </div>
+                                    <div className="text-[11px] text-slate-500 truncate">{submission.userId?.email || 'No email on record'}</div>
+                                  </div>
+                                  <span className={`text-[9px] font-bold uppercase tracking-[0.12em] px-2 py-1 rounded-full border ${statusTone}`}>
+                                    {submission.status.replace(/_/g, ' ')}
+                                  </span>
+                                </div>
+                                <div className="mt-2 text-[11px] text-slate-500">
+                                  {submission.submittedAt ? new Date(submission.submittedAt).toLocaleString() : 'Unknown time'}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="border border-slate-200 rounded-2xl bg-white p-4 shadow-sm min-h-[360px]">
+                        {(() => {
+                          const selectedSubmission = taskSubmissions.find((submission) => submission._id === selectedTaskSubmissionId) || taskSubmissions[0];
+                          if (!selectedSubmission) {
+                            return null;
+                          }
+
+                          const draft = taskReviewDrafts[selectedSubmission._id] || {
+                            status: 'pending_review',
+                            points: selectedSubmission.pointsAwarded || 0,
+                            feedback: selectedSubmission.adminFeedback || '',
+                          };
+
+                          return (
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                                <div>
+                                  <div className="font-black text-[#000666] text-base">
+                                    {selectedSubmission.userId?.fullName || 'Participant'}
+                                  </div>
+                                  <div className="text-xs text-slate-500">{selectedSubmission.userId?.email || 'No email on record'}</div>
+                                </div>
+                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.18em] border ${
+                                  draft.status === 'approved'
+                                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                    : draft.status === 'rejected'
+                                      ? 'bg-rose-100 text-rose-700 border-rose-200'
+                                      : draft.status === 'needs_resubmission'
+                                        ? 'bg-amber-100 text-amber-700 border-amber-200'
+                                        : 'bg-sky-100 text-sky-700 border-sky-200'
+                                }`}>
+                                  {draft.status.replace(/_/g, ' ')}
+                                </span>
+                              </div>
+
+                              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 space-y-3">
+                                <div className="text-[11px] text-slate-500 uppercase tracking-[0.16em] font-bold">Submission details</div>
+                                <div className="text-xs text-slate-600">
+                                  Submitted: {selectedSubmission.submittedAt ? new Date(selectedSubmission.submittedAt).toLocaleString() : 'Unknown'}
+                                </div>
+
+                                {selectedSubmission.files && selectedSubmission.files.length > 0 ? (
+                                  <div className="space-y-1.5 pt-1">
+                                    <div className="text-[11px] font-bold text-slate-700">Uploaded Evidence ({selectedSubmission.files.length}):</div>
+                                    <div className="flex flex-col gap-2">
+                                      {selectedSubmission.files.map((file, idx) => (
+                                        <a
+                                          key={idx}
+                                          href={file.fileUrl}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="flex items-center justify-between px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-800 text-xs font-semibold hover:border-[#000666] hover:text-[#000666] transition-all shadow-2xs group"
+                                        >
+                                          <span className="truncate pr-2">{file.fileName || `Evidence file ${idx + 1}`}</span>
+                                          <span className="text-[10px] font-bold text-[#000666] bg-sky-50 px-2 py-0.5 rounded border border-sky-100 shrink-0 group-hover:bg-[#000666] group-hover:text-white transition-all">Open ↗</span>
+                                        </a>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ) : selectedSubmission.fileUrl ? (
+                                  <div className="pt-1">
+                                    <a
+                                      href={selectedSubmission.fileUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="flex items-center justify-between px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-800 text-xs font-semibold hover:border-[#000666] hover:text-[#000666] transition-all shadow-2xs group"
+                                    >
+                                      <span className="truncate pr-2">{selectedSubmission.fileName || 'Uploaded evidence file'}</span>
+                                      <span className="text-[10px] font-bold text-[#000666] bg-sky-50 px-2 py-0.5 rounded border border-sky-100 shrink-0 group-hover:bg-[#000666] group-hover:text-white transition-all">Open ↗</span>
+                                    </a>
+                                  </div>
+                                ) : null}
+
+                                {selectedSubmission.note && (
+                                  <div className="text-xs text-slate-700 rounded-xl bg-white border border-slate-200 p-3 mt-2 space-y-1">
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Learner Note</div>
+                                    <p className="leading-relaxed">{selectedSubmission.note}</p>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="space-y-3 pt-1">
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">Decision</label>
+                                    <select
+                                      value={draft.status}
+                                      onChange={(e) => setTaskReviewDrafts(prev => ({
+                                        ...prev,
+                                        [selectedSubmission._id]: { ...prev[selectedSubmission._id], status: e.target.value as any },
+                                      }))}
+                                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                                    >
+                                      <option value="pending_review">Pending review</option>
+                                      <option value="approved">Approved</option>
+                                      <option value="rejected">Rejected</option>
+                                      <option value="needs_resubmission">Needs resubmission</option>
+                                    </select>
+                                  </div>
+
+                                  <div>
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">Points</label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      value={draft.points}
+                                      onChange={(e) => setTaskReviewDrafts(prev => ({
+                                        ...prev,
+                                        [selectedSubmission._id]: { ...prev[selectedSubmission._id], points: Number(e.target.value || 0) },
+                                      }))}
+                                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">Feedback</label>
+                                  <textarea
+                                    rows={3}
+                                    value={draft.feedback}
+                                    onChange={(e) => setTaskReviewDrafts(prev => ({
+                                      ...prev,
+                                      [selectedSubmission._id]: { ...prev[selectedSubmission._id], feedback: e.target.value },
+                                    }))}
+                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 resize-none focus:outline-none focus:ring-2 focus:ring-sky-100"
+                                    placeholder="Add comments to send back to the learner"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="flex justify-end pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleTaskReview(selectedSubmission._id)}
+                                  className="w-full sm:w-auto px-5 py-2.5 bg-[#000666] hover:bg-[#000666]/90 text-white font-bold text-xs rounded-xl transition-all shadow-xs"
+                                >
+                                  Save review
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

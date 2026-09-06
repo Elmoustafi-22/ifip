@@ -14,6 +14,18 @@ export interface IModuleOutline {
     expectedOutcomes?: string[];
 }
 
+export interface IModuleTask {
+    title?: string;
+    description?: string;
+    instructions?: string;
+    requiresUpload?: boolean;
+    evidenceLabel?: string;
+    allowedFileTypes?: string[];
+    dueDate?: Date;
+    dueText?: string;
+    isRequired?: boolean;
+}
+
 export interface IModule extends Document {
     title: string;
     description: string;
@@ -23,6 +35,7 @@ export interface IModule extends Document {
     contentUrl?: string;
     body?: string;
     outline?: IModuleOutline;
+    moduleTask?: IModuleTask;
     estimatedDuration?: number; // optional (duration belongs to assessment)
     cohortId?: Types.ObjectId;
     assessmentId?: Types.ObjectId;
@@ -48,6 +61,18 @@ const moduleOutlineSchema = new Schema<IModuleOutline>({
     expectedOutcomes: [{ type: String }]
 }, { _id: false });
 
+const moduleTaskSchema = new Schema<IModuleTask>({
+    title: { type: String },
+    description: { type: String },
+    instructions: { type: String },
+    requiresUpload: { type: Boolean, default: false },
+    evidenceLabel: { type: String },
+    allowedFileTypes: [{ type: String }],
+    dueDate: { type: Date },
+    dueText: { type: String },
+    isRequired: { type: Boolean, default: true }
+}, { _id: false });
+
 const moduleSchema = new Schema<IModule>({
     title: { type: String, required: true },
     description: { type: String, required: true },
@@ -57,6 +82,7 @@ const moduleSchema = new Schema<IModule>({
     contentUrl: { type: String },
     body: { type: String },
     outline: { type: moduleOutlineSchema, default: () => ({}) },
+    moduleTask: { type: moduleTaskSchema, default: () => ({}) },
     estimatedDuration: { type: Number, default: 0 },
     cohortId: { type: Schema.Types.ObjectId, ref: 'Cohort' },
     assessmentId: { type: Schema.Types.ObjectId, ref: 'Assessment' },

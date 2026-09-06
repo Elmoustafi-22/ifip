@@ -20,6 +20,7 @@ import {
   HiOutlineChevronUp
 } from "react-icons/hi2";
 import { getModuleOutline, LMSModule } from "@/lib/api/services";
+import { linkifyText } from "@/lib/utils/linkify";
 
 export default function ModuleOutlinePage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -73,6 +74,7 @@ export default function ModuleOutlinePage({ params }: { params: Promise<{ id: st
   }
 
   const outline = module.outline || {};
+  const moduleTask = module.moduleTask;
   const isLocked = module.isLocked || module.status === "locked";
   const isCompleted = module.status === "completed";
   const isInProgress = module.status === "in_progress";
@@ -80,6 +82,16 @@ export default function ModuleOutlinePage({ params }: { params: Promise<{ id: st
   const topics = outline.topics || [];
   const objectives = outline.learningObjectives || [];
   const outcomes = outline.expectedOutcomes || [];
+  const taskDescription = moduleTask?.instructions || moduleTask?.description || "";
+  const formattedDueDate = moduleTask?.dueDate
+    ? new Date(moduleTask.dueDate).toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      })
+    : "";
 
   return (
     <div className="max-w-4xl mx-auto py-4 sm:py-8 px-1 sm:px-6 lg:px-8 font-sans min-w-0 max-w-full">
@@ -124,9 +136,10 @@ export default function ModuleOutlinePage({ params }: { params: Promise<{ id: st
             {module.title}
           </h1>
 
-          <p className="text-white/80 text-sm sm:text-base leading-relaxed max-w-2xl font-normal">
-            {outline.purpose || module.description}
-          </p>
+          <div
+            className="text-white/80 text-sm sm:text-base leading-relaxed max-w-2xl font-normal"
+            dangerouslySetInnerHTML={{ __html: linkifyText(outline.purpose || module.description) }}
+          />
 
           {/* Quick CTA inside header */}
           <div className="pt-4 flex flex-wrap items-center gap-4">
@@ -149,6 +162,47 @@ export default function ModuleOutlinePage({ params }: { params: Promise<{ id: st
 
       {/* Main Outline Grid */}
       <div className="space-y-8">
+        {moduleTask && (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4 mb-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-700">Module Task</p>
+                <h2 className="text-xl font-black text-[#000666] mt-1">{moduleTask.title || "Action required"}</h2>
+              </div>
+              {moduleTask.requiresUpload && (
+                <span className="inline-flex items-center rounded-full bg-amber-100 text-amber-800 border border-amber-200 px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
+                  Upload required
+                </span>
+              )}
+            </div>
+
+            {taskDescription && (
+              <div
+                className="text-sm text-slate-700 leading-relaxed prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: linkifyText(taskDescription) }}
+              />
+            )}
+
+            <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-600">
+              {moduleTask.requiresUpload && (
+                <span className="rounded-full bg-white border border-slate-200 px-3 py-1.5">
+                  Evidence: {moduleTask.evidenceLabel || "Certificate or proof of completion"}
+                </span>
+              )}
+              {moduleTask.allowedFileTypes && moduleTask.allowedFileTypes.length > 0 && (
+                <span className="rounded-full bg-white border border-slate-200 px-3 py-1.5">
+                  Accepted: {moduleTask.allowedFileTypes.join(", ")}
+                </span>
+              )}
+              {(formattedDueDate || moduleTask.dueText) && (
+                <span className="rounded-full bg-white border border-slate-200 px-3 py-1.5">
+                  {formattedDueDate || moduleTask.dueText}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Learning Objectives */}
         {objectives.length > 0 && (
           <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 sm:p-8 shadow-sm">
@@ -232,7 +286,7 @@ export default function ModuleOutlinePage({ params }: { params: Promise<{ id: st
                               {topic.subtopics.map((sub, sIdx) => (
                                 <li key={sIdx} className="flex items-start gap-2 text-xs text-slate-600 leading-relaxed">
                                   <span className="text-[#FF9800] font-bold mt-0.5">•</span>
-                                  <span>{sub}</span>
+                                  <span dangerouslySetInnerHTML={{ __html: linkifyText(sub) }} />
                                 </li>
                               ))}
                             </ul>
@@ -245,9 +299,10 @@ export default function ModuleOutlinePage({ params }: { params: Promise<{ id: st
                             <span className="text-[10px] uppercase font-bold text-amber-800 tracking-wider block mb-1">
                               Recommended Learning Activity
                             </span>
-                            <p className="text-xs text-amber-950 font-medium leading-relaxed">
-                              {topic.learningActivity}
-                            </p>
+                            <div
+                              className="text-xs text-amber-950 font-medium leading-relaxed"
+                              dangerouslySetInnerHTML={{ __html: linkifyText(topic.learningActivity) }}
+                            />
                           </div>
                         )}
 
@@ -299,7 +354,7 @@ export default function ModuleOutlinePage({ params }: { params: Promise<{ id: st
               {outcomes.map((outc, i) => (
                 <li key={i} className="flex items-start gap-3 text-xs sm:text-sm text-slate-700">
                   <HiOutlineCheckCircle className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
-                  <span className="leading-relaxed font-medium">{outc}</span>
+                  <span className="leading-relaxed font-medium" dangerouslySetInnerHTML={{ __html: linkifyText(outc) }} />
                 </li>
               ))}
             </ul>

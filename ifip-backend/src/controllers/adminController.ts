@@ -448,7 +448,7 @@ export const getAdminModules = async (req: Request, res: Response) => {
 
 export const createModule = async (req: Request, res: Response) => {
     try {
-        const { title, description, order, weekNumber, contentType, contentUrl, body, outline, estimatedDuration, cohortId, status } = req.body;
+        const { title, description, order, weekNumber, contentType, contentUrl, body, outline, moduleTask, estimatedDuration, cohortId, status } = req.body;
         
         if (!title || !description || order === undefined || !contentType) {
             res.status(400).json({ message: 'title, description, order, and contentType are required.' });
@@ -466,6 +466,7 @@ export const createModule = async (req: Request, res: Response) => {
             contentUrl,
             body,
             outline: outline || {},
+            moduleTask: moduleTask || {},
             estimatedDuration: estimatedDuration || 0,
             cohortId: cohortId ? new Types.ObjectId(cohortId) : undefined,
             status: initialStatus,
@@ -494,7 +495,7 @@ export const createModule = async (req: Request, res: Response) => {
 export const updateModule = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { title, description, order, weekNumber, contentType, contentUrl, body, outline, estimatedDuration, cohortId, status } = req.body;
+        const { title, description, order, weekNumber, contentType, contentUrl, body, outline, moduleTask, estimatedDuration, cohortId, status } = req.body;
         
         const mod = await Module.findById(id);
         if (!mod) {
@@ -510,6 +511,7 @@ export const updateModule = async (req: Request, res: Response) => {
         if (contentUrl !== undefined) mod.contentUrl = contentUrl;
         if (body !== undefined) mod.body = body;
         if (outline !== undefined) mod.outline = outline;
+        if (moduleTask !== undefined) mod.moduleTask = moduleTask || {};
         if (estimatedDuration !== undefined) mod.estimatedDuration = estimatedDuration;
         if (cohortId !== undefined) {
             mod.cohortId = cohortId ? new Types.ObjectId(cohortId) : undefined;
@@ -578,7 +580,7 @@ export const unpublishModule = async (req: Request, res: Response) => {
 export const getModuleOutline = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const mod = await Module.findById(id).select('title description order weekNumber estimatedDuration outline');
+        const mod = await Module.findById(id).select('title description order weekNumber estimatedDuration outline moduleTask');
         if (!mod) {
             res.status(404).json({ message: 'Module not found.' });
             return;
@@ -590,7 +592,8 @@ export const getModuleOutline = async (req: Request, res: Response) => {
             order: mod.order,
             weekNumber: mod.weekNumber || mod.order || 1,
             estimatedDuration: mod.estimatedDuration,
-            outline: mod.outline || {}
+            outline: mod.outline || {},
+            moduleTask: mod.moduleTask || null
         });
     } catch (e: any) {
         res.status(500).json({ message: 'Error fetching module outline.', error: e.message });

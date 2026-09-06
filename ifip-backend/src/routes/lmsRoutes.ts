@@ -12,6 +12,12 @@ import {
     getParticipantSchedule,
     getUpcomingSessions
 } from '../controllers/programmeSessionController.js';
+import {
+    getModuleTaskStatus,
+    submitModuleTask,
+    getModuleTaskSubmissions,
+    getMyTaskRewardSummary,
+} from '../controllers/moduleTaskController.js';
 
 const router = Router();
 
@@ -21,6 +27,10 @@ router.use(requireActiveApplication); // Gate entire LMS to active/completed coh
 router.get('/modules', getModules);
 router.get('/modules/:id/outline', getModuleOutline);
 router.get('/modules/:id', getModuleById);
+router.get('/modules/:id/task', getModuleTaskStatus);
+router.post('/modules/:id/task/submit', submitModuleTask);
+router.get('/modules/:id/task/submissions', getModuleTaskSubmissions);
+router.get('/task-rewards/summary', getMyTaskRewardSummary);
 router.post('/modules/complete', completeModule);
 
 // Schedule / Timetable endpoints

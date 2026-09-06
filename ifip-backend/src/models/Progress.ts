@@ -7,6 +7,9 @@ export interface IProgress extends Document {
     completedAt?: Date;
     assessmentStatus?: 'not_started' | 'in_progress' | 'passed' | 'failed' | 'pending_review';
     assessmentSubmissionId?: Types.ObjectId;
+    moduleTaskStatus?: 'not_started' | 'submitted' | 'pending_review' | 'passed' | 'failed' | 'needs_resubmission';
+    moduleTaskSubmissionId?: Types.ObjectId;
+    taskPointsAwarded?: number;
     createdAt: Date;
 }
 
@@ -21,6 +24,13 @@ const progressSchema = new Schema<IProgress>({
         default: 'not_started'
     },
     assessmentSubmissionId: { type: Schema.Types.ObjectId, ref: 'AssessmentSubmission' },
+    moduleTaskStatus: {
+        type: String,
+        enum: ['not_started', 'submitted', 'pending_review', 'passed', 'failed', 'needs_resubmission'],
+        default: 'not_started'
+    },
+    moduleTaskSubmissionId: { type: Schema.Types.ObjectId, ref: 'ModuleTaskSubmission' },
+    taskPointsAwarded: { type: Number, default: 0, min: 0 },
     createdAt: { type: Date, default: Date.now }
 });
 

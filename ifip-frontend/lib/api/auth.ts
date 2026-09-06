@@ -26,8 +26,14 @@ export const getAccessToken = (): string | null =>
 export const storeAccessToken = (token: string, _remember = false): void => {
   if (typeof window === "undefined") return;
   localStorage.setItem("accessToken", token);
-  localStorage.removeItem("refreshToken");
   sessionStorage.removeItem("accessToken");
+};
+
+/** Store the refresh token as a fallback for environments where the
+ *  httpOnly cookie isn't forwarded (e.g. cross-origin SameSite:lax in dev). */
+export const storeRefreshToken = (token: string): void => {
+  if (typeof window === "undefined" || !token) return;
+  localStorage.setItem("refreshToken", token);
 };
 
 export const clearAuth = (): void => {
@@ -55,6 +61,7 @@ export const login = async (
   });
   if (!data.mfaRequired && data.accessToken) {
     storeAccessToken(data.accessToken, rememberMe);
+    if (data.refreshToken) storeRefreshToken(data.refreshToken);
   }
   return data;
 };
@@ -73,6 +80,7 @@ export const setPassword = async (
   });
   if (data.accessToken) {
     storeAccessToken(data.accessToken, false);
+    if (data.refreshToken) storeRefreshToken(data.refreshToken);
   }
   return data;
 };

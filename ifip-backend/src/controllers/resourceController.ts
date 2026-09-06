@@ -57,8 +57,8 @@ export const createResource = async (req: Request, res: Response) => {
         const userId = req.user!.id;
         const { title, description, category, fileUrl, fileType, fileSize, cohortId } = req.body;
 
-        if (!title || !description || !fileUrl) {
-            res.status(400).json({ message: 'Title, description, and file URL are required.' });
+        if (!title || !description) {
+            res.status(400).json({ message: 'Title and description are required.' });
             return;
         }
 
@@ -66,7 +66,7 @@ export const createResource = async (req: Request, res: Response) => {
             title,
             description,
             category: category || 'guidelines',
-            fileUrl,
+            fileUrl: fileUrl || '',
             fileType: fileType || 'pdf',
             fileSize: fileSize || '1.0 MB',
             cohortId: cohortId ? new Types.ObjectId(cohortId as string) : undefined,

@@ -30,14 +30,17 @@ import {
   updateCohortConfig, 
   uploadBrochure,
   getRegistrationApplicants,
+  getTaskRewardSummary,
   AdminStats, 
   AnonApplicant,
-  Cohort 
+  Cohort,
+  TaskRewardSummaryRow
 } from "@/lib/api/services";
 
 export default function AdminDashboardPage() {
   const { selectedCohortId, cohorts } = useContext(AdminCohortContext);
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [rewardSummary, setRewardSummary] = useState<TaskRewardSummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("cohorts"); // cohorts, system, acquisition, funnel
   const [exportModalOpen, setExportModalOpen] = useState(false);
@@ -83,11 +86,13 @@ export default function AdminDashboardPage() {
 
   const fetchAdminDashboard = async () => {
     try {
-      const [statsData, configData] = await Promise.all([
+      const [statsData, configData, rewardsData] = await Promise.all([
         getAdminStats(selectedCohortId || undefined),
-        getCohortConfig()
+        getCohortConfig(),
+        getTaskRewardSummary()
       ]);
       setStats(statsData);
+      setRewardSummary(rewardsData.summary || []);
       
       // Load current config parameters
       if (configData.cohortStartDate) {
@@ -314,6 +319,57 @@ export default function AdminDashboardPage() {
           </Link>
         </div>
       )}
+
+      <div className="mb-8 bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 pb-4 border-b border-slate-100">
+          <div>
+            <h2 className="text-base font-bold text-[#000666]">Programme Task Rewards & Pass-through</h2>
+            <p className="text-xs text-slate-500 mt-1">Approved task points accumulate per participant so you can track who is eligible to advance.</p>
+          </div>
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-3 py-2 text-right min-w-[160px]">
+            <div className="text-[10px] uppercase tracking-[0.2em] font-bold">Qualified</div>
+            <div className="text-xl font-black">{rewardSummary.filter((row) => row.status === "qualified").length}</div>
+          </div>
+        </div>
+
+        <div className="mt-4 overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-100 text-left text-sm">
+            <thead className="bg-slate-50 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+              <tr>
+                <th className="px-3 py-2 font-semibold">Participant</th>
+                <th className="px-3 py-2 font-semibold">Passed tasks</th>
+                <th className="px-3 py-2 font-semibold">Points</th>
+                <th className="px-3 py-2 font-semibold">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rewardSummary.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-3 py-8 text-center text-slate-400 text-xs italic">
+                    No approved task rewards have been recorded yet.
+                  </td>
+                </tr>
+              ) : (
+                rewardSummary.map((row, index) => (
+                  <tr key={`${row.userId}-${index}`} className="hover:bg-slate-50/60">
+                    <td className="px-3 py-3">
+                      <div className="font-bold text-[#000666]">{row.fullName}</div>
+                      <div className="text-[11px] text-slate-500">{row.email || "No email on record"}</div>
+                    </td>
+                    <td className="px-3 py-3 font-semibold text-slate-700">{row.passedModules}</td>
+                    <td className="px-3 py-3 font-mono font-bold text-slate-700">{row.totalAwardedPoints}</td>
+                    <td className="px-3 py-3">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${row.status === "qualified" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                        {row.status === "qualified" ? "Qualified" : "In progress"}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {/* Mobile view tab buttons */}
       <div className="flex lg:hidden bg-slate-100 p-1 rounded-xl mb-6 gap-1">
