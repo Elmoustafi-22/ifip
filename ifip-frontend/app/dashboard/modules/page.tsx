@@ -12,7 +12,8 @@ import {
   HiOutlineClipboardDocumentList,
   HiOutlineClock,
   HiOutlineCalendar,
-  HiOutlineAcademicCap
+  HiOutlineAcademicCap,
+  HiOutlineArrowRight
 } from "react-icons/hi2";
 import {
   getLMSModules,
@@ -74,25 +75,17 @@ export default function ModulesPage() {
   const getContentTypeIcon = (type: string) => {
     switch (type) {
       case "video":
-        return <HiOutlinePlay className="w-5 h-5 text-indigo-600" />;
+        return <HiOutlinePlay className="w-4 h-4 text-[#000666]" />;
       case "quiz":
       case "assignment":
-        return <HiOutlineClipboardDocumentList className="w-5 h-5 text-rose-600" />;
+        return <HiOutlineClipboardDocumentList className="w-4 h-4 text-[#000666]" />;
       default:
-        return <HiOutlineBookOpen className="w-5 h-5 text-amber-600" />;
+        return <HiOutlineBookOpen className="w-4 h-4 text-[#000666]" />;
     }
   };
 
   const getContentTypeBg = (type: string) => {
-    switch (type) {
-      case "video":
-        return "bg-indigo-50 border-indigo-100";
-      case "quiz":
-      case "assignment":
-        return "bg-rose-50 border-rose-100";
-      default:
-        return "bg-amber-50 border-amber-100";
-    }
+    return "bg-[#000666]/5 border-[#000666]/10 text-[#000666]";
   };
 
   const getIsLaunched = () => {
@@ -274,11 +267,11 @@ export default function ModulesPage() {
           </div>
           <div className="flex-1 max-w-md w-full">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-xs font-bold text-[#00B0FF]">{progressPercent}% Completed</span>
+              <span className="text-xs font-bold text-[#000666]">{progressPercent}% Completed</span>
             </div>
-            <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
               <div 
-                className="bg-[#00B0FF] h-2.5 rounded-full transition-all duration-500" 
+                className="bg-[#000666] h-2 rounded-full transition-all duration-500" 
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -287,19 +280,27 @@ export default function ModulesPage() {
       )}
 
       {taskRewardSummary && (
-        <div className="bg-gradient-to-r from-[#000666] to-[#0B2A8A] text-white rounded-2xl p-6 shadow-sm mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.22em] text-sky-200 font-bold mb-2">Task Reward Summary</p>
-            <h2 className="text-xl font-black">{taskRewardSummary.totalAwardedPoints} Points Earned</h2>
-            <p className="text-sm text-sky-100 mt-1">
-              {taskRewardSummary.passedModules} approved task{taskRewardSummary.passedModules === 1 ? "" : "s"} completed.
+        <div className="bg-gradient-to-r from-[#000666] via-[#081B72] to-[#0B2A8A] text-white rounded-2xl p-6 sm:p-7 shadow-sm mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 border border-white/10">
+          <div className="space-y-1">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-sky-200 font-bold">Coursework Task Progression</p>
+            <h2 className="text-xl sm:text-2xl font-black tracking-tight">
+              {taskRewardSummary.passedModules} Approved Task{taskRewardSummary.passedModules === 1 ? "" : "s"} Completed
+            </h2>
+            <p className="text-xs text-sky-100/90 font-medium">
+              All required practical exercises and submissions verified.
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <span className={`inline-flex items-center rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] ${taskRewardSummary.status === "qualified" ? "bg-emerald-500/20 text-emerald-100 border border-emerald-300/30" : "bg-amber-500/20 text-amber-100 border border-amber-300/30"}`}>
-              {taskRewardSummary.status === "qualified" ? "Qualified" : "In progress"}
+          <div className="flex items-center gap-3.5 bg-white/5 border border-white/10 rounded-xl px-4 py-3 lg:max-w-md shrink-0">
+            <span className={`inline-flex items-center justify-center shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] select-none ${
+              taskRewardSummary.status === "qualified" 
+                ? "bg-emerald-500/20 text-emerald-200 border border-emerald-300/40" 
+                : "bg-amber-400/20 text-amber-200 border border-amber-300/40"
+            }`}>
+              {taskRewardSummary.status === "qualified" ? "Requirements Met" : "In Progress"}
             </span>
-            <p className="text-xs text-sky-100 max-w-xs">{taskRewardSummary.message}</p>
+            <p className="text-xs text-sky-100 leading-snug font-medium">
+              {taskRewardSummary.message}
+            </p>
           </div>
         </div>
       )}
@@ -315,7 +316,7 @@ export default function ModulesPage() {
           return (
             <div 
               key={mod._id}
-              className={`bg-white border rounded-2xl p-6 relative overflow-hidden transition-all duration-300 ${
+              className={`bg-white border rounded-2xl p-4 sm:p-6 relative overflow-hidden transition-all duration-300 ${
                 isLocked 
                   ? "border-slate-200/60 opacity-75 select-none" 
                   : "border-[#E7E2D8] hover:border-slate-300 hover:shadow-md hover:translate-y-[-1px]"
@@ -326,101 +327,115 @@ export default function ModulesPage() {
                 isCompleted 
                   ? "bg-emerald-500" 
                   : isInProgress 
-                    ? "bg-[#00B0FF]" 
+                    ? "bg-[#000666]" 
                     : "bg-slate-200"
               }`} />
 
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
-                <div className="flex items-start gap-4">
-                  {/* Content Type Badge */}
-                  <div className={`w-11 h-11 shrink-0 rounded-xl border flex items-center justify-center ${
-                    isLocked ? "bg-slate-50 border-slate-100" : getContentTypeBg(mod.contentType)
-                  }`}>
-                    {isLocked ? (
-                      <HiOutlineLockClosed className="w-5 h-5 text-slate-400" />
-                    ) : (
-                      getContentTypeIcon(mod.contentType)
-                    )}
-                  </div>
-
-                  <div>
-                    {/* Badge / Status Label */}
-                    <div className="flex items-center gap-2.5 mb-2">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 sm:gap-6">
+                <div className="flex-1 min-w-0">
+                  {/* Top line: Module number + Status + Type icon */}
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                         Module {mod.order}
                       </span>
                       {isCompleted && (
-                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-100">
+                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-200/60">
                           <HiOutlineCheckCircle className="w-3.5 h-3.5" /> Completed
                         </span>
                       )}
                       {isInProgress && (
-                        <span className="bg-sky-50 text-[#00B0FF] text-[10px] font-bold px-2 py-0.5 rounded-md border border-sky-100">
+                        <span className="bg-[#000666]/5 text-[#000666] text-[10px] font-bold px-2 py-0.5 rounded-md border border-[#000666]/15">
                           In Progress
                         </span>
                       )}
                       {isNotStarted && (
-                        <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-md border border-slate-200">
+                        <span className="bg-slate-100 text-slate-600 text-[10px] font-medium px-2 py-0.5 rounded-md">
                           Not Started
                         </span>
                       )}
                       {isLocked && (
-                        <span className="bg-slate-50 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-slate-100">
-                          Locked
+                        <span className="bg-slate-100 text-slate-400 text-[10px] font-medium px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+                          <HiOutlineLockClosed className="w-3 h-3" /> Locked
+                        </span>
+                      )}
+                      {mod.pdfUrl && (
+                        <span className="bg-rose-50 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded-md border border-rose-200/60 inline-flex items-center gap-1">
+                          PDF Pack
                         </span>
                       )}
                     </div>
 
-                    <h3 className={`text-lg font-bold font-display leading-tight mb-2 ${
-                      isLocked ? "text-slate-400" : "text-[#000666]"
-                    }`}>
-                      {mod.title}
-                    </h3>
-                    <p className={`text-sm leading-relaxed max-w-xl ${
+                    <div className="w-7 h-7 rounded-lg bg-[#000666]/5 border border-[#000666]/10 flex items-center justify-center shrink-0">
+                      {isLocked ? (
+                        <HiOutlineLockClosed className="w-3.5 h-3.5 text-slate-400" />
+                      ) : (
+                        getContentTypeIcon(mod.contentType)
+                      )}
+                    </div>
+                  </div>
+
+                  <h3 className={`text-base sm:text-lg font-bold font-display leading-snug mb-1.5 break-words ${
+                    isLocked ? "text-slate-400" : "text-[#000666]"
+                  }`}>
+                    {mod.title}
+                  </h3>
+                  {mod.description && (
+                    <p className={`text-xs sm:text-sm leading-relaxed line-clamp-2 sm:line-clamp-3 mb-3 break-words ${
                       isLocked ? "text-slate-400" : "text-slate-500"
                     }`}>
                       {mod.description}
                     </p>
+                  )}
 
-                    {/* Metadata & Outline Badges */}
-                    <div className="flex flex-wrap items-center gap-2 mt-4">
-                      <span className="inline-flex items-center gap-1.5 bg-[#000666]/5 text-[#000666] border border-[#000666]/10 rounded-full px-3 py-1 text-xs font-bold">
-                        <HiOutlineCalendar className="w-3.5 h-3.5 text-[#000666]" /> Week {mod.weekNumber || mod.order}
-                      </span>
-                      {mod.outline?.topics && mod.outline.topics.length > 0 && (
-                        <span className="bg-sky-50 border border-sky-100 text-sky-700 rounded-full px-3 py-1 text-xs font-semibold">
-                          {mod.outline.topics.length} Syllabus Topics
+                  {/* Compact Metadata Row */}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 pt-2 border-t border-slate-100">
+                    <span className="font-semibold text-slate-700">Week {mod.weekNumber || mod.order}</span>
+                    {mod.outline?.topics && mod.outline.topics.length > 0 && (
+                      <>
+                        <span className="text-slate-300">•</span>
+                        <span>{mod.outline.topics.length} Topics</span>
+                      </>
+                    )}
+                    {mod.pdfUrl && (
+                      <>
+                        <span className="text-slate-300">•</span>
+                        <span className="text-rose-700 font-semibold inline-flex items-center gap-1">
+                          📄 PDF Available
                         </span>
-                      )}
-                      {mod.assessmentId && (
-                        <span className="bg-amber-50 border border-amber-200 text-amber-800 rounded-full px-3 py-1 text-xs font-semibold flex items-center gap-1.5">
-                          <HiOutlineAcademicCap className="w-3.5 h-3.5 text-amber-700" /> Weekly Assessment
+                      </>
+                    )}
+                    {mod.assessmentId && (
+                      <>
+                        <span className="text-slate-300">•</span>
+                        <span className="inline-flex items-center gap-1 text-[#000666] font-medium">
+                          <HiOutlineAcademicCap className="w-3.5 h-3.5" /> Assessment
                         </span>
-                      )}
-                    </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
-                {/* Right Side Button — goes to outline first, then lesson */}
-                <div className="sm:text-right shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5">
+                {/* Action Button */}
+                <div className="pt-2 sm:pt-0 sm:self-center shrink-0 w-full sm:w-auto">
                   {isLocked ? (
                     <button
                       disabled
-                      className="bg-slate-100 text-slate-400 font-bold text-xs tracking-wider uppercase px-5 py-3 rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed"
+                      className="w-full sm:w-auto bg-slate-100 text-slate-400 font-semibold text-xs tracking-wider uppercase px-4 py-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed"
                     >
                       <HiOutlineLockClosed className="w-4 h-4" /> Locked
                     </button>
                   ) : (
                     <Link
                       href={`/dashboard/modules/${mod._id}/outline`}
-                      className={`inline-flex items-center justify-center font-bold text-xs tracking-wider uppercase px-6 py-3 rounded-xl shadow-sm transition-all duration-200 text-center ${
+                      className={`w-full sm:w-auto inline-flex items-center justify-center font-bold text-xs tracking-wider uppercase px-5 py-2.5 rounded-xl shadow-xs transition-all text-center ${
                         isCompleted
-                          ? "border border-[#E7E2D8] bg-[#FDFBF7] text-slate-600 hover:bg-slate-50"
-                          : "bg-[#FF9800] hover:bg-[#FF9800]/90 text-white hover:scale-[1.01] hover:shadow-md"
+                          ? "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                          : "bg-[#000666] hover:bg-[#000666]/90 text-white hover:scale-[1.01]"
                       }`}
                     >
-                      <HiOutlineBookOpen className="w-4 h-4" />
-                      <span className="ml-1.5">{isCompleted ? "Review Module" : isInProgress ? "Resume Course" : "Start Learning"}</span>
+                      <span>{isCompleted ? "Review Module" : isInProgress ? "Resume Course" : "Start Learning"}</span>
+                      <HiOutlineArrowRight className="w-3.5 h-3.5 ml-1.5" />
                     </Link>
                   )}
                 </div>

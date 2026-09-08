@@ -6,7 +6,7 @@ test('linkifyText transforms bare URLs into clickable anchors', () => {
   const output = linkifyText('Visit https://example.com/course and www.example.org for details.');
   assert.equal(
     output,
-    'Visit <a href="https://example.com/course" target="_blank" rel="noopener noreferrer">https://example.com/course</a> and <a href="https://www.example.org" target="_blank" rel="noopener noreferrer">www.example.org</a> for details.'
+    'Visit <a href="https://example.com/course" target="_blank" rel="noopener noreferrer" class="text-sky-600 hover:text-sky-800 font-bold underline underline-offset-2 break-all transition-colors">https://example.com/course</a> and <a href="https://www.example.org" target="_blank" rel="noopener noreferrer" class="text-sky-600 hover:text-sky-800 font-bold underline underline-offset-2 break-all transition-colors">www.example.org</a> for details.'
   );
 });
 

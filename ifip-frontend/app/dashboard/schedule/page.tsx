@@ -3,16 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { 
-  HiOutlineCalendar,
   HiOutlineClock,
   HiOutlineVideoCamera,
   HiOutlineBookOpen,
   HiOutlineArrowDownTray,
-  HiOutlineCheckCircle,
   HiOutlineListBullet,
   HiOutlineSquares2X2,
-  HiOutlineSparkles,
-  HiOutlineInformationCircle,
   HiOutlineArrowRight
 } from "react-icons/hi2";
 import { getParticipantSchedule, ProgrammeSession } from "@/lib/api/services";
@@ -111,17 +107,17 @@ export default function ParticipantSchedulePage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8 font-sans">
+    <div className="max-w-5xl mx-auto py-6 sm:py-8 px-4 sm:px-6 lg:px-8 font-sans">
       {/* Top Header Section */}
-      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <span className="text-[10px] uppercase font-bold tracking-widest text-[#FF9800] block mb-1">
-            Cohort Timetable & Calendar
+          <span className="text-[10px] uppercase font-bold tracking-widest text-[#000666]/60 block mb-1">
+            Cohort Timetable &amp; Calendar
           </span>
           <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight">
             Programme Schedule
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <p className="text-slate-500 text-xs sm:text-sm mt-1">
             Weekly live lectures, break-out labs, async units, and deadlines across the 4-week fellowship.
           </p>
         </div>
@@ -130,9 +126,9 @@ export default function ParticipantSchedulePage() {
         <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0">
           <button
             onClick={() => setViewMode("timeline")}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
               viewMode === "timeline"
-                ? "bg-white text-[#000666] shadow-sm"
+                ? "bg-white text-[#000666] shadow-xs"
                 : "text-slate-500 hover:text-slate-800"
             }`}
           >
@@ -141,9 +137,9 @@ export default function ParticipantSchedulePage() {
           </button>
           <button
             onClick={() => setViewMode("list")}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
               viewMode === "list"
-                ? "bg-white text-[#000666] shadow-sm"
+                ? "bg-white text-[#000666] shadow-xs"
                 : "text-slate-500 hover:text-slate-800"
             }`}
           >
@@ -153,13 +149,13 @@ export default function ParticipantSchedulePage() {
         </div>
       </div>
 
-      {/* Week Selector Filters */}
-      <div className="flex flex-wrap items-center gap-2 mb-8">
+      {/* Week Selector Filters - Clean Single-Row Scrollable Tab Strip on Mobile */}
+      <div className="flex items-center gap-1.5 mb-6 overflow-x-auto pb-1 scrollbar-none">
         <button
           onClick={() => setSelectedWeek("all")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+          className={`px-3.5 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-all ${
             selectedWeek === "all"
-              ? "bg-[#000666] text-white shadow-sm"
+              ? "bg-[#000666] text-white shadow-xs"
               : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
           }`}
         >
@@ -169,9 +165,9 @@ export default function ParticipantSchedulePage() {
           <button
             key={w}
             onClick={() => setSelectedWeek(w)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-all ${
               selectedWeek === w
-                ? "bg-[#000666] text-white shadow-sm"
+                ? "bg-[#000666] text-white shadow-xs"
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
             }`}
           >
@@ -182,27 +178,27 @@ export default function ParticipantSchedulePage() {
 
       {/* TIMELINE / WEEKLY VIEW */}
       {viewMode === "timeline" && (
-        <div className="space-y-8">
+        <div className="space-y-6 sm:space-y-8">
           {(selectedWeek === "all" ? weeks : [selectedWeek as number]).map(weekNum => {
             const weekSessions = sessionsByWeek[weekNum] || [];
 
             return (
               <div 
                 key={weekNum}
-                className="bg-white border border-[#E7E2D8] rounded-2xl overflow-hidden shadow-sm"
+                className="bg-white border border-[#E7E2D8] rounded-2xl overflow-hidden shadow-xs"
               >
                 {/* Week Banner */}
-                <div className="bg-slate-50/80 border-b border-[#E7E2D8] px-6 py-4 flex items-center justify-between">
+                <div className="bg-slate-50/70 border-b border-[#E7E2D8] px-4 sm:px-6 py-3 sm:py-3.5 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="w-8 h-8 rounded-lg bg-[#000666] text-white flex items-center justify-center font-black text-sm">
+                    <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#000666] text-white flex items-center justify-center font-bold text-xs sm:text-sm">
                       {weekNum}
                     </span>
                     <div>
-                      <h3 className="font-bold text-[#000666] text-base">
+                      <h3 className="font-bold text-[#000666] text-sm sm:text-base leading-tight">
                         Week {weekNum}
                       </h3>
-                      <p className="text-xs text-slate-500">
-                        {weekSessions.length} Scheduled Sessions & Activities
+                      <p className="text-[11px] text-slate-500">
+                        {weekSessions.length} Scheduled {weekSessions.length === 1 ? "Session" : "Sessions"}
                       </p>
                     </div>
                   </div>
@@ -221,11 +217,6 @@ export default function ParticipantSchedulePage() {
                       const isPast = dateObj.getTime() < now.getTime() - 2 * 3600 * 1000;
                       const isUpcoming = dateObj.getTime() >= now.getTime();
 
-                      const formattedDate = dateObj.toLocaleDateString("en-GB", {
-                        weekday: "short",
-                        day: "numeric",
-                        month: "short"
-                      });
                       const formattedTime = dateObj.toLocaleTimeString("en-GB", {
                         hour: "2-digit",
                         minute: "2-digit"
@@ -234,33 +225,48 @@ export default function ParticipantSchedulePage() {
                       return (
                         <div 
                           key={sess._id}
-                          className={`p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-all ${
-                            isPast ? "bg-slate-50/50 opacity-80" : "hover:bg-slate-50/50"
+                          className={`p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6 transition-all ${
+                            isPast ? "bg-slate-50/40 opacity-80" : "hover:bg-slate-50/40"
                           }`}
                         >
                           {/* Left: Date + Details */}
-                          <div className="flex items-start gap-4 min-w-0 flex-1">
-                            {/* Date Badge */}
-                            <div className={`w-24 shrink-0 text-center rounded-2xl p-3 border ${
+                          <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4 min-w-0 flex-1 w-full">
+                            {/* Mobile Date Header (Visible only on mobile) */}
+                            <div className="sm:hidden flex items-center gap-2 flex-wrap w-full">
+                              <span className="text-xs font-bold text-[#000666] bg-[#000666]/5 px-2.5 py-1 rounded-md">
+                                {dateObj.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} • {formattedTime}
+                              </span>
+                              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+                                {cfg.label}
+                              </span>
+                              <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
+                                <HiOutlineClock className="w-3.5 h-3.5" />
+                                {sess.durationMinutes || 60} mins
+                              </span>
+                            </div>
+
+                            {/* Desktop Date Tile (Hidden on mobile) */}
+                            <div className={`hidden sm:block w-20 shrink-0 text-center rounded-xl p-2.5 border ${
                               isUpcoming 
-                                ? "bg-white border-[#000666]/20 shadow-sm" 
+                                ? "bg-white border-[#000666]/15 shadow-2xs" 
                                 : "bg-slate-100 border-slate-200"
                             }`}>
-                              <span className="block text-[11px] font-bold uppercase text-slate-400">
+                              <span className="block text-[10px] font-bold uppercase text-slate-400">
                                 {dateObj.toLocaleDateString("en-GB", { weekday: "short" })}
                               </span>
-                              <span className="block text-xl font-black text-[#000666]">
+                              <span className="block text-lg font-black text-[#000666]">
                                 {dateObj.getDate()} {dateObj.toLocaleDateString("en-GB", { month: "short" })}
                               </span>
-                              <span className="block text-xs font-mono font-bold text-[#FF9800] mt-0.5">
+                              <span className="block text-xs font-mono font-bold text-[#000666]/80 mt-0.5">
                                 {formattedTime}
                               </span>
                             </div>
 
                             {/* Session Information */}
-                            <div className="space-y-1.5 min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+                            <div className="space-y-1.5 min-w-0 flex-1 w-full">
+                              {/* Desktop Badges Row */}
+                              <div className="hidden sm:flex flex-wrap items-center gap-2">
+                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
                                   {cfg.label}
                                 </span>
                                 <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
@@ -269,25 +275,26 @@ export default function ParticipantSchedulePage() {
                                 </span>
                               </div>
 
-                              <h4 className="text-base font-bold text-[#000666] leading-snug">
+                              <h4 className="text-sm sm:text-base font-bold text-[#000666] leading-snug break-words">
                                 {sess.title}
                               </h4>
 
                               {sess.description && (
-                                <p className="text-xs text-slate-600 leading-relaxed max-w-xl">
+                                <p className="text-xs text-slate-500 leading-relaxed max-w-xl break-words line-clamp-2 sm:line-clamp-3">
                                   {sess.description}
                                 </p>
                               )}
 
                               {/* Linked Module Link */}
                               {sess.moduleId && (
-                                <div className="pt-1">
+                                <div className="pt-0.5">
                                   <Link
                                     href={`/dashboard/modules/${(sess.moduleId as any)._id || sess.moduleId}/outline`}
-                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-700 hover:text-sky-900 bg-sky-50 px-2.5 py-1 rounded-md border border-sky-200"
+                                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#000666] hover:underline bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg"
                                   >
-                                    <HiOutlineBookOpen className="w-3.5 h-3.5 text-[#FF9800]" />
-                                    <span>Coursework: {(sess.moduleId as any).title || "View Outline"} &rarr;</span>
+                                    <HiOutlineBookOpen className="w-3.5 h-3.5 text-slate-400" />
+                                    <span>Coursework: {(sess.moduleId as any).title || "View Outline"}</span>
+                                    <HiOutlineArrowRight className="w-3 h-3 text-slate-400" />
                                   </Link>
                                 </div>
                               )}
@@ -295,15 +302,15 @@ export default function ParticipantSchedulePage() {
                           </div>
 
                           {/* Right: Actions */}
-                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 self-end md:self-center shrink-0 w-full sm:w-auto">
+                          <div className="flex items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto shrink-0 justify-end">
                             {sess.meetingUrl ? (
                               <a
                                 href={sess.meetingUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center justify-center gap-2 bg-[#000666] hover:bg-[#000666]/90 text-white text-xs font-bold tracking-wider uppercase px-5 py-3 rounded-xl shadow-sm transition-all text-center"
+                                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 bg-[#000666] hover:bg-[#000666]/90 text-white text-xs font-bold tracking-wider uppercase px-4 py-2.5 rounded-xl shadow-2xs transition-all text-center"
                               >
-                                <HiOutlineVideoCamera className="w-4 h-4 text-[#FF9800]" />
+                                <HiOutlineVideoCamera className="w-4 h-4" />
                                 <span>Join {sess.meetingPlatform?.toUpperCase() || "Live"}</span>
                               </a>
                             ) : null}
@@ -311,9 +318,9 @@ export default function ParticipantSchedulePage() {
                             <button
                               onClick={() => downloadIcs(sess)}
                               title="Add to Google/Apple/Outlook Calendar"
-                              className="inline-flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold px-3.5 py-3 rounded-xl transition-colors shadow-sm"
+                              className="inline-flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold px-3 py-2.5 rounded-xl transition-colors shadow-2xs"
                             >
-                              <HiOutlineArrowDownTray className="w-4 h-4 text-slate-500" />
+                              <HiOutlineArrowDownTray className="w-4 h-4 text-slate-400" />
                               <span className="hidden sm:inline">Add to Calendar</span>
                             </button>
                           </div>
@@ -330,7 +337,7 @@ export default function ParticipantSchedulePage() {
 
       {/* LIST VIEW */}
       {viewMode === "list" && (
-        <div className="bg-white border border-[#E7E2D8] rounded-2xl overflow-hidden shadow-sm divide-y divide-slate-100">
+        <div className="bg-white border border-[#E7E2D8] rounded-2xl overflow-hidden shadow-xs divide-y divide-slate-100">
           {filteredSessions.length === 0 ? (
             <div className="p-12 text-center text-slate-400 text-xs">
               No sessions scheduled.
@@ -341,19 +348,19 @@ export default function ParticipantSchedulePage() {
               const dateObj = new Date(sess.sessionDate);
 
               return (
-                <div key={sess._id} className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:bg-slate-50/50">
-                  <div className="flex items-start gap-4 min-w-0 flex-1">
-                    <span className="w-8 h-8 rounded-lg bg-slate-100 text-[#000666] font-mono font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                <div key={sess._id} className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 hover:bg-slate-50/40">
+                  <div className="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
+                    <span className="w-8 h-8 rounded-lg bg-[#000666]/5 text-[#000666] font-mono font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
                       W{sess.weekNumber}
                     </span>
 
                     <div className="space-y-1 min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
                           {cfg.label}
                         </span>
                         <span className="text-xs font-bold text-[#000666]">
-                          {dateObj.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })} at {dateObj.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                          {dateObj.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} at {dateObj.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </div>
                       <h4 className="font-bold text-sm text-[#000666]">
@@ -367,23 +374,23 @@ export default function ParticipantSchedulePage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+                  <div className="flex items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto shrink-0 justify-end">
                     {sess.meetingUrl && (
                       <a
                         href={sess.meetingUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs font-bold text-[#000666] bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-2 rounded-lg flex items-center gap-1"
+                        className="text-xs font-bold text-white bg-[#000666] hover:bg-[#000666]/90 px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-colors"
                       >
-                        <HiOutlineVideoCamera className="w-4 h-4 text-[#FF9800]" />
+                        <HiOutlineVideoCamera className="w-3.5 h-3.5" />
                         Join
                       </a>
                     )}
                     <button
                       onClick={() => downloadIcs(sess)}
-                      className="text-xs font-bold text-slate-600 hover:text-[#000666] border border-slate-200 px-3 py-2 rounded-lg flex items-center gap-1"
+                      className="text-xs font-semibold text-slate-600 hover:text-[#000666] border border-slate-200 bg-white hover:bg-slate-50 px-3 py-2 rounded-xl flex items-center gap-1 transition-colors"
                     >
-                      <HiOutlineArrowDownTray className="w-3.5 h-3.5" /> .ics
+                      <HiOutlineArrowDownTray className="w-3.5 h-3.5 text-slate-400" /> .ics
                     </button>
                   </div>
                 </div>

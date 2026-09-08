@@ -3,9 +3,6 @@
 import { useState, useEffect } from "react";
 import {
   HiOutlineMagnifyingGlass,
-  HiOutlineDocumentText,
-  HiOutlineBookOpen,
-  HiOutlineAcademicCap,
   HiOutlineClock,
   HiOutlineArrowTopRightOnSquare,
   HiOutlineLink,
@@ -19,7 +16,6 @@ import {
 } from "@/lib/api/services";
 
 export default function ResourcesPage() {
-  const [activeTab, setActiveTab] = useState<"all" | "guidelines" | "templates" | "supplements">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<any>(null);
@@ -62,9 +58,7 @@ export default function ResourcesPage() {
     const fetchResources = async () => {
       setResourcesLoading(true);
       try {
-        const params: any = {};
-        if (activeTab !== "all") params.category = activeTab;
-        const res = await getResources(params);
+        const res = await getResources();
         setResources(res);
       } catch (err) {
         console.error("Failed to fetch resources:", err);
@@ -73,38 +67,7 @@ export default function ResourcesPage() {
       }
     };
     fetchResources();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLaunched, activeTab]);
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case "guidelines":
-        return <HiOutlineAcademicCap className="w-4 h-4 text-indigo-600" />;
-      case "templates":
-        return <HiOutlineDocumentText className="w-4 h-4 text-amber-600" />;
-      default:
-        return <HiOutlineBookOpen className="w-4 h-4 text-emerald-600" />;
-    }
-  };
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case "guidelines":
-        return "bg-indigo-50 border-indigo-100 text-indigo-700";
-      case "templates":
-        return "bg-amber-50 border-amber-100 text-amber-700";
-      default:
-        return "bg-emerald-50 border-emerald-100 text-emerald-700";
-    }
-  };
-
-  const getCategoryAccent = (category: string) => {
-    switch (category) {
-      case "guidelines": return "bg-indigo-500";
-      case "templates": return "bg-amber-500";
-      default: return "bg-emerald-500";
-    }
-  };
+  }, [isLaunched]);
 
   const getFileTypeBadge = (type: string) => {
     switch (type) {
@@ -114,6 +77,8 @@ export default function ResourcesPage() {
         return <span className="bg-blue-50 border border-blue-100 text-sky-700 font-bold px-2 py-0.5 rounded text-[9px] uppercase">DOCX</span>;
       case "xlsx":
         return <span className="bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded text-[9px] uppercase">XLSX</span>;
+      case "pptx":
+        return <span className="bg-amber-50 border border-amber-200 text-amber-700 font-bold px-2 py-0.5 rounded text-[9px] uppercase">PPTX</span>;
       case "link":
         return <span className="bg-purple-50 border border-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded text-[9px] uppercase flex items-center gap-0.5"><HiOutlineLink className="w-3 h-3" />Link</span>;
       case "video":
@@ -182,30 +147,17 @@ export default function ResourcesPage() {
         </p>
       </div>
 
-      {/* Search & Tabs */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center mb-8">
-        <div className="relative w-full sm:max-w-xs">
+      {/* Search */}
+      <div className="mb-8">
+        <div className="relative w-full max-w-sm">
           <input
             type="text"
             placeholder="Search resources..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-[#E7E2D8] bg-white rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#000666]/30 text-slate-800"
+            className="w-full pl-9 pr-4 py-2.5 border border-[#E7E2D8] bg-white rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#000666]/30 text-slate-800 shadow-sm"
           />
           <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        </div>
-        <div className="flex bg-[#000666]/5 p-1 rounded-xl w-full sm:w-auto overflow-x-auto text-[10px] uppercase font-bold shrink-0">
-          {(["all", "guidelines", "templates", "supplements"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-lg cursor-pointer transition-colors text-center shrink-0 flex-1 sm:flex-initial ${
-                activeTab === tab ? "bg-[#000666] text-white" : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -230,15 +182,11 @@ export default function ResourcesPage() {
                 key={res._id}
                 className="bg-white border border-[#E7E2D8] rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between hover:border-slate-300 hover:shadow-md transition-all duration-300 hover:translate-y-[-1px]"
               >
-                {/* Category accent bar */}
-                <div className={`absolute top-0 left-0 right-0 h-1 ${getCategoryAccent(res.category)}`} />
+                {/* Accent bar */}
+                <div className="absolute top-0 left-0 right-0 h-1 bg-[#000666]" />
 
                 <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider border ${getCategoryColor(res.category)}`}>
-                      {getCategoryIcon(res.category)}
-                      {res.category}
-                    </span>
+                  <div className="flex justify-end items-center mb-3">
                     <div className="flex items-center gap-1.5">
                       {getFileTypeBadge(res.fileType)}
                       {res.fileSize && <span className="text-[10px] text-slate-400 font-bold">{res.fileSize}</span>}
@@ -254,14 +202,7 @@ export default function ResourcesPage() {
                 </div>
 
                 {/* Action */}
-                <div className="border-t border-slate-100 pt-4 flex justify-between items-center mt-2">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">
-                    {res.category === "guidelines"
-                      ? "Standard Reference"
-                      : res.category === "templates"
-                      ? "Downloadable Template"
-                      : "Supplemental Reading"}
-                  </span>
+                <div className="border-t border-slate-100 pt-4 flex justify-end items-center mt-2">
                   {res.fileUrl && (
                     <a
                       href={res.fileUrl}

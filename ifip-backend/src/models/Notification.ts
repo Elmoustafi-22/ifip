@@ -7,6 +7,8 @@ export interface INotification extends Document {
     type: 'info' | 'success' | 'warning' | 'alert';
     read: boolean;
     link?: string;
+    expiresAt?: Date;      // If set, notification is hidden after this date
+    cohortPhase?: string;  // e.g. 'onboarding', 'week1', 'placement' — for bulk-expire by phase
     createdAt: Date;
 }
 
@@ -17,6 +19,8 @@ const notificationSchema = new Schema<INotification>({
     type: { type: String, enum: ['info', 'success', 'warning', 'alert'], default: 'info', required: true },
     read: { type: Boolean, default: false, required: true },
     link: { type: String },
+    expiresAt: { type: Date, default: null },
+    cohortPhase: { type: String, default: null },
     createdAt: { type: Date, default: Date.now }
 });
 

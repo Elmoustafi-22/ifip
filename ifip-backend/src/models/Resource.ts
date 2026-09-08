@@ -29,7 +29,7 @@ const resourceSchema = new Schema<IResource>(
             enum: ['pdf', 'docx', 'xlsx', 'link', 'video', 'other'],
             default: 'pdf',
         },
-        fileSize: { type: String, default: '1.0 MB' },
+        fileSize: { type: String, default: '' },
         cohortId: { type: Schema.Types.ObjectId, ref: 'Cohort' },
         uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     },

@@ -320,6 +320,9 @@ export interface LMSModule {
   weekNumber?: number;
   contentType: 'video' | 'text' | 'quiz' | 'assignment';
   contentUrl?: string;
+  recordingUrl?: string | null; // Post-session recording link
+  pdfUrl?: string; // Uploaded PDF module document
+  pdfFileName?: string; // Original uploaded PDF filename
   body?: string;
   outline?: ModuleOutline;
   moduleTask?: ModuleTask | null;
@@ -403,10 +406,82 @@ export const uploadModuleTaskEvidenceAuth = async (file: File): Promise<{ fileUr
 export const uploadResourceFileAuth = async (
   file: File
 ): Promise<{ fileUrl: string; fileSize?: string; fileName?: string }> => {
+  const bytes = file.size || 0;
+  let fileSizeStr = "";
+  if (bytes >= 1024 * 1024) {
+    fileSizeStr = `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  } else if (bytes >= 1024) {
+    fileSizeStr = `${Math.round(bytes / 1024)} KB`;
+  } else if (bytes > 0) {
+    fileSizeStr = `${bytes} B`;
+  }
+
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
+  const isVideo = ['mp4', 'mov', 'webm'].includes(ext);
+  const resourceType = isVideo ? 'video' : (isImage ? 'image' : 'auto');
+
+  try {
+    // Step 1: Request signed upload token from backend (same pattern as uploadCvAuth)
+    const { data: sig } = await authClient.get<CloudinarySignatureResponse>(
+      `/uploads/signature-auth?folder=ifipp/resources&resource_type=${resourceType}`
+    );
+
+    // Step 2: Upload directly to Cloudinary CDN from browser
+    // Note: only fields included in paramsToSign (folder, timestamp) should be in the body
+    const buildCloudForm = () => {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("api_key", sig.apiKey);
+      fd.append("timestamp", sig.timestamp.toString());
+      fd.append("signature", sig.signature);
+      fd.append("folder", sig.folder);
+      return fd;
+    };
+
+    const cloudUrl = `https://api.cloudinary.com/v1_1/${sig.cloudName}/${sig.resource_type || resourceType}/upload`;
+
+    let cloudinarySecureUrl: string | null = null;
+    try {
+      const cloudRes = await axios.post<{ secure_url: string }>(cloudUrl, buildCloudForm(), {
+        timeout: 120000,
+      });
+      cloudinarySecureUrl = cloudRes.data.secure_url;
+    } catch (cloudErr: any) {
+      console.warn("Direct Cloudinary resource upload failed, retrying once:", cloudErr?.message);
+      try {
+        const retryRes = await axios.post<{ secure_url: string }>(cloudUrl, buildCloudForm(), {
+          timeout: 120000,
+        });
+        cloudinarySecureUrl = retryRes.data.secure_url;
+      } catch (retryErr: any) {
+        console.warn("Direct Cloudinary retry failed, falling back to server proxy:", retryErr?.message);
+      }
+    }
+
+    if (cloudinarySecureUrl) {
+      return {
+        fileUrl: cloudinarySecureUrl,
+        fileSize: fileSizeStr,
+        fileName: file.name,
+      };
+    }
+  } catch (sigErr: any) {
+    console.warn("Failed to get upload signature, falling back to server proxy:", sigErr?.message);
+  }
+
+  // Fallback: proxy upload through the server
   const fd = new FormData();
   fd.append("file", file);
-  const { data } = await authClient.post<{ fileUrl: string; fileSize?: string; fileName?: string }>("/uploads/resource-file", fd);
-  return data;
+  const { data } = await authClient.post<{ fileUrl: string; fileSize?: string; fileName?: string }>(
+    "/uploads/resource-file",
+    fd
+  );
+  return {
+    ...data,
+    fileSize: data.fileSize || fileSizeStr,
+    fileName: data.fileName || file.name,
+  };
 };
 
 export const getModuleTaskStatus = async (moduleId: string): Promise<ModuleTaskStatusResponse> => {
@@ -1003,8 +1078,24 @@ export const createLMSModule = async (payload: { title: string; description: str
   return data;
 };
 
-export const updateLMSModule = async (id: string, payload: { title?: string; description?: string; order?: number; weekNumber?: number; contentType?: string; contentUrl?: string; body?: string; outline?: ModuleOutline; moduleTask?: ModuleTask | null; estimatedDuration?: number; cohortId?: string; status?: string }): Promise<any> => {
+export const updateLMSModule = async (id: string, payload: { title?: string; description?: string; order?: number; weekNumber?: number; contentType?: string; contentUrl?: string; recordingUrl?: string | null; body?: string; outline?: ModuleOutline; moduleTask?: ModuleTask | null; estimatedDuration?: number; cohortId?: string; status?: string }): Promise<any> => {
   const { data } = await authClient.patch(`/admin/modules/${id}`, payload);
+  return data;
+};
+
+// ─── Certificate Upload Service Functions ────────────────────────────────────
+
+export const uploadAltCertificateFile = async (file: File): Promise<{ certUrl: string }> => {
+  const formData = new FormData();
+  formData.append('certificate', file);
+  const { data } = await authClient.post<{ certUrl: string }>('/uploads/alt-certificate', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data;
+};
+
+export const saveAltCertificateUrl = async (certUrl: string): Promise<{ certUrl: string }> => {
+  const { data } = await authClient.post<{ certUrl: string }>('/uploads/alt-certificate-url', { certUrl });
   return data;
 };
 
@@ -1725,7 +1816,7 @@ export interface Resource {
   description?: string;
   category: 'guidelines' | 'templates' | 'supplements';
   fileUrl: string;
-  fileType: 'pdf' | 'docx' | 'xlsx' | 'link' | 'video' | 'other';
+  fileType: 'pdf' | 'pptx' | 'docx' | 'xlsx' | 'link' | 'video' | 'other';
   fileSize?: string;
   cohortId?: string;
   uploadedBy?: { fullName: string; email: string };
@@ -1747,7 +1838,7 @@ export interface CreateResourcePayload {
   description: string;
   category: 'guidelines' | 'templates' | 'supplements';
   fileUrl: string;
-  fileType: 'pdf' | 'docx' | 'xlsx' | 'link' | 'video' | 'other';
+  fileType: 'pdf' | 'pptx' | 'docx' | 'xlsx' | 'link' | 'video' | 'other';
   fileSize?: string;
   cohortId?: string;
 }

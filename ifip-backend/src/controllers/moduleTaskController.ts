@@ -102,10 +102,12 @@ export const getMyTaskRewardSummary = async (req: Request, res: Response) => {
         res.json({
             totalAwardedPoints,
             passedModules,
+            passedTasks: passedModules,
+            completionNote: status === 'qualified' ? 'Task Requirements Satisfied' : 'In Progress',
             status,
             message: status === 'qualified'
                 ? 'Your approved module tasks qualify you for program progression.'
-                : 'Keep submitting and completing task requirements to build your points.',
+                : 'Keep submitting and completing module tasks to progress through the curriculum.',
         });
     } catch (error: any) {
         res.status(500).json({ message: 'Failed to fetch your task reward summary.', error: error.message });

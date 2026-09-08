@@ -9,7 +9,7 @@ import {
   HiOutlineLockClosed, 
   HiOutlineClock,
   HiOutlineChevronRight,
-  HiOutlineArrowPath
+  HiOutlineAcademicCap
 } from "react-icons/hi2";
 import { getLMSModules, LMSModule, getMyApplication, getCohortConfig } from "@/lib/api/services";
 
@@ -52,33 +52,24 @@ export default function AssessmentsPage() {
 
   const isLaunched = getIsLaunched();
 
-  const getCompletedCount = () => {
-    return modules.filter(m => m.assessmentId && m.assessmentStatus === "passed").length;
-  };
+  // Fix 1: Only show modules that have a published assessment (assessmentId set).
+  // Modules without an assessment ID are completely excluded — no "Pending Upload" cards.
+  const assessableModules = modules.filter(m => m.assessmentId);
 
-  const getTotalAssessableCount = () => {
-    return modules.filter(m => m.assessmentId).length;
-  };
+  const getCompletedCount = () =>
+    assessableModules.filter(m => m.assessmentStatus === "passed").length;
 
   const getProgressPercentage = () => {
-    const total = getTotalAssessableCount();
+    const total = assessableModules.length;
     if (total === 0) return 0;
     return Math.round((getCompletedCount() / total) * 100);
   };
 
-  const getStatusBadge = (status: string | undefined, isParentLocked: boolean, hasAssessment: boolean) => {
+  const getStatusBadge = (status: string | undefined, isParentLocked: boolean) => {
     if (isParentLocked) {
       return (
         <span className="inline-flex items-center gap-1 bg-slate-50 text-slate-400 text-[10px] font-bold px-2.5 py-1 rounded-md border border-slate-100">
           <HiOutlineLockClosed className="w-3.5 h-3.5" /> Locked
-        </span>
-      );
-    }
-
-    if (!hasAssessment) {
-      return (
-        <span className="inline-flex items-center gap-1 bg-amber-50/80 text-amber-700 text-[10px] font-bold px-2.5 py-1 rounded-md border border-amber-200/70">
-          <HiOutlineClock className="w-3.5 h-3.5" /> Pending Upload
         </span>
       );
     }
@@ -173,23 +164,22 @@ export default function AssessmentsPage() {
   }
 
   const completedCount = getCompletedCount();
-  const totalCount = modules.length;
   const progressPercent = getProgressPercentage();
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8 font-sans">
       {/* Top Header Section */}
       <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight mb-2">Assessments & Evaluations</h1>
+        <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight mb-2">Assessments &amp; Evaluations</h1>
         <p className="text-slate-500 text-sm sm:text-base">Complete quizzes and practical simulations to unlock placement desk opportunities.</p>
       </div>
 
-      {/* Progress Card */}
-      {totalCount > 0 && (
+      {/* Progress Card — only shown when published assessments exist */}
+      {assessableModules.length > 0 && (
         <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 shadow-sm mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 hover:border-slate-300 transition-all duration-300">
           <div>
             <h2 className="font-bold text-[#000666] text-base mb-1">Evaluations Progression</h2>
-            <p className="text-slate-500 text-xs">{completedCount} of {totalCount} assessments passed</p>
+            <p className="text-slate-500 text-xs">{completedCount} of {assessableModules.length} assessments passed</p>
           </div>
           <div className="flex-1 max-w-md w-full">
             <div className="flex justify-between items-center mb-2">
@@ -205,90 +195,111 @@ export default function AssessmentsPage() {
         </div>
       )}
 
-      {/* Assessments Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {modules.map((mod) => {
-          const isModuleLocked = mod.status === "locked";
-          const assessmentStatus = mod.assessmentStatus || "not_started";
-          const isPassed = assessmentStatus === "passed";
+      {/* Fix 1: Empty state — no assessments published yet */}
+      {assessableModules.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
+          <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center mb-5">
+            <HiOutlineAcademicCap className="w-8 h-8 text-slate-300" />
+          </div>
+          <h3 className="text-base font-bold text-[#000666] mb-2">No Assessments Published Yet</h3>
+          <p className="text-slate-500 text-sm max-w-sm leading-relaxed">
+            Assessments will appear here once they have been published by your instructor.
+            Complete your module coursework to stay on track.
+          </p>
+          <Link
+            href="/dashboard/modules"
+            className="mt-6 inline-flex items-center gap-2 bg-[#000666] hover:bg-[#000666]/90 text-white font-bold text-xs px-6 py-2.5 rounded-xl transition-all"
+          >
+            Go to Learning Modules
+            <HiOutlineChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+      )}
 
-          return (
-            <div 
-              key={mod._id}
-              className={`bg-white border rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between transition-all duration-300 ${
-                isModuleLocked 
-                  ? "border-slate-200/60 opacity-75 select-none" 
-                  : "border-[#E7E2D8] hover:border-slate-300 hover:shadow-md hover:translate-y-[-1px]"
-              }`}
-            >
-              {/* Left Accent Strip */}
-              <div className={`absolute top-0 bottom-0 left-0 w-1 ${
-                isModuleLocked ? "bg-slate-200" : isPassed ? "bg-emerald-500" : "bg-[#00B0FF]"
-              }`} />
+      {/* Assessments Grid — only modules with a published assessment */}
+      {assessableModules.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {assessableModules.map((mod) => {
+            const isModuleLocked = mod.status === "locked";
+            const assessmentStatus = mod.assessmentStatus || "not_started";
+            const isPassed = assessmentStatus === "passed";
 
-              <div>
-                <div className="flex justify-between items-start mb-4 pl-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                      Module {mod.order}
-                    </span>
+            return (
+              <div 
+                key={mod._id}
+                className={`bg-white border rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between transition-all duration-300 ${
+                  isModuleLocked 
+                    ? "border-slate-200/60 opacity-75 select-none" 
+                    : "border-[#E7E2D8] hover:border-slate-300 hover:shadow-md hover:translate-y-[-1px]"
+                }`}
+              >
+                {/* Left Accent Strip */}
+                <div className={`absolute top-0 bottom-0 left-0 w-1 ${
+                  isModuleLocked ? "bg-slate-200" : isPassed ? "bg-emerald-500" : "bg-[#00B0FF]"
+                }`} />
+
+                <div>
+                  <div className="flex justify-between items-start mb-4 pl-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        Module {mod.order}
+                      </span>
+                    </div>
+                    {getStatusBadge(assessmentStatus, isModuleLocked)}
                   </div>
-                  {getStatusBadge(assessmentStatus, isModuleLocked, Boolean(mod.assessmentId))}
-                </div>
 
-                <div className="flex gap-3 pl-2 mb-4">
-                  <div className={`w-10 h-10 shrink-0 rounded-lg flex items-center justify-center border ${
-                    isModuleLocked ? "bg-slate-50 border-slate-100 text-slate-400" : "bg-sky-50/60 border-sky-100 text-[#000666]"
-                  }`}>
-                    <HiOutlineClipboardDocumentList className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className={`text-base font-bold font-display leading-snug mb-1 ${
-                      isModuleLocked ? "text-slate-400" : "text-[#000666]"
+                  <div className="flex gap-3 pl-2 mb-4">
+                    <div className={`w-10 h-10 shrink-0 rounded-lg flex items-center justify-center border ${
+                      isModuleLocked ? "bg-slate-50 border-slate-100 text-slate-400" : "bg-sky-50/60 border-sky-100 text-[#000666]"
                     }`}>
-                      {mod.title} Assessment
-                    </h3>
-                    <p className="text-slate-400 text-[10px] flex items-center gap-1 font-medium">
-                      {mod.assessmentId 
-                        ? `Est. Duration: ${mod.estimatedDuration || 15} mins`
-                        : "Assessment not yet published"}
-                    </p>
+                      <HiOutlineClipboardDocumentList className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className={`text-base font-bold font-display leading-snug mb-1 ${
+                        isModuleLocked ? "text-slate-400" : "text-[#000666]"
+                      }`}>
+                        {mod.title} Assessment
+                      </h3>
+                      {/* Fix 4: Show "Module Assessment Completed" when passed — no points language */}
+                      {isPassed ? (
+                        <p className="text-emerald-600 text-[10px] flex items-center gap-1 font-bold">
+                          <HiOutlineCheckCircle className="w-3.5 h-3.5" />
+                          Assessment Completed
+                        </p>
+                      ) : (
+                        <p className="text-slate-400 text-[10px] flex items-center gap-1 font-medium">
+                          Est. Duration: {mod.estimatedDuration || 15} mins
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="mt-4 pl-2">
-                {isModuleLocked ? (
-                  <div className="text-slate-400 text-xs flex items-center gap-1.5 py-2 font-medium bg-slate-50 rounded-xl px-3 border border-slate-100">
-                    <HiOutlineLockClosed className="w-4 h-4 text-slate-400" />
-                    Complete Module {mod.order} content to unlock.
-                  </div>
-                ) : !mod.assessmentId ? (
-                  <Link
-                    href={`/dashboard/modules/${mod._id}`}
-                    className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs bg-white hover:bg-slate-50 text-slate-700 border border-slate-200"
-                  >
-                    <span>Read Module Coursework</span>
-                    <HiOutlineChevronRight className="w-4 h-4" />
-                  </Link>
-                ) : (
-                  <Link
-                    href={`/dashboard/assessments/${mod._id}`}
-                    className={`w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
-                      isPassed 
-                        ? "bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200" 
-                        : "bg-[#000666] hover:bg-[#000666]/90 text-white hover:shadow-md"
-                    }`}
-                  >
-                    {isPassed ? "Review Results & Solutions" : "Take Assessment"}
-                    <HiOutlineChevronRight className="w-4 h-4" />
-                  </Link>
-                )}
+                <div className="mt-4 pl-2">
+                  {isModuleLocked ? (
+                    <div className="text-slate-400 text-xs flex items-center gap-1.5 py-2 font-medium bg-slate-50 rounded-xl px-3 border border-slate-100">
+                      <HiOutlineLockClosed className="w-4 h-4 text-slate-400" />
+                      Complete Module {mod.order} content to unlock.
+                    </div>
+                  ) : (
+                    <Link
+                      href={`/dashboard/assessments/${mod._id}`}
+                      className={`w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
+                        isPassed 
+                          ? "bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200" 
+                          : "bg-[#000666] hover:bg-[#000666]/90 text-white hover:shadow-md"
+                      }`}
+                    >
+                      {isPassed ? "Review Results & Solutions" : "Take Assessment"}
+                      <HiOutlineChevronRight className="w-4 h-4" />
+                    </Link>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

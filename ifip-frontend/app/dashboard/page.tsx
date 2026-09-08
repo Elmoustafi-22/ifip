@@ -12,9 +12,11 @@ import {
   HiOutlineChevronRight,
   HiOutlineArrowRight,
   HiOutlineClock,
-  HiOutlineVideoCamera
+  HiOutlineVideoCamera,
+  HiOutlineBriefcase,
+  HiOutlineFolderMinus
 } from "react-icons/hi2";
-import { getMyApplication, getCohortConfig, getUpcomingSessions, ProgrammeSession } from "@/lib/api/services";
+import { getMyApplication, getCohortConfig, getUpcomingSessions, getLMSModules, ProgrammeSession, LMSModule } from "@/lib/api/services";
 
 export default function DashboardHome() {
   const [loading, setLoading] = useState(true);
@@ -22,19 +24,22 @@ export default function DashboardHome() {
   const [cohortStartDate, setCohortStartDate] = useState("2026-08-31T00:00:00.000Z");
   const [dashboardViewOverride, setDashboardViewOverride] = useState<string>("default");
   const [upcomingSessions, setUpcomingSessions] = useState<ProgrammeSession[]>([]);
+  const [modules, setModules] = useState<LMSModule[]>([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [profile, config, sessions] = await Promise.all([
+        const [profile, config, sessions, mods] = await Promise.all([
           getMyApplication(),
           getCohortConfig(),
-          getUpcomingSessions().catch(() => [])
+          getUpcomingSessions().catch(() => []),
+          getLMSModules().catch(() => [])
         ]);
         setUserData(profile);
         setCohortStartDate(config.cohortStartDate);
         setDashboardViewOverride(config.dashboardViewOverride || "default");
         setUpcomingSessions(sessions || []);
+        setModules(mods || []);
       } catch (err) {
         console.error("Failed to load dashboard parameters:", err);
       } finally {
@@ -149,11 +154,24 @@ export default function DashboardHome() {
 
   const cvUploaded = !!userData?.cvUrl;
 
+  // Live module/assessment stats (Fix 3)
+  const totalModules = modules.length;
+  const completedModules = modules.filter(m => m.status === 'completed').length;
+  const totalAssessments = modules.filter(m => m.assessmentId).length;
+  const passedAssessments = modules.filter(m => m.assessmentId && m.assessmentStatus === 'passed').length;
+  const modulesLabel = totalModules > 0 ? `${totalModules} Coursework Track Unit${totalModules === 1 ? '' : 's'}` : 'Modules loading...';
+  const modulesUnlocked = modules.filter(m => m.status !== 'locked').length;
+
+  // Active module: first in_progress or unlocked module, or first module
+  const currentModule = modules.find(m => m.status === 'in_progress') 
+    || modules.find(m => m.status === 'unlocked') 
+    || modules[0];
+
   return (
     <div className="flex flex-col gap-8 animate-fadeIn font-sans">
       {/* Header Greeting */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/60 pb-6">
-        <div className="flex flex-col gap-1">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/60 pb-5">
+        <div className="flex flex-col gap-0.5">
           <h1 className="text-xl md:text-2xl font-display font-black text-[#000666]">
             Welcome Back, {userData?.fullName || "Candidate"}
           </h1>
@@ -163,7 +181,7 @@ export default function DashboardHome() {
         </div>
         <Link
           href="/dashboard/settings"
-          className="bg-sky-400 hover:bg-sky-500 text-[#000666] font-bold text-xs px-5 py-2.5 rounded-lg shadow-sm transition-all hover-lift flex items-center gap-1.5 self-start cursor-pointer"
+          className="hidden md:inline-flex bg-sky-400 hover:bg-sky-500 text-[#000666] font-bold text-xs px-4 py-2 rounded-lg shadow-xs transition-all hover-lift items-center gap-1.5 self-start cursor-pointer"
         >
           <HiOutlineUser className="w-4 h-4" />
           Update Profile
@@ -172,47 +190,66 @@ export default function DashboardHome() {
 
       {/* Grid Content */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Commencement Update Card (Spans 2 columns) */}
-        <div className="md:col-span-2 bg-[#0E1B5D] text-white rounded-2xl p-6 shadow-xl flex flex-col justify-between border border-[#000666]/10 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+        {/* Active Learning Hub / Resume Coursework (Spans 2 columns) */}
+        <div className="md:col-span-2 bg-gradient-to-br from-[#0E1B5D] via-[#091342] to-[#000666] text-white rounded-2xl p-6 sm:p-7 shadow-xl flex flex-col justify-between border border-[#000666]/20 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-sky-400/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
 
-          <div className="flex flex-col gap-5">
-            {/* Banner Badge */}
-            <div className="bg-sky-400/20 border border-sky-400/30 rounded-full px-3 py-1 flex items-center gap-2 text-[10px] font-bold text-sky-300 uppercase tracking-wider self-start select-none">
-              <HiOutlineSparkles className="w-3.5 h-3.5" />
-              Cohort Announcement
+          <div className="flex flex-col gap-4 relative z-10">
+            {/* Status / Track Badge */}
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="bg-sky-400/20 border border-sky-400/30 rounded-full px-3 py-1 flex items-center gap-2 text-[10px] font-bold text-sky-300 uppercase tracking-wider self-start select-none">
+                <HiOutlineSparkles className="w-3.5 h-3.5 text-sky-300" />
+                {currentModule ? `Week ${currentModule.weekNumber || 1} • Active Coursework Track` : "Cohort Track"}
+              </div>
+              <span className="text-[11px] text-slate-300 font-semibold">
+                Batch 2026-A
+              </span>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <h2 className="text-xl font-bold font-display text-white">
-                Islamic Finance Program Commencement Update
+            {/* Current Module Title & Context */}
+            <div className="flex flex-col gap-1.5">
+              <h2 className="text-xl sm:text-2xl font-bold font-display text-white tracking-tight">
+                {currentModule?.title || "Islamic Finance Professional Modules"}
               </h2>
-              <p className="text-xs text-slate-300 leading-relaxed font-medium mt-1">
-                Your academic placement and commitment levy verification are complete. The Batch 2026 Fall-A preparatory platform and learning modules will unlock sequentially upon official cohort kickoff.
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal max-w-xl">
+                {currentModule?.description || "Master industry-standard Islamic banking principles, Sukuk structuring, and Shariah governance frameworks."}
               </p>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-t border-white/10 pt-6 mt-8 gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-sky-300 shrink-0">
-                <HiOutlineCalendar className="w-5 h-5" />
+          {/* Quick Metrics & CTA */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-t border-white/10 pt-5 mt-6 gap-4 relative z-10">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-sky-300 shrink-0">
+                  <HiOutlineBookOpen className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Coursework</span>
+                  <span className="text-xs font-bold text-white">
+                    {completedModules} of {totalModules} Completed
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Scheduled Start Date</span>
-                <span className="text-xs font-bold text-white">{formatCohortDate(cohortStartDate)}</span>
+
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-sky-300 shrink-0">
+                  <HiOutlineCalendar className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Cohort Start</span>
+                  <span className="text-xs font-bold text-white">{formatCohortDate(cohortStartDate)}</span>
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-sky-300 shrink-0">
-                <HiOutlineBookOpen className="w-5 h-5" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Academic Modules</span>
-                <span className="text-xs font-bold text-white">10 Coursework Track Units</span>
-              </div>
-            </div>
+            <Link
+              href={currentModule ? `/dashboard/modules/${currentModule._id}` : "/dashboard/modules"}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-sky-400 hover:bg-sky-300 text-[#000666] font-bold text-xs shadow-md transition-all hover-lift shrink-0 cursor-pointer"
+            >
+              <span>{completedModules > 0 ? "Continue Learning" : "Start Coursework"}</span>
+              <HiOutlineArrowRight className="w-4 h-4" />
+            </Link>
           </div>
         </div>
 
@@ -230,11 +267,13 @@ export default function DashboardHome() {
               </div>
               <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
                 <span>Modules Unlocked</span>
-                <span className="text-slate-500">0 of 10</span>
+                {/* Fix 3: live module count */}
+                <span className="text-slate-500">{modulesUnlocked} of {totalModules || '—'}</span>
               </div>
               <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
                 <span>Assessments Completed</span>
-                <span className="text-slate-500">0 of 5</span>
+                {/* Fix 3: live assessment count */}
+                <span className="text-slate-500">{passedAssessments} of {totalAssessments || '—'}</span>
               </div>
               <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
                 <span>Profile Completion</span>
@@ -246,12 +285,19 @@ export default function DashboardHome() {
           </div>
 
           <div className="mt-8">
-            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-3">
-              <div className="h-full bg-slate-300 rounded-full" style={{ width: "0%" }}></div>
+            <div className="flex items-center justify-between text-xs font-bold mb-1.5">
+              <span className="text-slate-600">Overall Progress</span>
+              <span className="text-[#000666]">{totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0}%</span>
+            </div>
+            <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden mb-3">
+              <div
+                className="h-full bg-gradient-to-r from-[#0E1B5D] to-[#FF9800] rounded-full transition-all duration-500"
+                style={{ width: `${totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0}%` }}
+              ></div>
             </div>
             <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5 select-none">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-              Awaiting Commencement Kickoff
+              <span className={`w-1.5 h-1.5 rounded-full ${completedModules > 0 ? "bg-emerald-500" : "bg-amber-500"}`}></span>
+              {completedModules > 0 ? `${completedModules} of ${totalModules} completed` : "Awaiting Commencement Kickoff"}
             </span>
           </div>
         </div>
@@ -350,80 +396,123 @@ export default function DashboardHome() {
         )}
       </div>
 
-      {/* Next Steps Checklist Section */}
-      <div className="bg-white rounded-2xl border border-slate-200/60 shadow-level1 p-6 flex flex-col gap-6 mt-2">
-        <div className="flex flex-col gap-1 border-b border-slate-100 pb-4">
-          <h3 className="text-base font-bold text-[#000666] font-display">Workspace Checklist</h3>
-          <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-            Ensure your configuration parameters are complete before the cohort launch date.
-          </p>
+      {/* Action Required Alert Banner (Only shown if CV is still missing) */}
+      {!cvUploaded && (
+        <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-2">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+              <HiOutlineBookOpen className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold text-amber-950">
+                Action Required: Upload CV &amp; Qualifications
+              </h4>
+              <p className="text-xs text-amber-800/80 font-medium mt-0.5">
+                Upload your latest CV in PDF format to complete your admissions file.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/dashboard/settings"
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs transition self-start sm:self-auto shrink-0 cursor-pointer"
+          >
+            <span>Upload Now</span>
+            <HiOutlineChevronRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      )}
+
+      {/* Weekly Milestones & Program Hub */}
+      <div className="bg-white rounded-2xl border border-slate-200/60 shadow-level1 p-6 flex flex-col gap-5 mt-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+          <div>
+            <h3 className="text-base font-bold text-[#000666] font-display">
+              Weekly Milestones &amp; Program Hub
+            </h3>
+            <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+              Key checkpoint tracks and resources for your current cohort progression.
+            </p>
+          </div>
         </div>
 
-        <div className="flex flex-col gap-4">
-          {/* Item 1 */}
-          <div className="flex items-start gap-4 p-3 hover:bg-slate-50 rounded-xl transition-colors group">
-            <div className="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-150 flex items-center justify-center text-emerald-600 shrink-0">
-              <HiOutlineShieldCheck className="w-5 h-5" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Card 1: Assessments */}
+          <Link
+            href="/dashboard/assessments"
+            className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 transition-all flex flex-col justify-between gap-3 group"
+          >
+            <div className="flex items-start justify-between">
+              <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#000666] shrink-0">
+                <HiOutlineClipboardDocumentCheck className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-200/60 text-slate-600">
+                {passedAssessments > 0 ? `${passedAssessments} Passed` : "Assessments"}
+              </span>
             </div>
-            <div className="flex-1 flex flex-col gap-0.5 text-left">
-              <h4 className="text-xs font-bold text-slate-900 flex items-center gap-2">
-                Commitment Levy Verified
-                <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full border border-emerald-100 font-bold uppercase tracking-wider">Done</span>
+            <div>
+              <h4 className="text-xs font-bold text-[#000666] group-hover:text-sky-600 transition-colors">
+                Module Assessments
               </h4>
-              <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                Your payment of N20,000 / $30 has been successfully cleared and credited.
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Unit test checkpoints, quizzes, and simulations.
               </p>
             </div>
-          </div>
+            <span className="text-xs font-bold text-sky-600 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all">
+              View Tasks &rarr;
+            </span>
+          </Link>
 
-          {/* Item 2 */}
-          <div className="flex items-start gap-4 p-3 hover:bg-slate-50 rounded-xl transition-colors group">
-            <div className="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-150 flex items-center justify-center text-emerald-600 shrink-0">
-              <HiOutlineClipboardDocumentCheck className="w-5 h-5" />
+          {/* Card 2: Placement */}
+          <Link
+            href="/dashboard/placement"
+            className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 transition-all flex flex-col justify-between gap-3 group"
+          >
+            <div className="flex items-start justify-between">
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
+                <HiOutlineBriefcase className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                {cvUploaded ? "Profile On File" : "CV Required"}
+              </span>
             </div>
-            <div className="flex-1 flex flex-col gap-0.5 text-left">
-              <h4 className="text-xs font-bold text-slate-900 flex items-center gap-2">
-                Participant Password Set
-                <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full border border-emerald-100 font-bold uppercase tracking-wider">Done</span>
+            <div>
+              <h4 className="text-xs font-bold text-[#000666] group-hover:text-emerald-700 transition-colors">
+                Placement &amp; Careers
               </h4>
-              <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                Your credentials are secure. You can update your password in Settings at any time.
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Subject to coursework completion and company review.
               </p>
             </div>
-          </div>
+            <span className="text-xs font-bold text-emerald-700 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all">
+              Placement Hub &rarr;
+            </span>
+          </Link>
 
-          {/* Item 3 */}
-          <div className="flex items-start gap-4 p-3 hover:bg-slate-50 rounded-xl transition-colors group">
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
-              cvUploaded
-                ? "bg-emerald-50 border border-emerald-150 text-emerald-600"
-                : "bg-amber-50 border border-amber-150 text-amber-600 animate-pulse"
-            }`}>
-              {cvUploaded ? <HiOutlineShieldCheck className="w-5 h-5" /> : <HiOutlineBookOpen className="w-5 h-5" />}
+          {/* Card 3: Resources */}
+          <Link
+            href="/dashboard/resources"
+            className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 transition-all flex flex-col justify-between gap-3 group"
+          >
+            <div className="flex items-start justify-between">
+              <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 shrink-0">
+                <HiOutlineFolderMinus className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-200/60 text-slate-600">
+                Library
+              </span>
             </div>
-            <div className="flex-1 flex flex-col gap-0.5 text-left">
-              <h4 className="text-xs font-bold text-slate-900 flex items-center gap-2">
-                CV &amp; Professional Qualifications
-                {cvUploaded ? (
-                  <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full border border-emerald-100 font-bold uppercase tracking-wider">Uploaded</span>
-                ) : (
-                  <span className="text-[9px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded-full border border-amber-100 font-bold uppercase tracking-wider animate-pulse">Required</span>
-                )}
+            <div>
+              <h4 className="text-xs font-bold text-[#000666] group-hover:text-indigo-700 transition-colors">
+                Knowledge Resources
               </h4>
-              <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                Upload your latest CV in PDF format to complete admissions profiling.
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Shariah standards, contract templates, and reading packs.
               </p>
             </div>
-            {!cvUploaded && (
-              <Link
-                href="/dashboard/settings"
-                className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform self-center cursor-pointer"
-              >
-                Upload Now
-                <HiOutlineChevronRight className="w-3.5 h-3.5" />
-              </Link>
-            )}
-          </div>
+            <span className="text-xs font-bold text-indigo-700 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all">
+              Open Library &rarr;
+            </span>
+          </Link>
         </div>
       </div>
     </div>

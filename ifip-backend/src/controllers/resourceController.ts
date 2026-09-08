@@ -67,8 +67,8 @@ export const createResource = async (req: Request, res: Response) => {
             description,
             category: category || 'guidelines',
             fileUrl: fileUrl || '',
-            fileType: fileType || 'pdf',
-            fileSize: fileSize || '1.0 MB',
+            fileType: fileType || 'link',
+            fileSize: fileSize || '',
             cohortId: cohortId ? new Types.ObjectId(cohortId as string) : undefined,
             uploadedBy: new Types.ObjectId(userId)
         });
@@ -105,9 +105,9 @@ export const updateResource = async (req: Request, res: Response) => {
         if (title) resource.title = title;
         if (description) resource.description = description;
         if (category) resource.category = category;
-        if (fileUrl) resource.fileUrl = fileUrl;
+        if (fileUrl !== undefined) resource.fileUrl = fileUrl;
         if (fileType) resource.fileType = fileType;
-        if (fileSize) resource.fileSize = fileSize;
+        if (fileSize !== undefined) resource.fileSize = fileSize;
         resource.cohortId = cohortId ? new Types.ObjectId(cohortId as string) : undefined;
 
         await resource.save();

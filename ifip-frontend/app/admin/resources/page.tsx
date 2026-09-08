@@ -32,7 +32,7 @@ import {
 import { AdminCohortContext } from "../layout";
 
 const CATEGORY_OPTIONS = ["guidelines", "templates", "supplements"] as const;
-const FILE_TYPE_OPTIONS = ["pdf", "docx", "xlsx", "link", "video", "other"] as const;
+const FILE_TYPE_OPTIONS = ["pdf", "pptx", "docx", "xlsx", "link", "video", "other"] as const;
 
 type Category = (typeof CATEGORY_OPTIONS)[number];
 
@@ -46,8 +46,19 @@ const EMPTY_FORM: CreateResourcePayload = {
   description: "",
   category: "guidelines",
   fileUrl: "",
-  fileType: "pdf",
+  fileType: "link",
   fileSize: "",
+};
+
+const detectFileTypeFromUrl = (url: string): (typeof FILE_TYPE_OPTIONS)[number] => {
+  const clean = url.trim().toLowerCase();
+  if (!clean) return "link";
+  if (/youtube\.com|youtu\.be|vimeo\.com|zoom\.us|\.mp4|\.mov|\.webm/i.test(clean)) return "video";
+  if (/\.pdf(\?|#|$)/i.test(clean)) return "pdf";
+  if (/\.(docx?|pages|rtf)(\?|#|$)/i.test(clean)) return "docx";
+  if (/\.(xlsx?|csv|numbers)(\?|#|$)/i.test(clean)) return "xlsx";
+  if (/\.(pptx?|key)(\?|#|$)/i.test(clean)) return "pptx";
+  return "link";
 };
 
 export default function AdminResourcesPage() {
@@ -124,7 +135,13 @@ export default function AdminResourcesPage() {
     try {
       const result = await uploadResourceFileAuth(file);
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
-      const autoFileType = ext === 'pdf' ? 'pdf' : ext === 'docx' || ext === 'doc' ? 'docx' : ext === 'xlsx' || ext === 'xls' ? 'xlsx' : 'other';
+      const autoFileType =
+        ext === 'pdf' ? 'pdf' :
+        ext === 'docx' || ext === 'doc' ? 'docx' :
+        ext === 'xlsx' || ext === 'xls' ? 'xlsx' :
+        ext === 'pptx' || ext === 'ppt' ? 'pptx' :
+        ext === 'mp4' || ext === 'mov' || ext === 'webm' ? 'video' :
+        'other';
 
       setForm((f) => ({
         ...f,
@@ -143,17 +160,46 @@ export default function AdminResourcesPage() {
   };
 
   const handleSubmit = async () => {
-    if (!form.title.trim() || !form.description.trim()) {
+    const trimmedTitle = form.title.trim();
+    const trimmedDesc = form.description.trim();
+    let trimmedUrl = form.fileUrl.trim();
+
+    if (!trimmedTitle || !trimmedDesc) {
       showToast("error", "Title and description are required.");
       return;
     }
+
+    if (!trimmedUrl && !uploadedResourceName && !editTarget?.fileUrl) {
+      showToast("error", "Please upload a file or enter a resource URL.");
+      return;
+    }
+
+    // Auto-normalize URL protocol if user entered domain directly without http/https
+    if (trimmedUrl && !/^https?:\/\//i.test(trimmedUrl)) {
+      trimmedUrl = `https://${trimmedUrl}`;
+    }
+
+    const finalFileType = uploadedResourceName
+      ? form.fileType
+      : detectFileTypeFromUrl(trimmedUrl);
+
+    const payload: CreateResourcePayload = {
+      ...form,
+      title: trimmedTitle,
+      description: trimmedDesc,
+      fileUrl: trimmedUrl,
+      fileType: finalFileType,
+      // If URL only (no uploaded file), leave fileSize empty so no fake size is displayed
+      fileSize: uploadedResourceName ? form.fileSize : "",
+    };
+
     setSubmitting(true);
     try {
       if (editTarget) {
-        await updateResource(editTarget._id, form);
+        await updateResource(editTarget._id, payload);
         showToast("success", "Resource updated successfully.");
       } else {
-        await createResource(form);
+        await createResource(payload);
         showToast("success", "Resource published successfully.");
       }
       setModalOpen(false);
@@ -201,6 +247,7 @@ export default function AdminResourcesPage() {
       pdf: "bg-red-50 text-rose-700 border-red-100",
       docx: "bg-sky-50 text-sky-700 border-sky-100",
       xlsx: "bg-emerald-50 text-emerald-700 border-emerald-100",
+      pptx: "bg-amber-50 text-amber-700 border-amber-200",
       link: "bg-purple-50 text-purple-700 border-purple-100",
       video: "bg-orange-50 text-orange-700 border-orange-200",
       other: "bg-slate-50 text-slate-600 border-slate-200",
@@ -427,32 +474,7 @@ export default function AdminResourcesPage() {
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#000666]/20 text-slate-800 resize-none"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Category</label>
-                  <select
-                    value={form.category}
-                    onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as any }))}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#000666]/20 text-slate-800 bg-white"
-                  >
-                    {CATEGORY_OPTIONS.map((c) => (
-                      <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">File Type</label>
-                  <select
-                    value={form.fileType}
-                    onChange={(e) => setForm((f) => ({ ...f, fileType: e.target.value as any }))}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#000666]/20 text-slate-800 bg-white"
-                  >
-                    {FILE_TYPE_OPTIONS.map((t) => (
-                      <option key={t} value={t}>{t.toUpperCase()}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1">
                   Upload PDF or Document File <span className="text-slate-400 font-normal">(optional)</span>
@@ -479,57 +501,70 @@ export default function AdminResourcesPage() {
                         <p className="text-xs font-semibold text-slate-700">
                           {uploadedResourceName ? `Uploaded: ${uploadedResourceName}` : "Click or drag a PDF or document here to upload"}
                         </p>
-                        <p className="text-[10px] text-slate-400">PDF, DOCX, XLSX up to 10MB</p>
+                        <p className="text-[10px] text-slate-400">PDF, PPTX, DOCX, XLSX up to 25MB</p>
                       </>
                     )}
                   </div>
                 </div>
+                {uploadedResourceName && (
+                  <div className="flex justify-end mt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUploadedResourceName(null);
+                        setForm((f) => ({ ...f, fileUrl: "", fileSize: "", fileType: "link" }));
+                      }}
+                      className="text-[11px] text-red-500 hover:underline font-semibold cursor-pointer"
+                    >
+                      Remove uploaded file
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Clear divider between upload and URL option */}
+              <div className="relative flex py-1 items-center">
+                <div className="flex-grow border-t border-slate-200"></div>
+                <span className="flex-shrink mx-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  OR PROVIDE A RESOURCE LINK
+                </span>
+                <div className="flex-grow border-t border-slate-200"></div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">
-                  {form.fileType === "video"
-                    ? "Video / Recording URL"
-                    : form.fileType === "link"
-                    ? "External Link URL"
-                    : "File URL"}{" "}
-                  <span className="text-slate-400 font-normal">(optional if file uploaded)</span>
-                </label>
-                {form.fileType === "video" && (
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-slate-600">
+                    Resource URL / Web Link <span className="text-slate-400 font-normal">(if not uploading a file)</span>
+                  </label>
+                  {form.fileUrl.trim() && (
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase ${getFileBadgeColor(detectFileTypeFromUrl(form.fileUrl))}`}>
+                      {detectFileTypeFromUrl(form.fileUrl)}
+                    </span>
+                  )}
+                </div>
+                {detectFileTypeFromUrl(form.fileUrl) === "video" && (
                   <div className="flex items-center gap-2 mb-2 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
                     <HiOutlineVideoCamera className="w-4 h-4 text-orange-500 shrink-0" />
                     <p className="text-[11px] text-orange-700 font-semibold">
-                      Paste a YouTube, Google Drive, Zoom or any public video recording link.
+                      Video link detected (YouTube, Drive, Vimeo, or Zoom). Participants will see a "Watch Recording" button.
                     </p>
                   </div>
                 )}
                 <input
                   value={form.fileUrl}
-                  onChange={(e) => setForm((f) => ({ ...f, fileUrl: e.target.value }))}
-                  placeholder={
-                    form.fileType === "video"
-                      ? "https://youtube.com/watch?v=... or https://drive.google.com/..."
-                      : form.fileType === "link"
-                      ? "https://example.com/resource"
-                      : "https://cdn.example.com/file.pdf"
-                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const autoType = detectFileTypeFromUrl(val);
+                    setForm((f) => ({ ...f, fileUrl: val, fileType: autoType }));
+                  }}
+                  placeholder="https://example.com/guide, YouTube video, Google Drive, or CDN URL"
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#000666]/20 text-slate-800"
                 />
                 <p className="text-[10px] text-slate-400 mt-1">
-                  {form.fileType === "video"
-                    ? "Participants will see a 'Watch Recording' button linking directly to the session."
-                    : "Paste a direct URL to the file (Google Drive public link, CDN, S3, etc.)"}
+                  Supports external websites, YouTube / Zoom recordings, Google Drive links, or direct cloud documents.
                 </p>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">File Size <span className="text-slate-400 font-normal">(optional)</span></label>
-                <input
-                  value={form.fileSize}
-                  onChange={(e) => setForm((f) => ({ ...f, fileSize: e.target.value }))}
-                  placeholder="e.g. 4.2 MB"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#000666]/20 text-slate-800"
-                />
-              </div>
+
             </div>
 
             <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
   HiOutlineBookOpen,
-  HiOutlinePlay,
   HiOutlineClock,
   HiOutlineLockClosed,
   HiOutlineCheckCircle,
@@ -13,9 +12,7 @@ import {
   HiOutlineArrowLeft,
   HiOutlineDocumentText,
   HiOutlineAcademicCap,
-  HiOutlineSparkles,
   HiOutlineArrowTopRightOnSquare,
-  HiOutlineClipboardDocumentList,
   HiOutlineChevronDown,
   HiOutlineChevronUp
 } from "react-icons/hi2";
@@ -89,71 +86,72 @@ export default function ModuleOutlinePage({ params }: { params: Promise<{ id: st
         month: 'short',
         day: 'numeric',
         hour: 'numeric',
-        minute: '2-digit'
+        minute: '2-digit',
+        timeZoneName: 'short' // Fix 8: show timezone abbreviation (e.g. WAT, BST, EST)
       })
     : "";
 
   return (
-    <div className="max-w-4xl mx-auto py-4 sm:py-8 px-1 sm:px-6 lg:px-8 font-sans min-w-0 max-w-full">
+    <div className="max-w-4xl w-full mx-auto py-2 sm:py-8 px-2 sm:px-6 lg:px-8 font-sans min-w-0 max-w-full overflow-hidden">
       {/* Top Breadcrumb */}
-      <div className="mb-6 flex items-center justify-between min-w-0 max-w-full">
+      <div className="mb-4 sm:mb-6 flex flex-wrap items-center justify-between gap-y-2 gap-x-3 min-w-0 max-w-full">
         <Link
           href="/dashboard/modules"
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#000666] hover:text-[#FF9800] transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#000666] hover:text-[#000666]/80 transition-colors shrink-0"
         >
           <HiOutlineArrowLeft className="w-4 h-4" /> Back to All Modules
         </Link>
-        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 shrink-0">
           Curriculum Syllabus
         </span>
       </div>
 
       {/* Hero Header Card */}
-      <div className="bg-gradient-to-br from-[#000666] to-[#0A1A80] text-white rounded-3xl p-5 sm:p-10 shadow-xl relative overflow-hidden mb-8 min-w-0 max-w-full break-words">
+      <div className="bg-gradient-to-br from-[#000666] to-[#0A1A80] text-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-10 shadow-xl relative overflow-hidden mb-6 sm:mb-8 min-w-0 max-w-full break-words">
         <div className="absolute top-0 right-0 w-80 h-80 bg-white/5 rounded-full blur-3xl pointer-events-none" />
         
-        <div className="relative z-10 space-y-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="bg-white/10 backdrop-blur-md text-[#FF9800] border border-white/15 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider">
+        <div className="relative z-10 space-y-4 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="bg-white/15 backdrop-blur-md text-white border border-white/20 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider shrink-0">
               Week {module.weekNumber || module.order}
             </span>
-            <span className="bg-white/10 backdrop-blur-md text-white/90 text-xs font-semibold px-3 py-1 rounded-full capitalize">
-              {module.contentType}
-            </span>
             {module.assessmentId && (
-              <span className="bg-[#FF9800]/20 text-[#FF9800] border border-[#FF9800]/30 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5">
+              <span className="bg-white/15 backdrop-blur-md text-white/90 border border-white/20 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 shrink-0">
                 <HiOutlineAcademicCap className="w-3.5 h-3.5" /> Assessment Gated
               </span>
             )}
             {isCompleted && (
-              <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
+              <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1 shrink-0">
                 <HiOutlineCheckCircle className="w-3.5 h-3.5" /> Completed
               </span>
             )}
           </div>
 
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white font-display tracking-tight leading-tight">
+          <h1 className="text-xl sm:text-3xl font-black text-white font-display tracking-tight leading-snug break-words">
             {module.title}
           </h1>
 
-          <div
-            className="text-white/80 text-sm sm:text-base leading-relaxed max-w-2xl font-normal"
-            dangerouslySetInnerHTML={{ __html: linkifyText(outline.purpose || module.description) }}
-          />
+          {(outline.purpose || module.description) && (
+            <div
+              className="text-white/80 text-xs sm:text-sm leading-relaxed max-w-2xl font-normal break-words"
+              dangerouslySetInnerHTML={{ __html: linkifyText(outline.purpose || module.description) }}
+            />
+          )}
 
           {/* Quick CTA inside header */}
-          <div className="pt-4 flex flex-wrap items-center gap-4">
+          <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {isLocked ? (
-              <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-white/70 px-6 py-3.5 rounded-xl text-xs font-bold tracking-wider uppercase cursor-not-allowed">
-                <HiOutlineLockClosed className="w-4 h-4 text-[#FF9800]" /> Content Locked (Prerequisites Required)
+              <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white/10 border border-white/20 text-white/70 px-5 py-3 rounded-xl text-xs font-bold tracking-wider uppercase cursor-not-allowed text-center">
+                <HiOutlineLockClosed className="w-4 h-4 shrink-0" />
+                <span>Content Locked</span>
               </div>
             ) : (
               <Link
                 href={`/dashboard/modules/${module._id}`}
-                className="inline-flex items-center gap-2 bg-[#FF9800] hover:bg-[#FF9800]/95 text-white font-bold text-xs tracking-wider uppercase px-7 py-3.5 rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white text-[#000666] hover:bg-slate-100 font-bold text-xs tracking-wider uppercase px-7 py-3 rounded-xl shadow-md transition-all text-center"
               >
                 <span>{isCompleted ? "Review Learning Material" : isInProgress ? "Resume Coursework" : "Start Learning"}</span>
-                <HiOutlineArrowRight className="w-4 h-4" />
+                <HiOutlineArrowRight className="w-4 h-4 text-[#000666]" />
               </Link>
             )}
           </div>
@@ -161,43 +159,53 @@ export default function ModuleOutlinePage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Main Outline Grid */}
-      <div className="space-y-8">
+      <div className="space-y-6 sm:space-y-8 min-w-0 max-w-full">
         {moduleTask && (
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-start justify-between gap-4 mb-3">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-700">Module Task</p>
-                <h2 className="text-xl font-black text-[#000666] mt-1">{moduleTask.title || "Action required"}</h2>
+          <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 sm:p-7 shadow-sm min-w-0 max-w-full overflow-hidden space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 min-w-0">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#000666] bg-[#000666]/5 px-2.5 py-1 rounded-md">
+                    Task Deliverable
+                  </span>
+                  {moduleTask.requiresUpload && (
+                    <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md">
+                      Upload required
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-base sm:text-lg font-bold text-[#000666] break-words leading-snug">
+                  {moduleTask.title || "Action required"}
+                </h2>
               </div>
-              {moduleTask.requiresUpload && (
-                <span className="inline-flex items-center rounded-full bg-amber-100 text-amber-800 border border-amber-200 px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
-                  Upload required
-                </span>
-              )}
             </div>
 
             {taskDescription && (
               <div
-                className="text-sm text-slate-700 leading-relaxed prose prose-sm max-w-none"
+                className="text-xs sm:text-sm text-slate-600 leading-relaxed prose prose-sm max-w-none break-words"
                 dangerouslySetInnerHTML={{ __html: linkifyText(taskDescription) }}
               />
             )}
 
-            <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-600">
+            <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-y-2 gap-x-5 text-xs text-slate-500 min-w-0">
               {moduleTask.requiresUpload && (
-                <span className="rounded-full bg-white border border-slate-200 px-3 py-1.5">
-                  Evidence: {moduleTask.evidenceLabel || "Certificate or proof of completion"}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold text-slate-700">Evidence:</span>
+                  <span>{moduleTask.evidenceLabel || "Certificate or proof of completion"}</span>
+                </div>
               )}
               {moduleTask.allowedFileTypes && moduleTask.allowedFileTypes.length > 0 && (
-                <span className="rounded-full bg-white border border-slate-200 px-3 py-1.5">
-                  Accepted: {moduleTask.allowedFileTypes.join(", ")}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold text-slate-700">Accepted:</span>
+                  <span>{moduleTask.allowedFileTypes.join(", ")}</span>
+                </div>
               )}
               {(formattedDueDate || moduleTask.dueText) && (
-                <span className="rounded-full bg-white border border-slate-200 px-3 py-1.5">
-                  {formattedDueDate || moduleTask.dueText}
-                </span>
+                <div className="flex items-center gap-1.5 text-slate-700">
+                  <HiOutlineClock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="font-semibold">Deadline:</span>
+                  <span>{formattedDueDate || moduleTask.dueText}</span>
+                </div>
               )}
             </div>
           </div>
@@ -207,8 +215,8 @@ export default function ModuleOutlinePage({ params }: { params: Promise<{ id: st
         {objectives.length > 0 && (
           <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 sm:p-8 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-[#FF9800] flex items-center justify-center">
-                <HiOutlineSparkles className="w-6 h-6" />
+              <div className="w-9 h-9 rounded-xl bg-[#000666]/5 text-[#000666] flex items-center justify-center">
+                <HiOutlineBookOpen className="w-5 h-5" />
               </div>
               <div>
                 <h2 className="text-lg font-bold text-[#000666]">Learning Objectives</h2>
@@ -220,9 +228,9 @@ export default function ModuleOutlinePage({ params }: { params: Promise<{ id: st
               {objectives.map((obj, i) => (
                 <div 
                   key={i} 
-                  className="p-4 rounded-xl border border-slate-100 bg-slate-50/60 flex items-start gap-3 hover:bg-slate-50 transition-colors"
+                  className="p-3.5 rounded-xl border border-slate-100 bg-slate-50/50 flex items-start gap-3 hover:bg-slate-50 transition-colors"
                 >
-                  <span className="w-6 h-6 rounded-full bg-[#000666] text-white flex items-center justify-center text-xs font-mono font-bold shrink-0 mt-0.5">
+                  <span className="w-6 h-6 rounded-full bg-[#000666]/10 text-[#000666] flex items-center justify-center text-xs font-mono font-bold shrink-0 mt-0.5">
                     {i + 1}
                   </span>
                   <p className="text-xs sm:text-sm font-medium text-slate-700 leading-relaxed">
@@ -238,11 +246,11 @@ export default function ModuleOutlinePage({ params }: { params: Promise<{ id: st
         {topics.length > 0 && (
           <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 sm:p-8 shadow-sm space-y-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-sky-50 border border-sky-200 text-sky-600 flex items-center justify-center">
-                <HiOutlineAcademicCap className="w-6 h-6" />
+              <div className="w-9 h-9 rounded-xl bg-[#000666]/5 text-[#000666] flex items-center justify-center">
+                <HiOutlineDocumentText className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-[#000666]">Topic Breakdown & Syllabus</h2>
+                <h2 className="text-lg font-bold text-[#000666]">Topic Breakdown &amp; Syllabus</h2>
                 <p className="text-xs text-slate-500">{topics.length} structured learning sections with activities.</p>
               </div>
             </div>
@@ -280,12 +288,12 @@ export default function ModuleOutlinePage({ params }: { params: Promise<{ id: st
                         {topic.subtopics && topic.subtopics.length > 0 && (
                           <div>
                             <h4 className="text-[11px] uppercase font-bold text-slate-400 tracking-wider mb-2">
-                              Key Topics & Concepts Covered
+                              Key Topics &amp; Concepts Covered
                             </h4>
                             <ul className="space-y-2">
                               {topic.subtopics.map((sub, sIdx) => (
                                 <li key={sIdx} className="flex items-start gap-2 text-xs text-slate-600 leading-relaxed">
-                                  <span className="text-[#FF9800] font-bold mt-0.5">•</span>
+                                  <span className="text-[#000666] font-bold mt-0.5">•</span>
                                   <span dangerouslySetInnerHTML={{ __html: linkifyText(sub) }} />
                                 </li>
                               ))}
@@ -295,12 +303,12 @@ export default function ModuleOutlinePage({ params }: { params: Promise<{ id: st
 
                         {/* Learning Activity */}
                         {topic.learningActivity && (
-                          <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80">
-                            <span className="text-[10px] uppercase font-bold text-amber-800 tracking-wider block mb-1">
-                              Recommended Learning Activity
+                          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                            <span className="text-[10px] uppercase font-bold text-[#000666] tracking-wider block mb-1">
+                              Recommended Activity
                             </span>
                             <div
-                              className="text-xs text-amber-950 font-medium leading-relaxed"
+                              className="text-xs text-slate-700 leading-relaxed"
                               dangerouslySetInnerHTML={{ __html: linkifyText(topic.learningActivity) }}
                             />
                           </div>
@@ -310,7 +318,7 @@ export default function ModuleOutlinePage({ params }: { params: Promise<{ id: st
                         {topic.materials && topic.materials.length > 0 && (
                           <div>
                             <span className="text-[11px] uppercase font-bold text-slate-400 tracking-wider block mb-2">
-                              External Resources & References
+                              External Resources &amp; References
                             </span>
                             <div className="flex flex-wrap gap-2">
                               {topic.materials.map((mat, mIdx) => (
@@ -319,10 +327,10 @@ export default function ModuleOutlinePage({ params }: { params: Promise<{ id: st
                                   href={mat.url || "#"}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-3 py-1.5 rounded-lg transition-colors"
+                                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#000666] bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg transition-colors"
                                 >
                                   <span>{mat.label}</span>
-                                  <HiOutlineArrowTopRightOnSquare className="w-3.5 h-3.5" />
+                                  <HiOutlineArrowTopRightOnSquare className="w-3.5 h-3.5 text-slate-400" />
                                 </a>
                               ))}
                             </div>
@@ -337,23 +345,22 @@ export default function ModuleOutlinePage({ params }: { params: Promise<{ id: st
           </div>
         )}
 
-        {/* Expected Outcomes */}
+        {/* Action Items & Deliverables */}
         {outcomes.length > 0 && (
           <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 sm:p-8 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center">
-                <HiOutlineCheckCircle className="w-6 h-6" />
+              <div className="w-9 h-9 rounded-xl bg-[#000666]/5 text-[#000666] flex items-center justify-center">
+                <HiOutlineCheckCircle className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-[#000666]">Expected Learning Outcomes</h2>
-                <p className="text-xs text-slate-500">Practical skills you can apply upon completion.</p>
+                <h2 className="text-lg font-bold text-[#000666]">Action Items &amp; Deliverables</h2>
               </div>
             </div>
 
             <ul className="space-y-3">
               {outcomes.map((outc, i) => (
                 <li key={i} className="flex items-start gap-3 text-xs sm:text-sm text-slate-700">
-                  <HiOutlineCheckCircle className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                  <HiOutlineCheckCircle className="w-4 h-4 text-[#000666] shrink-0 mt-0.5" />
                   <span className="leading-relaxed font-medium" dangerouslySetInnerHTML={{ __html: linkifyText(outc) }} />
                 </li>
               ))}
@@ -381,7 +388,7 @@ export default function ModuleOutlinePage({ params }: { params: Promise<{ id: st
               className="w-full sm:w-auto bg-[#000666] hover:bg-[#000666]/90 text-white text-xs font-bold tracking-wider uppercase px-8 py-3.5 rounded-xl shadow-sm text-center flex items-center justify-center gap-2 hover:scale-[1.01] transition-all"
             >
               <span>{isCompleted ? "Review Material" : "Start Coursework"}</span>
-              <HiOutlineArrowRight className="w-4 h-4 text-[#FF9800]" />
+              <HiOutlineArrowRight className="w-4 h-4" />
             </Link>
           )}
         </div>

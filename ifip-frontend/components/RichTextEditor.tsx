@@ -93,9 +93,9 @@ export default function RichTextEditor({ value, onChange, placeholder }: RichTex
   };
 
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs focus-within:border-sky-500 focus-within:ring-1 focus-within:ring-sky-500 transition-all">
-      {/* Top Toolbar */}
-      <div className="bg-slate-50 border-b border-slate-200 p-2 flex flex-wrap items-center justify-between gap-1 select-none text-xs">
+    <div className="border border-slate-200 rounded-xl bg-white shadow-xs focus-within:border-sky-500 focus-within:ring-1 focus-within:ring-sky-500 transition-all relative">
+      {/* Top Sticky Toolbar - stays pinned during scroll */}
+      <div className="sticky top-0 z-30 bg-slate-50/95 backdrop-blur-md border-b border-slate-200 p-1.5 sm:p-2 flex flex-wrap items-center justify-between gap-1 select-none text-xs rounded-t-xl shadow-xs">
         <div className="flex flex-wrap items-center gap-1">
           {/* Headings */}
           <button
@@ -300,7 +300,7 @@ export default function RichTextEditor({ value, onChange, placeholder }: RichTex
 
       {/* Editor Content Body */}
       {viewMode === "visual" ? (
-        <div className="tiptap-wrapper">
+        <div className="tiptap-wrapper rounded-b-xl overflow-hidden">
           <EditorContent editor={editor} />
         </div>
       ) : (
@@ -312,7 +312,7 @@ export default function RichTextEditor({ value, onChange, placeholder }: RichTex
               editor.commands.setContent(e.target.value);
             }
           }}
-          className="w-full min-h-[260px] p-4 font-mono text-xs text-slate-800 focus:outline-none resize-y"
+          className="w-full min-h-[260px] p-4 font-mono text-xs text-slate-800 focus:outline-none resize-y rounded-b-xl"
           placeholder="Raw HTML / Markdown source..."
         />
       )}

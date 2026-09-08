@@ -33,6 +33,9 @@ export interface IModule extends Document {
     weekNumber?: number; // Maps 1-to-1 to cohort week (Week 1, Week 2, Week 3, Week 4)
     contentType: 'video' | 'text' | 'quiz' | 'assignment';
     contentUrl?: string;
+    recordingUrl?: string; // Post-session recording link (set by admin after live class)
+    pdfUrl?: string; // Uploaded PDF module document
+    pdfFileName?: string; // Original uploaded PDF filename
     body?: string;
     outline?: IModuleOutline;
     moduleTask?: IModuleTask;
@@ -80,6 +83,9 @@ const moduleSchema = new Schema<IModule>({
     weekNumber: { type: Number, min: 1, max: 52 },
     contentType: { type: String, enum: ['video', 'text', 'quiz', 'assignment'], required: true },
     contentUrl: { type: String },
+    recordingUrl: { type: String }, // Populated by admin after the live session
+    pdfUrl: { type: String },
+    pdfFileName: { type: String },
     body: { type: String },
     outline: { type: moduleOutlineSchema, default: () => ({}) },
     moduleTask: { type: moduleTaskSchema, default: () => ({}) },

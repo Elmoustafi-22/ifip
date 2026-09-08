@@ -35,6 +35,7 @@ import {
   deleteLMSModule,
   getAdminModuleTaskSubmissions,
   reviewModuleTaskSubmission,
+  uploadResourceFileAuth,
   LMSModule,
   ModuleOutline,
   TopicOutline,
@@ -85,13 +86,46 @@ export default function AdminModulesPage() {
   const [moduleStatus, setModuleStatus] = useState<"draft" | "published" | "archived">("draft");
   const [moduleCohortId, setModuleCohortId] = useState("");
 
+  // PDF Module Document state
+  const [pdfUrl, setPdfUrl] = useState("");
+  const [pdfFileName, setPdfFileName] = useState("");
+  const [pdfFileSize, setPdfFileSize] = useState("");
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [pdfUploadError, setPdfUploadError] = useState<string | null>(null);
+
+  const handlePdfUpload = async (file: File) => {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
+      setPdfUploadError("Only PDF files are supported for module document uploads.");
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      setPdfUploadError("File size exceeds 25MB limit. Please upload a smaller PDF.");
+      return;
+    }
+
+    setPdfUploadError(null);
+    setUploadingPdf(true);
+    try {
+      const res = await uploadResourceFileAuth(file);
+      setPdfUrl(res.fileUrl);
+      setPdfFileName(res.fileName || file.name);
+      setPdfFileSize(res.fileSize || `${(file.size / (1024 * 1024)).toFixed(1)} MB`);
+    } catch (err: any) {
+      console.error("PDF upload failed:", err);
+      setPdfUploadError(err?.message || "Failed to upload PDF. Please try again.");
+    } finally {
+      setUploadingPdf(false);
+    }
+  };
+
   // Module task
   const [moduleTaskTitle, setModuleTaskTitle] = useState("");
   const [moduleTaskDescription, setModuleTaskDescription] = useState("");
   const [moduleTaskInstructions, setModuleTaskInstructions] = useState("");
   const [moduleTaskRequiresUpload, setModuleTaskRequiresUpload] = useState(false);
   const [moduleTaskEvidenceLabel, setModuleTaskEvidenceLabel] = useState("");
-  const [moduleTaskAllowedFileTypes, setModuleTaskAllowedFileTypes] = useState("pdf");
+  const [moduleTaskAllowedFileTypes, setModuleTaskAllowedFileTypes] = useState<string[]>(["pdf", "png", "jpg"]);
   const [moduleTaskDueDate, setModuleTaskDueDate] = useState("");
   const [moduleTaskDueText, setModuleTaskDueText] = useState("");
   const [moduleTaskIsRequired, setModuleTaskIsRequired] = useState(true);
@@ -331,13 +365,17 @@ export default function AdminModulesPage() {
     setBody("");
     setModuleStatus("draft");
     setModuleCohortId((selectedCohortId === "unassigned") ? "" : selectedCohortId);
+    setPdfUrl("");
+    setPdfFileName("");
+    setPdfFileSize("");
+    setPdfUploadError(null);
 
     setModuleTaskTitle("");
     setModuleTaskDescription("");
     setModuleTaskInstructions("");
     setModuleTaskRequiresUpload(false);
     setModuleTaskEvidenceLabel("");
-    setModuleTaskAllowedFileTypes("");
+    setModuleTaskAllowedFileTypes(["pdf", "png", "jpg"]);
     setModuleTaskDueDate("");
     setModuleTaskDueText("");
     setModuleTaskIsRequired(true);
@@ -366,6 +404,10 @@ export default function AdminModulesPage() {
     setBody(mod.body || "");
     setModuleStatus((mod.moduleStatus || mod.status || "draft") as any);
     setModuleCohortId((mod as any).cohortId || "");
+    setPdfUrl(mod.pdfUrl || "");
+    setPdfFileName(mod.pdfFileName || "");
+    setPdfFileSize("");
+    setPdfUploadError(null);
 
     const task = mod.moduleTask || {};
     setModuleTaskTitle(task.title || "");
@@ -373,7 +415,11 @@ export default function AdminModulesPage() {
     setModuleTaskInstructions(task.instructions || "");
     setModuleTaskRequiresUpload(Boolean(task.requiresUpload));
     setModuleTaskEvidenceLabel(task.evidenceLabel || "");
-    setModuleTaskAllowedFileTypes((task.allowedFileTypes || []).join(", "));
+    setModuleTaskAllowedFileTypes(
+      task.allowedFileTypes && task.allowedFileTypes.length > 0
+        ? task.allowedFileTypes.map(t => t.toLowerCase().replace(/^\./, "").trim()).filter(Boolean)
+        : ["pdf"]
+    );
     setModuleTaskDueDate(task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 16) : "");
     setModuleTaskDueText(task.dueText || "");
     setModuleTaskIsRequired(task.isRequired !== false);
@@ -495,8 +541,7 @@ export default function AdminModulesPage() {
     };
 
     const allowedFileTypes = moduleTaskAllowedFileTypes
-      .split(",")
-      .map((value) => value.trim())
+      .map((value) => value.trim().toLowerCase().replace(/^\./, ""))
       .filter(Boolean);
 
     const moduleTaskPayload =
@@ -520,6 +565,8 @@ export default function AdminModulesPage() {
       order: Number(order),
       contentType,
       contentUrl: contentUrl || undefined,
+      pdfUrl: pdfUrl.trim() || undefined,
+      pdfFileName: pdfFileName.trim() || undefined,
       body: body || undefined,
       outline: outlinePayload,
       moduleTask: moduleTaskPayload,
@@ -559,83 +606,109 @@ export default function AdminModulesPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-10 px-4 sm:px-6 lg:px-8 font-sans bg-[#FDFBF7]">
+    <div className="w-full max-w-6xl mx-auto py-6 sm:py-10 px-4 sm:px-6 lg:px-8 font-sans bg-[#FDFBF7] overflow-x-hidden">
       {/* Top Header */}
-      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="mb-6 sm:mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="min-w-0 flex-1">
           <div className="mb-2">
-            <Link href="/admin" className="text-xs font-bold text-[#000666] hover:underline">
+            <Link href="/admin" className="text-xs font-semibold text-slate-500 hover:text-[#000666] inline-flex items-center gap-1 transition-colors">
               &larr; Back to Admin Dashboard
             </Link>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight mb-1 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-2">
-            <HiOutlineBookOpen className="w-8 h-8 text-[#FF9800] shrink-0" />
-            <span>Curriculum Coursework & Outline Editor</span>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight mb-1 flex items-center gap-2.5">
+            <HiOutlineBookOpen className="w-6 h-6 sm:w-7 sm:h-7 text-[#000666] shrink-0" />
+            <span>Curriculum &amp; Coursework Editor</span>
           </h1>
-          <p className="text-slate-500 text-sm">
-            Separate structural outlines (objectives & syllabus breakdown) from content delivery (e-book, readings & assessments).
+          <p className="text-slate-500 text-xs sm:text-sm max-w-2xl leading-relaxed">
+            Manage structural syllabus outlines, weekly schedules, learning materials, and coursework tasks.
           </p>
         </div>
-        <div className="w-full md:w-auto shrink-0 mt-2 md:mt-0 flex gap-3">
+        <div className="w-full sm:w-auto shrink-0 flex items-center gap-2.5">
           <Link
             href="/admin/schedule"
-            className="w-full md:w-auto bg-white border border-[#000666] text-[#000666] hover:bg-slate-50 font-bold text-xs tracking-wider uppercase px-4 py-3.5 rounded-xl shadow-sm transition-all text-center flex items-center justify-center gap-1.5"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs px-4 py-2.5 rounded-xl shadow-2xs transition-all text-center"
           >
-            <HiOutlineClock className="w-4 h-4 text-[#FF9800]" />
-            Manage Timetable
+            <HiOutlineClock className="w-4 h-4 text-slate-400" />
+            <span>Timetable</span>
           </Link>
           <button
             onClick={handleOpenCreate}
-            className="w-full md:w-auto bg-[#000666] hover:bg-[#000666]/90 text-white font-bold text-xs tracking-wider uppercase px-6 py-3.5 rounded-xl shadow-sm transition-all text-center flex items-center justify-center gap-1.5"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 bg-[#000666] hover:bg-[#000666]/90 text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-sm transition-all text-center cursor-pointer"
           >
             <HiOutlinePlus className="w-4 h-4 text-[#FF9800]" />
-            Create Module
+            <span>Create Module</span>
           </button>
         </div>
       </div>
 
-      {/* Status Filter Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-        <div className="flex items-center gap-1.5 bg-slate-100/80 p-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">
-          <button
-            type="button"
-            onClick={() => setStatusFilter("all")}
-            className={`px-3.5 py-1.5 rounded-lg transition-all ${
-              statusFilter === "all" ? "bg-white text-[#000666] shadow-sm font-black" : "hover:text-slate-900"
-            }`}
-          >
-            All ({modules.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter("draft")}
-            className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
-              statusFilter === "draft" ? "bg-amber-500 text-white shadow-sm font-black" : "hover:text-slate-900"
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-amber-200"></span>
-            Drafts ({modules.filter(m => (m.moduleStatus || m.status || 'published') === 'draft').length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter("published")}
-            className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
-              statusFilter === "published" ? "bg-emerald-600 text-white shadow-sm font-black" : "hover:text-slate-900"
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-200"></span>
-            Published ({modules.filter(m => (m.moduleStatus || m.status || 'published') === 'published').length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter("archived")}
-            className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
-              statusFilter === "archived" ? "bg-slate-700 text-white shadow-sm font-black" : "hover:text-slate-900"
-            }`}
-          >
-            Archived ({modules.filter(m => (m.moduleStatus || m.status || 'published') === 'archived').length})
-          </button>
-        </div>
+      {/* Status Filter Bar - Zero Overflow Responsive Segmented Control */}
+      <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100/90 border border-slate-200/80 rounded-xl mb-4 w-full sm:w-auto sm:inline-flex overflow-hidden select-none">
+        <button
+          type="button"
+          onClick={() => setStatusFilter("all")}
+          className={`py-2 px-1 sm:px-3.5 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1 sm:gap-1.5 transition-all outline-none focus:outline-none select-none cursor-pointer ${
+            statusFilter === "all"
+              ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60"
+              : "text-slate-500 hover:text-slate-900 hover:bg-white/50 border border-transparent"
+          }`}
+        >
+          <span>All</span>
+          <span className={`text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-full font-bold transition-colors ${
+            statusFilter === "all" ? "bg-slate-100 text-slate-800" : "bg-slate-200/60 text-slate-500"
+          }`}>
+            {modules.length}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter("draft")}
+          className={`py-2 px-1 sm:px-3.5 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1 sm:gap-1.5 transition-all outline-none focus:outline-none select-none cursor-pointer ${
+            statusFilter === "draft"
+              ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60"
+              : "text-slate-500 hover:text-slate-900 hover:bg-white/50 border border-transparent"
+          }`}
+        >
+          <span>Drafts</span>
+          <span className={`text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-full font-bold transition-colors ${
+            statusFilter === "draft" ? "bg-amber-100 text-amber-800" : "bg-slate-200/60 text-slate-500"
+          }`}>
+            {modules.filter(m => (m.moduleStatus || m.status || 'published') === 'draft').length}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter("published")}
+          className={`py-2 px-1 sm:px-3.5 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1 sm:gap-1.5 transition-all outline-none focus:outline-none select-none cursor-pointer ${
+            statusFilter === "published"
+              ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60"
+              : "text-slate-500 hover:text-slate-900 hover:bg-white/50 border border-transparent"
+          }`}
+        >
+          <span className="hidden min-[400px]:inline">Published</span>
+          <span className="min-[400px]:hidden">Live</span>
+          <span className={`text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-full font-bold transition-colors ${
+            statusFilter === "published" ? "bg-emerald-100 text-emerald-800" : "bg-slate-200/60 text-slate-500"
+          }`}>
+            {modules.filter(m => (m.moduleStatus || m.status || 'published') === 'published').length}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter("archived")}
+          className={`py-2 px-1 sm:px-3.5 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1 sm:gap-1.5 transition-all outline-none focus:outline-none select-none cursor-pointer ${
+            statusFilter === "archived"
+              ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60"
+              : "text-slate-500 hover:text-slate-900 hover:bg-white/50 border border-transparent"
+          }`}
+        >
+          <span className="hidden min-[400px]:inline">Archived</span>
+          <span className="min-[400px]:hidden">Arch.</span>
+          <span className={`text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-full font-bold transition-colors ${
+            statusFilter === "archived" ? "bg-slate-100 text-slate-700" : "bg-slate-200/60 text-slate-500"
+          }`}>
+            {modules.filter(m => (m.moduleStatus || m.status || 'published') === 'archived').length}
+          </span>
+        </button>
       </div>
 
       {/* Modules Table List */}
@@ -690,6 +763,28 @@ export default function AdminModulesPage() {
                                 {mod.outline.learningObjectives.length} Objectives
                               </span>
                             )}
+                            {mod.pdfUrl && (
+                              <a
+                                href={mod.pdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[10px] text-rose-700 bg-rose-50 font-semibold px-2 py-0.5 rounded-full border border-rose-200 hover:underline"
+                              >
+                                📄 PDF Document
+                              </a>
+                            )}
+                          </div>
+                        )}
+                        {!mod.outline?.topics?.length && mod.pdfUrl && (
+                          <div className="mt-1">
+                            <a
+                              href={mod.pdfUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[10px] text-rose-700 bg-rose-50 font-semibold px-2 py-0.5 rounded-full border border-rose-200 hover:underline"
+                            >
+                              📄 PDF Document
+                            </a>
                           </div>
                         )}
                       </td>
@@ -730,50 +825,47 @@ export default function AdminModulesPage() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex flex-col items-end gap-2">
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setReviewModule(mod)}
+                            className="inline-flex items-center gap-1 text-slate-700 hover:text-[#000666] font-semibold text-xs bg-slate-100 hover:bg-slate-200/70 px-2.5 py-1.5 rounded-lg border border-slate-200 transition-colors cursor-pointer"
+                            title="Review module contents"
+                          >
+                            <HiOutlineEye className="w-3.5 h-3.5 text-slate-500" /> Review
+                          </button>
+                          <button
+                            onClick={() => handleOpenEdit(mod)}
+                            className="inline-flex items-center gap-1 text-slate-700 hover:text-[#000666] font-semibold text-xs bg-white hover:bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 transition-colors cursor-pointer"
+                          >
+                            <HiOutlinePencilSquare className="w-3.5 h-3.5 text-slate-500" /> Edit
+                          </button>
+                          {isDraft && (
                             <button
-                              onClick={() => setReviewModule(mod)}
-                              className="text-[#000666] hover:text-[#000666]/80 inline-flex items-center gap-1 font-bold text-xs bg-slate-100 hover:bg-slate-200/70 px-2.5 py-1.5 rounded-lg border border-slate-200 shadow-sm"
-                              title="Review module contents"
+                              onClick={() => handlePublish(mod._id)}
+                              disabled={publishingId === mod._id}
+                              className="text-white bg-emerald-700 hover:bg-emerald-800 inline-flex items-center gap-1 font-semibold text-xs px-3 py-1.5 rounded-lg shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
                             >
-                              <HiOutlineEye className="w-3.5 h-3.5" /> Review
+                              <HiOutlineArrowUpTray className="w-3.5 h-3.5" />
+                              {publishingId === mod._id ? "Publishing..." : "Publish"}
                             </button>
-                            {isDraft && (
-                              <button
-                                onClick={() => handlePublish(mod._id)}
-                                disabled={publishingId === mod._id}
-                                className="text-white bg-emerald-600 hover:bg-emerald-700 inline-flex items-center gap-1 font-bold text-xs px-3 py-1.5 rounded-lg shadow-sm transition-all disabled:opacity-50"
-                              >
-                                <HiOutlineArrowUpTray className="w-3.5 h-3.5" />
-                                {publishingId === mod._id ? "Publishing..." : "Publish"}
-                              </button>
-                            )}
-                            {isPublished && (
-                              <button
-                                onClick={() => handleUnpublish(mod._id)}
-                                disabled={publishingId === mod._id}
-                                className="text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 inline-flex items-center gap-1 font-bold text-xs px-2.5 py-1.5 rounded-lg transition-all disabled:opacity-50"
-                              >
-                                <HiOutlineArrowDownTray className="w-3.5 h-3.5" />
-                                Unpublish
-                              </button>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
+                          )}
+                          {isPublished && (
                             <button
-                              onClick={() => handleOpenEdit(mod)}
-                              className="text-[#00B0FF] hover:text-[#00B0FF]/80 inline-flex items-center gap-1 font-bold text-xs bg-sky-50 hover:bg-sky-100 px-2.5 py-1.5 rounded-lg border border-sky-200"
+                              onClick={() => handleUnpublish(mod._id)}
+                              disabled={publishingId === mod._id}
+                              className="text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 inline-flex items-center gap-1 font-semibold text-xs px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
                             >
-                              <HiOutlinePencilSquare className="w-4 h-4" /> Edit
+                              <HiOutlineArrowDownTray className="w-3.5 h-3.5 text-slate-400" />
+                              Unpublish
                             </button>
-                            <button
-                              onClick={() => handleDelete(mod._id)}
-                              className="text-rose-500 hover:text-rose-600 inline-flex items-center gap-1 font-bold text-xs bg-rose-50 hover:bg-rose-100 px-2.5 py-1.5 rounded-lg border border-rose-200"
-                            >
-                              <HiOutlineTrash className="w-4 h-4" /> Delete
-                            </button>
-                          </div>
+                          )}
+                          <button
+                            onClick={() => handleDelete(mod._id)}
+                            className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+                            title="Delete module"
+                          >
+                            <HiOutlineTrash className="w-4 h-4" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -784,7 +876,7 @@ export default function AdminModulesPage() {
           </table>
         </div>
 
-        {/* Mobile View Card List */}
+        {/* Mobile View Card List - Mature, Clean, Unified */}
         <div className="block md:hidden divide-y divide-slate-100 bg-white">
           {filteredModules.length === 0 ? (
             <p className="px-6 py-12 text-center text-slate-400 text-xs italic">
@@ -797,88 +889,101 @@ export default function AdminModulesPage() {
               const isPublished = currentStatus === 'published';
 
               return (
-                <div key={mod._id} className="p-4 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <span className="font-mono text-xs font-bold text-[#000666] bg-[#000666]/5 px-2 py-0.5 rounded mr-2">
-                        #{mod.order}
-                      </span>
-                      <span className="font-bold text-[#000666] text-sm">{mod.title}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      {isDraft && (
-                        <span className="bg-amber-100 text-amber-800 text-[9px] uppercase font-black tracking-wider px-2 py-0.5 rounded shrink-0">
-                          Draft
-                        </span>
-                      )}
-                      {isPublished && (
-                        <span className="bg-emerald-100 text-emerald-800 text-[9px] uppercase font-black tracking-wider px-2 py-0.5 rounded shrink-0">
-                          Published
-                        </span>
-                      )}
-                      <span className="bg-slate-100 text-slate-600 text-[9px] uppercase font-black tracking-wider px-2 py-0.5 rounded shrink-0">
-                        {mod.contentType}
-                      </span>
-                    </div>
-                  </div>
-                  {mod.description && (
-                    <p className="text-xs text-slate-500 line-clamp-2">{mod.description}</p>
-                  )}
-                  <div className="flex flex-col gap-2 pt-2 border-t border-slate-50 text-xs">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center gap-1 text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60 text-[11px]">
-                        <HiOutlineCalendar className="w-3 h-3 text-amber-700" /> Week {mod.weekNumber || mod.order}
-                      </span>
-                      {(mod as any).cohortId ? (
-                        <span className="bg-indigo-50 text-indigo-700 text-[9px] font-bold px-2 py-0.5 rounded">
-                          {cohorts.find(c => c._id === (mod as any).cohortId)?.name || "Cohort Linked"}
-                        </span>
-                      ) : (
-                        <span className="bg-slate-50 text-slate-400 text-[9px] font-bold px-2 py-0.5 rounded">
-                          Global
-                        </span>
-                      )}
-                    </div>
+                <div key={mod._id} className="p-4 space-y-2.5 hover:bg-slate-50/50 transition-colors">
+                  {/* Clean Header: Title on Left, Status Badge on Right */}
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-snug break-words flex-1">
+                      <span className="text-slate-400 font-mono font-medium mr-1.5">#{mod.order}</span>
+                      {mod.title}
+                    </h3>
 
-                    <div className="flex flex-wrap items-center gap-2">
+                    {/* Only Publish Status Badge */}
+                    {isDraft ? (
+                      <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-semibold px-2.5 py-0.5 rounded-full shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        Draft
+                      </span>
+                    ) : isPublished ? (
+                      <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold px-2.5 py-0.5 rounded-full shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        Published
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 border border-slate-200 text-[11px] font-semibold px-2.5 py-0.5 rounded-full shrink-0">
+                        Archived
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Subtle Schedule & Scope (Clean inline text, no clumsy pill boxes) */}
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                    <HiOutlineCalendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="font-medium text-slate-600">Week {mod.weekNumber || mod.order}</span>
+                    {mod.outline?.topics && mod.outline.topics.length > 0 && (
+                      <>
+                        <span className="text-slate-300">•</span>
+                        <span>{mod.outline.topics.length} topic{mod.outline.topics.length > 1 ? 's' : ''}</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Description */}
+                  {mod.description && (
+                    <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                      {mod.description}
+                    </p>
+                  )}
+
+                  {/* Action Toolbar - Fully Visible Labels with Zero Truncation */}
+                  <div className="pt-3 border-t border-slate-100 space-y-2">
+                    {/* Row 1: Primary Actions (Review & Edit) */}
+                    <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={() => setReviewModule(mod)}
-                        className="text-[#000666] font-bold text-xs bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-200"
+                        className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-[#000666] bg-slate-100 hover:bg-slate-200/70 border border-slate-200 py-2 px-3 rounded-xl transition-colors cursor-pointer"
                       >
-                        Review
+                        <HiOutlineEye className="w-4 h-4 text-slate-500 shrink-0" />
+                        <span>Review</span>
                       </button>
-                      {isDraft && (
+
+                      <button
+                        onClick={() => handleOpenEdit(mod)}
+                        className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-[#000666] bg-white hover:bg-slate-50 border border-slate-200 py-2 px-3 rounded-xl transition-colors cursor-pointer"
+                      >
+                        <HiOutlinePencilSquare className="w-4 h-4 text-slate-500 shrink-0" />
+                        <span>Edit</span>
+                      </button>
+                    </div>
+
+                    {/* Row 2: Status & Delete */}
+                    <div className="flex items-center gap-2">
+                      {isDraft ? (
                         <button
                           onClick={() => handlePublish(mod._id)}
                           disabled={publishingId === mod._id}
-                          className="bg-emerald-600 text-white font-bold text-xs px-2.5 py-1.5 rounded-lg"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 text-white bg-emerald-700 hover:bg-emerald-800 text-xs font-semibold py-2 px-3 rounded-xl transition-colors disabled:opacity-50 cursor-pointer shadow-2xs"
                         >
-                          {publishingId === mod._id ? "Publishing..." : "Publish"}
+                          <HiOutlineArrowUpTray className="w-4 h-4 shrink-0" />
+                          <span>{publishingId === mod._id ? "Publishing..." : "Publish Module"}</span>
                         </button>
-                      )}
-                      {!isDraft && (
+                      ) : (
                         <button
                           onClick={() => handleUnpublish(mod._id)}
                           disabled={publishingId === mod._id}
-                          className="bg-amber-50 text-amber-800 font-bold text-xs px-2.5 py-1.5 rounded-lg border border-amber-200"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 text-xs font-semibold py-2 px-3 rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
                         >
-                          Unpublish
+                          <HiOutlineArrowDownTray className="w-4 h-4 text-slate-400 shrink-0" />
+                          <span>Unpublish</span>
                         </button>
                       )}
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleOpenEdit(mod)}
-                        className="text-[#00B0FF] hover:text-[#00B0FF]/80 inline-flex items-center gap-1 font-bold text-xs bg-sky-50 px-2 py-1 rounded-lg border border-sky-200"
-                      >
-                        <HiOutlinePencilSquare className="w-3.5 h-3.5" /> Edit
-                      </button>
                       <button
                         onClick={() => handleDelete(mod._id)}
-                        className="text-rose-500 hover:text-rose-600 inline-flex items-center gap-1 font-bold text-xs bg-rose-50 px-2 py-1 rounded-lg border border-rose-200"
+                        className="inline-flex items-center justify-center gap-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-xs font-semibold py-2 px-3 rounded-xl transition-colors cursor-pointer shrink-0"
+                        title="Delete module"
                       >
-                        <HiOutlineTrash className="w-3.5 h-3.5" /> Delete
+                        <HiOutlineTrash className="w-4 h-4 shrink-0" />
+                        <span>Delete</span>
                       </button>
                     </div>
                   </div>
@@ -894,53 +999,63 @@ export default function AdminModulesPage() {
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-white border border-[#E7E2D8] w-full sm:max-w-4xl rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
-            <div className="bg-[#000666] text-white py-4 px-6 flex items-center justify-between shrink-0">
-              <h3 className="font-bold text-base flex items-center gap-2">
-                <HiOutlineAcademicCap className="w-5 h-5 text-[#FF9800]" /> 
-                {editingModule ? "Edit Module Outline & Content" : "Create Learning Module"}
+            <div className="bg-[#000666] text-white py-3.5 sm:py-4 px-4 sm:px-6 flex items-center justify-between shrink-0">
+              <h3 className="font-bold text-sm sm:text-base flex items-center gap-2 truncate">
+                <HiOutlineAcademicCap className="w-5 h-5 text-[#FF9800] shrink-0" /> 
+                <span className="truncate">{editingModule ? "Edit Module" : "Create Module"}</span>
               </h3>
               <button 
+                type="button"
                 onClick={() => setModalOpen(false)}
-                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10"
+                className="text-white/80 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer outline-none focus:outline-none"
+                title="Close modal"
               >
                 <HiOutlineXMark className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Tab Switcher */}
-            <div className="flex border-b border-slate-200 bg-slate-50 px-6 shrink-0">
+            {/* Modal Tab Switcher - Clean Segmented Control */}
+            <div className="grid grid-cols-2 border-b border-slate-200 bg-slate-100/80 p-1.5 gap-1.5 shrink-0 select-none">
               <button
                 type="button"
                 onClick={() => setActiveTab("outline")}
-                className={`py-3 px-4 font-bold text-xs flex items-center gap-2 border-b-2 transition-all ${
+                className={`py-2 px-2 sm:px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer outline-none focus:outline-none focus:ring-0 select-none ${
                   activeTab === "outline"
-                    ? "border-[#FF9800] text-[#000666] bg-white rounded-t-lg shadow-sm"
-                    : "border-transparent text-slate-500 hover:text-slate-800"
+                    ? "bg-white text-[#000666] shadow-xs border border-slate-200/80"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-white/50 border border-transparent"
                 }`}
               >
-                <HiOutlineListBullet className="w-4 h-4 text-[#FF9800]" />
-                Tab 1 — Syllabus & Module Outline (What is taught)
+                <HiOutlineListBullet className={`w-4 h-4 shrink-0 ${activeTab === "outline" ? "text-[#FF9800]" : "text-slate-400"}`} />
+                <div className="text-left sm:text-center min-w-0">
+                  <span className="block text-xs font-bold truncate">1. Syllabus Outline</span>
+                  <span className="hidden sm:block text-[10px] font-normal text-slate-400">Topics &amp; Outcomes</span>
+                </div>
               </button>
+
               <button
                 type="button"
                 onClick={() => setActiveTab("content")}
-                className={`py-3 px-4 font-bold text-xs flex items-center gap-2 border-b-2 transition-all ${
+                className={`py-2 px-2 sm:px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer outline-none focus:outline-none focus:ring-0 select-none ${
                   activeTab === "content"
-                    ? "border-[#FF9800] text-[#000666] bg-white rounded-t-lg shadow-sm"
-                    : "border-transparent text-slate-500 hover:text-slate-800"
+                    ? "bg-white text-[#000666] shadow-xs border border-slate-200/80"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-white/50 border border-transparent"
                 }`}
               >
-                <HiOutlineDocumentText className="w-4 h-4 text-[#FF9800]" />
-                Tab 2 — Content Delivery & Body (Learning material)
+                <HiOutlineDocumentText className={`w-4 h-4 shrink-0 ${activeTab === "content" ? "text-[#FF9800]" : "text-slate-400"}`} />
+                <div className="text-left sm:text-center min-w-0">
+                  <span className="block text-xs font-bold truncate">2. Learning Content</span>
+                  <span className="hidden sm:block text-[10px] font-normal text-slate-400">Reading &amp; Materials</span>
+                </div>
               </button>
             </div>
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6 text-xs sm:text-sm">
               {/* General module info displayed in both tabs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b border-slate-100">
-                <div className="sm:col-span-2">
-                  <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
+              <div className="space-y-4 pb-5 border-b border-slate-200">
+                {/* Module Title */}
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5 block">
                     Module Title / Header *
                   </label>
                   <input 
@@ -952,24 +1067,11 @@ export default function AdminModulesPage() {
                     required
                   />
                 </div>
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
-                    Module Purpose & Overview Summary *
-                  </label>
-                  <textarea 
-                    value={description}
-                    onChange={(e) => {
-                      setDescription(e.target.value);
-                      setPurpose(e.target.value);
-                    }}
-                    placeholder="Describe why this module exists, its overview summary, and fundamental principles imparted..."
-                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs h-[72px] bg-white"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-3 gap-3">
+
+                {/* Metadata Row: Sequence Order, Programme Week, Module Status */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
+                    <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5 block">
                       Display Sequence Order *
                     </label>
                     <input 
@@ -982,13 +1084,13 @@ export default function AdminModulesPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
+                    <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5 block">
                       Programme Week
                     </label>
                     <select 
                       value={weekNumber}
                       onChange={(e) => setWeekNumber(Number(e.target.value))}
-                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500 text-xs bg-white font-medium"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500 text-xs bg-white font-medium text-slate-800"
                     >
                       <option value={1}>Week 1 — Foundations</option>
                       <option value={2}>Week 2 — Core Contracts</option>
@@ -997,7 +1099,7 @@ export default function AdminModulesPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
+                    <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5 block">
                       Module Status
                     </label>
                     <select 
@@ -1010,6 +1112,24 @@ export default function AdminModulesPage() {
                       <option value="archived">Archived (Hidden / Read-only)</option>
                     </select>
                   </div>
+                </div>
+
+                {/* Module Purpose & Overview Summary */}
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5 block">
+                    Module Purpose &amp; Overview Summary *
+                  </label>
+                  <textarea 
+                    value={description}
+                    onChange={(e) => {
+                      setDescription(e.target.value);
+                      setPurpose(e.target.value);
+                    }}
+                    rows={3}
+                    placeholder="Describe why this module exists, its overview summary, and fundamental principles imparted..."
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs bg-white resize-y"
+                    required
+                  />
                 </div>
               </div>
 
@@ -1068,14 +1188,20 @@ export default function AdminModulesPage() {
                     />
                   </div>
 
-                  <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
-                    <input
-                      type="checkbox"
-                      checked={moduleTaskRequiresUpload}
-                      onChange={(e) => setModuleTaskRequiresUpload(e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-[#000666] focus:ring-[#FF9800]"
-                    />
-                    <label className="text-[11px] font-bold text-slate-700">Require upload of evidence</label>
+                  <div className="flex flex-col justify-end">
+                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
+                      Task Evidence Requirement
+                    </label>
+                    <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 h-[38px]">
+                      <input
+                        type="checkbox"
+                        id="requiresUploadCheck"
+                        checked={moduleTaskRequiresUpload}
+                        onChange={(e) => setModuleTaskRequiresUpload(e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-[#000666] focus:ring-[#FF9800]"
+                      />
+                      <label htmlFor="requiresUploadCheck" className="text-[11px] font-bold text-slate-700 cursor-pointer">Require upload of evidence</label>
+                    </div>
                   </div>
 
                   <div>
@@ -1091,23 +1217,77 @@ export default function AdminModulesPage() {
                     />
                   </div>
 
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
-                      Accepted file types
-                    </label>
-                    <select
-                      value={moduleTaskAllowedFileTypes}
-                      onChange={(e) => setModuleTaskAllowedFileTypes(e.target.value)}
-                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs bg-white"
-                    >
-                      <option value="pdf">PDF</option>
-                      <option value="jpg">JPG</option>
-                      <option value="png">PNG</option>
-                      <option value="jpeg">JPEG</option>
-                      <option value="doc">DOC</option>
-                      <option value="docx">DOCX</option>
-                      <option value="xlsx">XLSX</option>
-                    </select>
+                  <div className="sm:col-span-2">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 mb-2">
+                      <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block">
+                        Accepted file types {moduleTaskAllowedFileTypes.length > 0 ? `(${moduleTaskAllowedFileTypes.length} selected)` : "(any format allowed)"}
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setModuleTaskAllowedFileTypes(["pdf", "png", "jpg", "jpeg"])}
+                          className="text-[11px] font-semibold text-[#000666] hover:underline cursor-pointer"
+                        >
+                          PDF + Images
+                        </button>
+                        <span className="text-slate-300">•</span>
+                        <button
+                          type="button"
+                          onClick={() => setModuleTaskAllowedFileTypes(["pdf", "png", "jpg", "jpeg", "docx", "doc", "xlsx", "zip"])}
+                          className="text-[11px] font-semibold text-[#000666] hover:underline cursor-pointer"
+                        >
+                          Select All
+                        </button>
+                        <span className="text-slate-300">•</span>
+                        <button
+                          type="button"
+                          onClick={() => setModuleTaskAllowedFileTypes([])}
+                          className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 hover:underline cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Interactive Multi-Select Pills */}
+                    <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50 border border-slate-200 rounded-xl">
+                      {[
+                        { id: "pdf", label: "PDF" },
+                        { id: "png", label: "PNG" },
+                        { id: "jpg", label: "JPG" },
+                        { id: "jpeg", label: "JPEG" },
+                        { id: "docx", label: "DOCX" },
+                        { id: "doc", label: "DOC" },
+                        { id: "xlsx", label: "XLSX" },
+                        { id: "zip", label: "ZIP" },
+                      ].map((type) => {
+                        const isSelected = moduleTaskAllowedFileTypes.includes(type.id);
+                        return (
+                          <button
+                            key={type.id}
+                            type="button"
+                            onClick={() => {
+                              setModuleTaskAllowedFileTypes(prev =>
+                                isSelected ? prev.filter(t => t !== type.id) : [...prev, type.id]
+                              );
+                            }}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer select-none outline-none focus:outline-none ${
+                              isSelected
+                                ? "bg-[#000666] text-white shadow-2xs border border-[#000666]"
+                                : "bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-100/60"
+                            }`}
+                          >
+                            <span className="text-[11px] font-bold">{isSelected ? "✓" : "+"}</span>
+                            <span>{type.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {moduleTaskAllowedFileTypes.length === 0 && (
+                      <p className="text-[11px] text-amber-700 mt-1.5 flex items-center gap-1">
+                        <span>ℹ</span> All file formats will be permitted since none are explicitly restricted.
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -1267,35 +1447,47 @@ export default function AdminModulesPage() {
                     </div>
 
                     {topics.map((topic, tIdx) => (
-                      <div key={tIdx} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
-                        <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2">
-                          <span className="font-mono text-xs font-bold text-[#000666] bg-slate-100 px-2 py-0.5 rounded shrink-0">
+                      <div key={tIdx} className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+                        {/* Topic Header: Badge + Remove on Top Row */}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono text-xs font-bold text-[#000666] bg-[#000666]/10 border border-[#000666]/20 px-2.5 py-1 rounded-lg">
                             Topic #{tIdx + 1}
                           </span>
+                          {topics.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeTopic(tIdx)}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-rose-500 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                              title="Remove topic"
+                            >
+                              <HiOutlineTrash className="w-3.5 h-3.5" />
+                              <span>Remove</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Topic Title - 100% Full Width */}
+                        <div>
+                          <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5 block">
+                            Topic Title *
+                          </label>
                           <input
                             type="text"
                             value={topic.title}
                             onChange={(e) => updateTopicTitle(tIdx, e.target.value)}
                             onPaste={(e) => handlePasteTopicTitle(e, tIdx)}
-                            placeholder="e.g. 1.1 Overview of Islamic Social Finance Tools (or paste multi-line topic list)"
-                            className="flex-1 font-bold text-xs px-3 py-1.5 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                            placeholder="e.g. 1.1 Overview of Islamic Social Finance Tools (or paste multi-line list)"
+                            className="w-full font-bold text-xs sm:text-sm px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50/60 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 transition-all"
                           />
-                          {topics.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => removeTopic(tIdx)}
-                              className="text-rose-400 hover:text-rose-600 p-1 shrink-0"
-                              title="Remove topic"
-                            >
-                              <HiOutlineTrash className="w-4 h-4" />
-                            </button>
-                          )}
                         </div>
 
-                        {/* Subtopics */}
-                        <div className="pl-4 border-l-2 border-slate-100 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-bold text-slate-500">Subtopics / Bullet Points (Multi-line paste supported)</span>
+                        {/* Subtopics Section */}
+                        <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-3 sm:p-4 space-y-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <span className="text-xs font-bold text-slate-700 block">Subtopics &amp; Key Concepts</span>
+                              <span className="text-[10px] text-slate-400">Add key bullet points or paste lists</span>
+                            </div>
                             <div className="flex items-center gap-2">
                               <button
                                 type="button"
@@ -1314,48 +1506,51 @@ export default function AdminModulesPage() {
                                     }));
                                   }
                                 })}
-                                className="text-[11px] text-[#000666] font-semibold bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded flex items-center gap-1"
+                                className="text-xs font-bold text-[#000666] hover:bg-slate-200/60 bg-white border border-slate-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
                               >
-                                <HiOutlineClipboardDocumentList className="w-3 h-3" /> Paste Subtopics
+                                <HiOutlineClipboardDocumentList className="w-3.5 h-3.5" /> Paste List
                               </button>
                               <button
                                 type="button"
                                 onClick={() => addSubtopic(tIdx)}
-                                className="text-[11px] text-sky-600 hover:underline font-semibold"
+                                className="text-xs font-bold text-[#FF9800] hover:text-[#FF9800]/80 flex items-center gap-1 cursor-pointer"
                               >
-                                + Add Subtopic
+                                <HiOutlinePlus className="w-3.5 h-3.5" /> Add Point
                               </button>
                             </div>
                           </div>
-                          {(topic.subtopics || []).map((sub, sIdx) => (
-                            <div key={sIdx} className="flex items-center gap-2">
-                              <span className="text-slate-400 text-xs">•</span>
-                              <input
-                                type="text"
-                                value={sub}
-                                onChange={(e) => updateSubtopic(tIdx, sIdx, e.target.value)}
-                                onPaste={(e) => handlePasteSubtopics(e, tIdx, sIdx)}
-                                placeholder="Subtopic key concept (or paste multi-line bullet points)..."
-                                className="flex-1 text-xs px-2.5 py-1.5 border border-slate-200 rounded bg-white"
-                              />
-                              {(topic.subtopics || []).length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => removeSubtopic(tIdx, sIdx)}
-                                  className="text-slate-400 hover:text-rose-500 p-0.5"
-                                  title="Remove subtopic"
-                                >
-                                  <HiOutlineXMark className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                            </div>
-                          ))}
+
+                          <div className="space-y-1.5">
+                            {(topic.subtopics || []).map((sub, sIdx) => (
+                              <div key={sIdx} className="flex items-center gap-2">
+                                <span className="font-mono text-xs font-bold text-slate-400 w-4 text-center shrink-0">•</span>
+                                <input
+                                  type="text"
+                                  value={sub}
+                                  onChange={(e) => updateSubtopic(tIdx, sIdx, e.target.value)}
+                                  onPaste={(e) => handlePasteSubtopics(e, tIdx, sIdx)}
+                                  placeholder="Subtopic key concept (or paste multi-line bullet points)..."
+                                  className="flex-1 text-xs px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-sky-500 font-medium"
+                                />
+                                {(topic.subtopics || []).length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeSubtopic(tIdx, sIdx)}
+                                    className="text-slate-400 hover:text-rose-500 p-1 transition-colors cursor-pointer"
+                                    title="Remove subtopic"
+                                  >
+                                    <HiOutlineXMark className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
 
-                        {/* Activity & Materials */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                        {/* Activity & Materials Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
                           <div>
-                            <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1 block">
+                            <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5 block">
                               Learning Activity (Optional)
                             </label>
                             <input
@@ -1363,47 +1558,56 @@ export default function AdminModulesPage() {
                               value={topic.learningActivity || ""}
                               onChange={(e) => updateTopicActivity(tIdx, e.target.value)}
                               placeholder="e.g. Breakout group exercise: Waqf structuring"
-                              className="w-full text-xs px-3 py-1.5 border border-slate-200 rounded-lg bg-white"
+                              className="w-full text-xs px-3.5 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20"
                             />
                           </div>
+
                           <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block">
                                 Required External Materials
                               </label>
                               <button
                                 type="button"
                                 onClick={() => addMaterial(tIdx)}
-                                className="text-[10px] text-sky-600 font-semibold"
+                                className="text-xs font-bold text-[#FF9800] hover:text-[#FF9800]/80 flex items-center gap-1 cursor-pointer"
                               >
-                                + Add Link
+                                <HiOutlinePlus className="w-3.5 h-3.5" /> Add Link
                               </button>
                             </div>
-                            {(topic.materials || []).map((mat, mIdx) => (
-                              <div key={mIdx} className="flex items-center gap-1.5 mb-1">
-                                <input
-                                  type="text"
-                                  value={mat.label}
-                                  onChange={(e) => updateMaterial(tIdx, mIdx, "label", e.target.value)}
-                                  placeholder="Label (e.g. DisasterReady)"
-                                  className="w-1/2 text-[11px] px-2 py-1 border border-slate-200 rounded bg-white"
-                                />
-                                <input
-                                  type="url"
-                                  value={mat.url || ""}
-                                  onChange={(e) => updateMaterial(tIdx, mIdx, "url", e.target.value)}
-                                  placeholder="https://..."
-                                  className="w-1/2 text-[11px] px-2 py-1 border border-slate-200 rounded bg-white"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => removeMaterial(tIdx, mIdx)}
-                                  className="text-slate-400 hover:text-rose-500"
-                                >
-                                  <HiOutlineXMark className="w-3.5 h-3.5" />
-                                </button>
+
+                            {(topic.materials || []).length === 0 ? (
+                              <p className="text-[11px] text-slate-400 italic py-2">No external links added for this topic.</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {(topic.materials || []).map((mat, mIdx) => (
+                                  <div key={mIdx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 p-2 bg-slate-50/70 border border-slate-200/80 rounded-xl">
+                                    <input
+                                      type="text"
+                                      value={mat.label}
+                                      onChange={(e) => updateMaterial(tIdx, mIdx, "label", e.target.value)}
+                                      placeholder="Label (e.g. DisasterReady)"
+                                      className="flex-1 text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none"
+                                    />
+                                    <input
+                                      type="url"
+                                      value={mat.url || ""}
+                                      onChange={(e) => updateMaterial(tIdx, mIdx, "url", e.target.value)}
+                                      placeholder="https://..."
+                                      className="flex-1 text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => removeMaterial(tIdx, mIdx)}
+                                      className="text-slate-400 hover:text-rose-500 p-1 self-end sm:self-center cursor-pointer transition-colors"
+                                      title="Remove material"
+                                    >
+                                      <HiOutlineXMark className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1424,16 +1628,16 @@ export default function AdminModulesPage() {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <label className="text-xs font-bold text-[#000666] uppercase tracking-wider block">
-                          Expected Outcomes
+                          Action Items &amp; Deliverables
                         </label>
-                        <span className="text-[10px] text-slate-400">Paste multi-line text directly below or use the bulk paste tool</span>
+                        <span className="text-[10px] text-slate-400">Course links, tasks, and certificate instructions (links will be clickable)</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => openBulkPaste({
-                            title: "Manage & Paste Expected Outcomes",
-                            itemTypeLabel: "Outcomes",
+                            title: "Manage & Paste Action Items & Deliverables",
+                            itemTypeLabel: "Items",
                             existingItems: expectedOutcomes,
                             onApply: (lines, mode) => {
                               if (mode === "append") {
@@ -1452,7 +1656,7 @@ export default function AdminModulesPage() {
                           onClick={addOutcome}
                           className="text-xs font-bold text-[#FF9800] hover:text-[#FF9800]/80 flex items-center gap-1"
                         >
-                          <HiOutlinePlus className="w-3.5 h-3.5" /> Add Outcome
+                          <HiOutlinePlus className="w-3.5 h-3.5" /> Add Item
                         </button>
                       </div>
                     </div>
@@ -1464,7 +1668,7 @@ export default function AdminModulesPage() {
                           value={outc}
                           onChange={(e) => updateOutcome(i, e.target.value)}
                           onPaste={(e) => handlePasteOutcomes(e, i)}
-                          placeholder="e.g. Capable of designing Shariah-compliant emergency relief funds (or paste multi-line list)"
+                          placeholder="e.g. Complete the AltInstitute course at https://altinstitute.ng/ and upload certificate"
                           className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-sky-500 font-medium"
                         />
                         {expectedOutcomes.length > 1 && (
@@ -1538,54 +1742,173 @@ export default function AdminModulesPage() {
                     </div>
                   )}
 
+                  {/* PDF Module Document Upload (Available for all module types, primary or companion) */}
+                  <div className="bg-slate-50/70 border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-200/60 pb-3">
+                      <div>
+                        <label className="text-xs font-bold text-[#000666] flex items-center gap-2">
+                          <HiOutlineDocumentText className="w-4 h-4 text-rose-500" />
+                          <span>Course Module PDF Document (Downloadable Study Pack)</span>
+                        </label>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Upload the complete module in PDF format. Participants can download and read it on any device. When a PDF is uploaded, written text in the editor below is optional.
+                        </p>
+                      </div>
+                      {pdfUrl && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full shrink-0">
+                          ✓ PDF Attached
+                        </span>
+                      )}
+                    </div>
+
+                    {pdfUploadError && (
+                      <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-xl text-xs flex items-center gap-2">
+                        <HiOutlineXCircle className="w-4 h-4 shrink-0" />
+                        <span>{pdfUploadError}</span>
+                      </div>
+                    )}
+
+                    {pdfUrl ? (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-white border border-slate-200 rounded-xl">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                            <HiOutlineDocumentText className="w-5 h-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <h5 className="text-xs font-bold text-slate-800 truncate">
+                              {pdfFileName || "Module_Curriculum.pdf"}
+                            </h5>
+                            <span className="text-[10px] text-slate-400">
+                              {pdfFileSize ? `${pdfFileSize} • ` : ""}Ready for participant download
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <a
+                            href={pdfUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 hover:text-sky-800 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <HiOutlineEye className="w-3.5 h-3.5" />
+                            <span>Preview</span>
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPdfUrl("");
+                              setPdfFileName("");
+                              setPdfFileSize("");
+                            }}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <HiOutlineTrash className="w-3.5 h-3.5" />
+                            <span>Remove</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className={`border-2 border-dashed border-slate-200 hover:border-[#000666]/40 hover:bg-slate-50/80 rounded-xl p-5 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors ${uploadingPdf ? "opacity-60 pointer-events-none" : ""}`}>
+                          <input
+                            type="file"
+                            accept=".pdf,application/pdf"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handlePdfUpload(file);
+                              e.target.value = "";
+                            }}
+                            className="hidden"
+                          />
+                          {uploadingPdf ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <svg className="animate-spin w-6 h-6 text-[#000666]" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                              </svg>
+                              <span className="text-xs font-bold text-[#000666]">Uploading PDF document to cloud...</span>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
+                                <HiOutlineArrowUpTray className="w-5 h-5" />
+                              </div>
+                              <div className="text-center">
+                                <span className="text-xs font-bold text-[#000666] hover:underline">
+                                  Click to browse or drop Module PDF
+                                </span>
+                                <p className="text-[10px] text-slate-400 mt-0.5">
+                                  PDF documents up to 25MB supported
+                                </p>
+                              </div>
+                            </>
+                          )}
+                        </label>
+                      </div>
+                    )}
+                  </div>
+
                   {(contentType === "text" || contentType === "quiz" || contentType === "assignment") && (
-                    <div>
-                      <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
-                        Curriculum Document Body / E-Book Reading Content
-                      </label>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                          Online Reading Material / Text Editor {pdfUrl ? "(Optional — PDF attached)" : "(Optional)"}
+                        </label>
+                        {pdfUrl && (
+                          <span className="text-[10px] text-slate-400 italic">
+                            The uploaded PDF above will serve as the primary study pack.
+                          </span>
+                        )}
+                      </div>
                       <RichTextEditor 
                         value={body}
                         onChange={(html) => setBody(html)}
-                        placeholder="Write or paste your e-book learning materials, case studies, embedded references, questions..."
+                        placeholder="Optional: Write or paste online e-book learning materials, summary notes, or guidance..."
                       />
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Action Buttons */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between shrink-0">
-                <div className="text-xs text-slate-400">
+              {/* Action Buttons - Well-Aligned Responsive Footer */}
+              <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
+                {/* Step navigation between Tab 1 & Tab 2 */}
+                <div>
                   {activeTab === "outline" ? (
                     <button
                       type="button"
                       onClick={() => setActiveTab("content")}
-                      className="text-[#000666] font-bold hover:underline"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 text-xs font-bold text-[#000666] hover:text-[#000666]/80 bg-slate-100 hover:bg-slate-200/70 sm:bg-transparent sm:hover:bg-transparent py-2.5 px-3 sm:p-0 rounded-xl transition-colors cursor-pointer"
                     >
-                      Next: Delivery Content &rarr;
+                      <span>Next: Learning Content</span>
+                      <span>&rarr;</span>
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={() => setActiveTab("outline")}
-                      className="text-[#000666] font-bold hover:underline"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 text-xs font-bold text-[#000666] hover:text-[#000666]/80 bg-slate-100 hover:bg-slate-200/70 sm:bg-transparent sm:hover:bg-transparent py-2.5 px-3 sm:p-0 rounded-xl transition-colors cursor-pointer"
                     >
-                      &larr; Back to Syllabus Outline
+                      <span>&larr;</span>
+                      <span>Back to Syllabus Outline</span>
                     </button>
                   )}
                 </div>
-                <div className="flex gap-3">
+
+                {/* Primary form actions */}
+                <div className="flex items-center gap-2 sm:gap-3">
                   <button
                     type="button"
                     onClick={() => setModalOpen(false)}
-                    className="text-slate-500 hover:text-slate-700 font-bold px-4 py-2"
+                    className="flex-1 sm:flex-initial text-slate-600 hover:text-slate-800 bg-white sm:bg-transparent hover:bg-slate-100 border border-slate-200 sm:border-transparent font-bold text-xs px-4 py-2.5 rounded-xl transition-colors cursor-pointer text-center"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="bg-[#000666] hover:bg-[#000666]/90 text-white font-bold px-6 py-2.5 rounded-xl shadow-sm transition-all"
+                    className="flex-1 sm:flex-initial bg-[#000666] hover:bg-[#000666]/90 text-white font-bold text-xs px-5 sm:px-6 py-2.5 rounded-xl shadow-sm transition-all whitespace-nowrap text-center cursor-pointer disabled:opacity-50"
                   >
                     {submitting ? "Saving..." : (editingModule ? "Save Changes" : "Create Module")}
                   </button>

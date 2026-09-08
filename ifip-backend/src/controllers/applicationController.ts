@@ -54,7 +54,8 @@ export const updateMyApplication = async (req: Request, res: Response) => {
         programInterest,
         skills,
         cvUrl,
-        avatarUrl
+        avatarUrl,
+        altInstituteCertUrl
     } = req.body;
 
     if (fullName !== undefined) {
@@ -72,6 +73,7 @@ export const updateMyApplication = async (req: Request, res: Response) => {
     if (programInterest !== undefined) application.programInterest = programInterest;
     if (skills !== undefined) application.skills = skills;
     if (cvUrl !== undefined) application.cvUrl = cvUrl;
+    if (altInstituteCertUrl !== undefined) (application as any).altInstituteCertUrl = altInstituteCertUrl;
 
     await application.save();
     res.json(application);

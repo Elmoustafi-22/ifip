@@ -6,7 +6,15 @@ export const getNotifications = async (req: Request, res: Response) => {
         const userId = req.user!.id;
         const { unread } = req.query;
         
-        const filter: any = { userId };
+        const filter: any = {
+            userId,
+            // Exclude notifications that have passed their expiry date
+            $or: [
+                { expiresAt: null },
+                { expiresAt: { $exists: false } },
+                { expiresAt: { $gt: new Date() } }
+            ]
+        };
         if (unread === 'true') {
             filter.read = false;
         }

@@ -326,29 +326,29 @@ export const uploadResourceFile = async (req: Request, res: Response) => {
 
     const ext = originalName.split('.').pop()?.toLowerCase() || '';
     const mime = req.file.mimetype || '';
-
-    const isImageOrPdf =
-        mime.startsWith('image/') ||
-        mime === 'application/pdf' ||
-        ext === 'pdf' ||
-        ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'].includes(ext);
+    const isPureImage =
+        mime.startsWith('image/') &&
+        !mime.includes('pdf') &&
+        ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
 
     const isVideoOrAudio = mime.startsWith('video/') || mime.startsWith('audio/');
 
-    const resourceType: 'image' | 'video' | 'raw' | 'auto' = isImageOrPdf
+    // In Cloudinary, PDFs, Office documents (PPTX/DOCX/XLSX), and text files must use resource_type:'raw'.
+    // Using 'image' for PDFs causes Cloudinary to return 403 unless specialized PDF rasterization add-ons are enabled.
+    const resourceType: 'image' | 'video' | 'raw' | 'auto' = isPureImage
         ? 'image'
         : isVideoOrAudio
         ? 'video'
-        : 'auto';
+        : 'raw';
 
     try {
         const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
             const timer = setTimeout(() => {
                 reject(new Error('Cloud storage upload timed out. Please try again.'));
-            }, 120000);
+            }, 30000);
 
             const stream = cloudinary.uploader.upload_stream(
-                { resource_type: resourceType, folder: 'ifipp/resources' },
+                { resource_type: 'auto', folder: 'ifipp/resources' },
                 (error, result) => {
                     clearTimeout(timer);
                     if (error || !result) {
@@ -364,7 +364,90 @@ export const uploadResourceFile = async (req: Request, res: Response) => {
         res.json({ fileUrl: uploadResult.secure_url, fileSize: fileSizeStr, fileName: originalName });
     } catch (err: any) {
         console.error('Resource file upload error:', err);
-        res.status(500).json({ message: err?.message || 'Cloudinary resource upload failed' });
+        const detailedMsg = err?.error?.message || err?.message || 'Cloudinary upload failed';
+        res.status(500).json({ message: detailedMsg });
+    }
+};
+
+
+/** POST /uploads/alt-certificate
+ *  Uploads the AltInstitute certificate/badge file (JPEG, PNG, PDF).
+ *  Accepts image and PDF formats — uses resource_type:'auto'. */
+export const uploadAltCertificate = async (req: Request, res: Response) => {
+    if (!req.file) {
+        res.status(400).json({ message: 'No file uploaded' });
+        return;
+    }
+
+    const mime = req.file.mimetype || '';
+    const ext = (req.file.originalname || '').split('.').pop()?.toLowerCase() || '';
+    const isAllowed =
+        mime.startsWith('image/') ||
+        mime === 'application/pdf' ||
+        ['jpg', 'jpeg', 'png', 'pdf'].includes(ext);
+
+    if (!isAllowed) {
+        res.status(400).json({ message: 'Only JPEG, PNG, or PDF files are accepted for certificate upload.' });
+        return;
+    }
+
+    try {
+        const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                reject(new Error('Cloud storage upload timed out. Please try again.'));
+            }, 60000);
+
+            const stream = cloudinary.uploader.upload_stream(
+                { resource_type: 'auto', folder: 'ifipp/certificates' },
+                (error, result) => {
+                    clearTimeout(timer);
+                    if (error || !result) {
+                        reject(error || new Error('Cloudinary upload returned empty result'));
+                    } else {
+                        resolve(result as { secure_url: string });
+                    }
+                }
+            );
+            stream.end(req.file!.buffer);
+        });
+
+        const application = await Application.findOne({ userId: req.user!.id });
+        if (application) {
+            (application as any).altInstituteCertUrl = uploadResult.secure_url;
+            await application.save();
+        }
+
+        res.json({ certUrl: uploadResult.secure_url });
+    } catch (err: any) {
+        console.error('Alt certificate upload error:', err);
+        res.status(500).json({ message: err.message || 'Certificate upload failed' });
+    }
+};
+
+/** POST /uploads/alt-certificate-url
+ *  Saves a hosted digital badge URL (e.g., Credly, AltInstitute badge link)
+ *  directly without a file upload. */
+export const saveAltCertificateUrl = async (req: Request, res: Response) => {
+    const { certUrl } = req.body;
+    if (!certUrl || typeof certUrl !== 'string' || !certUrl.startsWith('http')) {
+        res.status(400).json({ message: 'A valid HTTPS certificate URL is required.' });
+        return;
+    }
+
+    try {
+        const application = await Application.findOne({ userId: req.user!.id });
+        if (!application) {
+            res.status(404).json({ message: 'Application not found.' });
+            return;
+        }
+
+        (application as any).altInstituteCertUrl = certUrl;
+        await application.save();
+
+        res.json({ certUrl });
+    } catch (err: any) {
+        console.error('Save alt certificate URL error:', err);
+        res.status(500).json({ message: err.message || 'Failed to save certificate URL' });
     }
 };
 

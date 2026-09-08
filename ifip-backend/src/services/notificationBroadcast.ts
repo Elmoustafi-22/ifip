@@ -343,7 +343,7 @@ notificationEmitter.on('partner.reviewed', async ({ email, companyName, contactP
     }
 });
 
-notificationEmitter.on('admin.broadcast', async ({ targetType, targetCohortId, targetEmail, title, message, notificationType, link }) => {
+notificationEmitter.on('admin.broadcast', async ({ targetType, targetCohortId, targetEmail, title, message, notificationType, link, expiresAt, cohortPhase }) => {
     try {
         if (targetType === 'individual') {
             if (!targetEmail) return;
@@ -358,7 +358,9 @@ notificationEmitter.on('admin.broadcast', async ({ targetType, targetCohortId, t
                     title,
                     message,
                     type: notificationType || 'info',
-                    link: link || '/dashboard'
+                    link: link || '/dashboard',
+                    expiresAt: expiresAt || null,
+                    cohortPhase: cohortPhase || null,
                 });
                 await sendCustomBroadcastEmail(user.email, title, message);
             } else {
@@ -414,7 +416,9 @@ notificationEmitter.on('admin.broadcast', async ({ targetType, targetCohortId, t
                     title,
                     message,
                     type: notificationType || 'info',
-                    link: link || '/dashboard'
+                    link: link || '/dashboard',
+                    expiresAt: expiresAt || null,
+                    cohortPhase: cohortPhase || null,
                 }));
                 await Notification.insertMany(notifications);
 

@@ -49,28 +49,51 @@ export default function ParticipantPlacementPage() {
   // 1. Participant is in pool, no match yet
   if (error === "pool" || !placement) {
     return (
-      <div className="max-w-4xl mx-auto py-10 px-4 font-sans text-sm text-slate-600 bg-[#FDFBF7]">
-        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-8 shadow-sm text-center max-w-xl mx-auto mt-12">
-          <div className="w-16 h-16 bg-sky-50 rounded-full flex items-center justify-center mx-auto mb-5 text-sky-700">
-            <HiOutlineBriefcase className="w-8 h-8" />
+      <div className="max-w-4xl mx-auto py-8 px-4 font-sans text-sm text-slate-600 bg-[#FDFBF7]">
+        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 sm:p-8 shadow-sm text-center max-w-xl mx-auto mt-6">
+          <div className="w-14 h-14 bg-sky-50 rounded-full flex items-center justify-center mx-auto mb-4 text-[#000666] border border-sky-100">
+            <HiOutlineBriefcase className="w-7 h-7" />
           </div>
-          <h2 className="text-xl font-black text-[#000666] mb-3">Placement Talent Pool</h2>
-          <p className="text-slate-500 leading-relaxed mb-6">
-            Congratulations! You are officially in our Shariah-compliant placement pool. Once you complete your training modules and finalize assessments, our ops team will match you with institutional partners.
+          <h2 className="text-xl font-bold font-display text-[#000666] mb-2">
+            Internship Placement Considerations
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-6 font-medium">
+            Participation in IFIP prepares candidates for industry placement opportunities, but placement is not guaranteed or automatic. Final placement recommendation and matching strictly depend upon your completion of the preparatory program, assessment performance, and final review and selection by partner organizations.
           </p>
-          <div className="bg-slate-50 rounded-xl p-4 text-left border border-slate-100 space-y-3">
-            <div className="flex gap-2 items-start">
-              <HiOutlineSparkles className="w-5 h-5 text-[#FF9800] shrink-0 mt-0.5" />
+          <div className="bg-slate-50/80 rounded-xl p-4 sm:p-5 text-left border border-slate-200/70 space-y-3.5">
+            <div className="flex gap-3 items-start">
+              <div className="w-6 h-6 rounded-md bg-blue-100/70 text-[#000666] flex items-center justify-center shrink-0 mt-0.5">
+                <HiOutlineClipboardDocumentCheck className="w-4 h-4" />
+              </div>
               <div>
-                <h4 className="font-bold text-slate-800 text-xs">How matching works</h4>
-                <p className="text-slate-500 text-[11px] mt-0.5">We pair your stated interests (e.g. FinTech, Banking) with slots offered by partners.</p>
+                <h4 className="font-bold text-slate-800 text-xs">Program &amp; Assessment Completion</h4>
+                <p className="text-slate-500 text-[11px] leading-relaxed mt-0.5">
+                  Candidates must complete all required modules and achieve satisfactory scores across unit assessments to qualify for partner referral.
+                </p>
               </div>
             </div>
-            <div className="flex gap-2 items-start">
-              <HiOutlineClipboardDocumentCheck className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
+
+            <div className="flex gap-3 items-start">
+              <div className="w-6 h-6 rounded-md bg-amber-100/70 text-amber-800 flex items-center justify-center shrink-0 mt-0.5">
+                <HiOutlineShieldCheck className="w-4 h-4" />
+              </div>
               <div>
-                <h4 className="font-bold text-slate-800 text-xs">Pre-matching requirements</h4>
-                <p className="text-slate-500 text-[11px] mt-0.5">Maintain active coursework progression and pass module assessments to trigger match priority.</p>
+                <h4 className="font-bold text-slate-800 text-xs">Partner Company Review &amp; Selection</h4>
+                <p className="text-slate-500 text-[11px] leading-relaxed mt-0.5">
+                  Host financial institutions independently evaluate candidate profiles, simulations, and interview outcomes based on their available openings.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 items-start">
+              <div className="w-6 h-6 rounded-md bg-emerald-100/70 text-emerald-800 flex items-center justify-center shrink-0 mt-0.5">
+                <HiOutlineSparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-800 text-xs">Talent Pool Matching</h4>
+                <p className="text-slate-500 text-[11px] leading-relaxed mt-0.5">
+                  Qualified candidates are matched with partner slots aligned with their field of focus (e.g. Islamic Banking, Takaful, FinTech) as opportunities open.
+                </p>
               </div>
             </div>
           </div>

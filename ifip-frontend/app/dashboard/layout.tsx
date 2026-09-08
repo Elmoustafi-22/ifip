@@ -177,7 +177,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return "Islamic Finance Internship Program";
   };
 
-  // Sidebar Layout Navigation Structure matching screen-7.png
+  // Sidebar Layout Navigation Structure matching screen-7.png (desktop)
   const menuItems = [
     { name: "Dashboard", href: "/dashboard", icon: HiOutlineSquares2X2, disabled: false },
     { name: "Schedule", href: "/dashboard/schedule", icon: HiOutlineCalendar, disabled: false },
@@ -188,10 +188,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: "Settings", href: "/dashboard/settings", icon: HiOutlineCog6Tooth, disabled: false }
   ];
 
+  // Mobile Bottom Navigation: 4 core learning items (Option B) to prevent overstretching
+  const mobileMenuItems = [
+    { name: "Dashboard", href: "/dashboard", icon: HiOutlineSquares2X2, disabled: false },
+    { name: "Schedule", href: "/dashboard/schedule", icon: HiOutlineCalendar, disabled: false },
+    { name: "Modules", href: "/dashboard/modules", icon: HiOutlineBookOpen, disabled: false },
+    { name: "Resources", href: "/dashboard/resources", icon: HiOutlineFolderMinus, disabled: !isLaunched }
+  ];
+
 
 
   return (
-    <div className="min-h-screen flex font-sans bg-[#FDFBF7]">
+    <div className="min-h-screen flex font-sans bg-[#FDFBF7] w-full max-w-full overflow-x-hidden">
       {/* Sidebar Shell — hidden on mobile, visible on md+ */}
       <aside className="hidden md:flex w-68 bg-[#0E1B5D] text-white flex-col justify-between shrink-0 select-none border-r border-[#000666]/10">
         <div className="flex flex-col">
@@ -270,15 +278,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main Workspace Frame */}
-      <div className="flex-1 flex flex-col min-h-screen md:h-screen md:overflow-y-auto">
+      <div className="flex-1 flex flex-col min-h-screen md:h-screen md:overflow-y-auto w-full min-w-0 max-w-full overflow-x-hidden">
         {/* Admin Preview Mode Top Banner */}
         {isAdmin && (
-          <div className="bg-gradient-to-r from-[#000666] via-slate-900 to-[#0E1B5D] text-white px-4 md:px-8 py-2.5 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-md border-b border-sky-500/30 shrink-0 select-none">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="bg-sky-400 text-slate-950 font-black text-[10px] uppercase px-2 py-0.5 rounded shadow-xs tracking-wider">
+          <div className="bg-gradient-to-r from-[#000666] via-slate-900 to-[#0E1B5D] text-white px-4 md:px-8 py-2.5 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-md border-b border-sky-500/30 shrink-0 select-none w-full max-w-full">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <span className="bg-sky-400 text-slate-950 font-black text-[10px] uppercase px-2 py-0.5 rounded shadow-xs tracking-wider shrink-0">
                 Admin Preview Mode
               </span>
-              <span className="text-slate-200">
+              <span className="text-slate-200 text-[11px] leading-snug">
                 You are currently viewing the candidate workspace as an administrator.
               </span>
             </div>
@@ -354,7 +362,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     onClick={() => setDropdownOpen(false)}
                   ></div>
 
-                  <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200/80 rounded-xl shadow-lg py-1.5 z-50 animate-fadeIn font-sans">
+                  <div className="absolute right-0 mt-2 w-52 bg-white border border-slate-200/80 rounded-xl shadow-lg py-1.5 z-50 animate-fadeIn font-sans">
                     <Link
                       href="/dashboard"
                       onClick={() => setDropdownOpen(false)}
@@ -363,18 +371,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       <HiOutlineSquares2X2 className="w-4 h-4 text-slate-400" />
                       Dashboard Overview
                     </Link>
+
+                    {/* Mobile-only shortcuts to secondary sections */}
+                    <div className="md:hidden border-t border-slate-100 my-1 pt-1">
+                      <Link
+                        href="/dashboard/assessments"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <HiOutlineClipboardDocumentList className="w-4 h-4 text-slate-400" />
+                        Assessments
+                      </Link>
+                      <Link
+                        href="/dashboard/placement"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <HiOutlineBriefcase className="w-4 h-4 text-slate-400" />
+                        Placement Hub
+                      </Link>
+                    </div>
+
                     {(userData?.role === "admin" || userData?.role === "superadmin") && (
                       <>
                         <Link
                           href="/admin"
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                          className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors border-t border-slate-100 mt-1"
                         >
                           <HiOutlineShieldCheck className="w-4 h-4 text-slate-400" />
                           Admin Workspace
                         </Link>
                       </>
                     )}
+                    <div className="border-t border-slate-100 my-1"></div>
                     <Link
                       href="/dashboard/settings"
                       onClick={() => setDropdownOpen(false)}
@@ -383,7 +413,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       <HiOutlineCog6Tooth className="w-4 h-4 text-slate-400" />
                       Account Settings
                     </Link>
-                    <div className="border-t border-slate-100 my-1"></div>
                     <button
                       onClick={() => {
                         setDropdownOpen(false);
@@ -417,36 +446,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </footer>
       </div>
 
-      {/* Mobile Bottom Tab Bar — replaces sidebar on small screens */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#0E1B5D] border-t border-white/10 flex items-center justify-around px-1 py-1.5 shadow-xl">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          const active = pathname === item.href;
-          if (item.disabled) {
+      {/* Mobile Bottom Tab Bar — Option B: 4 spacious core learning tabs */}
+      <nav aria-label="Mobile Navigation" className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#0E1B5D] border-t border-white/10 px-2 py-1.5 shadow-2xl backdrop-blur-md">
+        <div className="flex items-center justify-around max-w-md mx-auto">
+          {mobileMenuItems.map((item) => {
+            const Icon = item.icon;
+            const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+            if (item.disabled) {
+              return (
+                <div
+                  key={item.name}
+                  className="flex flex-col items-center justify-center gap-1 py-1.5 px-3 text-white/30 cursor-not-allowed select-none min-w-[70px]"
+                >
+                  <Icon className="w-5 h-5 shrink-0" />
+                  <span className="text-[10px] font-semibold tracking-tight">{item.name}</span>
+                </div>
+              );
+            }
             return (
-              <div
+              <Link
                 key={item.name}
-                className="flex flex-col items-center gap-0.5 px-1 py-1 text-white/25 cursor-not-allowed min-w-0 flex-1"
+                href={item.href}
+                className={`flex flex-col items-center justify-center gap-1 py-1.5 px-3 rounded-xl transition-all duration-200 min-w-[70px] ${
+                  active
+                    ? "text-sky-300 font-bold bg-white/10 shadow-xs"
+                    : "text-white/65 hover:text-white"
+                }`}
               >
-                <Icon className="w-5 h-5 shrink-0" />
-                <span className="text-[8px] font-bold tracking-wide truncate w-full text-center">{item.name}</span>
-              </div>
+                <Icon className={`w-5 h-5 shrink-0 ${active ? "text-sky-300 stroke-[2.2]" : ""}`} />
+                <span className="text-[10px] font-semibold tracking-tight">{item.name}</span>
+              </Link>
             );
-          }
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={`flex flex-col items-center gap-0.5 px-1 py-1 transition-colors min-w-0 flex-1 ${
-                active ? "text-sky-400" : "text-white/60 hover:text-white"
-              }`}
-            >
-              <Icon className="w-5 h-5 shrink-0" />
-              <span className="text-[8px] font-bold tracking-wide truncate w-full text-center">{item.name}</span>
-            </Link>
-          );
-        })}
-      </div>
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

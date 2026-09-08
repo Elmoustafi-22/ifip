@@ -10,9 +10,18 @@ import {
   HiOutlineCheck,
   HiOutlineArrowUpTray,
   HiOutlineExclamationTriangle,
-  HiOutlineCamera
+  HiOutlineCamera,
+  HiOutlineLink,
+  HiOutlineSparkles
 } from "react-icons/hi2";
-import { getMyApplication, updateMyApplication, uploadCvAuth, uploadAvatarAuth } from "@/lib/api/services";
+import { 
+  getMyApplication, 
+  updateMyApplication, 
+  uploadCvAuth, 
+  uploadAvatarAuth,
+  uploadAltCertificateFile,
+  saveAltCertificateUrl
+} from "@/lib/api/services";
 import { changePassword, mfaSetup, mfaEnable, mfaDisable } from "@/lib/api/auth";
 
 // Common country list for dial codes & location matching
@@ -77,6 +86,15 @@ export default function SettingsPage() {
   const [cvUrl, setCvUrl] = useState("");
   const [uploadingCv, setUploadingCv] = useState(false);
   const [cvError, setCvError] = useState("");
+
+  // AltInstitute Certificate / Badge states (Fix 7)
+  const [altInstituteCertUrl, setAltInstituteCertUrl] = useState("");
+  const [certUrlInput, setCertUrlInput] = useState("");
+  const [uploadingCert, setUploadingCert] = useState(false);
+  const [certError, setCertError] = useState("");
+  const [certSuccess, setCertSuccess] = useState("");
+  const [certTab, setCertTab] = useState<"file" | "url">("file");
+  const certFileInputRef = useRef<HTMLInputElement>(null);
 
   // Change Password States
   const [showSecurity, setShowSecurity] = useState(false);
@@ -193,6 +211,10 @@ export default function SettingsPage() {
           setStateCity(data.stateCity || "");
           setCvUrl(data.cvUrl || "");
           setAvatarUrl(data.avatarUrl || "");
+          if ((data as any).altInstituteCertUrl) {
+            setAltInstituteCertUrl((data as any).altInstituteCertUrl);
+            setCertUrlInput((data as any).altInstituteCertUrl);
+          }
 
           // Phone parsing logic
           if (data.phone) {
@@ -290,6 +312,62 @@ export default function SettingsPage() {
     }
   };
 
+  // Upload AltInstitute Certificate File (JPEG, PNG, WebP, PDF) - Fix 7
+  const handleCertFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+    if (!allowed.includes(file.type)) {
+      setCertError("Only JPEG, PNG, WebP, or PDF documents are accepted.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setCertError("Certificate file size must be less than 10MB.");
+      return;
+    }
+
+    setUploadingCert(true);
+    setCertError("");
+    setCertSuccess("");
+    try {
+      const res = await uploadAltCertificateFile(file);
+      setAltInstituteCertUrl(res.certUrl);
+      setCertUrlInput(res.certUrl);
+      setCertSuccess("Certificate uploaded successfully!");
+    } catch (err: any) {
+      setCertError(err?.response?.data?.message || err.message || "Failed to upload certificate.");
+    } finally {
+      setUploadingCert(false);
+    }
+  };
+
+  // Save AltInstitute Certificate URL (e.g. Credly or digital badge) - Fix 7
+  const handleCertUrlSave = async () => {
+    const trimmed = certUrlInput.trim();
+    if (!trimmed) {
+      setCertError("Please enter a valid certificate or badge URL.");
+      return;
+    }
+    if (!/^https?:\/\//i.test(trimmed)) {
+      setCertError("URL must start with http:// or https://");
+      return;
+    }
+
+    setUploadingCert(true);
+    setCertError("");
+    setCertSuccess("");
+    try {
+      const res = await saveAltCertificateUrl(trimmed);
+      setAltInstituteCertUrl(res.certUrl);
+      setCertSuccess("Certificate URL saved successfully!");
+    } catch (err: any) {
+      setCertError(err?.response?.data?.message || err.message || "Failed to save certificate URL.");
+    } finally {
+      setUploadingCert(false);
+    }
+  };
+
 
   // Profile Form Submit Handler
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -326,6 +404,7 @@ export default function SettingsPage() {
         availability
       },
       cvUrl,
+      altInstituteCertUrl: altInstituteCertUrl || undefined,
       avatarUrl: avatarUrl || undefined
     };
 
@@ -394,11 +473,16 @@ export default function SettingsPage() {
     );
   }
 
-  // Get file name from URL
+  // Helper: extract file name from URL
   const getCvName = (url: string) => {
     if (!url) return "";
-    const parts = url.split("/");
-    return decodeURIComponent(parts[parts.length - 1]);
+    try {
+      const path = url.split("?")[0];
+      const parts = path.split("/");
+      return decodeURIComponent(parts[parts.length - 1]);
+    } catch {
+      return url;
+    }
   };
 
   return (
@@ -786,7 +870,7 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="mt-5">
+            <div className="mt-4">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -798,11 +882,143 @@ export default function SettingsPage() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingCv}
-                className="w-full border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 font-bold text-xs py-3.5 rounded-[6px] shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 font-bold text-xs py-3 rounded-[6px] shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <HiOutlineArrowUpTray className="w-4 h-4" />
-                Update CV (PDF)
+                {cvUrl ? "Update CV (PDF)" : "Upload CV (PDF)"}
               </button>
+            </div>
+
+            {/* Sub-section: AltInstitute Certificate (Fix 7) */}
+            <div className="border-t border-slate-100 pt-5 mt-5 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <HiOutlineSparkles className="w-4 h-4 text-[#FF9800]" />
+                  <h4 className="text-xs font-bold text-[#000666]">AltInstitute Certificate / Badge</h4>
+                </div>
+                {/* File vs URL toggle */}
+                <div className="flex bg-slate-100 p-0.5 rounded-lg text-[10px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => { setCertTab("file"); setCertError(""); }}
+                    className={`px-2 py-0.5 rounded-md transition-all ${
+                      certTab === "file" ? "bg-white text-[#000666] shadow-xs" : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    File
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setCertTab("url"); setCertError(""); }}
+                    className={`px-2 py-0.5 rounded-md transition-all ${
+                      certTab === "url" ? "bg-white text-[#000666] shadow-xs" : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    URL Link
+                  </button>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-500 font-medium">
+                Upload your certificate of completion (JPEG, PNG, or PDF) or link your hosted digital badge.
+              </p>
+
+              {certError && (
+                <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5 font-semibold">
+                  {certError}
+                </div>
+              )}
+              {certSuccess && (
+                <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5 font-semibold">
+                  {certSuccess}
+                </div>
+              )}
+
+              {/* Certificate Preview / Status */}
+              {altInstituteCertUrl && (
+                <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {/\.(jpe?g|png|webp)(\?.*)?$/i.test(altInstituteCertUrl) ? (
+                      <img
+                        src={altInstituteCertUrl}
+                        alt="AltInstitute Certificate"
+                        className="w-9 h-9 object-cover rounded-md border border-slate-200 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 bg-amber-50 text-[#FF9800] rounded-md flex items-center justify-center border border-amber-200/60 shrink-0">
+                        <HiOutlineDocumentText className="w-5 h-5" />
+                      </div>
+                    )}
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-bold text-slate-800 truncate">
+                        {getCvName(altInstituteCertUrl) || "Certificate_Saved"}
+                      </span>
+                      <a
+                        href={altInstituteCertUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-[#FF9800] font-bold hover:underline truncate"
+                      >
+                        View Certificate &rarr;
+                      </a>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAltInstituteCertUrl("");
+                      setCertUrlInput("");
+                    }}
+                    className="text-[10px] font-bold text-red-500 hover:text-red-700 transition-colors shrink-0"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+
+              {/* File upload mode */}
+              {certTab === "file" ? (
+                <div>
+                  <input
+                    type="file"
+                    ref={certFileInputRef}
+                    onChange={handleCertFileChange}
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => certFileInputRef.current?.click()}
+                    disabled={uploadingCert}
+                    className="w-full border border-dashed border-slate-300 hover:border-[#0E1B5D] hover:bg-slate-50/60 text-slate-700 font-bold text-xs py-2.5 rounded-[6px] transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    <HiOutlineArrowUpTray className="w-4 h-4 text-slate-500" />
+                    {uploadingCert ? "Uploading..." : altInstituteCertUrl ? "Replace Certificate (JPG, PNG, PDF)" : "Upload Certificate File (JPG, PNG, PDF)"}
+                  </button>
+                </div>
+              ) : (
+                /* URL paste mode */
+                <div className="flex gap-2">
+                  <div className="relative flex-1 min-w-0">
+                    <HiOutlineLink className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      type="url"
+                      value={certUrlInput}
+                      onChange={(e) => setCertUrlInput(e.target.value)}
+                      placeholder="https://altinstitute.ng/verify/..."
+                      className="w-full border border-slate-200 rounded-[6px] pl-9 pr-3 py-2 text-xs focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCertUrlSave}
+                    disabled={uploadingCert}
+                    className="bg-[#0E1B5D] hover:bg-[#000666] text-white font-bold text-xs px-3.5 py-2 rounded-[6px] transition-colors shrink-0 disabled:bg-slate-300 cursor-pointer"
+                  >
+                    {uploadingCert ? "Saving..." : "Save Link"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

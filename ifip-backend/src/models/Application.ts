@@ -25,6 +25,7 @@ export interface IApplication extends Document {
     avatarUrl?: string;
     linkedinUrl?: string;
     portfolioUrl?: string;
+    altInstituteCertUrl?: string; // AltInstitute certificate or digital badge URL
     leadSource?: string;
     levyAcknowledged?: boolean;
     declaration?: { confirmed?: boolean; signature?: string; date?: Date };
@@ -51,6 +52,7 @@ const applicationSchema = new Schema<IApplication>(
         avatarUrl: String,
         linkedinUrl: String,
         portfolioUrl: String,
+        altInstituteCertUrl: String,
         leadSource: String,
         levyAcknowledged: { type: Boolean, default: false },
         declaration: { confirmed: Boolean, signature: String, date: Date },

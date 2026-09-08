@@ -27,6 +27,6 @@ export function linkifyText(value) {
 
   return escaped.replace(urlPattern, (match) => {
     const href = normalizeUrl(match);
-    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${match}</a>`;
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="text-sky-600 hover:text-sky-800 font-bold underline underline-offset-2 break-all transition-colors">${match}</a>`;
   });
 }

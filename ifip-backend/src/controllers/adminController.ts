@@ -448,7 +448,7 @@ export const getAdminModules = async (req: Request, res: Response) => {
 
 export const createModule = async (req: Request, res: Response) => {
     try {
-        const { title, description, order, weekNumber, contentType, contentUrl, body, outline, moduleTask, estimatedDuration, cohortId, status } = req.body;
+        const { title, description, order, weekNumber, contentType, contentUrl, recordingUrl, pdfUrl, pdfFileName, body, outline, moduleTask, estimatedDuration, cohortId, status } = req.body;
         
         if (!title || !description || order === undefined || !contentType) {
             res.status(400).json({ message: 'title, description, order, and contentType are required.' });
@@ -457,6 +457,12 @@ export const createModule = async (req: Request, res: Response) => {
         
         const initialStatus = status && ['draft', 'published', 'archived'].includes(status) ? status : 'draft';
 
+        const task = moduleTask ? { ...moduleTask } : {};
+        if (task.dueDate && typeof task.dueDate === 'string' && !task.dueDate.endsWith('Z') && !task.dueDate.includes('+')) {
+            const watDate = new Date(task.dueDate);
+            task.dueDate = new Date(watDate.getTime() - 60 * 60 * 1000);
+        }
+
         const newModule = new Module({
             title,
             description,
@@ -464,9 +470,12 @@ export const createModule = async (req: Request, res: Response) => {
             weekNumber: weekNumber || order || 1,
             contentType,
             contentUrl,
+            recordingUrl: recordingUrl || undefined,
+            pdfUrl: pdfUrl || undefined,
+            pdfFileName: pdfFileName || undefined,
             body,
             outline: outline || {},
-            moduleTask: moduleTask || {},
+            moduleTask: task,
             estimatedDuration: estimatedDuration || 0,
             cohortId: cohortId ? new Types.ObjectId(cohortId) : undefined,
             status: initialStatus,
@@ -495,7 +504,7 @@ export const createModule = async (req: Request, res: Response) => {
 export const updateModule = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { title, description, order, weekNumber, contentType, contentUrl, body, outline, moduleTask, estimatedDuration, cohortId, status } = req.body;
+        const { title, description, order, weekNumber, contentType, contentUrl, recordingUrl, pdfUrl, pdfFileName, body, outline, moduleTask, estimatedDuration, cohortId, status } = req.body;
         
         const mod = await Module.findById(id);
         if (!mod) {
@@ -509,9 +518,23 @@ export const updateModule = async (req: Request, res: Response) => {
         if (weekNumber !== undefined) mod.weekNumber = weekNumber;
         if (contentType !== undefined) mod.contentType = contentType;
         if (contentUrl !== undefined) mod.contentUrl = contentUrl;
+        if (recordingUrl !== undefined) (mod as any).recordingUrl = recordingUrl || null;
+        if (pdfUrl !== undefined) (mod as any).pdfUrl = pdfUrl || null;
+        if (pdfFileName !== undefined) (mod as any).pdfFileName = pdfFileName || null;
         if (body !== undefined) mod.body = body;
         if (outline !== undefined) mod.outline = outline;
-        if (moduleTask !== undefined) mod.moduleTask = moduleTask || {};
+        if (moduleTask !== undefined) {
+            const task = moduleTask || {};
+            // Ensure dueDate is stored as UTC.
+            // The admin UI is in WAT (UTC+1), so a naive date string (e.g. "2026-09-15T23:59")
+            // is treated as local WAT and converted to UTC before DB storage.
+            if (task.dueDate && typeof task.dueDate === 'string' && !task.dueDate.endsWith('Z') && !task.dueDate.includes('+')) {
+                // Subtract 1 hour to convert WAT → UTC
+                const watDate = new Date(task.dueDate);
+                task.dueDate = new Date(watDate.getTime() - 60 * 60 * 1000);
+            }
+            mod.moduleTask = task;
+        }
         if (estimatedDuration !== undefined) mod.estimatedDuration = estimatedDuration;
         if (cohortId !== undefined) {
             mod.cohortId = cohortId ? new Types.ObjectId(cohortId) : undefined;
@@ -633,7 +656,7 @@ export const deleteModule = async (req: Request, res: Response) => {
 
 export const broadcastCustomNotification = async (req: Request, res: Response) => {
     try {
-        const { targetType, targetCohortId, targetEmail, title, message, notificationType, link } = req.body;
+        const { targetType, targetCohortId, targetEmail, title, message, notificationType, link, expiresAt, cohortPhase } = req.body;
         if (!title || !message) {
             res.status(400).json({ message: 'title and message are required.' });
             return;
@@ -685,7 +708,9 @@ export const broadcastCustomNotification = async (req: Request, res: Response) =
             title,
             message,
             notificationType,
-            link
+            link,
+            expiresAt: expiresAt ? new Date(expiresAt) : null,
+            cohortPhase: cohortPhase || null,
         });
 
         logAction(req, 'BROADCAST_SENT', `Admin broadcast notification sent: "${title}" (target: ${targetType})`);

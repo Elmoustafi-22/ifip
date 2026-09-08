@@ -17,9 +17,14 @@ import {
   HiOutlineAcademicCap,
   HiOutlineTrash,
   HiOutlineEye,
+  HiOutlineEyeSlash,
+  HiOutlineArrowTopRightOnSquare,
   HiOutlineArrowUpTray,
-  HiOutlineDocumentCheck
+  HiOutlineDocumentCheck,
+  HiOutlineDocumentText,
+  HiOutlineArrowDownTray
 } from "react-icons/hi2";
+import { linkifyText } from "@/lib/utils/linkify";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -69,6 +74,8 @@ export default function ModuleViewerPage() {
   const [taskSubmitted, setTaskSubmitted] = useState(false);
   const [taskStatus, setTaskStatus] = useState<ModuleTaskStatusResponse | null>(null);
   const [submittingTask, setSubmittingTask] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [isReadingOnline, setIsReadingOnline] = useState(false);
 
   const assessmentSectionRef = useRef<HTMLDivElement>(null);
 
@@ -315,10 +322,52 @@ export default function ModuleViewerPage() {
       .replace(/(\n\s*){3,}/g, "\n\n");
   };
 
+  const handleDownloadPdf = async (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    if (!currentModule?.pdfUrl) return;
+
+    setDownloadingPdf(true);
+    const filename = currentModule.pdfFileName || `${currentModule.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
+
+    // Cloudinary fl_attachment transformation flag forces Content-Disposition: attachment header
+    const attachmentUrl = currentModule.pdfUrl.includes("/upload/")
+      ? currentModule.pdfUrl.replace("/upload/", "/upload/fl_attachment/")
+      : currentModule.pdfUrl;
+
+    try {
+      const response = await fetch(attachmentUrl);
+      if (!response.ok) throw new Error("Download request failed");
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl);
+        document.body.removeChild(link);
+      }, 200);
+    } catch {
+      // Direct browser fallback: trigger direct location download using Cloudinary's attachment header
+      const link = document.createElement("a");
+      link.href = attachmentUrl;
+      link.download = filename;
+      link.target = "_blank";
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        document.body.removeChild(link);
+      }, 200);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-[#FDFBF7] font-sans">
+    <div className="min-h-[calc(100vh-64px)] bg-[#FDFBF7] font-sans w-full max-w-full overflow-x-hidden">
       {/* Main Content Viewer Pane */}
-      <main className="max-w-4xl mx-auto px-1 sm:px-6 lg:px-8 py-4 sm:py-10 text-left min-w-0 max-w-full">
+      <div className="max-w-4xl w-full mx-auto px-1 sm:px-6 lg:px-8 py-4 sm:py-10 text-left min-w-0 max-w-full">
         {/* Top Navigation & Breadcrumbs Bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6 bg-white border border-[#E7E2D8] rounded-xl p-3 sm:px-4 sm:py-3 shadow-2xs min-w-0 max-w-full">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
@@ -339,7 +388,7 @@ export default function ModuleViewerPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap shrink-0">
-            {currentMod.assessmentId && assessment ? (
+            {currentMod.assessmentId && assessment && (
               <button
                 type="button"
                 onClick={() => assessmentSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
@@ -349,15 +398,23 @@ export default function ModuleViewerPage() {
                 <HiOutlineClipboardDocumentList className="w-3.5 h-3.5 text-[#00B0FF]" />
                 <span>Knowledge Check</span>
               </button>
-            ) : (
-              <Link
-                href="/dashboard/assessments"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg transition-colors shadow-2xs"
-                title="View Assessments Hub"
+            )}
+
+            {currentMod.pdfUrl && (
+              <button
+                type="button"
+                onClick={handleDownloadPdf}
+                disabled={downloadingPdf}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 hover:text-rose-800 bg-rose-50 hover:bg-rose-100/80 border border-rose-200 px-3 py-1.5 rounded-lg transition-colors shadow-2xs cursor-pointer disabled:opacity-60"
+                title="Download Module PDF"
               >
-                <HiOutlineClipboardDocumentList className="w-3.5 h-3.5 text-slate-400" />
-                <span className="hidden sm:inline">Assessments Hub</span>
-              </Link>
+                {downloadingPdf ? (
+                  <HiOutlineArrowPath className="w-3.5 h-3.5 text-rose-600 animate-spin" />
+                ) : (
+                  <HiOutlineDocumentText className="w-3.5 h-3.5 text-rose-600" />
+                )}
+                <span>{downloadingPdf ? "Downloading..." : "Download PDF"}</span>
+              </button>
             )}
 
             <Link
@@ -387,14 +444,160 @@ export default function ModuleViewerPage() {
           {/* CONTENT TYPE: VIDEO */}
           {currentMod.contentType === "video" && (
             <div className="mb-6">
-              <div className="aspect-video w-full rounded-xl bg-black overflow-hidden relative shadow-inner border border-slate-200">
-                <video 
-                  src={currentMod.contentUrl} 
-                  controls
-                  className="w-full h-full object-cover"
-                />
-              </div>
+              {/* Fix 2: only render the video player if contentUrl is a real video (not .ics) */}
+              {currentMod.contentUrl && !currentMod.contentUrl.endsWith('.ics') ? (
+                <div className="aspect-video w-full rounded-xl bg-black overflow-hidden relative shadow-inner border border-slate-200">
+                  <video 
+                    src={currentMod.contentUrl} 
+                    controls
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                // Show recording placeholder when no valid video URL is set
+                <div className="aspect-video w-full rounded-xl bg-slate-900 overflow-hidden relative shadow-inner border border-slate-200 flex flex-col items-center justify-center gap-3">
+                  <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.361a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                  </div>
+                  <p className="text-white/70 text-sm font-semibold">Recording will be available after the live session.</p>
+                </div>
+              )}
+              {/* Fix 2: show recordingUrl button if admin uploaded a recording */}
+              {(currentMod as any).recordingUrl && (
+                <a
+                  href={(currentMod as any).recordingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center gap-2 bg-[#000666] hover:bg-[#000666]/90 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all"
+                >
+                  🎬 Watch Session Recording
+                </a>
+              )}
               <p className="text-slate-400 text-xs italic mt-3 text-center">Video lesson: Use media controls to pause, review, or adjust speed.</p>
+            </div>
+          )}
+
+          {/* MODULE PDF DOCUMENT (When uploaded by admin) */}
+          {currentMod.pdfUrl && (
+            <div className="mb-8 bg-gradient-to-br from-slate-50 via-sky-50/20 to-slate-50 border border-sky-200/80 rounded-2xl p-4 sm:p-6 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-600 flex items-center justify-center shrink-0 shadow-2xs">
+                    <HiOutlineDocumentText className="w-6 h-6 sm:w-7 sm:h-7" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-rose-100/80 text-rose-800">
+                        Course Module PDF
+                      </span>
+                    </div>
+                    <h3 className="text-sm sm:text-base font-bold text-[#000666] truncate">
+                      {currentMod.pdfFileName || `${currentMod.title}.pdf`}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Download or read online.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsReadingOnline((prev) => !prev)}
+                    className={`flex-1 sm:flex-none justify-center inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer ${
+                      isReadingOnline
+                        ? "bg-[#000666] text-white hover:bg-[#000666]/90 border border-[#000666]"
+                        : "bg-white hover:bg-slate-100 text-[#000666] border border-slate-200"
+                    }`}
+                  >
+                    {isReadingOnline ? (
+                      <>
+                        <HiOutlineEyeSlash className="w-4 h-4 text-sky-300" />
+                        <span>Hide Reader</span>
+                      </>
+                    ) : (
+                      <>
+                        <HiOutlineEye className="w-4 h-4 text-sky-600" />
+                        <span>Read Online</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadPdf}
+                    disabled={downloadingPdf}
+                    className="flex-1 sm:flex-none justify-center inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#000666] hover:bg-[#000666]/90 text-white text-xs font-bold transition-all shadow-xs hover-lift cursor-pointer disabled:opacity-60"
+                  >
+                    {downloadingPdf ? (
+                      <HiOutlineArrowPath className="w-4 h-4 text-sky-300 animate-spin" />
+                    ) : (
+                      <HiOutlineArrowDownTray className="w-4 h-4 text-sky-300" />
+                    )}
+                    <span>{downloadingPdf ? "Downloading..." : "Download PDF"}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* INLINE DOCUMENT VIEWER (When "Read Online" is active) */}
+          {isReadingOnline && currentMod.pdfUrl && (
+            <div className="mb-8 rounded-2xl border border-slate-200 overflow-hidden bg-slate-900 shadow-sm transition-all animate-fadeIn">
+              <div className="flex items-center justify-between px-4 py-2.5 bg-slate-800 text-white text-xs border-b border-slate-700">
+                <div className="flex items-center gap-2 min-w-0">
+                  <HiOutlineDocumentText className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span className="font-semibold truncate">
+                    {currentMod.pdfFileName || `${currentMod.title}.pdf`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <a
+                    href={currentMod.pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-sky-300 hover:text-sky-200 px-2.5 py-1 rounded bg-slate-700 hover:bg-slate-600 transition-colors"
+                  >
+                    <HiOutlineArrowTopRightOnSquare className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Open in New Tab</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setIsReadingOnline(false)}
+                    className="text-xs font-semibold text-slate-300 hover:text-white px-2.5 py-1 rounded bg-slate-700 hover:bg-slate-600 transition-colors cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+              <iframe
+                src={currentMod.pdfUrl}
+                title={currentMod.title}
+                className="w-full h-[550px] sm:h-[750px] bg-white border-0"
+              />
+            </div>
+          )}
+
+          {/* When module has ONLY PDF (no written text body) */}
+          {!currentMod.body && currentMod.pdfUrl && currentMod.contentType !== "video" && (
+            <div className="py-6 text-center text-slate-500 text-xs sm:text-sm border-t border-slate-100 mt-4">
+              <p className="font-semibold text-slate-700">
+                This module's complete learning material is provided in the document above.
+              </p>
+              {Boolean(currentMod.assessmentId && assessment) && Boolean(currentMod.moduleTask) && (
+                <p className="text-xs text-slate-400 mt-1">
+                  Please review the document carefully before proceeding to the knowledge check and deliverables.
+                </p>
+              )}
+              {Boolean(currentMod.assessmentId && assessment) && !currentMod.moduleTask && (
+                <p className="text-xs text-slate-400 mt-1">
+                  Please review the document carefully before proceeding to the knowledge check.
+                </p>
+              )}
+              {!currentMod.assessmentId && Boolean(currentMod.moduleTask) && (
+                <p className="text-xs text-slate-400 mt-1">
+                  Please review the document carefully before proceeding to the task deliverable.
+                </p>
+              )}
             </div>
           )}
 
@@ -472,6 +675,31 @@ export default function ModuleViewerPage() {
               </ReactMarkdown>
             </div>
           )}
+
+          {/* Action Items & Deliverables (at the end of module learning material) */}
+          {currentMod.outline?.expectedOutcomes && currentMod.outline.expectedOutcomes.length > 0 && (
+            <div className="mt-10 pt-8 border-t border-slate-200/80">
+              <div className="bg-gradient-to-br from-slate-50 to-emerald-50/20 border border-emerald-200/70 rounded-2xl p-6 sm:p-7 shadow-2xs">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center shrink-0">
+                    <HiOutlineCheckCircle className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-bold text-[#000666]">Action Items &amp; Deliverables</h3>
+                  </div>
+                </div>
+
+                <ul className="space-y-3">
+                  {currentMod.outline.expectedOutcomes.map((outc, i) => (
+                    <li key={i} className="flex items-start gap-3 text-xs sm:text-sm text-slate-700">
+                      <HiOutlineCheckCircle className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                      <span className="leading-relaxed font-medium" dangerouslySetInnerHTML={{ __html: linkifyText(outc) }} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* End of Lesson: Assessment Available State */}
@@ -501,62 +729,73 @@ export default function ModuleViewerPage() {
 
         {/* Module task CTA when a task is attached */}
         {hasVisibleModuleTask && (
-          <div className="mb-8 border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6 shadow-sm space-y-5">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-start gap-3.5 text-left">
-                <div className="w-10 h-10 rounded-xl bg-[#FF9800]/20 flex items-center justify-center text-[#FF9800] shrink-0">
-                  <HiOutlineClipboardDocumentList className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <h4 className="text-sm font-bold text-[#000666]">{moduleTask?.title || "Module Task"}</h4>
-                    {moduleTask?.requiresUpload && (
-                      <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-md border border-amber-200">
-                        Upload required
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    {moduleTask?.instructions || moduleTask?.description || "Complete the required task for this module before moving on."}
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-slate-600">
-                    {moduleTask?.dueText && (
-                      <span className="rounded-full bg-white border border-slate-200 px-2.5 py-1">{moduleTask.dueText}</span>
-                    )}
-                    {moduleTask?.requiresUpload && (
-                      <span className="rounded-full bg-white border border-slate-200 px-2.5 py-1">
-                        Evidence: {moduleTask.evidenceLabel || "Certificate or proof of completion"}
-                      </span>
-                    )}
-                    {moduleTask?.allowedFileTypes && moduleTask.allowedFileTypes.length > 0 && (
-                      <span className="rounded-full bg-white border border-slate-200 px-2.5 py-1">
-                        Accepted: {moduleTask.allowedFileTypes.join(", ")}
-                      </span>
-                    )}
-                  </div>
-                </div>
+          <div className="mb-8 border border-[#E7E2D8] bg-white rounded-2xl p-4 sm:p-6 shadow-sm space-y-4 min-w-0 max-w-full overflow-hidden">
+            {/* Header row: Status badges & Outline link */}
+            <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#000666] bg-[#000666]/5 px-2.5 py-1 rounded-md shrink-0">
+                  Task Deliverable
+                </span>
+                {moduleTask?.requiresUpload && (
+                  <span className="bg-slate-100 text-slate-600 text-[10px] font-semibold px-2.5 py-1 rounded-md shrink-0">
+                    Upload required
+                  </span>
+                )}
               </div>
 
               <Link
                 href={`/dashboard/modules/${moduleId}/outline`}
-                className="shrink-0 bg-[#000666] hover:bg-[#000666]/90 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-sm flex items-center gap-1.5"
+                className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold text-[#000666] hover:underline"
               >
-                <span>Review Task</span> <HiOutlineArrowRight className="w-4 h-4" />
+                <span>Outline</span>
+                <HiOutlineArrowRight className="w-3.5 h-3.5 text-slate-400" />
               </Link>
             </div>
 
-            <form onSubmit={handleTaskSubmit} className="rounded-2xl border border-amber-200 bg-white/60 p-4 space-y-4">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div>
-                  <h5 className="text-sm font-black text-[#000666]">Submit your task</h5>
-                  <p className="text-[11px] text-slate-500">
-                    {moduleTask?.requiresUpload
-                      ? `Upload your ${moduleTask.evidenceLabel || "evidence file"} to complete this task.`
-                      : "Add your final note or completion update for this task."}
-                  </p>
-                </div>
+            {/* Task Title & Details */}
+            <div className="space-y-2 min-w-0">
+              <h4 className="text-base sm:text-lg font-bold text-[#000666] break-words leading-snug">
+                {moduleTask?.title || "Module Task"}
+              </h4>
+
+              {moduleTask?.instructions && moduleTask.instructions !== moduleTask.title && (
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed break-words">
+                  {moduleTask.instructions}
+                </p>
+              )}
+
+              {/* Compact metadata strip */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500 pt-1">
+                {moduleTask?.dueText && (
+                  <div className="flex items-center gap-1 text-slate-700">
+                    <HiOutlineClock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="font-semibold">Deadline:</span>
+                    <span>{moduleTask.dueText}</span>
+                  </div>
+                )}
+                {moduleTask?.requiresUpload && (
+                  <div className="flex items-center gap-1">
+                    <span className="font-semibold text-slate-700">Evidence:</span>
+                    <span>{moduleTask.evidenceLabel && moduleTask.evidenceLabel !== moduleTask.title ? moduleTask.evidenceLabel : "Proof of completion"}</span>
+                  </div>
+                )}
+                {moduleTask?.allowedFileTypes && moduleTask.allowedFileTypes.length > 0 && (
+                  <div className="flex items-center gap-1">
+                    <span className="font-semibold text-slate-700">Format:</span>
+                    <span>{moduleTask.allowedFileTypes.join(", ")}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Submission Section */}
+            <form onSubmit={handleTaskSubmit} className="pt-4 border-t border-slate-100 space-y-4">
+              <div className="flex items-center justify-between gap-2 flex-wrap min-w-0">
+                <h5 className="text-sm font-bold text-[#000666]">
+                  {taskStatus?.latestSubmission ? "Your Submission" : "Submit Your Task"}
+                </h5>
                 {taskStatus?.latestSubmission && (
-                  <span className={`text-[10px] font-bold uppercase tracking-[0.18em] px-2.5 py-1 rounded-full border ${
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border shrink-0 ${
                     taskStatus.latestSubmission.status === 'approved'
                       ? 'text-emerald-700 bg-emerald-100 border-emerald-200'
                       : taskStatus.latestSubmission.status === 'rejected'
@@ -570,78 +809,102 @@ export default function ModuleViewerPage() {
                       : taskStatus.latestSubmission.status === 'rejected'
                         ? 'Rejected'
                         : taskStatus.latestSubmission.status === 'needs_resubmission'
-                          ? 'Needs resubmission'
+                          ? 'Needs Resubmission'
                           : taskStatus.latestSubmission.status === 'pending_review'
-                            ? 'Under review'
+                            ? 'Under Review'
                             : 'Submitted'}
                   </span>
                 )}
               </div>
 
+              {/* Latest Submission Card - Safe against mobile overflow */}
               {taskStatus?.latestSubmission && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-[11px] text-slate-600 space-y-2">
-                  <div className="flex flex-wrap items-center gap-2 font-semibold text-slate-700">
-                    <span>Latest submission</span>
-                    <span className="text-slate-400">•</span>
-                    <span>{taskStatus.latestSubmission.submittedAt ? new Date(taskStatus.latestSubmission.submittedAt).toLocaleString() : 'Just now'}</span>
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-600 space-y-2.5 min-w-0">
+                  <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500 pb-1 border-b border-slate-200/60">
+                    <span className="font-semibold text-slate-700">Latest Submission</span>
+                    <span>
+                      {taskStatus.latestSubmission.submittedAt 
+                        ? new Date(taskStatus.latestSubmission.submittedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) 
+                        : 'Recently'}
+                    </span>
                   </div>
+
+                  {/* Submitted Files List */}
                   {taskStatus.latestSubmission.files && taskStatus.latestSubmission.files.length > 0 ? (
-                    <div className="space-y-1">
-                      <div className="font-semibold text-slate-700">Submitted Files ({taskStatus.latestSubmission.files.length}):</div>
-                      <div className="flex flex-wrap gap-2">
-                        {taskStatus.latestSubmission.files.map((f, idx) => (
+                    <div className="space-y-1.5">
+                      {taskStatus.latestSubmission.files.map((f, idx) => (
+                        <div key={idx} className="flex items-center justify-between gap-2 bg-white border border-slate-200 rounded-lg p-2 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <HiOutlineDocumentCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span className="text-xs font-medium text-slate-700 truncate" title={f.fileName}>
+                              {f.fileName || `Evidence file ${idx + 1}`}
+                            </span>
+                          </div>
                           <a
-                            key={idx}
                             href={f.fileUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-[#000666] font-medium text-[11px]"
+                            className="shrink-0 inline-flex items-center gap-1 text-xs font-bold text-[#000666] hover:underline px-2 py-0.5"
                           >
-                            <HiOutlineEye className="w-3.5 h-3.5" />
-                            <span>{f.fileName || `File ${idx + 1}`}</span>
+                            <HiOutlineEye className="w-3.5 h-3.5" /> Open
                           </a>
-                        ))}
-                      </div>
+                        </div>
+                      ))}
                     </div>
                   ) : taskStatus.latestSubmission.fileUrl ? (
-                    <div className="flex items-center gap-2">
-                      <span>File: {taskStatus.latestSubmission.fileName || 'Evidence file'}</span>
+                    <div className="flex items-center justify-between gap-2 bg-white border border-slate-200 rounded-lg p-2 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <HiOutlineDocumentCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span className="text-xs font-medium text-slate-700 truncate" title={taskStatus.latestSubmission.fileName}>
+                          {taskStatus.latestSubmission.fileName || 'Evidence file'}
+                        </span>
+                      </div>
                       <a
                         href={taskStatus.latestSubmission.fileUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[#000666] font-bold hover:underline"
+                        className="shrink-0 inline-flex items-center gap-1 text-xs font-bold text-[#000666] hover:underline px-2 py-0.5"
                       >
                         <HiOutlineEye className="w-3.5 h-3.5" /> Open
                       </a>
                     </div>
                   ) : null}
+
                   {taskStatus.latestSubmission.note && (
-                    <div>Note: {taskStatus.latestSubmission.note}</div>
+                    <div className="text-xs text-slate-600 bg-white border border-slate-100 rounded-lg p-2">
+                      <span className="font-semibold text-slate-700">Note:</span> {taskStatus.latestSubmission.note}
+                    </div>
                   )}
+
                   {taskStatus.latestSubmission.adminFeedback && (
-                    <div className="text-emerald-700">Feedback: {taskStatus.latestSubmission.adminFeedback}</div>
+                    <div className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg p-2.5">
+                      <span className="font-semibold">Instructor Feedback:</span> {taskStatus.latestSubmission.adminFeedback}
+                    </div>
                   )}
+
                   {taskStatus.latestSubmission.pointsAwarded ? (
-                    <div className="text-emerald-700 font-bold">Awarded points: {taskStatus.latestSubmission.pointsAwarded}</div>
+                    <div className="text-emerald-700 font-bold flex items-center gap-1.5 text-xs pt-0.5">
+                      ✓ Task Completed
+                    </div>
                   ) : null}
                 </div>
               )}
 
+              {/* Upload Dropzone */}
               {moduleTask?.requiresUpload && (
-                <div className="space-y-3">
+                <div className="space-y-2 pt-1">
                   <div className="flex items-center justify-between">
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-                      Upload evidence files
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      {taskStatus?.latestSubmission ? "Replace / Upload New Evidence" : "Upload Evidence File"}
                     </label>
                     {taskUploadedFiles.length > 0 && (
                       <span className="text-[11px] font-bold text-emerald-600">
-                        {taskUploadedFiles.length} file{taskUploadedFiles.length > 1 ? 's' : ''} attached
+                        {taskUploadedFiles.length} file{taskUploadedFiles.length > 1 ? 's' : ''} ready
                       </span>
                     )}
                   </div>
 
-                  <div className="relative border-2 border-dashed border-slate-200 hover:border-[#000666]/40 rounded-xl p-4 transition-all bg-slate-50/50 text-center">
+                  <div className="relative border-2 border-dashed border-slate-200 hover:border-[#000666]/30 rounded-xl p-3 sm:p-4 transition-all bg-slate-50/40 text-center">
                     <input
                       type="file"
                       multiple
@@ -650,22 +913,22 @@ export default function ModuleViewerPage() {
                       disabled={uploadingFilesCount > 0}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                     />
-                    <div className="flex flex-col items-center justify-center space-y-1.5 pointer-events-none">
+                    <div className="flex flex-col items-center justify-center space-y-1 pointer-events-none">
                       {uploadingFilesCount > 0 ? (
                         <div className="flex items-center gap-2 text-xs font-bold text-[#000666]">
-                          <HiOutlineArrowPath className="w-4 h-4 animate-spin text-[#FF9800]" />
+                          <HiOutlineArrowPath className="w-4 h-4 animate-spin text-[#000666]" />
                           <span>Uploading {uploadingFilesCount} file(s)...</span>
                         </div>
                       ) : (
                         <>
-                          <div className="w-8 h-8 rounded-full bg-sky-50 text-[#000666] flex items-center justify-center border border-sky-100 mx-auto">
-                            <HiOutlineArrowUpTray className="w-4 h-4" />
+                          <div className="w-7 h-7 rounded-full bg-white text-[#000666] flex items-center justify-center border border-slate-200 mx-auto shadow-2xs">
+                            <HiOutlineArrowUpTray className="w-3.5 h-3.5" />
                           </div>
                           <p className="text-xs font-semibold text-slate-700">
-                            Click or drag files here to upload instantly
+                            Click or drag file to upload
                           </p>
-                          <p className="text-[10px] text-slate-400 font-medium">
-                            Supported formats: {taskAcceptList.replace(/\./g, ' ').toUpperCase()}
+                          <p className="text-[10px] text-slate-400">
+                            Formats: {taskAcceptList.replace(/\./g, ' ').toUpperCase()}
                           </p>
                         </>
                       )}
@@ -680,70 +943,77 @@ export default function ModuleViewerPage() {
                   )}
 
                   {taskUploadedFiles.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Uploaded Evidence ({taskUploadedFiles.length})</p>
-                      <div className="space-y-2">
-                        {taskUploadedFiles.map((fileItem, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs group hover:border-slate-300 transition-all"
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                              <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
-                                <HiOutlineDocumentCheck className="w-4 h-4" />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-xs font-semibold text-slate-800 truncate">{fileItem.fileName || `Evidence file ${idx + 1}`}</p>
-                                <span className="inline-block text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Uploaded</span>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <a
-                                href={fileItem.fileUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] transition-all inline-flex items-center gap-1"
-                              >
-                                <HiOutlineEye className="w-3.5 h-3.5 text-[#000666]" />
-                                <span>View</span>
-                              </a>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveUploadedFile(idx)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"
-                                title="Remove file"
-                              >
-                                <HiOutlineTrash className="w-4 h-4" />
-                              </button>
-                            </div>
+                    <div className="space-y-1.5 pt-1">
+                      {taskUploadedFiles.map((fileItem, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 shadow-2xs gap-2 min-w-0"
+                        >
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <HiOutlineDocumentCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <p className="text-xs font-semibold text-slate-800 truncate">{fileItem.fileName || `Evidence file ${idx + 1}`}</p>
                           </div>
-                        ))}
-                      </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <a
+                              href={fileItem.fileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px] transition-all inline-flex items-center gap-1"
+                            >
+                              <HiOutlineEye className="w-3 h-3 text-[#000666]" />
+                              <span>View</span>
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveUploadedFile(idx)}
+                              className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"
+                              title="Remove file"
+                            >
+                              <HiOutlineTrash className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
               )}
 
-              <div className="space-y-2">
-                <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-                  {moduleTask?.requiresUpload ? "Short note (optional)" : "Task note"}
+              {/* Note input */}
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  {moduleTask?.requiresUpload ? "Submission Note (Optional)" : "Task Note"}
                 </label>
                 <textarea
                   value={taskSubmissionNote}
                   onChange={(e) => setTaskSubmissionNote(e.target.value)}
-                  placeholder={moduleTask?.requiresUpload ? "Add a short note explaining your submission." : "Summarise what you completed for this task."}
-                  className="w-full min-h-[90px] rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20"
+                  placeholder={moduleTask?.requiresUpload ? "Add any notes or context about your uploaded evidence." : "Summarise what you completed for this task."}
+                  rows={2}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#000666]/15"
                 />
               </div>
 
-              <div className="flex justify-end">
+              {/* Submit CTA */}
+              <div className="pt-1 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
                 <button
                   type="submit"
                   disabled={submittingTask || !taskStatus?.submissionWindowOpen}
-                  className="bg-[#000666] hover:bg-[#000666]/90 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#000666] hover:bg-[#000666]/90 text-white font-bold text-xs tracking-wider uppercase px-6 py-3 rounded-xl shadow-xs transition-all disabled:opacity-60 disabled:cursor-not-allowed text-center cursor-pointer"
                 >
-                  {submittingTask ? 'Submitting...' : taskStatus?.submissionWindowOpen ? 'Submit task' : 'Submission closed'}
+                  {submittingTask ? (
+                    <>
+                      <HiOutlineArrowPath className="w-4 h-4 animate-spin text-white" />
+                      <span>Submitting...</span>
+                    </>
+                  ) : !taskStatus?.submissionWindowOpen ? (
+                    <span>Submission Window Closed</span>
+                  ) : (
+                    <>
+                      <HiOutlineArrowUpTray className="w-4 h-4" />
+                      <span>{taskStatus?.latestSubmission ? "Update Submission" : "Submit Task"}</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -895,7 +1165,7 @@ export default function ModuleViewerPage() {
             </button>
           )}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

@@ -2,11 +2,11 @@ import { Router } from 'express';
 import multer from 'multer';
 import { authenticateApplicant } from '../middleware/applicantAuth.js';
 import { authenticate, authorize } from '../middleware/auth.js';
-import { uploadCv, uploadCvAuth, uploadLogo, uploadBrochure, uploadAvatarAuth, getUploadSignature, saveCvUrl, saveCvUrlAuth, uploadModuleTaskEvidence, uploadResourceFile } from '../controllers/uploadController.js';
+import { uploadCv, uploadCvAuth, uploadLogo, uploadBrochure, uploadAvatarAuth, getUploadSignature, saveCvUrl, saveCvUrlAuth, uploadModuleTaskEvidence, uploadResourceFile, uploadAltCertificate, saveAltCertificateUrl } from '../controllers/uploadController.js';
 
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 10 * 1024 * 1024 }, // limit set to 10MB
+    limits: { fileSize: 25 * 1024 * 1024 }, // 25MB — increased for PPTX/DOCX presentations
 });
 
 const handleUpload = (fieldName: string) => {
@@ -14,7 +14,7 @@ const handleUpload = (fieldName: string) => {
         upload.single(fieldName)(req, res, (err: any) => {
             if (err instanceof multer.MulterError) {
                 if (err.code === 'LIMIT_FILE_SIZE') {
-                    return res.status(400).json({ message: 'File size exceeds 10MB limit. Please upload a smaller file.' });
+                    return res.status(400).json({ message: 'File size exceeds 25MB limit. Please upload a smaller file.' });
                 }
                 return res.status(400).json({ message: `Upload error: ${err.message}` });
             } else if (err) {
@@ -47,5 +47,9 @@ router.post('/logo', handleUpload('logo'), uploadLogo);
 // Admin-only alias kept for backward compatibility
 router.post('/logo/admin', authenticate, authorize('admin', 'superadmin'), handleUpload('logo'), uploadLogo);
 router.post('/brochure', authenticate, authorize('admin', 'superadmin'), handleUpload('brochure'), uploadBrochure);
+
+// AltInstitute certificate upload (file: JPEG, PNG, PDF) or URL paste
+router.post('/alt-certificate', authenticate, handleUpload('certificate'), uploadAltCertificate);
+router.post('/alt-certificate-url', authenticate, saveAltCertificateUrl);
 
 export default router;
