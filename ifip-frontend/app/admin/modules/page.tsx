@@ -2343,10 +2343,24 @@ export default function AdminModulesPage() {
                                     <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">Decision</label>
                                     <select
                                       value={draft.status}
-                                      onChange={(e) => setTaskReviewDrafts(prev => ({
-                                        ...prev,
-                                        [selectedSubmission._id]: { ...prev[selectedSubmission._id], status: e.target.value as any },
-                                      }))}
+                                      onChange={(e) => {
+                                        const newStatus = e.target.value as 'approved' | 'rejected' | 'needs_resubmission' | 'pending_review';
+                                        setTaskReviewDrafts(prev => {
+                                          const current = prev[selectedSubmission._id] || {
+                                            status: 'pending_review',
+                                            points: selectedSubmission.pointsAwarded || 0,
+                                            feedback: selectedSubmission.adminFeedback || '',
+                                          };
+                                          return {
+                                            ...prev,
+                                            [selectedSubmission._id]: {
+                                              ...current,
+                                              status: newStatus,
+                                              points: newStatus === 'approved' ? (current.points === 0 ? 5 : current.points) : current.points,
+                                            },
+                                          };
+                                        });
+                                      }}
                                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-100"
                                     >
                                       <option value="pending_review">Pending review</option>

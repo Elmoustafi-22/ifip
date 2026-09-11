@@ -33,6 +33,7 @@ import {
     sendNewModuleNotificationEmail,
     sendNewAssessmentNotificationEmail,
     sendNewResourceNotificationEmail,
+    sendModuleTaskReviewedEmail,
 } from './emailService.js';
 
 export const notificationEmitter = new EventEmitter();
@@ -252,6 +253,54 @@ notificationEmitter.on('assessment.graded', async ({ submission, assessment, use
         );
     } catch (err) {
         console.error('[Event:assessment.graded] Error:', err);
+    }
+});
+
+notificationEmitter.on('module_task.reviewed', async ({ submission, user, moduleTitle, moduleId }) => {
+    try {
+        const statusMap: Record<string, { title: string; type: 'success' | 'warning' | 'info' }> = {
+            approved: { title: 'Module Task Approved! 🎉', type: 'success' },
+            needs_resubmission: { title: 'Task Action Required: Resubmission Needed', type: 'warning' },
+            rejected: { title: 'Module Task Review Update', type: 'warning' },
+            pending_review: { title: 'Module Task Under Review', type: 'info' },
+        };
+
+        const config = statusMap[submission.status] || { title: 'Module Task Reviewed', type: 'info' };
+
+        let message = `Your submission for "${moduleTitle}" has been reviewed (${submission.status.replace(/_/g, ' ')}).`;
+        if (submission.status === 'approved' && submission.pointsAwarded > 0) {
+            message += ` You were awarded ${submission.pointsAwarded} point${submission.pointsAwarded > 1 ? 's' : ''}.`;
+        }
+        if (submission.adminFeedback) {
+            const trimmedFeedback = submission.adminFeedback.length > 80 
+                ? submission.adminFeedback.slice(0, 77) + '...' 
+                : submission.adminFeedback;
+            message += ` Feedback: "${trimmedFeedback}"`;
+        }
+
+        // 1. In-app Notification
+        await Notification.create({
+            userId: user._id,
+            title: config.title,
+            message,
+            type: config.type,
+            link: `/dashboard/modules/${moduleId}`,
+        });
+
+        // 2. Email Notification
+        if (user.email) {
+            await sendModuleTaskReviewedEmail({
+                to: user.email,
+                fullName: user.fullName || 'Participant',
+                moduleTitle,
+                status: submission.status,
+                pointsAwarded: submission.pointsAwarded,
+                adminFeedback: submission.adminFeedback,
+                moduleId: String(moduleId),
+            });
+        }
+    } catch (err) {
+        console.error('[Event:module_task.reviewed] Error:', err);
     }
 });
 

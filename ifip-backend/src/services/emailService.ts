@@ -1717,3 +1717,141 @@ export const sendNewResourceNotificationEmail = async (params: {
 
     await send(to, `New Resource Uploaded: ${resourceTitle} — IFIP`, html);
 };
+
+/**
+ * Module Task Reviewed Email — sent to participants when their task submission is reviewed.
+ */
+export const sendModuleTaskReviewedEmail = async (params: {
+    to: string;
+    fullName: string;
+    moduleTitle: string;
+    status: 'approved' | 'rejected' | 'needs_resubmission' | 'pending_review';
+    pointsAwarded: number;
+    adminFeedback?: string;
+    moduleId?: string;
+}) => {
+    const { to, fullName, moduleTitle, status, pointsAwarded, adminFeedback, moduleId } = params;
+    const nameStr = fullName ? fullName.trim() : 'Participant';
+    const taskUrl = moduleId 
+        ? `${env.CLIENT_URL}/dashboard/modules/${moduleId}` 
+        : `${env.CLIENT_URL}/dashboard/modules`;
+
+    const statusConfig: Record<string, { label: string; bg: string; color: string; border: string; heading: string; subject: string }> = {
+        approved: {
+            label: 'Approved / Passed',
+            bg: '#ECFDF5',
+            color: '#065F46',
+            border: '#10B981',
+            heading: 'Module Task Approved!',
+            subject: `Task Approved: ${moduleTitle}${pointsAwarded > 0 ? ` (+${pointsAwarded} pts)` : ''} — IFIP`,
+        },
+        needs_resubmission: {
+            label: 'Needs Resubmission',
+            bg: '#FFFBEB',
+            color: '#92400E',
+            border: '#F59E0B',
+            heading: 'Action Required: Task Needs Resubmission',
+            subject: `Action Required: Resubmission Needed for ${moduleTitle} — IFIP`,
+        },
+        rejected: {
+            label: 'Rejected',
+            bg: '#FEF2F2',
+            color: '#991B1B',
+            border: '#EF4444',
+            heading: 'Module Task Review Update',
+            subject: `Task Review Update: ${moduleTitle} — IFIP`,
+        },
+        pending_review: {
+            label: 'Under Review',
+            bg: '#F0F9FF',
+            color: '#075985',
+            border: '#0EA5E9',
+            heading: 'Module Task Under Review',
+            subject: `Task Status Update: ${moduleTitle} — IFIP`,
+        },
+    };
+
+    const currentStatus = statusConfig[status] || statusConfig.pending_review;
+
+    const html = `
+    <div style="${wrapperStyle}">
+        <div style="${cardStyle}">
+            <!-- Header Logo -->
+            <div style="padding: 40px 32px 0 32px; text-align: center;">
+                <img src="${LOGO_HEADER_URL}" style="height: 64px; max-height: 64px; width: auto; display: block; margin: 0 auto;" alt="IFIP Logo">
+                <div style="width: 80px; height: 4px; background-color: #000666; margin: 24px auto 0 auto; border-radius: 2px;"></div>
+            </div>
+            
+            <div style="${contentContainerStyle}">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <span style="display: inline-block; background-color: ${currentStatus.bg}; color: ${currentStatus.color}; border: 1px solid ${currentStatus.border}; font-size: 12px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; padding: 6px 16px; border-radius: 20px;">
+                        ${currentStatus.label}
+                    </span>
+                </div>
+
+                <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 16px 0;">
+                    ${currentStatus.heading}
+                </h1>
+                
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    Dear <strong>${nameStr}</strong>,
+                </p>
+
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 24px 0;">
+                    ${status === 'approved' 
+                        ? `Congratulations! Your practical task submission for <strong>${moduleTitle}</strong> has been evaluated and approved.`
+                        : status === 'needs_resubmission'
+                        ? `Your submission for <strong>${moduleTitle}</strong> has been evaluated by the instructor team. Corrections or additional evidence are required before it can be approved.`
+                        : `Your submission for <strong>${moduleTitle}</strong> has been evaluated by the instructor team.`}
+                </p>
+
+                <!-- Review Details Card -->
+                <div style="background-color: #FDFBF7; border: 1px solid #E7E2D8; border-left: 4px solid ${currentStatus.border}; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                    <h3 style="font-size: 15px; font-weight: bold; color: #000666; margin: 0 0 12px 0;">Review Summary</h3>
+                    <div style="font-size: 14px; color: #454652; line-height: 1.8;">
+                        <div><strong>Module:</strong> ${moduleTitle}</div>
+                        <div><strong>Decision:</strong> <span style="color: ${currentStatus.color}; font-weight: bold;">${currentStatus.label}</span></div>
+                        ${status === 'approved' && pointsAwarded > 0 ? `<div><strong>Points Awarded:</strong> <span style="color: #065F46; font-weight: bold;">+${pointsAwarded} pts</span></div>` : ''}
+                    </div>
+                </div>
+
+                ${adminFeedback ? `
+                <!-- Instructor Feedback Box -->
+                <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-left: 4px solid #000666; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                    <h4 style="font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #64748B; margin: 0 0 8px 0;">
+                        Instructor Feedback
+                    </h4>
+                    <p style="font-size: 14px; color: #1E293B; line-height: 1.7; margin: 0; font-style: italic;">
+                        &ldquo;${adminFeedback}&rdquo;
+                    </p>
+                </div>
+                ` : ''}
+
+                ${status === 'needs_resubmission' ? `
+                <div style="background-color: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; font-size: 13px; color: #92400E; line-height: 1.6;">
+                    <strong>Next Steps:</strong> The submission window remains open for you. Please review the feedback above, update your evidence or notes, and re-submit via the module page.
+                </div>
+                ` : ''}
+
+                <!-- CTA Button -->
+                <div style="text-align: center; margin: 32px 0;">
+                    <a href="${taskUrl}" style="display: inline-block; background-color: #000666; color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 15px; font-weight: bold; letter-spacing: 0.3px; box-shadow: 0 4px 12px rgba(0,6,102,0.15);">
+                        View Task in Dashboard &rarr;
+                    </a>
+                </div>
+
+                <p style="font-size: 13px; color: #767683; line-height: 1.6; text-align: center; margin: 24px 0 0 0;">
+                    Keep up your consistent momentum through the IFIP coursework modules.
+                </p>
+            </div>
+
+            <!-- Footer -->
+            <div style="background-color: #FDFBF7; padding: 24px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <h3 style="font-family: Georgia, serif; font-size: 14px; font-weight: bold; color: #000666; margin: 0 0 4px 0;">Islamic Finance Internship Program</h3>
+                <p style="font-size: 11px; color: #767683; margin: 0;">&copy; 2026 Islamic Finance Academy. All rights reserved.</p>
+            </div>
+        </div>
+    </div>`;
+
+    await send(to, currentStatus.subject, html);
+};

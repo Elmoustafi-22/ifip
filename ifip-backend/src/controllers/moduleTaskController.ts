@@ -4,6 +4,8 @@ import { Module } from '../models/Module.js';
 import { ModuleTaskSubmission } from '../models/ModuleTaskSubmission.js';
 import { ModuleTaskReward } from '../models/ModuleTaskReward.js';
 import { Progress } from '../models/Progress.js';
+import { User } from '../models/User.js';
+import { notificationEmitter } from '../services/notificationBroadcast.js';
 
 const getRouteParamId = (value: string | string[] | undefined) => {
     if (Array.isArray(value)) {
@@ -365,6 +367,23 @@ export const reviewModuleTaskSubmission = async (req: Request, res: Response) =>
         }
 
         res.json({ message: 'Task submission reviewed successfully.', submission });
+
+        try {
+            const studentUser = await User.findById(submission.userId);
+            const moduleItem = await Module.findById(submission.moduleId);
+            const moduleTitle = submission.moduleTitle || moduleItem?.title || 'Module Task';
+
+            if (studentUser) {
+                notificationEmitter.emit('module_task.reviewed', {
+                    submission,
+                    user: studentUser,
+                    moduleTitle,
+                    moduleId: submission.moduleId,
+                });
+            }
+        } catch (notifErr) {
+            console.error('Failed to trigger review notifications:', notifErr);
+        }
     } catch (error: any) {
         res.status(500).json({ message: 'Failed to review task submission.', error: error.message });
     }
