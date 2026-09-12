@@ -5,7 +5,10 @@ import { ModuleTaskSubmission } from '../models/ModuleTaskSubmission.js';
 import { ModuleTaskReward } from '../models/ModuleTaskReward.js';
 import { Progress } from '../models/Progress.js';
 import { User } from '../models/User.js';
+import { Application } from '../models/Application.js';
+import { Notification } from '../models/Notification.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
+import { sendModuleTaskReminderEmail } from '../services/emailService.js';
 
 const getRouteParamId = (value: string | string[] | undefined) => {
     if (Array.isArray(value)) {
@@ -424,5 +427,159 @@ export const reviewModuleTaskSubmission = async (req: Request, res: Response) =>
         }
     } catch (error: any) {
         res.status(500).json({ message: 'Failed to review task submission.', error: error.message });
+    }
+};
+
+/**
+ * GET /admin/modules/:id/task-non-submitters
+ * Returns all active participants who have NOT yet submitted anything
+ * for the module's task. Used to power the admin reminder panel.
+ */
+export const getModuleTaskNonSubmitters = async (req: Request, res: Response) => {
+    try {
+        const moduleId = getRouteParamId(req.params.id);
+        if (!moduleId) {
+            res.status(400).json({ message: 'moduleId is required.' });
+            return;
+        }
+
+        const module = await Module.findById(moduleId).lean();
+        if (!module || !module.moduleTask) {
+            res.status(404).json({ message: 'Module or task not found.' });
+            return;
+        }
+
+        // 1. Find all userIds who have submitted for this module
+        const submitted = await ModuleTaskSubmission.find({
+            moduleId: new Types.ObjectId(moduleId),
+        }).distinct('userId');
+
+        const submittedSet = new Set(submitted.map((id) => id.toString()));
+
+        // 2. Find all active participants (active or payment_confirmed cohort members)
+        const activeApps = await Application.find({
+            status: { $in: ['active', 'payment_confirmed', 'placement_ready'] },
+        }).lean();
+
+        const activeUserIds = activeApps.map((app) => app.userId);
+
+        // 3. Fetch user details for those who haven't submitted
+        const nonSubmitterIds = activeUserIds.filter(
+            (uid) => !submittedSet.has(uid.toString())
+        );
+
+        const users = await User.find(
+            { _id: { $in: nonSubmitterIds } },
+            'fullName email'
+        ).lean();
+
+        res.json({
+            moduleTitle: module.title,
+            moduleTaskTitle: module.moduleTask?.title || module.title,
+            total: users.length,
+            nonSubmitters: users,
+        });
+    } catch (error: any) {
+        res.status(500).json({ message: 'Failed to fetch non-submitters.', error: error.message });
+    }
+};
+
+/**
+ * POST /admin/modules/:id/task-remind
+ * Sends a reminder email + in-app notification to one or all non-submitters.
+ * Body: { userIds?: string[] }  — omit to send to ALL non-submitters.
+ */
+export const sendModuleTaskReminder = async (req: Request, res: Response) => {
+    try {
+        const moduleId = getRouteParamId(req.params.id);
+        if (!moduleId) {
+            res.status(400).json({ message: 'moduleId is required.' });
+            return;
+        }
+
+        const module = await Module.findById(moduleId).lean();
+        if (!module || !module.moduleTask) {
+            res.status(404).json({ message: 'Module or task not found.' });
+            return;
+        }
+
+        const { userIds } = req.body || {};
+        const moduleTitle = module.title;
+        const taskTitle = module.moduleTask?.title || module.title;
+        const dashboardUrl = `/dashboard/modules/${moduleId}`;
+
+        let targetUsers: { _id: Types.ObjectId; fullName?: string; email: string }[];
+
+        if (Array.isArray(userIds) && userIds.length > 0) {
+            // Remind specific users
+            targetUsers = await User.find(
+                { _id: { $in: userIds.map((id: string) => new Types.ObjectId(id)) } },
+                'fullName email'
+            ).lean() as any[];
+        } else {
+            // Remind all non-submitters
+            const submitted = await ModuleTaskSubmission.find({
+                moduleId: new Types.ObjectId(moduleId),
+            }).distinct('userId');
+            const submittedSet = new Set(submitted.map((id) => id.toString()));
+
+            const activeApps = await Application.find({
+                status: { $in: ['active', 'payment_confirmed', 'placement_ready'] },
+            }).lean();
+            const nonSubmitterIds = activeApps
+                .map((app) => app.userId)
+                .filter((uid) => !submittedSet.has(uid.toString()));
+
+            targetUsers = await User.find(
+                { _id: { $in: nonSubmitterIds } },
+                'fullName email'
+            ).lean() as any[];
+        }
+
+        if (targetUsers.length === 0) {
+            res.json({ message: 'No users to remind.', reminded: 0 });
+            return;
+        }
+
+        let sent = 0;
+        const errors: string[] = [];
+
+        await Promise.allSettled(
+            targetUsers.map(async (user) => {
+                try {
+                    // In-app notification
+                    await Notification.create({
+                        userId: user._id,
+                        title: `Reminder: ${taskTitle} — Submission Pending 📋`,
+                        message: `Just a friendly nudge! Your task submission for "${moduleTitle}" is still pending. Head to the module page to submit your work when you're ready.`,
+                        type: 'info',
+                        link: dashboardUrl,
+                    });
+
+                    // Email
+                    if (user.email) {
+                        await sendModuleTaskReminderEmail({
+                            to: user.email,
+                            fullName: user.fullName || 'Participant',
+                            moduleTitle,
+                            taskTitle,
+                            moduleId,
+                        });
+                    }
+
+                    sent++;
+                } catch (err: any) {
+                    errors.push(`${user.email}: ${err.message}`);
+                }
+            })
+        );
+
+        res.json({
+            message: `Reminders sent to ${sent} participant${sent !== 1 ? 's' : ''}.`,
+            reminded: sent,
+            errors: errors.length > 0 ? errors : undefined,
+        });
+    } catch (error: any) {
+        res.status(500).json({ message: 'Failed to send reminders.', error: error.message });
     }
 };

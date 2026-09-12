@@ -550,6 +550,36 @@ export const reviewModuleTaskSubmission = async (
   return data;
 };
 
+export interface NonSubmitter {
+  _id: string;
+  fullName?: string;
+  email: string;
+}
+
+export interface NonSubmitterResponse {
+  moduleTitle: string;
+  moduleTaskTitle: string;
+  total: number;
+  nonSubmitters: NonSubmitter[];
+}
+
+export const getModuleTaskNonSubmitters = async (moduleId: string): Promise<NonSubmitterResponse> => {
+  const { data } = await authClient.get<NonSubmitterResponse>(`/admin/modules/${moduleId}/task-non-submitters`);
+  return data;
+};
+
+export const sendModuleTaskReminder = async (
+  moduleId: string,
+  userIds?: string[]
+): Promise<{ message: string; reminded: number; errors?: string[] }> => {
+  const { data } = await authClient.post<{ message: string; reminded: number; errors?: string[] }>(
+    `/admin/modules/${moduleId}/task-remind`,
+    userIds ? { userIds } : {}
+  );
+  return data;
+};
+
+
 export const completeLMSModule = async (moduleId: string): Promise<any> => {
   const { data } = await authClient.post("/lms/modules/complete", { moduleId });
   return data;

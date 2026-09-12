@@ -35,12 +35,16 @@ import {
   deleteLMSModule,
   getAdminModuleTaskSubmissions,
   reviewModuleTaskSubmission,
+  getModuleTaskNonSubmitters,
+  sendModuleTaskReminder,
   uploadResourceFileAuth,
   LMSModule,
   ModuleOutline,
   TopicOutline,
   ModuleTaskSubmission,
-  GroupedModuleTaskSubmission
+  GroupedModuleTaskSubmission,
+  NonSubmitter,
+  NonSubmitterResponse
 } from "@/lib/api/services";
 import { AdminCohortContext } from "../layout";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -64,6 +68,12 @@ export default function AdminModulesPage() {
   const [taskReviewDrafts, setTaskReviewDrafts] = useState<Record<string, { status: 'approved' | 'rejected' | 'needs_resubmission' | 'pending_review'; points: number; feedback: string }>>({});
   const [selectedTaskParticipantId, setSelectedTaskParticipantId] = useState<string | null>(null);
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
+  const [nonSubmitters, setNonSubmitters] = useState<NonSubmitter[]>([]);
+  const [nonSubmittersLoading, setNonSubmittersLoading] = useState(false);
+  const [selectedReminderIds, setSelectedReminderIds] = useState<Set<string>>(new Set());
+  const [reminderSending, setReminderSending] = useState(false);
+  const [reminderResult, setReminderResult] = useState<string | null>(null);
+  const [reviewSubTab, setReviewSubTab] = useState<'submissions' | 'non_submitters'>('submissions');
 
   // Bulk Paste Helper State
   interface BulkPasteConfig {
@@ -322,11 +332,16 @@ export default function AdminModulesPage() {
   useEffect(() => {
     if (reviewModule && reviewModule.moduleTask) {
       fetchModuleTaskSubmissions(reviewModule._id);
+      fetchNonSubmitters(reviewModule._id);
     } else {
       setTaskSubmissions([]);
       setTaskReviewDrafts({});
       setSelectedTaskParticipantId(null);
       setExpandedHistoryId(null);
+      setNonSubmitters([]);
+      setSelectedReminderIds(new Set());
+      setReminderResult(null);
+      setReviewSubTab('submissions');
     }
   }, [reviewModule?._id, reviewModule?.moduleTask]);
 
@@ -360,6 +375,34 @@ export default function AdminModulesPage() {
     } catch (err) {
       console.error("Failed to review task submission:", err);
       alert("Failed to save this review.");
+    }
+  };
+
+  const fetchNonSubmitters = async (moduleId: string) => {
+    setNonSubmittersLoading(true);
+    try {
+      const result = await getModuleTaskNonSubmitters(moduleId);
+      setNonSubmitters(result.nonSubmitters);
+      setSelectedReminderIds(new Set(result.nonSubmitters.map((u) => u._id)));
+    } catch (err) {
+      console.error("Failed to load non-submitters:", err);
+      setNonSubmitters([]);
+    } finally {
+      setNonSubmittersLoading(false);
+    }
+  };
+
+  const handleSendReminders = async (moduleId: string) => {
+    if (selectedReminderIds.size === 0) return;
+    setReminderSending(true);
+    setReminderResult(null);
+    try {
+      const result = await sendModuleTaskReminder(moduleId, Array.from(selectedReminderIds));
+      setReminderResult(`✅ ${result.message}`);
+    } catch (err: any) {
+      setReminderResult(`❌ Failed to send reminders. ${err?.message || ''}`);
+    } finally {
+      setReminderSending(false);
     }
   };
 
@@ -2484,6 +2527,116 @@ export default function AdminModulesPage() {
                 </div>
               )}
 
+              {/* ── Non-Submitters Reminder Panel ── */}
+              {reviewModule.moduleTask && (
+                <div className="space-y-3 border-t border-slate-200 pt-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="font-bold text-[#000666] text-xs uppercase tracking-wider flex items-center gap-2">
+                        <span>📋</span> Pending Submissions — Send Reminders
+                      </h4>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Participants below are active but haven't submitted yet. Select who to remind and send in bulk.
+                      </p>
+                    </div>
+                    {nonSubmitters.length > 0 && (
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider shrink-0">
+                        {nonSubmitters.length} not submitted
+                      </span>
+                    )}
+                  </div>
+
+                  {nonSubmittersLoading ? (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-500 text-sm">
+                      Checking who hasn't submitted yet…
+                    </div>
+                  ) : nonSubmitters.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700 font-medium flex items-center gap-2">
+                      <span>✅</span> Everyone has submitted for this task!
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {/* Select All Row */}
+                      <div className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedReminderIds.size === nonSubmitters.length}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedReminderIds(new Set(nonSubmitters.map((u) => u._id)));
+                              } else {
+                                setSelectedReminderIds(new Set());
+                              }
+                            }}
+                            className="w-3.5 h-3.5 rounded accent-[#000666]"
+                          />
+                          <span className="text-xs font-bold text-slate-700">
+                            Select All ({nonSubmitters.length})
+                          </span>
+                        </label>
+                        <span className="text-[11px] text-slate-500">
+                          {selectedReminderIds.size} selected
+                        </span>
+                      </div>
+
+                      {/* Participant List */}
+                      <div className="border border-slate-200 rounded-2xl overflow-hidden max-h-56 overflow-y-auto divide-y divide-slate-100">
+                        {nonSubmitters.map((user) => (
+                          <label
+                            key={user._id}
+                            className="flex items-center gap-3 px-3 py-2.5 bg-white hover:bg-slate-50 cursor-pointer transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedReminderIds.has(user._id)}
+                              onChange={(e) => {
+                                setSelectedReminderIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (e.target.checked) next.add(user._id);
+                                  else next.delete(user._id);
+                                  return next;
+                                });
+                              }}
+                              className="w-3.5 h-3.5 rounded accent-[#000666] shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-bold text-slate-800 truncate">
+                                {user.fullName || 'Participant'}
+                              </div>
+                              <div className="text-[11px] text-slate-500 truncate">{user.email}</div>
+                            </div>
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200 shrink-0">
+                              Not submitted
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+
+                      {/* Result message */}
+                      {reminderResult && (
+                        <div className={`rounded-xl px-3 py-2 text-xs font-medium ${reminderResult.startsWith('✅') ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : 'bg-rose-50 border border-rose-200 text-rose-700'}`}>
+                          {reminderResult}
+                        </div>
+                      )}
+
+                      {/* Send Button */}
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          disabled={selectedReminderIds.size === 0 || reminderSending}
+                          onClick={() => handleSendReminders(reviewModule._id)}
+                          className="px-5 py-2.5 bg-[#FF9800] hover:bg-[#FF9800]/90 text-white font-bold text-xs rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center gap-2"
+                        >
+                          {reminderSending
+                            ? 'Sending…'
+                            : `Send Reminder${selectedReminderIds.size !== 1 ? 's' : ''} (${selectedReminderIds.size})`}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Lesson Body Content Preview */}
               {reviewModule.body && (
@@ -2495,6 +2648,7 @@ export default function AdminModulesPage() {
                   />
                 </div>
               )}
+
             </div>
 
             {/* Review Footer */}

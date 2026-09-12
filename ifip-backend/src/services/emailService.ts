@@ -1870,3 +1870,86 @@ export const sendModuleTaskReviewedEmail = async (params: {
 
     await send(to, currentStatus.subject, html);
 };
+
+/**
+ * Module Task Reminder Email — sent by admins to participants who haven't submitted yet.
+ */
+export const sendModuleTaskReminderEmail = async (params: {
+    to: string;
+    fullName: string;
+    moduleTitle: string;
+    taskTitle?: string;
+    moduleId?: string;
+}) => {
+    const { to, fullName, moduleTitle, taskTitle, moduleId } = params;
+    const nameStr = fullName ? fullName.trim() : 'Participant';
+    const taskUrl = moduleId
+        ? `${env.CLIENT_URL}/dashboard/modules/${moduleId}`
+        : `${env.CLIENT_URL}/dashboard/modules`;
+    const displayTask = taskTitle || moduleTitle;
+
+    const html = `
+    <div style="${wrapperStyle}">
+        <div style="${cardStyle}">
+            <!-- Header Logo -->
+            <div style="padding: 40px 32px 0 32px; text-align: center;">
+                <img src="${LOGO_HEADER_URL}" style="height: 64px; max-height: 64px; width: auto; display: block; margin: 0 auto;" alt="IFIP Logo">
+                <div style="width: 80px; height: 4px; background-color: #000666; margin: 24px auto 0 auto; border-radius: 2px;"></div>
+            </div>
+
+            <div style="${contentContainerStyle}">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <span style="display: inline-block; background-color: #F0F9FF; color: #075985; border: 1px solid #0EA5E9; font-size: 12px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; padding: 6px 16px; border-radius: 20px;">
+                        📋 Friendly Reminder
+                    </span>
+                </div>
+
+                <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 16px 0;">
+                    Your Task Submission Is Waiting!
+                </h1>
+
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    Dear <strong>${nameStr}</strong>,
+                </p>
+
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 24px 0;">
+                    We noticed you haven't submitted your practical task for <strong>${moduleTitle}</strong> yet — no worries, there's still time! We just wanted to give you a gentle nudge to make sure you don't miss out.
+                </p>
+
+                <!-- Task Card -->
+                <div style="background-color: #FDFBF7; border: 1px solid #E7E2D8; border-left: 4px solid #000666; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                    <h3 style="font-size: 15px; font-weight: bold; color: #000666; margin: 0 0 12px 0;">Pending Task</h3>
+                    <div style="font-size: 14px; color: #454652; line-height: 1.8;">
+                        <div><strong>Module:</strong> ${moduleTitle}</div>
+                        <div><strong>Task:</strong> ${displayTask}</div>
+                        <div style="font-size: 13px; color: #64748B; margin-top: 4px;">Your submission hasn't been received yet — submit when you're ready.</div>
+                    </div>
+                </div>
+
+                <!-- Encouragement Box -->
+                <div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; font-size: 13px; color: #14532D; line-height: 1.6;">
+                    <strong>You've got this!</strong> Completing your task submissions is an important part of your IFIP journey and helps you build your profile for placement opportunities. Every submission counts!
+                </div>
+
+                <!-- CTA Button -->
+                <div style="text-align: center; margin: 32px 0;">
+                    <a href="${taskUrl}" style="display: inline-block; background-color: #000666; color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 15px; font-weight: bold; letter-spacing: 0.3px; box-shadow: 0 4px 12px rgba(0,6,102,0.15);">
+                        Go to Module &rarr;
+                    </a>
+                </div>
+
+                <p style="font-size: 13px; color: #767683; line-height: 1.6; text-align: center; margin: 24px 0 0 0;">
+                    If you have any questions or need support, please reach out to your programme coordinator.
+                </p>
+            </div>
+
+            <!-- Footer -->
+            <div style="background-color: #FDFBF7; padding: 24px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <h3 style="font-family: Georgia, serif; font-size: 14px; font-weight: bold; color: #000666; margin: 0 0 4px 0;">Islamic Finance Internship Program</h3>
+                <p style="font-size: 11px; color: #767683; margin: 0;">&copy; 2026 Islamic Finance Academy. All rights reserved.</p>
+            </div>
+        </div>
+    </div>`;
+
+    await send(to, `Reminder: Your Task Submission for ${moduleTitle} — IFIP`, html);
+};

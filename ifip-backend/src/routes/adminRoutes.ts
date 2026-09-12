@@ -104,6 +104,8 @@ import {
     getAllModuleTaskSubmissions,
     reviewModuleTaskSubmission,
     getTaskRewardSummary,
+    getModuleTaskNonSubmitters,
+    sendModuleTaskReminder,
 } from '../controllers/moduleTaskController.js';
 
 const router = Router();
@@ -179,6 +181,8 @@ router.get('/modules/:id/outline', getModuleOutline);
 router.patch('/modules/:id/outline', updateModuleOutline);
 router.get('/modules/:id/task-submissions', getAllModuleTaskSubmissions);
 router.patch('/modules/task-submissions/:submissionId/review', reviewModuleTaskSubmission);
+router.get('/modules/:id/task-non-submitters', getModuleTaskNonSubmitters);
+router.post('/modules/:id/task-remind', sendModuleTaskReminder);
 router.get('/task-rewards/summary', getTaskRewardSummary);
 router.delete('/modules/:id', deleteModule);
 
