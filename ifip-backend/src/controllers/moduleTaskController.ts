@@ -551,7 +551,7 @@ export const sendModuleTaskReminder = async (req: Request, res: Response) => {
                     await Notification.create({
                         userId: user._id,
                         title: `Reminder: ${taskTitle} — Submission Pending 📋`,
-                        message: `Just a friendly nudge! Your task submission for "${moduleTitle}" is still pending. Head to the module page to submit your work when you're ready.`,
+                        message: `Just a friendly nudge! Your task submission for "${moduleTitle}" is still pending. Head to the module page to submit your work as soon as possible.`,
                         type: 'info',
                         link: dashboardUrl,
                     });

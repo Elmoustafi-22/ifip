@@ -1913,7 +1913,7 @@ export const sendModuleTaskReminderEmail = async (params: {
                 </p>
 
                 <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 24px 0;">
-                    We noticed you haven't submitted your practical task for <strong>${moduleTitle}</strong> yet — no worries, there's still time! We just wanted to give you a gentle nudge to make sure you don't miss out.
+                    We noticed your practical task submission for <strong>${moduleTitle}</strong> is still pending. We'd love to see your work — head over to the module page and submit as soon as possible!
                 </p>
 
                 <!-- Task Card -->
@@ -1922,7 +1922,7 @@ export const sendModuleTaskReminderEmail = async (params: {
                     <div style="font-size: 14px; color: #454652; line-height: 1.8;">
                         <div><strong>Module:</strong> ${moduleTitle}</div>
                         <div><strong>Task:</strong> ${displayTask}</div>
-                        <div style="font-size: 13px; color: #64748B; margin-top: 4px;">Your submission hasn't been received yet — submit when you're ready.</div>
+                        <div style="font-size: 13px; color: #64748B; margin-top: 4px;">We look forward to seeing your work — please submit via the module page as soon as possible.</div>
                     </div>
                 </div>
 
