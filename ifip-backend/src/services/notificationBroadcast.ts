@@ -260,22 +260,43 @@ notificationEmitter.on('module_task.reviewed', async ({ submission, user, module
     try {
         const statusMap: Record<string, { title: string; type: 'success' | 'warning' | 'info' }> = {
             approved: { title: 'Module Task Approved! 🎉', type: 'success' },
-            needs_resubmission: { title: 'Task Action Required: Resubmission Needed', type: 'warning' },
-            rejected: { title: 'Module Task Review Update', type: 'warning' },
-            pending_review: { title: 'Module Task Under Review', type: 'info' },
+            needs_resubmission: { title: 'A Little More Needed — We\'ve Left Some Guidance 📝', type: 'warning' },
+            rejected: { title: 'Submission Feedback Available 📋', type: 'warning' },
+            pending_review: { title: 'Submission Received — Under Review 🕐', type: 'info' },
         };
 
         const config = statusMap[submission.status] || { title: 'Module Task Reviewed', type: 'info' };
 
-        let message = `Your submission for "${moduleTitle}" has been reviewed (${submission.status.replace(/_/g, ' ')}).`;
-        if (submission.status === 'approved' && submission.pointsAwarded > 0) {
-            message += ` You were awarded ${submission.pointsAwarded} point${submission.pointsAwarded > 1 ? 's' : ''}.`;
-        }
-        if (submission.adminFeedback) {
-            const trimmedFeedback = submission.adminFeedback.length > 80 
-                ? submission.adminFeedback.slice(0, 77) + '...' 
-                : submission.adminFeedback;
-            message += ` Feedback: "${trimmedFeedback}"`;
+        let message: string;
+        switch (submission.status) {
+            case 'approved':
+                message = `Great work! Your submission for "${moduleTitle}" has been approved.`;
+                if (submission.pointsAwarded > 0) {
+                    message += ` You've been awarded ${submission.pointsAwarded} point${submission.pointsAwarded > 1 ? 's' : ''} — keep it up!`;
+                }
+                break;
+            case 'pending_review':
+                message = `Your submission for "${moduleTitle}" has been received and is currently being reviewed by our team. We'll notify you as soon as a decision is made — hang tight!`;
+                break;
+            case 'needs_resubmission':
+                message = `Our team has reviewed your submission for "${moduleTitle}" and left some guidance. Please check the feedback and resubmit when ready — you're on the right track!`;
+                if (submission.adminFeedback) {
+                    const trimmed = submission.adminFeedback.length > 80
+                        ? submission.adminFeedback.slice(0, 77) + '...'
+                        : submission.adminFeedback;
+                    message += ` Feedback: "${trimmed}"`;
+                }
+                break;
+            case 'rejected':
+            default:
+                message = `Our team has reviewed your submission for "${moduleTitle}". Please check the feedback in your dashboard and feel free to reach out if you have any questions.`;
+                if (submission.adminFeedback) {
+                    const trimmed = submission.adminFeedback.length > 80
+                        ? submission.adminFeedback.slice(0, 77) + '...'
+                        : submission.adminFeedback;
+                    message += ` Feedback: "${trimmed}"`;
+                }
+                break;
         }
 
         // 1. In-app Notification
@@ -303,6 +324,7 @@ notificationEmitter.on('module_task.reviewed', async ({ submission, user, module
         console.error('[Event:module_task.reviewed] Error:', err);
     }
 });
+
 
 notificationEmitter.on('placement.matched', async ({ userId, userEmail, userFullName, partner, area, notes }) => {
     try {

@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useContext } from "react";
 import Link from "next/link";
-import { 
-  HiOutlineBookOpen, 
+import {
+  HiOutlineBookOpen,
   HiOutlinePlus,
   HiOutlineXMark,
   HiOutlineTrash,
@@ -26,10 +26,10 @@ import {
   HiOutlineArrowUpTray,
   HiOutlineArrowDownTray
 } from "react-icons/hi2";
-import { 
-  getAdminLMSModules, 
-  createLMSModule, 
-  updateLMSModule, 
+import {
+  getAdminLMSModules,
+  createLMSModule,
+  updateLMSModule,
   publishLMSModule,
   unpublishLMSModule,
   deleteLMSModule,
@@ -39,7 +39,8 @@ import {
   LMSModule,
   ModuleOutline,
   TopicOutline,
-  ModuleTaskSubmission 
+  ModuleTaskSubmission,
+  GroupedModuleTaskSubmission
 } from "@/lib/api/services";
 import { AdminCohortContext } from "../layout";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -54,14 +55,15 @@ export default function AdminModulesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"outline" | "content">("outline");
   const [editingModule, setEditingModule] = useState<LMSModule | null>(null);
-  
+
   // Review Drawer state
   const [reviewModule, setReviewModule] = useState<LMSModule | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
-  const [taskSubmissions, setTaskSubmissions] = useState<ModuleTaskSubmission[]>([]);
+  const [taskSubmissions, setTaskSubmissions] = useState<GroupedModuleTaskSubmission[]>([]);
   const [taskSubmissionsLoading, setTaskSubmissionsLoading] = useState(false);
   const [taskReviewDrafts, setTaskReviewDrafts] = useState<Record<string, { status: 'approved' | 'rejected' | 'needs_resubmission' | 'pending_review'; points: number; feedback: string }>>({});
-  const [selectedTaskSubmissionId, setSelectedTaskSubmissionId] = useState<string | null>(null);
+  const [selectedTaskParticipantId, setSelectedTaskParticipantId] = useState<string | null>(null);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
 
   // Bulk Paste Helper State
   interface BulkPasteConfig {
@@ -137,7 +139,7 @@ export default function AdminModulesPage() {
     { title: "", subtopics: [""], learningActivity: "", materials: [] }
   ]);
   const [expectedOutcomes, setExpectedOutcomes] = useState<string[]>([""]);
-  
+
   const [submitting, setSubmitting] = useState(false);
 
   // Helper to clean pasted multi-line text (e.g. from Word, PDF, markdown lists)
@@ -293,22 +295,22 @@ export default function AdminModulesPage() {
   const fetchModuleTaskSubmissions = async (moduleId: string) => {
     setTaskSubmissionsLoading(true);
     try {
-      const submissions = await getAdminModuleTaskSubmissions(moduleId);
-      setTaskSubmissions(submissions);
+      const grouped = await getAdminModuleTaskSubmissions(moduleId, true);
+      setTaskSubmissions(grouped);
       const draftMap: Record<string, { status: 'approved' | 'rejected' | 'needs_resubmission' | 'pending_review'; points: number; feedback: string }> = {};
-      submissions.forEach((submission) => {
-        draftMap[submission._id] = {
-          status: (submission.status === 'approved' || submission.status === 'rejected' || submission.status === 'needs_resubmission' || submission.status === 'pending_review') ? submission.status : 'pending_review',
-          points: submission.pointsAwarded || 0,
-          feedback: submission.adminFeedback || '',
+      grouped.forEach((entry) => {
+        const s = entry.latestSubmission;
+        draftMap[s._id] = {
+          status: (s.status === 'approved' || s.status === 'rejected' || s.status === 'needs_resubmission' || s.status === 'pending_review') ? s.status : 'pending_review',
+          points: s.pointsAwarded || 0,
+          feedback: s.adminFeedback || '',
         };
       });
       setTaskReviewDrafts(draftMap);
 
-      const nextSelected = submissions.find((submission) => submission.status !== 'approved')
-        ? submissions.find((submission) => submission.status !== 'approved')?._id ?? null
-        : submissions[0]?._id ?? null;
-      setSelectedTaskSubmissionId(nextSelected);
+      const firstPending = grouped.find((e) => e.latestSubmission.status !== 'approved');
+      const firstId = (firstPending ?? grouped[0])?.userId?._id ?? null;
+      setSelectedTaskParticipantId(firstId);
     } catch (err) {
       console.error("Failed to load module task submissions:", err);
       setTaskSubmissions([]);
@@ -323,26 +325,35 @@ export default function AdminModulesPage() {
     } else {
       setTaskSubmissions([]);
       setTaskReviewDrafts({});
-      setSelectedTaskSubmissionId(null);
+      setSelectedTaskParticipantId(null);
+      setExpandedHistoryId(null);
     }
   }, [reviewModule?._id, reviewModule?.moduleTask]);
 
-  const handleTaskReview = async (submissionId: string) => {
-    const draft = taskReviewDrafts[submissionId];
+  const handleTaskReview = async (latestSubmissionId: string) => {
+    const draft = taskReviewDrafts[latestSubmissionId];
     if (!draft) return;
 
     try {
-      await reviewModuleTaskSubmission(submissionId, {
+      await reviewModuleTaskSubmission(latestSubmissionId, {
         status: draft.status,
         pointsAwarded: Number(draft.points),
         adminFeedback: draft.feedback,
       });
 
       setTaskSubmissions((prev) =>
-        prev.map((submission) =>
-          submission._id === submissionId
-            ? { ...submission, status: draft.status, pointsAwarded: Number(draft.points), adminFeedback: draft.feedback }
-            : submission
+        prev.map((entry) =>
+          entry.latestSubmission._id === latestSubmissionId
+            ? {
+                ...entry,
+                latestSubmission: {
+                  ...entry.latestSubmission,
+                  status: draft.status,
+                  pointsAwarded: Number(draft.points),
+                  adminFeedback: draft.feedback,
+                },
+              }
+            : entry
         )
       );
       alert("Submission review saved.");
@@ -379,7 +390,7 @@ export default function AdminModulesPage() {
     setModuleTaskDueDate("");
     setModuleTaskDueText("");
     setModuleTaskIsRequired(true);
-    
+
     // Outline defaults
     setPurpose("");
     setLearningObjectives([""]);
@@ -428,11 +439,11 @@ export default function AdminModulesPage() {
     setTopics(
       out.topics && out.topics.length > 0
         ? out.topics.map(t => ({
-            title: t.title || "",
-            subtopics: t.subtopics && t.subtopics.length > 0 ? t.subtopics : [""],
-            learningActivity: t.learningActivity || "",
-            materials: t.materials || []
-          }))
+          title: t.title || "",
+          subtopics: t.subtopics && t.subtopics.length > 0 ? t.subtopics : [""],
+          learningActivity: t.learningActivity || "",
+          materials: t.materials || []
+        }))
         : [{ title: "", subtopics: [""], learningActivity: "", materials: [] }]
     );
     setExpectedOutcomes(out.expectedOutcomes && out.expectedOutcomes.length > 0 ? out.expectedOutcomes : [""]);
@@ -547,16 +558,16 @@ export default function AdminModulesPage() {
     const moduleTaskPayload =
       moduleTaskTitle.trim() || moduleTaskDescription.trim() || moduleTaskInstructions.trim() || moduleTaskDueDate || moduleTaskDueText.trim() || moduleTaskEvidenceLabel.trim() || moduleTaskRequiresUpload || allowedFileTypes.length > 0
         ? {
-            title: moduleTaskTitle.trim() || undefined,
-            description: moduleTaskDescription.trim() || undefined,
-            instructions: moduleTaskInstructions.trim() || undefined,
-            requiresUpload: moduleTaskRequiresUpload,
-            evidenceLabel: moduleTaskEvidenceLabel.trim() || undefined,
-            allowedFileTypes: allowedFileTypes.length > 0 ? allowedFileTypes : undefined,
-            dueDate: moduleTaskDueDate || undefined,
-            dueText: moduleTaskDueText.trim() || undefined,
-            isRequired: moduleTaskIsRequired
-          }
+          title: moduleTaskTitle.trim() || undefined,
+          description: moduleTaskDescription.trim() || undefined,
+          instructions: moduleTaskInstructions.trim() || undefined,
+          requiresUpload: moduleTaskRequiresUpload,
+          evidenceLabel: moduleTaskEvidenceLabel.trim() || undefined,
+          allowedFileTypes: allowedFileTypes.length > 0 ? allowedFileTypes : undefined,
+          dueDate: moduleTaskDueDate || undefined,
+          dueText: moduleTaskDueText.trim() || undefined,
+          isRequired: moduleTaskIsRequired
+        }
         : undefined;
 
     const payload = {
@@ -646,66 +657,58 @@ export default function AdminModulesPage() {
         <button
           type="button"
           onClick={() => setStatusFilter("all")}
-          className={`py-2 px-1 sm:px-3.5 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1 sm:gap-1.5 transition-all outline-none focus:outline-none select-none cursor-pointer ${
-            statusFilter === "all"
+          className={`py-2 px-1 sm:px-3.5 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1 sm:gap-1.5 transition-all outline-none focus:outline-none select-none cursor-pointer ${statusFilter === "all"
               ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60"
               : "text-slate-500 hover:text-slate-900 hover:bg-white/50 border border-transparent"
-          }`}
+            }`}
         >
           <span>All</span>
-          <span className={`text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-full font-bold transition-colors ${
-            statusFilter === "all" ? "bg-slate-100 text-slate-800" : "bg-slate-200/60 text-slate-500"
-          }`}>
+          <span className={`text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-full font-bold transition-colors ${statusFilter === "all" ? "bg-slate-100 text-slate-800" : "bg-slate-200/60 text-slate-500"
+            }`}>
             {modules.length}
           </span>
         </button>
         <button
           type="button"
           onClick={() => setStatusFilter("draft")}
-          className={`py-2 px-1 sm:px-3.5 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1 sm:gap-1.5 transition-all outline-none focus:outline-none select-none cursor-pointer ${
-            statusFilter === "draft"
+          className={`py-2 px-1 sm:px-3.5 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1 sm:gap-1.5 transition-all outline-none focus:outline-none select-none cursor-pointer ${statusFilter === "draft"
               ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60"
               : "text-slate-500 hover:text-slate-900 hover:bg-white/50 border border-transparent"
-          }`}
+            }`}
         >
           <span>Drafts</span>
-          <span className={`text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-full font-bold transition-colors ${
-            statusFilter === "draft" ? "bg-amber-100 text-amber-800" : "bg-slate-200/60 text-slate-500"
-          }`}>
+          <span className={`text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-full font-bold transition-colors ${statusFilter === "draft" ? "bg-amber-100 text-amber-800" : "bg-slate-200/60 text-slate-500"
+            }`}>
             {modules.filter(m => (m.moduleStatus || m.status || 'published') === 'draft').length}
           </span>
         </button>
         <button
           type="button"
           onClick={() => setStatusFilter("published")}
-          className={`py-2 px-1 sm:px-3.5 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1 sm:gap-1.5 transition-all outline-none focus:outline-none select-none cursor-pointer ${
-            statusFilter === "published"
+          className={`py-2 px-1 sm:px-3.5 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1 sm:gap-1.5 transition-all outline-none focus:outline-none select-none cursor-pointer ${statusFilter === "published"
               ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60"
               : "text-slate-500 hover:text-slate-900 hover:bg-white/50 border border-transparent"
-          }`}
+            }`}
         >
           <span className="hidden min-[400px]:inline">Published</span>
           <span className="min-[400px]:hidden">Live</span>
-          <span className={`text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-full font-bold transition-colors ${
-            statusFilter === "published" ? "bg-emerald-100 text-emerald-800" : "bg-slate-200/60 text-slate-500"
-          }`}>
+          <span className={`text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-full font-bold transition-colors ${statusFilter === "published" ? "bg-emerald-100 text-emerald-800" : "bg-slate-200/60 text-slate-500"
+            }`}>
             {modules.filter(m => (m.moduleStatus || m.status || 'published') === 'published').length}
           </span>
         </button>
         <button
           type="button"
           onClick={() => setStatusFilter("archived")}
-          className={`py-2 px-1 sm:px-3.5 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1 sm:gap-1.5 transition-all outline-none focus:outline-none select-none cursor-pointer ${
-            statusFilter === "archived"
+          className={`py-2 px-1 sm:px-3.5 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1 sm:gap-1.5 transition-all outline-none focus:outline-none select-none cursor-pointer ${statusFilter === "archived"
               ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60"
               : "text-slate-500 hover:text-slate-900 hover:bg-white/50 border border-transparent"
-          }`}
+            }`}
         >
           <span className="hidden min-[400px]:inline">Archived</span>
           <span className="min-[400px]:hidden">Arch.</span>
-          <span className={`text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-full font-bold transition-colors ${
-            statusFilter === "archived" ? "bg-slate-100 text-slate-700" : "bg-slate-200/60 text-slate-500"
-          }`}>
+          <span className={`text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-full font-bold transition-colors ${statusFilter === "archived" ? "bg-slate-100 text-slate-700" : "bg-slate-200/60 text-slate-500"
+            }`}>
             {modules.filter(m => (m.moduleStatus || m.status || 'published') === 'archived').length}
           </span>
         </button>
@@ -1001,10 +1004,10 @@ export default function AdminModulesPage() {
             {/* Modal Header */}
             <div className="bg-[#000666] text-white py-3.5 sm:py-4 px-4 sm:px-6 flex items-center justify-between shrink-0">
               <h3 className="font-bold text-sm sm:text-base flex items-center gap-2 truncate">
-                <HiOutlineAcademicCap className="w-5 h-5 text-[#FF9800] shrink-0" /> 
+                <HiOutlineAcademicCap className="w-5 h-5 text-[#FF9800] shrink-0" />
                 <span className="truncate">{editingModule ? "Edit Module" : "Create Module"}</span>
               </h3>
-              <button 
+              <button
                 type="button"
                 onClick={() => setModalOpen(false)}
                 className="text-white/80 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer outline-none focus:outline-none"
@@ -1019,11 +1022,10 @@ export default function AdminModulesPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab("outline")}
-                className={`py-2 px-2 sm:px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer outline-none focus:outline-none focus:ring-0 select-none ${
-                  activeTab === "outline"
+                className={`py-2 px-2 sm:px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer outline-none focus:outline-none focus:ring-0 select-none ${activeTab === "outline"
                     ? "bg-white text-[#000666] shadow-xs border border-slate-200/80"
                     : "text-slate-500 hover:text-slate-800 hover:bg-white/50 border border-transparent"
-                }`}
+                  }`}
               >
                 <HiOutlineListBullet className={`w-4 h-4 shrink-0 ${activeTab === "outline" ? "text-[#FF9800]" : "text-slate-400"}`} />
                 <div className="text-left sm:text-center min-w-0">
@@ -1035,11 +1037,10 @@ export default function AdminModulesPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab("content")}
-                className={`py-2 px-2 sm:px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer outline-none focus:outline-none focus:ring-0 select-none ${
-                  activeTab === "content"
+                className={`py-2 px-2 sm:px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer outline-none focus:outline-none focus:ring-0 select-none ${activeTab === "content"
                     ? "bg-white text-[#000666] shadow-xs border border-slate-200/80"
                     : "text-slate-500 hover:text-slate-800 hover:bg-white/50 border border-transparent"
-                }`}
+                  }`}
               >
                 <HiOutlineDocumentText className={`w-4 h-4 shrink-0 ${activeTab === "content" ? "text-[#FF9800]" : "text-slate-400"}`} />
                 <div className="text-left sm:text-center min-w-0">
@@ -1058,8 +1059,8 @@ export default function AdminModulesPage() {
                   <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5 block">
                     Module Title / Header *
                   </label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g. Module 1: Foundations of Islamic Economics & Humanitarian Finance"
@@ -1074,8 +1075,8 @@ export default function AdminModulesPage() {
                     <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5 block">
                       Display Sequence Order *
                     </label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       value={order}
                       onChange={(e) => setOrder(Number(e.target.value))}
                       className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs bg-white font-mono font-bold"
@@ -1087,22 +1088,22 @@ export default function AdminModulesPage() {
                     <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5 block">
                       Programme Week
                     </label>
-                    <select 
+                    <select
                       value={weekNumber}
                       onChange={(e) => setWeekNumber(Number(e.target.value))}
                       className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500 text-xs bg-white font-medium text-slate-800"
                     >
-                      <option value={1}>Week 1 — Foundations</option>
-                      <option value={2}>Week 2 — Core Contracts</option>
-                      <option value={3}>Week 3 — Capital Markets</option>
-                      <option value={4}>Week 4 — Governance & Capstone</option>
+                      <option value={1}>Week 1 </option>
+                      <option value={2}>Week 2 </option>
+                      <option value={3}>Week 3 </option>
+                      <option value={4}>Week 4 </option>
                     </select>
                   </div>
                   <div>
                     <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5 block">
                       Module Status
                     </label>
-                    <select 
+                    <select
                       value={moduleStatus}
                       onChange={(e) => setModuleStatus(e.target.value as any)}
                       className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 text-xs bg-white font-bold text-[#000666]"
@@ -1119,7 +1120,7 @@ export default function AdminModulesPage() {
                   <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5 block">
                     Module Purpose &amp; Overview Summary *
                   </label>
-                  <textarea 
+                  <textarea
                     value={description}
                     onChange={(e) => {
                       setDescription(e.target.value);
@@ -1271,11 +1272,10 @@ export default function AdminModulesPage() {
                                 isSelected ? prev.filter(t => t !== type.id) : [...prev, type.id]
                               );
                             }}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer select-none outline-none focus:outline-none ${
-                              isSelected
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer select-none outline-none focus:outline-none ${isSelected
                                 ? "bg-[#000666] text-white shadow-2xs border border-[#000666]"
                                 : "bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-100/60"
-                            }`}
+                              }`}
                           >
                             <span className="text-[11px] font-bold">{isSelected ? "✓" : "+"}</span>
                             <span>{type.label}</span>
@@ -1731,8 +1731,8 @@ export default function AdminModulesPage() {
                       <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
                         Video Embed / Stream URL
                       </label>
-                      <input 
-                        type="url" 
+                      <input
+                        type="url"
                         value={contentUrl}
                         onChange={(e) => setContentUrl(e.target.value)}
                         placeholder="https://youtube.com/embed/..."
@@ -1861,7 +1861,7 @@ export default function AdminModulesPage() {
                           </span>
                         )}
                       </div>
-                      <RichTextEditor 
+                      <RichTextEditor
                         value={body}
                         onChange={(html) => setBody(html)}
                         placeholder="Optional: Write or paste online e-book learning materials, summary notes, or guidance..."
@@ -1944,11 +1944,10 @@ export default function AdminModulesPage() {
                   setBulkPasteTab("append_new");
                   setBulkPasteText("");
                 }}
-                className={`pb-2.5 px-3 font-bold text-xs border-b-2 transition-all flex items-center gap-1.5 ${
-                  bulkPasteTab === "append_new"
+                className={`pb-2.5 px-3 font-bold text-xs border-b-2 transition-all flex items-center gap-1.5 ${bulkPasteTab === "append_new"
                     ? "border-[#FF9800] text-[#000666]"
                     : "border-transparent text-slate-400 hover:text-slate-600"
-                }`}
+                  }`}
               >
                 <span className="flex items-center gap-1"><HiOutlinePlus className="w-3.5 h-3.5" /> Add New (Keep Existing)</span>
                 {bulkPasteConfig.existingItems.filter(i => i && i.trim().length > 0).length > 0 && (
@@ -1964,11 +1963,10 @@ export default function AdminModulesPage() {
                   const clean = bulkPasteConfig.existingItems.filter(i => i && i.trim().length > 0);
                   setBulkPasteText(clean.map((item, idx) => `${idx + 1}. ${item}`).join("\n") + (clean.length > 0 ? "\n" : ""));
                 }}
-                className={`pb-2.5 px-3 font-bold text-xs border-b-2 transition-all flex items-center gap-1.5 ${
-                  bulkPasteTab === "edit_all"
+                className={`pb-2.5 px-3 font-bold text-xs border-b-2 transition-all flex items-center gap-1.5 ${bulkPasteTab === "edit_all"
                     ? "border-[#FF9800] text-[#000666]"
                     : "border-transparent text-slate-400 hover:text-slate-600"
-                }`}
+                  }`}
               >
                 <span className="flex items-center gap-1"><HiOutlinePencilSquare className="w-3.5 h-3.5" /> Full List Raw Editor (Replace/Edit All)</span>
               </button>
@@ -2107,7 +2105,7 @@ export default function AdminModulesPage() {
                   <p className="text-xs text-white/70">Inspect module outline & body before publishing to participants</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => setReviewModule(null)}
                 className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10"
               >
@@ -2191,14 +2189,14 @@ export default function AdminModulesPage() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                       <h4 className="font-bold text-[#000666] text-xs uppercase tracking-wider">Module Task Submissions</h4>
-                      <p className="text-[11px] text-slate-500 mt-1">Review learner evidence and decide whether to approve, reject, or request a resubmission.</p>
+                      <p className="text-[11px] text-slate-500 mt-1">Each participant is shown once — review their latest submission and decide. All prior attempts are available in the history accordion.</p>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="inline-flex items-center px-2 py-1 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold uppercase tracking-wider">
-                        {taskSubmissions.length} total
+                        {taskSubmissions.length} participant{taskSubmissions.length !== 1 ? 's' : ''}
                       </span>
                       <span className="inline-flex items-center px-2 py-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider">
-                        {taskSubmissions.filter((submission) => submission.status === 'pending_review' || submission.status === 'needs_resubmission').length} pending
+                        {taskSubmissions.filter((e) => e.latestSubmission.status === 'pending_review' || e.latestSubmission.status === 'needs_resubmission' || e.latestSubmission.status === 'submitted').length} pending
                       </span>
                     </div>
                   </div>
@@ -2211,44 +2209,54 @@ export default function AdminModulesPage() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 xl:grid-cols-[330px_minmax(0,1fr)] gap-4">
+                      {/* ── Left: Participant Queue ── */}
                       <div className="border border-slate-200 rounded-2xl bg-slate-50/60 overflow-hidden">
                         <div className="px-3 py-3 border-b border-slate-200 bg-white/80">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-bold">Queue</span>
-                            <span className="text-[10px] text-slate-500">{taskSubmissions.filter((submission) => submission.status === 'approved').length} approved</span>
+                            <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-bold">Participants</span>
+                            <span className="text-[10px] text-slate-500">{taskSubmissions.filter((e) => e.latestSubmission.status === 'approved').length} approved</span>
                           </div>
                         </div>
                         <div className="max-h-[420px] overflow-y-auto divide-y divide-slate-200">
-                          {taskSubmissions.map((submission) => {
-                            const isSelected = selectedTaskSubmissionId === submission._id;
-                            const statusTone = submission.status === 'approved'
+                          {taskSubmissions.map((entry) => {
+                            const uid = entry.userId?._id ?? '';
+                            const isSelected = selectedTaskParticipantId === uid;
+                            const s = entry.latestSubmission;
+                            const statusTone = s.status === 'approved'
                               ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                              : submission.status === 'rejected'
+                              : s.status === 'rejected'
                                 ? 'bg-rose-100 text-rose-700 border-rose-200'
-                                : submission.status === 'needs_resubmission'
+                                : s.status === 'needs_resubmission'
                                   ? 'bg-amber-100 text-amber-700 border-amber-200'
                                   : 'bg-sky-100 text-sky-700 border-sky-200';
 
                             return (
                               <button
-                                key={submission._id}
+                                key={uid}
                                 type="button"
-                                onClick={() => setSelectedTaskSubmissionId(submission._id)}
+                                onClick={() => setSelectedTaskParticipantId(uid)}
                                 className={`w-full text-left px-3 py-3 transition-all ${isSelected ? 'bg-white border-l-4 border-[#000666]' : 'hover:bg-white/80'}`}
                               >
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="min-w-0">
                                     <div className="font-bold text-sm text-slate-800 truncate">
-                                      {submission.userId?.fullName || 'Participant'}
+                                      {entry.userId?.fullName || 'Participant'}
                                     </div>
-                                    <div className="text-[11px] text-slate-500 truncate">{submission.userId?.email || 'No email on record'}</div>
+                                    <div className="text-[11px] text-slate-500 truncate">{entry.userId?.email || 'No email on record'}</div>
                                   </div>
-                                  <span className={`text-[9px] font-bold uppercase tracking-[0.12em] px-2 py-1 rounded-full border ${statusTone}`}>
-                                    {submission.status.replace(/_/g, ' ')}
-                                  </span>
+                                  <div className="flex flex-col items-end gap-1 shrink-0">
+                                    <span className={`text-[9px] font-bold uppercase tracking-[0.12em] px-2 py-1 rounded-full border ${statusTone}`}>
+                                      {s.status.replace(/_/g, ' ')}
+                                    </span>
+                                    {entry.totalAttempts > 1 && (
+                                      <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full border border-slate-200">
+                                        {entry.totalAttempts} attempts
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="mt-2 text-[11px] text-slate-500">
-                                  {submission.submittedAt ? new Date(submission.submittedAt).toLocaleString() : 'Unknown time'}
+                                <div className="mt-1.5 text-[11px] text-slate-400">
+                                  Latest: {s.submittedAt ? new Date(s.submittedAt).toLocaleString() : 'Unknown'}
                                 </div>
                               </button>
                             );
@@ -2256,45 +2264,54 @@ export default function AdminModulesPage() {
                         </div>
                       </div>
 
+                      {/* ── Right: Review Detail Panel ── */}
                       <div className="border border-slate-200 rounded-2xl bg-white p-4 shadow-sm min-h-[360px]">
                         {(() => {
-                          const selectedSubmission = taskSubmissions.find((submission) => submission._id === selectedTaskSubmissionId) || taskSubmissions[0];
-                          if (!selectedSubmission) {
-                            return null;
-                          }
+                          const entry = taskSubmissions.find((e) => e.userId?._id === selectedTaskParticipantId) ?? taskSubmissions[0];
+                          if (!entry) return null;
+                          const selectedSubmission = entry.latestSubmission;
 
                           const draft = taskReviewDrafts[selectedSubmission._id] || {
-                            status: 'pending_review',
+                            status: 'pending_review' as const,
                             points: selectedSubmission.pointsAwarded || 0,
                             feedback: selectedSubmission.adminFeedback || '',
                           };
 
                           return (
                             <div className="space-y-4">
+                              {/* Header */}
                               <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-200">
                                 <div>
                                   <div className="font-black text-[#000666] text-base">
-                                    {selectedSubmission.userId?.fullName || 'Participant'}
+                                    {entry.userId?.fullName || 'Participant'}
                                   </div>
-                                  <div className="text-xs text-slate-500">{selectedSubmission.userId?.email || 'No email on record'}</div>
+                                  <div className="text-xs text-slate-500">{entry.userId?.email || 'No email on record'}</div>
                                 </div>
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.18em] border ${
-                                  draft.status === 'approved'
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.18em] border ${draft.status === 'approved'
                                     ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
                                     : draft.status === 'rejected'
                                       ? 'bg-rose-100 text-rose-700 border-rose-200'
                                       : draft.status === 'needs_resubmission'
                                         ? 'bg-amber-100 text-amber-700 border-amber-200'
                                         : 'bg-sky-100 text-sky-700 border-sky-200'
-                                }`}>
-                                  {draft.status.replace(/_/g, ' ')}
-                                </span>
+                                    }`}>
+                                    {draft.status.replace(/_/g, ' ')}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 font-medium">{entry.totalAttempts} attempt{entry.totalAttempts !== 1 ? 's' : ''} total</span>
+                                </div>
                               </div>
 
+                              {/* Latest Submission Files */}
                               <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 space-y-3">
-                                <div className="text-[11px] text-slate-500 uppercase tracking-[0.16em] font-bold">Submission details</div>
+                                <div className="text-[11px] text-slate-500 uppercase tracking-[0.16em] font-bold">Latest Submission</div>
                                 <div className="text-xs text-slate-600">
                                   Submitted: {selectedSubmission.submittedAt ? new Date(selectedSubmission.submittedAt).toLocaleString() : 'Unknown'}
+                                  {selectedSubmission.attemptNumber && (
+                                    <span className="ml-2 bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                                      Attempt #{selectedSubmission.attemptNumber}
+                                    </span>
+                                  )}
                                 </div>
 
                                 {selectedSubmission.files && selectedSubmission.files.length > 0 ? (
@@ -2337,6 +2354,55 @@ export default function AdminModulesPage() {
                                 )}
                               </div>
 
+                              {/* Prior Attempts Accordion */}
+                              {entry.allSubmissions.length > 1 && (
+                                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                                  <button
+                                    type="button"
+                                    onClick={() => setExpandedHistoryId(expandedHistoryId === selectedSubmission._id ? null : selectedSubmission._id)}
+                                    className="w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+                                  >
+                                    <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                                      <span>📋</span> Prior Attempts ({entry.allSubmissions.length - 1})
+                                    </span>
+                                    <span className="text-slate-400 text-xs">{expandedHistoryId === selectedSubmission._id ? '▲ Hide' : '▼ Show'}</span>
+                                  </button>
+                                  {expandedHistoryId === selectedSubmission._id && (
+                                    <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
+                                      {entry.allSubmissions.slice(1).map((prev, idx) => (
+                                        <div key={prev._id} className="px-3.5 py-2.5 bg-white space-y-1">
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-[11px] font-bold text-slate-700">
+                                              Attempt #{prev.attemptNumber ?? (entry.allSubmissions.length - idx - 1)}
+                                            </span>
+                                            <span className="text-[9px] font-bold uppercase text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                              {prev.status.replace(/_/g, ' ')}
+                                            </span>
+                                          </div>
+                                          <div className="text-[11px] text-slate-500">
+                                            {prev.submittedAt ? new Date(prev.submittedAt).toLocaleString() : 'Unknown'}
+                                          </div>
+                                          {(prev.files && prev.files.length > 0) || prev.fileUrl ? (
+                                            <a
+                                              href={prev.files?.[0]?.fileUrl ?? prev.fileUrl ?? '#'}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="text-[11px] text-sky-600 hover:underline font-semibold"
+                                            >
+                                              View file ↗
+                                            </a>
+                                          ) : null}
+                                          {prev.adminFeedback && (
+                                            <div className="text-[11px] text-slate-500 italic">Feedback: "{prev.adminFeedback}"</div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Review Controls */}
                               <div className="space-y-3 pt-1">
                                 <div className="grid grid-cols-2 gap-3">
                                   <div>
@@ -2347,7 +2413,7 @@ export default function AdminModulesPage() {
                                         const newStatus = e.target.value as 'approved' | 'rejected' | 'needs_resubmission' | 'pending_review';
                                         setTaskReviewDrafts(prev => {
                                           const current = prev[selectedSubmission._id] || {
-                                            status: 'pending_review',
+                                            status: 'pending_review' as const,
                                             points: selectedSubmission.pointsAwarded || 0,
                                             feedback: selectedSubmission.adminFeedback || '',
                                           };
@@ -2363,10 +2429,10 @@ export default function AdminModulesPage() {
                                       }}
                                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-100"
                                     >
-                                      <option value="pending_review">Pending review</option>
-                                      <option value="approved">Approved</option>
-                                      <option value="rejected">Rejected</option>
-                                      <option value="needs_resubmission">Needs resubmission</option>
+                                      <option value="pending_review">Keep under review</option>
+                                      <option value="approved">Approved ✓</option>
+                                      <option value="needs_resubmission">Request resubmission</option>
+                                      <option value="rejected">Not accepted</option>
                                     </select>
                                   </div>
 
@@ -2386,7 +2452,7 @@ export default function AdminModulesPage() {
                                 </div>
 
                                 <div>
-                                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">Feedback</label>
+                                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">Feedback to Participant</label>
                                   <textarea
                                     rows={3}
                                     value={draft.feedback}
@@ -2395,7 +2461,7 @@ export default function AdminModulesPage() {
                                       [selectedSubmission._id]: { ...prev[selectedSubmission._id], feedback: e.target.value },
                                     }))}
                                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 resize-none focus:outline-none focus:ring-2 focus:ring-sky-100"
-                                    placeholder="Add comments to send back to the learner"
+                                    placeholder="Add comments or guidance to send back to the participant..."
                                   />
                                 </div>
                               </div>
@@ -2406,7 +2472,7 @@ export default function AdminModulesPage() {
                                   onClick={() => handleTaskReview(selectedSubmission._id)}
                                   className="w-full sm:w-auto px-5 py-2.5 bg-[#000666] hover:bg-[#000666]/90 text-white font-bold text-xs rounded-xl transition-all shadow-xs"
                                 >
-                                  Save review
+                                  Save Review & Notify Participant
                                 </button>
                               </div>
                             </div>
@@ -2418,11 +2484,12 @@ export default function AdminModulesPage() {
                 </div>
               )}
 
+
               {/* Lesson Body Content Preview */}
               {reviewModule.body && (
                 <div>
                   <h4 className="font-bold text-[#000666] text-xs uppercase tracking-wider mb-2">Lesson Material Body Content</h4>
-                  <div 
+                  <div
                     className="prose prose-sm max-w-none bg-slate-50 p-4 rounded-xl border border-slate-200 max-h-60 overflow-y-auto"
                     dangerouslySetInnerHTML={{ __html: reviewModule.body }}
                   />

@@ -285,6 +285,7 @@ export const getModuleTaskSubmissions = async (req: Request, res: Response) => {
 export const getAllModuleTaskSubmissions = async (req: Request, res: Response) => {
     try {
         const moduleId = getRouteParamId(req.params.id);
+        const grouped = req.query.grouped === 'true';
 
         if (!moduleId) {
             res.status(400).json({ message: 'moduleId is required.' });
@@ -295,11 +296,48 @@ export const getAllModuleTaskSubmissions = async (req: Request, res: Response) =
             moduleId: new Types.ObjectId(moduleId),
         }).populate('userId', 'fullName email').sort({ submittedAt: -1 });
 
-        res.json(submissions);
+        if (!grouped) {
+            // Legacy flat list
+            res.json(submissions);
+            return;
+        }
+
+        // Group by userId — one entry per participant, latest submission on top
+        const participantMap = new Map<string, {
+            userId: any;
+            moduleId: Types.ObjectId;
+            latestSubmission: typeof submissions[0];
+            totalAttempts: number;
+            allSubmissions: typeof submissions;
+        }>();
+
+        for (const submission of submissions) {
+            const uid = (submission.userId as any)?._id?.toString() ?? submission.userId?.toString();
+            if (!uid) continue;
+
+            if (!participantMap.has(uid)) {
+                participantMap.set(uid, {
+                    userId: submission.userId,
+                    moduleId: submission.moduleId,
+                    latestSubmission: submission,  // already sorted desc, first is latest
+                    totalAttempts: 1,
+                    allSubmissions: [submission],
+                });
+            } else {
+                const existing = participantMap.get(uid)!;
+                existing.totalAttempts += 1;
+                existing.allSubmissions.push(submission);
+            }
+        }
+
+        const groupedResult = Array.from(participantMap.values());
+
+        res.json(groupedResult);
     } catch (error: any) {
         res.status(500).json({ message: 'Failed to fetch submissions for review.', error: error.message });
     }
 };
+
 
 export const reviewModuleTaskSubmission = async (req: Request, res: Response) => {
     try {

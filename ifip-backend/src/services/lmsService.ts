@@ -42,16 +42,22 @@ export const unlockNextModule = async (
         }
     } else {
         // ── No next module: candidate has completed the full curriculum ──────────
-        // Auto-promote their application to placement_ready so partner orgs can see them.
-        const app = await Application.findOne({ userId: userObjId });
-        if (app && app.status !== 'placement_ready' && app.status !== 'withdrawn') {
-            app.status = 'placement_ready';
-            await app.save();
+        // Only auto-promote to placement_ready after completing Week 4 (or order 4+).
+        // Participants must finish the 4th module before becoming visible to partners.
+        const completedWeek = currentModule.weekNumber ?? currentModule.order;
+        const hasReachedWeek4 = typeof completedWeek === 'number' && completedWeek >= 4;
 
-            notificationEmitter.emit('participant.placement_ready', {
-                userId: userObjId,
-                userFullName: undefined, // resolved inside the listener
-            });
+        if (hasReachedWeek4) {
+            const app = await Application.findOne({ userId: userObjId });
+            if (app && app.status !== 'placement_ready' && app.status !== 'withdrawn') {
+                app.status = 'placement_ready';
+                await app.save();
+
+                notificationEmitter.emit('participant.placement_ready', {
+                    userId: userObjId,
+                    userFullName: undefined, // resolved inside the listener
+                });
+            }
         }
     }
 

@@ -356,6 +356,14 @@ export interface ModuleTaskStatusResponse {
   progressStatus?: string;
 }
 
+export interface GroupedModuleTaskSubmission {
+  userId: { _id?: string; fullName?: string; email?: string };
+  moduleId: string;
+  latestSubmission: ModuleTaskSubmission;
+  totalAttempts: number;
+  allSubmissions: ModuleTaskSubmission[];
+}
+
 export interface MyTaskRewardSummary {
   totalAwardedPoints: number;
   passedModules: number;
@@ -510,8 +518,10 @@ export const getMyTaskRewardSummary = async (): Promise<MyTaskRewardSummary> => 
   return data;
 };
 
-export const getAdminModuleTaskSubmissions = async (moduleId: string): Promise<ModuleTaskSubmission[]> => {
-  const { data } = await authClient.get<ModuleTaskSubmission[]>(`/admin/modules/${moduleId}/task-submissions`);
+export const getAdminModuleTaskSubmissions = async (moduleId: string, grouped = true): Promise<GroupedModuleTaskSubmission[]> => {
+  const { data } = await authClient.get<GroupedModuleTaskSubmission[]>(
+    `/admin/modules/${moduleId}/task-submissions${grouped ? '?grouped=true' : ''}`
+  );
   return data;
 };
 

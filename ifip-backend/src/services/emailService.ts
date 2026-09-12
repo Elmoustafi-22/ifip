@@ -1736,38 +1736,50 @@ export const sendModuleTaskReviewedEmail = async (params: {
         ? `${env.CLIENT_URL}/dashboard/modules/${moduleId}` 
         : `${env.CLIENT_URL}/dashboard/modules`;
 
-    const statusConfig: Record<string, { label: string; bg: string; color: string; border: string; heading: string; subject: string }> = {
+    const statusConfig: Record<string, { label: string; badgeLabel: string; bg: string; color: string; border: string; heading: string; subject: string; bodyParagraph: string; decisionLine: string }> = {
         approved: {
-            label: 'Approved / Passed',
+            label: 'Approved & Accepted',
+            badgeLabel: '✅ Approved',
             bg: '#ECFDF5',
             color: '#065F46',
             border: '#10B981',
             heading: 'Module Task Approved!',
             subject: `Task Approved: ${moduleTitle}${pointsAwarded > 0 ? ` (+${pointsAwarded} pts)` : ''} — IFIP`,
+            bodyParagraph: `Congratulations! Your practical task submission for <strong>${moduleTitle}</strong> has been reviewed and approved by our instructor team.`,
+            decisionLine: 'Your submission has been accepted and points have been awarded.',
         },
         needs_resubmission: {
-            label: 'Needs Resubmission',
+            label: 'Revision Requested',
+            badgeLabel: '📝 Revision Requested',
             bg: '#FFFBEB',
             color: '#92400E',
             border: '#F59E0B',
-            heading: 'Action Required: Task Needs Resubmission',
-            subject: `Action Required: Resubmission Needed for ${moduleTitle} — IFIP`,
+            heading: 'A Little More From You — You\'re Almost There!',
+            subject: `A Little More Needed: ${moduleTitle} — IFIP`,
+            bodyParagraph: `Our team has looked at your submission for <strong>${moduleTitle}</strong> and left some guidance. Please review the feedback below and resubmit when ready — you're on the right track!`,
+            decisionLine: 'Our team has reviewed your work and provided guidance for your next submission.',
         },
         rejected: {
-            label: 'Rejected',
-            bg: '#FEF2F2',
-            color: '#991B1B',
-            border: '#EF4444',
-            heading: 'Module Task Review Update',
-            subject: `Task Review Update: ${moduleTitle} — IFIP`,
+            label: 'Feedback Provided',
+            badgeLabel: '📋 Feedback Available',
+            bg: '#F8FAFC',
+            color: '#334155',
+            border: '#94A3B8',
+            heading: 'Submission Feedback Available',
+            subject: `Submission Feedback: ${moduleTitle} — IFIP`,
+            bodyParagraph: `Our team has reviewed your submission for <strong>${moduleTitle}</strong>. Please see the feedback below. If you have any questions, feel free to reach out to your programme coordinator.`,
+            decisionLine: 'Our team has reviewed your submission and provided feedback.',
         },
         pending_review: {
             label: 'Under Review',
+            badgeLabel: '🔄 Under Review',
             bg: '#F0F9FF',
             color: '#075985',
             border: '#0EA5E9',
-            heading: 'Module Task Under Review',
-            subject: `Task Status Update: ${moduleTitle} — IFIP`,
+            heading: 'Your Submission Is Being Reviewed',
+            subject: `Submission Received — Under Review: ${moduleTitle} — IFIP`,
+            bodyParagraph: `Thank you for submitting your work for <strong>${moduleTitle}</strong>. Our team has received it and will review it shortly. You'll hear from us as soon as a decision is made — hang tight!`,
+            decisionLine: 'Your submission is in the review queue. No action is needed from you right now.',
         },
     };
 
@@ -1785,7 +1797,7 @@ export const sendModuleTaskReviewedEmail = async (params: {
             <div style="${contentContainerStyle}">
                 <div style="text-align: center; margin-bottom: 20px;">
                     <span style="display: inline-block; background-color: ${currentStatus.bg}; color: ${currentStatus.color}; border: 1px solid ${currentStatus.border}; font-size: 12px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; padding: 6px 16px; border-radius: 20px;">
-                        ${currentStatus.label}
+                        ${currentStatus.badgeLabel}
                     </span>
                 </div>
 
@@ -1798,11 +1810,7 @@ export const sendModuleTaskReviewedEmail = async (params: {
                 </p>
 
                 <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 24px 0;">
-                    ${status === 'approved' 
-                        ? `Congratulations! Your practical task submission for <strong>${moduleTitle}</strong> has been evaluated and approved.`
-                        : status === 'needs_resubmission'
-                        ? `Your submission for <strong>${moduleTitle}</strong> has been evaluated by the instructor team. Corrections or additional evidence are required before it can be approved.`
-                        : `Your submission for <strong>${moduleTitle}</strong> has been evaluated by the instructor team.`}
+                    ${currentStatus.bodyParagraph}
                 </p>
 
                 <!-- Review Details Card -->
@@ -1810,7 +1818,8 @@ export const sendModuleTaskReviewedEmail = async (params: {
                     <h3 style="font-size: 15px; font-weight: bold; color: #000666; margin: 0 0 12px 0;">Review Summary</h3>
                     <div style="font-size: 14px; color: #454652; line-height: 1.8;">
                         <div><strong>Module:</strong> ${moduleTitle}</div>
-                        <div><strong>Decision:</strong> <span style="color: ${currentStatus.color}; font-weight: bold;">${currentStatus.label}</span></div>
+                        <div><strong>Status:</strong> <span style="color: ${currentStatus.color}; font-weight: bold;">${currentStatus.label}</span></div>
+                        <div style="font-size: 13px; color: #64748B; margin-top: 4px;">${currentStatus.decisionLine}</div>
                         ${status === 'approved' && pointsAwarded > 0 ? `<div><strong>Points Awarded:</strong> <span style="color: #065F46; font-weight: bold;">+${pointsAwarded} pts</span></div>` : ''}
                     </div>
                 </div>
@@ -1829,7 +1838,13 @@ export const sendModuleTaskReviewedEmail = async (params: {
 
                 ${status === 'needs_resubmission' ? `
                 <div style="background-color: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; font-size: 13px; color: #92400E; line-height: 1.6;">
-                    <strong>Next Steps:</strong> The submission window remains open for you. Please review the feedback above, update your evidence or notes, and re-submit via the module page.
+                    <strong>Next Steps:</strong> The submission window is still open for you. Review the feedback above, update your work, and resubmit via the module page — we look forward to seeing your next version!
+                </div>
+                ` : ''}
+
+                ${status === 'pending_review' ? `
+                <div style="background-color: #F0F9FF; border: 1px solid #BAE6FD; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; font-size: 13px; color: #075985; line-height: 1.6;">
+                    <strong>What happens next?</strong> Our review team will assess your submission and notify you of the outcome. There's nothing more you need to do right now — just keep going with the rest of the curriculum!
                 </div>
                 ` : ''}
 
@@ -1841,7 +1856,7 @@ export const sendModuleTaskReviewedEmail = async (params: {
                 </div>
 
                 <p style="font-size: 13px; color: #767683; line-height: 1.6; text-align: center; margin: 24px 0 0 0;">
-                    Keep up your consistent momentum through the IFIP coursework modules.
+                    Keep up your consistent momentum through the IFIP coursework — every step forward counts!
                 </p>
             </div>
 
