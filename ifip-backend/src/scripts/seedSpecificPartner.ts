@@ -2,6 +2,9 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { User } from '../models/User.js';
 import { PartnerOrganization } from '../models/PartnerOrganization.js';
+import { Notification } from '../models/Notification.js';
+import { PartnerInterest } from '../models/PartnerInterest.js';
+import { Placement } from '../models/Placement.js';
 import { env } from '../config/env.js';
 
 const partnerEmail = 'elmoustafi97@gmail.com';
@@ -73,8 +76,17 @@ const run = async () => {
             console.log(`Updated existing User account for ${partnerEmail} to partner role`);
         }
 
+        // 3. Clear any stale notifications, requests, and placements for this partner user/org
+        const deletedNotifications = await Notification.deleteMany({ userId: partnerUser._id });
+        const deletedInterests = await PartnerInterest.deleteMany({ partnerOrgId: org._id });
+        const deletedPlacements = await Placement.deleteMany({ partnerOrgId: org._id });
+
+        console.log(`Cleared stale notifications: ${deletedNotifications.deletedCount}`);
+        console.log(`Cleared stale partner interests: ${deletedInterests.deletedCount}`);
+        console.log(`Cleared stale placements: ${deletedPlacements.deletedCount}`);
+
         console.log('\n========================================');
-        console.log('✅ PARTNER SEEDED SUCCESSFULLY');
+        console.log('✅ PARTNER SEEDED SUCCESSFULLY (FRESH)');
         console.log('========================================');
         console.log(`Portal URL:  http://localhost:3000/login (or your production URL)`);
         console.log(`Email:       ${partnerEmail}`);

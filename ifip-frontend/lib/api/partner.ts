@@ -93,6 +93,9 @@ export interface PartnerInterestItem {
   _id: string;
   partnerOrgId: string;
   userId: string;
+  role?: string;
+  workType?: "Remote" | "Hybrid" | "On-site";
+  interestArea?: string;
   note?: string;
   status: "pending" | "approved" | "declined";
   adminReason?: string;
@@ -109,6 +112,8 @@ export interface PartnerPlacementItem {
   _id: string;
   userId: string;
   partnerOrgId: string;
+  role?: string;
+  workType?: "Remote" | "Hybrid" | "On-site";
   areaOfInterest?: string;
   status: "matched" | "interviewing" | "placed" | "declined";
   notes?: string;
@@ -167,8 +172,22 @@ export const getInternProfile = async (userId: string): Promise<InternFullProfil
   return data;
 };
 
-export const expressInterest = async (userId: string, note?: string) => {
-  const { data } = await authClient.post("/partners/interests", { userId, note });
+export interface ExpressInterestPayload {
+  role?: string;
+  workType?: "Remote" | "Hybrid" | "On-site";
+  interestArea?: string;
+  note?: string;
+}
+
+export const expressInterest = async (
+  userId: string,
+  payload?: string | ExpressInterestPayload
+) => {
+  const body =
+    typeof payload === "string"
+      ? { userId, note: payload }
+      : { userId, ...(payload || {}) };
+  const { data } = await authClient.post("/partners/interests", body);
   return data;
 };
 
@@ -184,6 +203,19 @@ export const withdrawInterest = async (id: string) => {
 
 export const getMyPlacements = async (): Promise<{ placements: PartnerPlacementItem[] }> => {
   const { data } = await authClient.get<{ placements: PartnerPlacementItem[] }>("/partners/placements");
+  return data;
+};
+
+export const updatePlacementDetails = async (
+  placementId: string,
+  payload: {
+    partnerNotes?: string;
+    interviewScheduledAt?: string;
+    interviewFormat?: "Video" | "Call" | "In-person";
+    partnerOutcome?: "offer_extended" | "not_selected";
+  }
+) => {
+  const { data } = await authClient.patch(`/partners/placements/${placementId}`, payload);
   return data;
 };
 
@@ -214,6 +246,31 @@ export const savePlacementNotes = async (placementId: string, notes: string) => 
   return data;
 };
 
+export const getPartnerNotifications = async (): Promise<{
+  notifications: PartnerNotificationItem[];
+  unreadCount: number;
+}> => {
+  const { data } = await authClient.get("/partners/notifications");
+  return data;
+};
+
+export const markPartnerNotificationRead = async (id: string) => {
+  const { data } = await authClient.patch(`/partners/notifications/${id}/read`);
+  return data;
+};
+
+export const markNotificationRead = markPartnerNotificationRead;
+
+export const markAllPartnerNotificationsRead = async () => {
+  const { data } = await authClient.patch("/partners/notifications/read-all");
+  return data;
+};
+
+export const getPartnerOpenings = async (): Promise<{ openings: PartnerOpening[]; hasOpenings: boolean }> => {
+  const { data } = await authClient.get("/partners/openings");
+  return data;
+};
+
 export const getMyOpenings = async (): Promise<{ openings: PartnerOpening[]; activeSlots: number }> => {
   const { data } = await authClient.get<{ openings: PartnerOpening[]; activeSlots: number }>("/partners/openings");
   return data;
@@ -234,19 +291,16 @@ export const deleteOpening = async (openingId: string) => {
   return data;
 };
 
-export const getPartnerNotifications = async (): Promise<{
-  notifications: PartnerNotificationItem[];
-  unreadCount: number;
-}> => {
-  const { data } = await authClient.get<{
-    notifications: PartnerNotificationItem[];
-    unreadCount: number;
-  }>("/partners/notifications");
+export const updatePartnerOpenings = async (payload: {
+  hasOpenings: boolean;
+  openings: PartnerOpening[];
+}) => {
+  const { data } = await authClient.put("/partners/openings", payload);
   return data;
 };
 
-export const markNotificationRead = async (id: string) => {
-  const { data } = await authClient.patch(`/partners/notifications/${id}/read`);
+export const getPartnerSettings = async () => {
+  const { data } = await authClient.get("/partners/settings");
   return data;
 };
 
@@ -276,9 +330,20 @@ export interface AdminPartnerInterest {
     _id: string;
     name: string;
     logoUrl?: string;
+    description?: string;
+    website?: string;
+    sectorTags?: string[];
+    activeSlots?: number;
     contactPerson?: string;
     contactEmail?: string;
     contactPhone?: string;
+    portalEnabled?: boolean;
+    openings?: Array<{
+      role: string;
+      mode: "Remote" | "Hybrid" | "On-site";
+      location?: string;
+      count: number;
+    }>;
   };
   userId: {
     _id: string;
@@ -286,7 +351,37 @@ export interface AdminPartnerInterest {
     email: string;
     avatarUrl?: string;
     country?: string;
+    phone?: string;
   };
+  application?: {
+    academic?: {
+      institution?: string;
+      fieldOfStudy?: string;
+      qualification?: string;
+      gradYear?: number;
+    };
+    personal?: {
+      country?: string;
+      stateCity?: string;
+      phone?: string;
+      linkedInUrl?: string;
+    };
+    skills?: {
+      tools?: string[];
+      programmingLanguages?: string[];
+    };
+    programInterest?: {
+      primary?: string | string[];
+      secondary?: string;
+      areasOfInterest?: string[];
+    };
+    cvUrl?: string;
+    whyApplying?: string;
+    careerGoals?: string;
+  } | null;
+  role?: string;
+  workType?: "Remote" | "Hybrid" | "On-site";
+  interestArea?: string;
   note?: string;
   status: "pending" | "approved" | "declined";
   adminReason?: string;

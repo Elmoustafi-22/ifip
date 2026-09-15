@@ -119,20 +119,40 @@ export default function MyRequestsPage() {
               className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm hover:shadow-md transition-shadow"
             >
               {/* Left Info */}
-              <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 rounded-full bg-slate-800 text-emerald-400 font-bold text-sm flex items-center justify-center border border-slate-700 shrink-0">
+              <div className="flex items-start space-x-4">
+                <div className="w-10 h-10 rounded-full bg-slate-800 text-emerald-400 font-bold text-sm flex items-center justify-center border border-slate-700 shrink-0 mt-0.5">
                   {req.intern?.fullName?.charAt(0) || "C"}
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
                     <span>{req.intern?.fullName || "Candidate"}</span>
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                    Submitted: {new Date(req.requestedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                  
+                  {/* Role, Work Mode, Domain badges */}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    {req.role && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        Role: {req.role}
+                      </span>
+                    )}
+                    {req.workType && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                        {req.workType}
+                      </span>
+                    )}
+                    {req.interestArea && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-teal-50 text-teal-800 border border-teal-200">
+                        {req.interestArea}
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-slate-500 mt-1.5 font-medium">
+                    Submitted on: {new Date(req.requestedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                   </p>
                   {req.note && (
-                    <p className="text-xs text-slate-700 italic mt-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
-                      &quot;{req.note}&quot;
+                    <p className="text-xs text-slate-700 mt-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
+                      <strong>Note:</strong> &quot;{req.note}&quot;
                     </p>
                   )}
                   {req.status === "declined" && req.adminReason && (

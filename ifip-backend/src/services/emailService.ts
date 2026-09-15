@@ -1135,9 +1135,12 @@ export const sendPartnerPortalInvite = async (
 };
 
 export const sendInterestExpressedAlert = async (
-    opsEmail: string,
+    recipientEmail: string,
     orgName: string,
     internName: string,
+    role?: string,
+    workType?: string,
+    interestArea?: string,
     note?: string
 ) => {
     const html = `
@@ -1147,20 +1150,29 @@ export const sendInterestExpressedAlert = async (
                 <img src="${LOGO_WHITE_WORDMARK_URL}" style="height: 40px; width: auto; display: block; margin: 0 auto;" alt="IFIP">
             </div>
             <div style="${partnerContentStyle}">
-                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">New Interest Request</h1>
+                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">New Partner Placement Request</h1>
                 <p style="font-size: 15px; color: #475569; line-height: 1.7; margin: 0 0 16px 0;">
-                    <strong>${orgName}</strong> has expressed interest in intern <strong>${internName}</strong>.
+                    <strong>${orgName}</strong> has submitted an interest request for candidate <strong>${internName}</strong>.
                 </p>
-                ${note ? `<div style="background:#f1f5f9; border-left: 4px solid #0d9373; padding: 14px 16px; border-radius: 6px; margin-bottom: 16px;"><p style="margin:0; font-size:14px; color:#334155;"><em>"${note}"</em></p></div>` : ''}
-                <p style="font-size: 14px; color: #64748b;">Please review this request in the admin panel.</p>
-                <a href="${env.CLIENT_URL}/admin/partner-interests" style="${partnerBtnStyle}">Review Request</a>
+
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 0 0 18px 0;">
+                    ${role ? `<div style="margin-bottom: 8px;"><span style="font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase;">Proposed Role:</span> <strong style="font-size: 14px; color: #0f172a; margin-left: 6px;">${role}</strong></div>` : ''}
+                    ${workType ? `<div style="margin-bottom: 8px;"><span style="font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase;">Working Mode:</span> <span style="display: inline-block; font-size: 12px; font-weight: 600; color: #0f172a; background: #e2e8f0; padding: 2px 8px; border-radius: 6px; margin-left: 6px;">${workType}</span></div>` : ''}
+                    ${interestArea ? `<div style="margin-bottom: 8px;"><span style="font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase;">Domain:</span> <strong style="font-size: 13px; color: #0d9373; margin-left: 6px;">${interestArea}</strong></div>` : ''}
+                    ${note ? `<div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1;"><span style="font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 4px;">Partner Note:</span><p style="margin: 0; font-size: 13px; color: #334155; font-style: italic;">"${note}"</p></div>` : ''}
+                </div>
+
+                <p style="font-size: 14px; color: #64748b; margin-bottom: 20px;">
+                    Please log into the Admin Portal to review, approve, or decline this request.
+                </p>
+                <a href="${env.CLIENT_URL}/admin/partner-interests" style="${partnerBtnStyle}">Review Request in Admin Portal</a>
             </div>
             <div style="${partnerFooterStyle}">
-                <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026</p>
+                <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026 — Islamic Finance Internship Preparatory & Placement Program</p>
             </div>
         </div>
     </div>`;
-    await send(opsEmail, `Interest Request: ${orgName} — ${internName}`, html);
+    await send(recipientEmail, `New Placement Request: ${orgName} ➔ ${internName}`, html);
 };
 
 export const sendInterestApprovedToPartner = async (

@@ -698,18 +698,47 @@ notificationEmitter.on('assessment.attempts_reset', async ({ userId, assessment 
  * Fired when a partner submits an interest request.
  * Notifies all admins/superadmins in-app and sends an ops email alert.
  */
-notificationEmitter.on('partner.interest_expressed', async ({ opsEmail, orgName, internName, note }) => {
+notificationEmitter.on('partner.interest_expressed', async ({
+    opsEmail,
+    orgName,
+    internName,
+    role,
+    workType,
+    interestArea,
+    note,
+}) => {
     try {
         const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } });
         const notifications = admins.map(admin => ({
             userId: admin._id,
-            title: 'New Partner Interest Request',
-            message: `${orgName} has expressed interest in intern ${internName}.`,
+            title: 'New Partner Placement Request',
+            message: `${orgName} has requested candidate ${internName}${role ? ` for ${role}` : ''}.`,
             type: 'info' as const,
             link: '/admin/partner-interests',
         }));
         if (notifications.length > 0) await Notification.insertMany(notifications);
-        if (opsEmail) await sendInterestExpressedAlert(opsEmail, orgName, internName, note);
+
+        // Fetch all Superadmins to receive direct email alerts
+        const superadmins = await User.find({ role: 'superadmin' }).select('email fullName').lean();
+        const recipientEmails = new Set<string>();
+
+        for (const sa of superadmins) {
+            if (sa.email && sa.email.trim().length > 0) {
+                recipientEmails.add(sa.email.toLowerCase().trim());
+            }
+        }
+        if (opsEmail && opsEmail.trim().length > 0) {
+            recipientEmails.add(opsEmail.toLowerCase().trim());
+        }
+
+        // Dispatch email alerts to each superadmin
+        for (const email of recipientEmails) {
+            try {
+                await sendInterestExpressedAlert(email, orgName, internName, role, workType, interestArea, note);
+            } catch (emailErr) {
+                console.error(`[Event:partner.interest_expressed] Failed sending email to ${email}:`, emailErr);
+            }
+        }
     } catch (err) {
         console.error('[Event:partner.interest_expressed] Error:', err);
     }

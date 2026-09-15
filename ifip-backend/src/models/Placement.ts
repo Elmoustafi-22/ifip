@@ -3,6 +3,8 @@ import { Schema, model, Document, Types } from 'mongoose';
 export interface IPlacement extends Document {
     userId: Types.ObjectId;
     partnerOrgId: Types.ObjectId;
+    role?: string;
+    workType?: 'Remote' | 'Hybrid' | 'On-site';
     areaOfInterest?: string;
     status: 'matched' | 'interviewing' | 'placed' | 'declined';
     notes?: string;
@@ -17,6 +19,8 @@ export interface IPlacement extends Document {
 const placementSchema = new Schema<IPlacement>({
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     partnerOrgId: { type: Schema.Types.ObjectId, ref: 'PartnerOrganization', required: true },
+    role: { type: String },
+    workType: { type: String, enum: ['Remote', 'Hybrid', 'On-site'] },
     areaOfInterest: { type: String },
     status: {
         type: String,

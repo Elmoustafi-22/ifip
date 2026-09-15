@@ -3,6 +3,7 @@ import { PartnerApplication } from '../models/PartnerApplication.js';
 import { PartnerOrganization } from '../models/PartnerOrganization.js';
 import { PartnerInterest } from '../models/PartnerInterest.js';
 import { Placement } from '../models/Placement.js';
+import { Application } from '../models/Application.js';
 import { User } from '../models/User.js';
 import { Notification } from '../models/Notification.js';
 import { Types } from 'mongoose';
@@ -497,12 +498,27 @@ export const getAdminPartnerInterests = async (req: Request, res: Response) => {
         }
 
         const interests = await PartnerInterest.find(filter)
-            .populate('partnerOrgId', 'name logoUrl contactPerson contactEmail contactPhone')
-            .populate('userId', 'fullName email avatarUrl country')
+            .populate('partnerOrgId')
+            .populate('userId', 'fullName email avatarUrl country phone')
             .sort({ requestedAt: -1 })
             .lean();
 
-        res.json(interests);
+        // Enrich with candidate application data (academic background, CV, interests)
+        const userIds = interests.map((i: any) => i.userId?._id).filter(Boolean);
+        const applications = await Application.find({ userId: { $in: userIds } })
+            .select('userId academic personal skills programInterest cvUrl whyApplying careerGoals')
+            .lean();
+        const appMap = new Map<string, any>();
+        for (const app of applications) {
+            appMap.set(app.userId.toString(), app);
+        }
+
+        const enriched = interests.map((item: any) => ({
+            ...item,
+            application: item.userId?._id ? appMap.get(item.userId._id.toString()) || null : null,
+        }));
+
+        res.json(enriched);
     } catch (err: any) {
         res.status(500).json({ message: 'Error retrieving partner interest requests.', error: err.message });
     }
@@ -553,11 +569,17 @@ export const approvePartnerInterest = async (req: Request, res: Response) => {
             placement = await Placement.create({
                 userId: interest.userId,
                 partnerOrgId: interest.partnerOrgId,
+                role: interest.role,
+                workType: interest.workType,
+                areaOfInterest: interest.interestArea,
                 status: 'matched',
                 notes: interest.note ? `Partner note: ${interest.note}` : undefined,
             });
         } else {
             placement.status = 'matched';
+            if (interest.role) placement.role = interest.role;
+            if (interest.workType) placement.workType = interest.workType;
+            if (interest.interestArea) placement.areaOfInterest = interest.interestArea;
             await placement.save();
         }
 

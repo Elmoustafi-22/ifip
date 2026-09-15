@@ -409,7 +409,7 @@ export const expressInterest = async (req: Request, res: Response) => {
         const org = await getPartnerOrg(req, res);
         if (!org) return;
 
-        const { userId, note } = req.body;
+        const { userId, role, workType, interestArea, note } = req.body;
         if (!userId) {
             res.status(400).json({ message: 'userId is required.' });
             return;
@@ -445,6 +445,9 @@ export const expressInterest = async (req: Request, res: Response) => {
         const interest = await PartnerInterest.create({
             partnerOrgId: org._id,
             userId,
+            role: role || undefined,
+            workType: workType || undefined,
+            interestArea: interestArea || undefined,
             note: note || undefined,
             status: 'pending',
             requestedAt: new Date(),
@@ -455,6 +458,9 @@ export const expressInterest = async (req: Request, res: Response) => {
             opsEmail: env.OPS_EMAIL || env.EMAIL_REPLY_TO,
             orgName: org.name,
             internName: intern?.fullName || 'Intern',
+            role,
+            workType,
+            interestArea,
             note,
         });
 

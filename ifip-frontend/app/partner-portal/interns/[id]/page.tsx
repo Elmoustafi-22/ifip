@@ -22,14 +22,23 @@ import {
   HiOutlineUserCircle,
   HiOutlineXMark,
 } from "react-icons/hi2";
-import { getInternProfile, expressInterest, InternFullProfile } from "@/lib/api/partner";
+import { getInternProfile, expressInterest, getPartnerMe, InternFullProfile, PartnerOpening } from "@/lib/api/partner";
+import { useFormOptions } from "@/lib/hooks/useFormOptions";
 
 export default function InternProfileDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: userId } = use(params);
   const router = useRouter();
+  const { options: interestOptions } = useFormOptions("placement_interests");
 
   const [profile, setProfile] = useState<InternFullProfile | null>(null);
+  const [partnerOpenings, setPartnerOpenings] = useState<PartnerOpening[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Request form state
+  const [selectedRole, setSelectedRole] = useState("");
+  const [customRole, setCustomRole] = useState("");
+  const [workType, setWorkType] = useState<"Remote" | "Hybrid" | "On-site">("Hybrid");
+  const [interestArea, setInterestArea] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -37,18 +46,41 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
   const [showNoteModal, setShowNoteModal] = useState(false);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchData = async () => {
       try {
-        const data = await getInternProfile(userId);
-        setProfile(data);
+        const [profData, meData] = await Promise.all([
+          getInternProfile(userId),
+          getPartnerMe().catch(() => null),
+        ]);
+        setProfile(profData);
+        if (meData?.org?.openings) {
+          setPartnerOpenings(meData.org.openings);
+          if (meData.org.openings.length > 0) {
+            setSelectedRole(meData.org.openings[0].role);
+            if (meData.org.openings[0].mode) {
+              setWorkType(meData.org.openings[0].mode);
+            }
+          }
+        }
+        if (profData?.programInterests?.[0]) {
+          setInterestArea(profData.programInterests[0]);
+        }
       } catch (err: any) {
         console.error("Failed to load intern profile:", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchProfile();
+    fetchData();
   }, [userId]);
+
+  const handleOpeningChange = (val: string) => {
+    setSelectedRole(val);
+    const matched = partnerOpenings.find((o) => o.role === val);
+    if (matched && matched.mode) {
+      setWorkType(matched.mode);
+    }
+  };
 
   const handleExpressInterest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,8 +88,15 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
     setErrorMsg("");
     setSuccessMsg("");
 
+    const finalRole = selectedRole === "custom" || !selectedRole ? customRole : selectedRole;
+
     try {
-      await expressInterest(userId, note);
+      await expressInterest(userId, {
+        role: finalRole || undefined,
+        workType,
+        interestArea: interestArea || undefined,
+        note: note || undefined,
+      });
       setSuccessMsg("Interest request submitted successfully! IFIP admissions will review your request.");
       setShowNoteModal(false);
       // Refresh profile
@@ -436,51 +475,151 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
-      {/* Note Modal for Expressing Interest */}
+      {/* Modal for Expressing Interest */}
       {showNoteModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
                 <HiOutlinePaperAirplane className="w-5 h-5 text-emerald-600" />
-                <span>Express Interest in {profile.fullName}</span>
+                <span>Request Candidate: {profile.fullName}</span>
               </h2>
-              <button onClick={() => setShowNoteModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowNoteModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <HiOutlineXMark className="w-5 h-5" />
               </button>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Submit your request to IFIP admissions. You may include an optional note explaining why this candidate fits your organization&apos;s opening.
+              Specify the role, working arrangement, and area of interest you are requesting this candidate for. IFIP admissions will review and confirm the match.
             </p>
 
-            <form onSubmit={handleExpressInterest} className="space-y-4">
+            <form onSubmit={handleExpressInterest} className="space-y-4 pt-1">
+              {/* Role Selection */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Optional Note for IFIP Admin
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Proposed Role / Position <span className="text-rose-500">*</span>
+                </label>
+                {partnerOpenings.length > 0 ? (
+                  <div className="space-y-2">
+                    <select
+                      value={selectedRole}
+                      onChange={(e) => handleOpeningChange(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-emerald-600 focus:bg-white transition-colors cursor-pointer"
+                    >
+                      {partnerOpenings.map((op, idx) => (
+                        <option key={idx} value={op.role}>
+                          {op.role} ({op.mode}{op.location ? ` • ${op.location}` : ""})
+                        </option>
+                      ))}
+                      <option value="custom">+ Other / Custom Role...</option>
+                    </select>
+                    {selectedRole === "custom" && (
+                      <input
+                        type="text"
+                        placeholder="Type custom role title..."
+                        value={customRole}
+                        onChange={(e) => setCustomRole(e.target.value)}
+                        required
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-600 focus:bg-white"
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="e.g. Islamic Finance Analyst, Sukuk Structuring Intern..."
+                    value={customRole}
+                    onChange={(e) => setCustomRole(e.target.value)}
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-600 focus:bg-white"
+                  />
+                )}
+              </div>
+
+              {/* Working Arrangement / Mode */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Working Arrangement / Mode <span className="text-rose-500">*</span>
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["Hybrid", "Remote", "On-site"] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setWorkType(m)}
+                      className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer ${
+                        workType === m
+                          ? "bg-emerald-50 text-emerald-800 border-emerald-500 shadow-xs"
+                          : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Interest / Specialization Area */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Department / Interest Domain
+                </label>
+                <select
+                  value={interestArea}
+                  onChange={(e) => setInterestArea(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-emerald-600 focus:bg-white transition-colors cursor-pointer"
+                >
+                  <option value="">Select Domain...</option>
+                  {interestOptions && interestOptions.length > 0 ? (
+                    interestOptions
+                      .filter((o) => o.label && o.label.toLowerCase() !== "other (specify)")
+                      .map((o) => (
+                        <option key={o.value || o.label} value={o.label}>
+                          {o.label}
+                        </option>
+                      ))
+                  ) : (
+                    <>
+                      <option value="Islamic Banking & Finance">Islamic Banking & Finance</option>
+                      <option value="Sukuk & Capital Markets">Sukuk & Capital Markets</option>
+                      <option value="Takaful & Islamic Insurance">Takaful & Islamic Insurance</option>
+                      <option value="FinTech & Digital Transformation">FinTech & Digital Transformation</option>
+                      <option value="Shariah Governance & Compliance">Shariah Governance & Compliance</option>
+                      <option value="Wealth & Asset Management">Wealth & Asset Management</option>
+                      <option value="ESG & Sustainable Finance">ESG & Sustainable Finance</option>
+                      <option value="Financial Analysis & Research">Financial Analysis & Research</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              {/* Note / Message */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Optional Note / Message for IFIP Admissions
                 </label>
                 <textarea
-                  rows={4}
-                  placeholder="e.g., Fits our Sukuk structuring opening for Q3..."
+                  rows={3}
+                  placeholder="e.g., Fits our Q3 Sukuk desk expansion or specific placement timing..."
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white"
                 />
               </div>
 
-              <div className="flex items-center justify-end space-x-3 pt-2">
+              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowNoteModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100"
+                  className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-colors disabled:opacity-50 cursor-pointer"
                 >
-                  {submitting ? "Submitting..." : "Confirm & Send Request"}
+                  {submitting ? "Submitting Request..." : "Confirm & Send Request"}
                 </button>
               </div>
             </form>

@@ -3,7 +3,10 @@ import { Schema, model, Document, Types } from 'mongoose';
 export interface IPartnerInterest extends Document {
     partnerOrgId: Types.ObjectId;
     userId: Types.ObjectId;       // the intern being requested
-    note?: string;                // partner's optional reason for selection
+    role?: string;                // proposed role / position title
+    workType?: 'Remote' | 'Hybrid' | 'On-site';
+    interestArea?: string;        // target interest domain
+    note?: string;                // partner's optional reason / message for selection
     status: 'pending' | 'approved' | 'declined';
     adminReason?: string;         // admin note if declined
     requestedAt: Date;
@@ -13,6 +16,9 @@ export interface IPartnerInterest extends Document {
 const partnerInterestSchema = new Schema<IPartnerInterest>({
     partnerOrgId: { type: Schema.Types.ObjectId, ref: 'PartnerOrganization', required: true },
     userId:       { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    role:         { type: String },
+    workType:     { type: String, enum: ['Remote', 'Hybrid', 'On-site'] },
+    interestArea: { type: String },
     note:         { type: String },
     status:       { type: String, enum: ['pending', 'approved', 'declined'], default: 'pending', required: true },
     adminReason:  { type: String },
