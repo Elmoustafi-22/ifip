@@ -17,8 +17,10 @@ import {
   HiOutlineBuildingOffice2,
 } from "react-icons/hi2";
 import { getInternPool, InternSummary } from "@/lib/api/partner";
+import { useFormOptions } from "@/lib/hooks/useFormOptions";
 
 export default function InternPoolPage() {
+  const { options: interestOptions } = useFormOptions("placement_interests");
   const [interns, setInterns] = useState<InternSummary[]>([]);
   const [partnerSectors, setPartnerSectors] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,13 +110,26 @@ export default function InternPoolPage() {
           >
             <option value="">Relevant to My Organisation</option>
             <option value="all">All Candidates</option>
-            <option value="Islamic Banking">Islamic Banking</option>
-            <option value="Islamic Capital Markets">Islamic Capital Markets</option>
-            <option value="Sukuk Structuring">Sukuk Structuring</option>
-            <option value="FinTech">FinTech & Takaful</option>
-            <option value="Shariah Governance">Shariah Governance</option>
-            <option value="Wealth Management">Wealth Management</option>
-            <option value="ESG">ESG & Sustainable Finance</option>
+            {interestOptions && interestOptions.length > 0 ? (
+              interestOptions
+                .filter((opt) => opt.label && opt.label.toLowerCase() !== "other (specify)")
+                .map((opt) => (
+                  <option key={opt.value || opt.label} value={opt.label}>
+                    {opt.label}
+                  </option>
+                ))
+            ) : (
+              <>
+                <option value="Islamic Banking & Finance">Islamic Banking & Finance</option>
+                <option value="Sukuk & Capital Markets">Sukuk & Capital Markets</option>
+                <option value="Takaful & Islamic Insurance">Takaful & Islamic Insurance</option>
+                <option value="FinTech & Digital Transformation">FinTech & Digital Transformation</option>
+                <option value="Shariah Governance & Compliance">Shariah Governance & Compliance</option>
+                <option value="Wealth & Asset Management">Wealth & Asset Management</option>
+                <option value="ESG & Sustainable Finance">ESG & Sustainable Finance</option>
+                <option value="Financial Analysis & Research">Financial Analysis & Research</option>
+              </>
+            )}
           </select>
 
           {/* Assessment Filter */}

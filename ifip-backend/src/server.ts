@@ -1,7 +1,6 @@
 import app from './app.js';
 import { connectDB } from './config/db.js';
 import { env } from './config/env.js';
-import { schedulePurgeJob } from './jobs/purgeOphanedCvs.js';
 import { connectRedis } from './services/redisService.js';
 import { PartnerOrganization } from './models/PartnerOrganization.js';
 
@@ -20,5 +19,4 @@ Promise.all([connectDB(), connectRedis()]).then(async () => {
     }
 
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-    schedulePurgeJob();
 });

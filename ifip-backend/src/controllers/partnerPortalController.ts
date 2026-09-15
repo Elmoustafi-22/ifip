@@ -93,6 +93,63 @@ const extractInterests = (app: any): string[] => {
     return Array.from(new Set(raw.filter((i): i is string => typeof i === 'string' && i.trim().length > 0)));
 };
 
+const normalizeText = (text: string): string =>
+    text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+/** Smart interest matching supporting partial keywords, tokens, and domain synonyms */
+export const isInterestMatchFilter = (candidateInterests: string[], filter: string): boolean => {
+    const cleanFilter = normalizeText(filter);
+    if (!cleanFilter || cleanFilter === 'all') return true;
+
+    const stopWords = new Set(['and', 'the', 'for', 'with', 'other', 'specify', 'all', 'operations']);
+    const filterTokens = cleanFilter.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+
+    return candidateInterests.some(ci => {
+        const cleanCi = normalizeText(ci);
+        if (cleanCi.includes(cleanFilter) || cleanFilter.includes(cleanCi)) {
+            return true;
+        }
+
+        const ciTokens = cleanCi.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+        const hasTokenOverlap = filterTokens.some(ft =>
+            ciTokens.some(ct => ct.includes(ft) || ft.includes(ct))
+        );
+        if (hasTokenOverlap) return true;
+
+        // Domain clusters
+        if (
+            (cleanFilter.includes('sukuk') || cleanFilter.includes('capital market')) &&
+            (cleanCi.includes('sukuk') || cleanCi.includes('capital market') || cleanCi.includes('structured finance'))
+        ) return true;
+
+        if (
+            (cleanFilter.includes('fintech') || cleanFilter.includes('takaful')) &&
+            (cleanCi.includes('fintech') || cleanCi.includes('takaful'))
+        ) return true;
+
+        if (
+            (cleanFilter.includes('governance') || cleanFilter.includes('compliance') || cleanFilter.includes('shariah')) &&
+            (cleanCi.includes('governance') || cleanCi.includes('compliance') || cleanCi.includes('shariah') || cleanCi.includes('advisory'))
+        ) return true;
+
+        if (
+            (cleanFilter.includes('wealth') || cleanFilter.includes('asset') || cleanFilter.includes('investment')) &&
+            (cleanCi.includes('wealth') || cleanCi.includes('asset') || cleanCi.includes('investment'))
+        ) return true;
+
+        if (
+            cleanFilter.includes('banking') && cleanCi.includes('banking')
+        ) return true;
+
+        if (
+            (cleanFilter.includes('esg') || cleanFilter.includes('sustainable') || cleanFilter.includes('impact')) &&
+            (cleanCi.includes('esg') || cleanCi.includes('sustainable') || cleanCi.includes('impact'))
+        ) return true;
+
+        return false;
+    });
+};
+
 // ─── GET /api/v1/partner/interns ──────────────────────────────────────────────
 // Returns placement-ready interns. Automatically matches & filters based on partner sector interests.
 export const getInternPool = async (req: Request, res: Response) => {
@@ -209,11 +266,7 @@ export const getInternPool = async (req: Request, res: Response) => {
             if (selectedInterest.toLowerCase() === 'matched') {
                 pool = pool.filter(p => p.isInterestMatch);
             } else {
-                const filterLower = selectedInterest.toLowerCase();
-                pool = pool.filter(p =>
-                    p.programInterests.some((pi: string) => pi.toLowerCase().includes(filterLower)) ||
-                    p.matchedInterests.some((mi: string) => mi.toLowerCase().includes(filterLower))
-                );
+                pool = pool.filter(p => isInterestMatchFilter(p.programInterests, selectedInterest));
             }
         } else if (!selectedInterest) {
             // Default view: filter to candidates whose interests match partner org
