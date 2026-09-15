@@ -444,9 +444,9 @@ export const deletePartnerOrg = async (req: Request, res: Response) => {
         }
 
         // Clean up linked partner user login accounts
-        await User.deleteMany({ orgId: new Types.ObjectId(id) });
+        await User.deleteMany({ orgId: new Types.ObjectId(id as string) });
         // Clean up partner interests & placement records associated with this org
-        await PartnerInterest.deleteMany({ partnerOrgId: new Types.ObjectId(id) });
+        await PartnerInterest.deleteMany({ partnerOrgId: new Types.ObjectId(id as string) });
 
         await updateContentVersion('partners');
         res.json({ message: 'Partner organization and associated login accounts deleted.' });

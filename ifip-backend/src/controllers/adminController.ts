@@ -2192,7 +2192,7 @@ export const deleteAdminUser = async (req: Request, res: Response) => {
             return;
         }
 
-        const targetUserObjId = new Types.ObjectId(id);
+        const targetUserObjId = new Types.ObjectId(id as string);
 
         // Clean up linked Application and progression records
         await Application.deleteMany({ userId: targetUserObjId });
@@ -2206,7 +2206,7 @@ export const deleteAdminUser = async (req: Request, res: Response) => {
 
         logRawAction({
             userId: req.user!.id,
-            userEmail: req.user!.email,
+            userEmail: (req.user as any)?.email || 'admin',
             userRole: req.user!.role,
             action: 'USER_DELETED',
             description: `Admin deleted user ${user.fullName || user.email} (${user.email}, role: ${user.role}).`,
