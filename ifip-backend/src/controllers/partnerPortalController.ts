@@ -173,21 +173,28 @@ export const getInternPool = async (req: Request, res: Response) => {
             return userId && app.userId?.email && !finallyPlacedSet.has(userId);
         });
 
-        // Filter by skills text search
-        if (skills) {
-            const skillQuery = (skills as string).toLowerCase();
-            applications = applications.filter((app: any) =>
-                app.skills?.tools?.some((t: string) => t.toLowerCase().includes(skillQuery)) ||
-                app.skills?.programmingLanguages?.some((l: string) => l.toLowerCase().includes(skillQuery))
-            );
-        }
-
-        // Full-name search
+        // Search filter (matches name, academic background, country, interests, and skills)
         if (search) {
-            const searchLower = (search as string).toLowerCase();
-            applications = applications.filter((app: any) =>
-                ((app.userId as any)?.fullName || '').toLowerCase().includes(searchLower)
-            );
+            const searchLower = (search as string).toLowerCase().trim();
+            applications = applications.filter((app: any) => {
+                const name = ((app.userId as any)?.fullName || '').toLowerCase();
+                const institution = (app.academic?.institution || '').toLowerCase();
+                const field = (app.academic?.fieldOfStudy || '').toLowerCase();
+                const country = (app.personal?.country || '').toLowerCase();
+                const interests: string[] = extractInterests(app).map((i: string) => i.toLowerCase());
+                const tools: string[] = (app.skills?.tools || []).map((t: string) => (t || '').toLowerCase());
+                const langs: string[] = (app.skills?.programmingLanguages || []).map((l: string) => (l || '').toLowerCase());
+
+                return (
+                    name.includes(searchLower) ||
+                    institution.includes(searchLower) ||
+                    field.includes(searchLower) ||
+                    country.includes(searchLower) ||
+                    interests.some((i: string) => i.includes(searchLower)) ||
+                    tools.some((t: string) => t.includes(searchLower)) ||
+                    langs.some((l: string) => l.includes(searchLower))
+                );
+            });
         }
 
         // Enrich with assessment submission data

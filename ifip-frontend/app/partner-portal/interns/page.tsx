@@ -25,7 +25,6 @@ export default function InternPoolPage() {
   const [partnerSectors, setPartnerSectors] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [skillsQuery, setSkillsQuery] = useState("");
   const [selectedInterest, setSelectedInterest] = useState("");
   const [selectedAssessment, setSelectedAssessment] = useState("");
   const [sort, setSort] = useState("name");
@@ -36,7 +35,6 @@ export default function InternPoolPage() {
       try {
         const res = await getInternPool({
           search: search || undefined,
-          skills: skillsQuery || undefined,
           interest: selectedInterest || undefined,
           assessment: selectedAssessment || undefined,
           sort,
@@ -54,7 +52,7 @@ export default function InternPoolPage() {
 
     const timer = setTimeout(fetchPool, 300);
     return () => clearTimeout(timer);
-  }, [search, skillsQuery, selectedInterest, selectedAssessment, sort]);
+  }, [search, selectedInterest, selectedAssessment, sort]);
 
   return (
     <div className="space-y-6">
@@ -77,27 +75,15 @@ export default function InternPoolPage() {
 
       {/* Filters & Search Toolbar */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          {/* Name Search */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Candidate Search */}
           <div className="relative">
             <HiOutlineMagnifyingGlass className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
             <input
               type="text"
-              placeholder="Search candidate name..."
+              placeholder="Search candidate name, field, or keywords..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white transition-colors"
-            />
-          </div>
-
-          {/* Skills Filter */}
-          <div className="relative">
-            <HiOutlineTag className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-            <input
-              type="text"
-              placeholder="Filter by skill / tool..."
-              value={skillsQuery}
-              onChange={(e) => setSkillsQuery(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white transition-colors"
             />
           </div>
