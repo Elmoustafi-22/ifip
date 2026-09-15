@@ -92,7 +92,7 @@ export default function ModuleOutlinePage({ params }: { params: Promise<{ id: st
     : "";
 
   return (
-    <div className="max-w-4xl w-full mx-auto py-2 sm:py-8 px-2 sm:px-6 lg:px-8 font-sans min-w-0 max-w-full overflow-hidden">
+    <div className="max-w-4xl w-full mx-auto py-2 sm:py-8 px-2 sm:px-6 lg:px-8 font-sans min-w-0 max-w-full">
       {/* Top Breadcrumb */}
       <div className="mb-4 sm:mb-6 flex flex-wrap items-center justify-between gap-y-2 gap-x-3 min-w-0 max-w-full">
         <Link

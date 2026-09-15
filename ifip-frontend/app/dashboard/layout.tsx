@@ -201,7 +201,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen flex font-sans bg-[#FDFBF7] w-full max-w-full overflow-x-hidden">
       {/* Sidebar Shell — hidden on mobile, visible on md+ */}
-      <aside className="hidden md:flex w-68 bg-[#0E1B5D] text-white flex-col justify-between shrink-0 select-none border-r border-[#000666]/10">
+      <aside className="hidden md:flex w-68 bg-[#0E1B5D] text-white flex-col justify-between shrink-0 select-none border-r border-[#000666]/10 sticky top-0 h-screen overflow-y-auto">
         <div className="flex flex-col">
           {/* Header Logo */}
           <div className="p-6 pb-4 border-b border-white/5 flex flex-col gap-1.5">
@@ -278,7 +278,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main Workspace Frame */}
-      <div className="flex-1 flex flex-col min-h-screen md:h-screen md:overflow-y-auto w-full min-w-0 max-w-full overflow-x-hidden">
+      <div className="flex-1 flex flex-col min-h-screen w-full min-w-0 max-w-full">
         {/* Admin Preview Mode Top Banner */}
         {isAdmin && (
           <div className="bg-gradient-to-r from-[#000666] via-slate-900 to-[#0E1B5D] text-white px-4 md:px-8 py-2.5 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-md border-b border-sky-500/30 shrink-0 select-none w-full max-w-full">

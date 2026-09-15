@@ -36,7 +36,7 @@ export const getPartnerMe = async (req: Request, res: Response) => {
         if (!org) return;
 
         const [availableInterns, pendingRequests, confirmedPlacements] = await Promise.all([
-            Application.countDocuments({ status: 'placement_ready' }),
+            Application.countDocuments({ status: { $in: ['placement_ready', 'completed'] } }),
             PartnerInterest.countDocuments({ partnerOrgId: org._id, status: 'pending' }),
             Placement.countDocuments({ partnerOrgId: org._id, status: { $in: ['matched', 'interviewing', 'placed'] } }),
         ]);
@@ -91,17 +91,17 @@ export const getInternPool = async (req: Request, res: Response) => {
 
         const { interest, skills, assessment, sort, search } = req.query;
 
-        // Fetch all placement-ready applications
-        let applications = await Application.find({ status: 'placement_ready' })
+        // Fetch all placement-ready and completed (training finished, pending evaluation) applications
+        let applications = await Application.find({ status: { $in: ['placement_ready', 'completed'] } })
             .populate('userId', 'email fullName avatarUrl country')
             .lean();
 
-        // Exclude interns who are already finally placed (accepted by a partner)
+        // Exclude orphaned apps or interns who are already finally placed (accepted by a partner)
         const finallyPlacedUserIds = await Placement.find({ status: 'placed' }).distinct('userId');
         const finallyPlacedSet = new Set(finallyPlacedUserIds.map(id => id.toString()));
         applications = applications.filter((app: any) => {
             const userId = (app.userId as any)?._id?.toString() || app.userId?.toString();
-            return !finallyPlacedSet.has(userId);
+            return userId && app.userId?.email && !finallyPlacedSet.has(userId);
         });
 
         // Filter by skills text search
@@ -126,7 +126,7 @@ export const getInternPool = async (req: Request, res: Response) => {
         const userObjectIds = userIds.map((id: any) => new Types.ObjectId(id.toString()));
         const submissions = await AssessmentSubmission.find({
             userId: { $in: userObjectIds },
-            status: { $in: ['submitted', 'passed', 'failed'] },
+            status: { $in: ['submitted', 'passed', 'failed', 'pending_review'] },
         }).sort({ submittedAt: -1 }).lean();
 
         const submissionMap = new Map<string, any>();
@@ -152,8 +152,9 @@ export const getInternPool = async (req: Request, res: Response) => {
         let pool = applications.map((app: any) => {
             const userId = (app.userId as any)?._id?.toString();
             const sub = submissionMap.get(userId);
-            const assessmentStatus = sub ? (sub.status === 'passed' ? 'passed' : 'graded') : 'pending';
-            const score = sub?.score ?? null;
+            const isPending = !sub || sub.status === 'pending_review' || sub.passed === null;
+            const assessmentStatus = isPending ? 'pending' : (sub.status === 'passed' ? 'passed' : 'graded');
+            const score = isPending ? (sub?.passed === null ? null : (sub?.score ?? null)) : (sub?.score ?? null);
 
             const candidateInterests = extractInterests(app);
             const matchedInterests = candidateInterests.filter(ci => {
@@ -246,13 +247,13 @@ export const getInternById = async (req: Request, res: Response) => {
 
         const [user, app, submission] = await Promise.all([
             User.findById(userId).lean(),
-            Application.findOne({ userId: new Types.ObjectId(userId), status: 'placement_ready' }).lean(),
-            AssessmentSubmission.findOne({ userId: new Types.ObjectId(userId), status: { $in: ['submitted', 'passed', 'failed'] } })
+            Application.findOne({ userId: new Types.ObjectId(userId), status: { $in: ['placement_ready', 'completed'] } }).lean(),
+            AssessmentSubmission.findOne({ userId: new Types.ObjectId(userId), status: { $in: ['submitted', 'passed', 'failed', 'pending_review'] } })
                 .sort({ submittedAt: -1 }).lean(),
         ]);
 
         if (!user || !app) {
-            res.status(404).json({ message: 'Intern not found or not placement-ready.' });
+            res.status(404).json({ message: 'Intern not found or not available in the talent pool.' });
             return;
         }
 
@@ -285,6 +286,10 @@ export const getInternById = async (req: Request, res: Response) => {
             );
         });
 
+        const isPending = !submission || submission.status === 'pending_review' || submission.passed === null;
+        const assessmentStatus = isPending ? 'pending' : (submission.status === 'passed' ? 'passed' : 'graded');
+        const assessmentScore = isPending ? (submission?.passed === null ? null : (submission?.score ?? null)) : (submission?.score ?? null);
+
         const profile: any = {
             userId,
             fullName: user.fullName,
@@ -300,8 +305,8 @@ export const getInternById = async (req: Request, res: Response) => {
             academic: (app as any).academicInfo,
             skills: (app as any).skills,
             assessment: {
-                status: submission ? submission.status : 'pending',
-                score: submission?.score ?? null,
+                status: assessmentStatus,
+                score: assessmentScore,
             },
             // Professional docs — visible to all partners
             cvUrl: (app as any).cvUrl,
@@ -337,8 +342,8 @@ export const expressInterest = async (req: Request, res: Response) => {
             return;
         }
 
-        // Guard: intern must be placement-ready
-        const app = await Application.findOne({ userId: new Types.ObjectId(userId), status: 'placement_ready' });
+        // Guard: intern must be placement-ready or completed
+        const app = await Application.findOne({ userId: new Types.ObjectId(userId), status: { $in: ['placement_ready', 'completed'] } });
         if (!app) {
             res.status(400).json({ message: 'This intern is not currently available for selection.' });
             return;
