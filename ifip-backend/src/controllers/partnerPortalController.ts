@@ -32,6 +32,10 @@ const getPartnerOrg = async (req: Request, res: Response) => {
         res.status(404).json({ message: 'Partner organisation not found.' });
         return null;
     }
+    if (org.portalEnabled === undefined || org.portalEnabled === null) {
+        org.portalEnabled = true;
+        await org.save();
+    }
     if (org.portalEnabled === false) {
         res.status(403).json({ message: 'Portal access has been suspended for this organisation. Please contact IFIP.' });
         return null;

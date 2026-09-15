@@ -269,6 +269,7 @@ export const reviewPartnerApplication = async (req: Request, res: Response) => {
                 cohorts:       [],
                 hasOpenings:   application.hasOpenings || false,
                 openings:      application.openings || [],
+                portalEnabled: true,
             });
 
             // Automatically send the portal invite immediately on approval

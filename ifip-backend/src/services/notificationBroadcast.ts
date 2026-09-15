@@ -814,9 +814,24 @@ notificationEmitter.on('partner.interview_logged', async ({
     opsEmail, orgName, internUserId, internEmail, internName, interviewDate, format
 }) => {
     try {
-        // 1. Send email to admin
-        if (opsEmail) {
-            await sendInterviewLoggedAlert(opsEmail, orgName, internName, interviewDate, format);
+        // 1. Fetch all Superadmins and send email alerts
+        const superadmins = await User.find({ role: 'superadmin' }).select('email').lean();
+        const recipientEmails = new Set<string>();
+        for (const sa of superadmins) {
+            if (sa.email && sa.email.trim().length > 0) {
+                recipientEmails.add(sa.email.toLowerCase().trim());
+            }
+        }
+        if (opsEmail && opsEmail.trim().length > 0) {
+            recipientEmails.add(opsEmail.toLowerCase().trim());
+        }
+
+        for (const email of recipientEmails) {
+            try {
+                await sendInterviewLoggedAlert(email, orgName, internName, interviewDate, format);
+            } catch (emailErr) {
+                console.error(`[Event:partner.interview_logged] Failed sending email to ${email}:`, emailErr);
+            }
         }
 
         // 2. Notify all admins in-app
@@ -861,12 +876,47 @@ notificationEmitter.on('partner.outcome_logged', async ({
     opsEmail, orgName, internUserId, internEmail, internName, outcome,
 }) => {
     try {
-        if (opsEmail) await sendOutcomeLoggedAlert(opsEmail, orgName, internName, outcome);
+        const outcomeLabel = outcome === 'offer_extended' ? 'Offer Extended' : 'Not Selected';
+
+        // 1. Notify all admins/superadmins in-app
+        const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } }).select('_id email').lean();
+        const adminNotifications = admins.map(admin => ({
+            userId: admin._id,
+            title: outcome === 'offer_extended' ? 'Placement Offer Extended' : 'Candidate Not Selected',
+            message: `${orgName} has recorded outcome "${outcomeLabel}" for participant ${internName}.`,
+            type: (outcome === 'offer_extended' ? 'success' : 'info') as 'success' | 'info',
+            link: '/admin/placements',
+        }));
+        if (adminNotifications.length > 0) {
+            await Notification.insertMany(adminNotifications);
+        }
+
+        // 2. Fetch all Superadmins and send email alerts
+        const superadmins = await User.find({ role: 'superadmin' }).select('email').lean();
+        const recipientEmails = new Set<string>();
+        for (const sa of superadmins) {
+            if (sa.email && sa.email.trim().length > 0) {
+                recipientEmails.add(sa.email.toLowerCase().trim());
+            }
+        }
+        if (opsEmail && opsEmail.trim().length > 0) {
+            recipientEmails.add(opsEmail.toLowerCase().trim());
+        }
+
+        for (const email of recipientEmails) {
+            try {
+                await sendOutcomeLoggedAlert(email, orgName, internName, outcome);
+            } catch (emailErr) {
+                console.error(`[Event:partner.outcome_logged] Failed sending email to ${email}:`, emailErr);
+            }
+        }
+
+        // 3. Notify the intern (in-app + email if offer extended)
         if (outcome === 'offer_extended' && internUserId) {
             await Notification.create({
                 userId: new Types.ObjectId(internUserId as string),
-                title: 'Placement Offer Extended',
-                message: `${orgName} has extended a placement offer to you. Please respond to them directly.`,
+                title: 'Placement Offer Extended!',
+                message: `Congratulations! ${orgName} has extended a placement offer to you. Check your email or portal for details.`,
                 type: 'success' as const,
                 link: '/dashboard',
             });
