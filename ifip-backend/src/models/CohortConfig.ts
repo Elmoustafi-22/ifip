@@ -5,6 +5,7 @@ export interface ICohortConfig extends Document {
     cohortCap: number;
     dashboardViewOverride: 'default' | 'coming_soon' | 'unlocked';
     brochureUrl?: string;
+    showAllApplicantsToPartners?: boolean;
     updatedAt: Date;
 }
 
@@ -13,6 +14,7 @@ const cohortConfigSchema = new Schema<ICohortConfig>({
     cohortCap: { type: Number, required: true, default: 100 },
     dashboardViewOverride: { type: String, enum: ['default', 'coming_soon', 'unlocked'], default: 'default' },
     brochureUrl: { type: String },
+    showAllApplicantsToPartners: { type: Boolean, default: false },
     updatedAt: { type: Date, default: Date.now }
 });
 

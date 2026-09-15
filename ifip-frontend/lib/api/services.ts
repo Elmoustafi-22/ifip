@@ -1897,3 +1897,21 @@ export const deleteResource = async (id: string): Promise<{ message: string }> =
   const { data } = await authClient.delete<{ message: string }>(`/resources/${id}`);
   return data;
 };
+
+// ─── Partner Pool Visibility ──────────────────────────────────────────────────
+
+export interface PartnerPoolVisibilityResponse {
+  showAllApplicantsToPartners: boolean;
+  message?: string;
+}
+
+export const getPartnerPoolVisibility = async (): Promise<PartnerPoolVisibilityResponse> => {
+  const { data } = await authClient.get<PartnerPoolVisibilityResponse>('/admin/partner-pool-visibility');
+  return data;
+};
+
+export const setPartnerPoolVisibility = async (showAll: boolean): Promise<PartnerPoolVisibilityResponse> => {
+  const { data } = await authClient.patch<PartnerPoolVisibilityResponse>('/admin/partner-pool-visibility', { showAll });
+  return data;
+};
+

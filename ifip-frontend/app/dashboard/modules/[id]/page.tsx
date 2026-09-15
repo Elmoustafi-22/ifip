@@ -365,7 +365,7 @@ export default function ModuleViewerPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-[#FDFBF7] font-sans w-full max-w-full overflow-x-hidden">
+    <div className="w-full max-w-full font-sans">
       {/* Main Content Viewer Pane */}
       <div className="max-w-4xl w-full mx-auto px-1 sm:px-6 lg:px-8 py-4 sm:py-10 text-left min-w-0 max-w-full">
         {/* Top Navigation & Breadcrumbs Bar */}

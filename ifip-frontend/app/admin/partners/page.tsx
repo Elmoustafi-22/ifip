@@ -19,6 +19,8 @@ import {
   HiOutlineEnvelope,
   HiOutlinePhone,
   HiOutlinePaperAirplane,
+  HiOutlineUsers,
+  HiOutlineSparkles,
 } from "react-icons/hi2";
 import {
   getAdminPartnersV2,
@@ -29,6 +31,8 @@ import {
   getAdminCohorts,
   getAdminPartnerApplications,
   reviewPartnerApplication,
+  getPartnerPoolVisibility,
+  setPartnerPoolVisibility,
   PartnerApplicationRecord,
 } from "@/lib/api/services";
 import { sendPartnerInvite } from "@/lib/api/partner";
@@ -183,9 +187,46 @@ export default function AdminPartnersPage() {
     }
   };
 
+  // ── Visibility State ─────────────────────────────────────────────────────
+  const [showAllApplicants, setShowAllApplicants] = useState(false);
+  const [visibilityLoading, setVisibilityLoading] = useState(false);
+  const [visibilityUpdating, setVisibilityUpdating] = useState(false);
+
+  const fetchVisibility = async () => {
+    try {
+      setVisibilityLoading(true);
+      const res = await getPartnerPoolVisibility();
+      setShowAllApplicants(res.showAllApplicantsToPartners ?? false);
+    } catch (err) {
+      console.error("Failed to load partner pool visibility:", err);
+    } finally {
+      setVisibilityLoading(false);
+    }
+  };
+
+  const handleToggleVisibility = async () => {
+    const nextVal = !showAllApplicants;
+    setVisibilityUpdating(true);
+    try {
+      const res = await setPartnerPoolVisibility(nextVal);
+      setShowAllApplicants(res.showAllApplicantsToPartners);
+      showToast(
+        "success",
+        nextVal
+          ? "Partner talent pool visibility enabled: All enrolled & active candidates are now visible to partners."
+          : "Partner talent pool visibility restricted: Only placement-ready candidates are visible to partners."
+      );
+    } catch (err: any) {
+      showToast("error", err?.response?.data?.message || "Failed to update pool visibility setting.");
+    } finally {
+      setVisibilityUpdating(false);
+    }
+  };
+
   useEffect(() => {
     fetchPartners();
     fetchCohorts();
+    fetchVisibility();
   }, []);
 
   useEffect(() => {
@@ -442,6 +483,58 @@ export default function AdminPartnersPage() {
             <HiOutlinePlus className="w-4 h-4" /> Add Partner Org
           </button>
         )}
+      </div>
+
+      {/* Partner Talent Pool Visibility Card */}
+      <div className="mb-6 bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className={`p-2.5 rounded-xl shrink-0 transition-colors ${showAllApplicants ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : "bg-slate-100 text-slate-600 border border-slate-200"}`}>
+              <HiOutlineUsers className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm font-bold text-[#000666]">Partner Talent Pool Visibility</h2>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide uppercase border ${
+                  showAllApplicants
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    : "bg-slate-100 text-slate-600 border-slate-200"
+                }`}>
+                  {showAllApplicants ? "● All Enrolled Participants Visible" : "○ Placement-Ready Only (Strict)"}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
+                {showAllApplicants
+                  ? "Open Mode is ACTIVE: All active, paid, and enrolled candidates are currently visible to partner organizations in their intern pool."
+                  : "Standard Mode is ACTIVE: Partners can only browse candidates who have reached/completed placement readiness."}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
+            <button
+              type="button"
+              onClick={handleToggleVisibility}
+              disabled={visibilityUpdating || visibilityLoading}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                showAllApplicants ? "bg-emerald-600" : "bg-slate-300"
+              } ${visibilityUpdating || visibilityLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+              role="switch"
+              aria-checked={showAllApplicants}
+            >
+              <span className="sr-only">Toggle Talent Pool Visibility</span>
+              <span
+                aria-hidden="true"
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  showAllApplicants ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+            <span className="text-xs font-bold text-slate-700 select-none">
+              {visibilityUpdating ? "Updating..." : showAllApplicants ? "Open (Active)" : "Strict (Default)"}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Tab Bar */}

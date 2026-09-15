@@ -199,65 +199,61 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 
   return (
-    <div className="min-h-screen flex font-sans bg-[#FDFBF7] w-full max-w-full overflow-x-hidden">
+    <div className="min-h-screen flex font-sans bg-[#FDFBF7] w-full max-w-full">
       {/* Sidebar Shell — hidden on mobile, visible on md+ */}
-      <aside className="hidden md:flex w-68 bg-[#0E1B5D] text-white flex-col justify-between shrink-0 select-none border-r border-[#000666]/10 sticky top-0 h-screen overflow-y-auto">
-        <div className="flex flex-col">
-          {/* Header Logo */}
-          <div className="p-6 pb-4 border-b border-white/5 flex flex-col gap-1.5">
-            <Image
-              src="/images/logos/logo-white-wordmark.png"
-              alt="IFIP Logo"
-              width={130}
-              height={36}
-              priority
-              className="h-9 w-auto object-contain"
-            />
-          </div>
+      <aside className="hidden md:flex w-64 bg-[#0E1B5D] text-white flex-col justify-between shrink-0 select-none border-r border-[#000666]/10 sticky top-0 h-screen z-40">
+        {/* Header Logo */}
+        <div className="p-5 border-b border-white/5 flex flex-col gap-1.5 shrink-0">
+          <Image
+            src="/images/logos/logo-white-wordmark.png"
+            alt="IFIP Logo"
+            width={130}
+            height={36}
+            priority
+            className="h-8 w-auto object-contain"
+          />
+        </div>
 
+        {/* Navigation Menu */}
+        <nav className="p-4 flex-1 overflow-y-auto flex flex-col gap-1.5 scrollbar-thin">
+          {menuItems.map((item) => {
+            const active = pathname === item.href;
+            const Icon = item.icon;
 
-
-          {/* Navigation Menu */}
-          <nav className="p-4 flex flex-col gap-1.5 mt-2">
-            {menuItems.map((item) => {
-              const active = pathname === item.href;
-              const Icon = item.icon;
-
-              if (item.disabled) {
-                return (
-                  <div
-                    key={item.name}
-                    className="flex items-center gap-3.5 px-4 py-3 rounded-lg text-white/40 cursor-not-allowed text-sm font-semibold select-none group relative"
-                  >
-                    <Icon className="w-5 h-5 shrink-0" />
-                    <span>{item.name}</span>
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] uppercase tracking-wider font-bold bg-white/10 text-white/50 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                      Soon
-                    </span>
-                  </div>
-                );
-              }
-
+            if (item.disabled) {
               return (
-                <Link
+                <div
                   key={item.name}
-                  href={item.href}
-                  className={`flex items-center gap-3.5 px-4 py-3 rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer ${
-                    active
-                      ? "bg-sky-400 text-[#0E1B5D] shadow-sm font-bold"
-                      : "text-white/80 hover:bg-white/5 hover:text-white"
-                  }`}
+                  className="flex items-center gap-3.5 px-4 py-3 rounded-lg text-white/40 cursor-not-allowed text-sm font-semibold select-none group relative"
                 >
                   <Icon className="w-5 h-5 shrink-0" />
                   <span>{item.name}</span>
-                </Link>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] uppercase tracking-wider font-bold bg-white/10 text-white/50 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                    Soon
+                  </span>
+                </div>
               );
-            })}
-          </nav>
-        </div>
+            }
+
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={`flex items-center gap-3.5 px-4 py-3 rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer ${
+                  active
+                    ? "bg-sky-400 text-[#0E1B5D] shadow-sm font-bold"
+                    : "text-white/80 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                <Icon className="w-5 h-5 shrink-0" />
+                <span>{item.name}</span>
+              </Link>
+            );
+          })}
+        </nav>
 
         {/* Sidebar Footer */}
-        <div className="p-4 border-t border-white/5 flex flex-col gap-2 bg-black/10">
+        <div className="p-4 border-t border-white/5 flex flex-col gap-2 bg-black/10 shrink-0">
           {isAdmin && (
             <Link
               href="/admin"

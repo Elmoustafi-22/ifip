@@ -1,14 +1,24 @@
 import { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import { User } from '../models/User.js';
-import { Application } from '../models/Application.js';
+import { Application, ApplicationStatus } from '../models/Application.js';
 import { AssessmentSubmission } from '../models/AssessmentSubmission.js';
 import { Placement } from '../models/Placement.js';
 import { PartnerOrganization } from '../models/PartnerOrganization.js';
 import { PartnerInterest } from '../models/PartnerInterest.js';
 import { Notification } from '../models/Notification.js';
+import { CohortConfig } from '../models/CohortConfig.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { env } from '../config/env.js';
+
+/** Helper to retrieve candidate statuses that should be visible to partners */
+export const getAllowedPoolStatuses = async (): Promise<ApplicationStatus[]> => {
+    const config = await CohortConfig.findOne();
+    if (config?.showAllApplicantsToPartners) {
+        return ['payment_confirmed', 'active', 'completed', 'placement_ready'];
+    }
+    return ['placement_ready', 'completed'];
+};
 
 /** Helper — get the requesting partner's org, 403 if not linked */
 const getPartnerOrg = async (req: Request, res: Response) => {
@@ -35,8 +45,9 @@ export const getPartnerMe = async (req: Request, res: Response) => {
         const org = await getPartnerOrg(req, res);
         if (!org) return;
 
+        const allowedStatuses = await getAllowedPoolStatuses();
         const [availableInterns, pendingRequests, confirmedPlacements] = await Promise.all([
-            Application.countDocuments({ status: { $in: ['placement_ready', 'completed'] } }),
+            Application.countDocuments({ status: { $in: allowedStatuses } }),
             PartnerInterest.countDocuments({ partnerOrgId: org._id, status: 'pending' }),
             Placement.countDocuments({ partnerOrgId: org._id, status: { $in: ['matched', 'interviewing', 'placed'] } }),
         ]);
@@ -91,8 +102,9 @@ export const getInternPool = async (req: Request, res: Response) => {
 
         const { interest, skills, assessment, sort, search } = req.query;
 
-        // Fetch all placement-ready and completed (training finished, pending evaluation) applications
-        let applications = await Application.find({ status: { $in: ['placement_ready', 'completed'] } })
+        // Fetch all eligible applications based on portal visibility settings
+        const allowedStatuses = await getAllowedPoolStatuses();
+        let applications = await Application.find({ status: { $in: allowedStatuses } })
             .populate('userId', 'email fullName avatarUrl country')
             .lean();
 
@@ -245,9 +257,10 @@ export const getInternById = async (req: Request, res: Response) => {
 
         const userId = req.params.userId as string;
 
+        const allowedStatuses = await getAllowedPoolStatuses();
         const [user, app, submission] = await Promise.all([
             User.findById(userId).lean(),
-            Application.findOne({ userId: new Types.ObjectId(userId), status: { $in: ['placement_ready', 'completed'] } }).lean(),
+            Application.findOne({ userId: new Types.ObjectId(userId), status: { $in: allowedStatuses } }).lean(),
             AssessmentSubmission.findOne({ userId: new Types.ObjectId(userId), status: { $in: ['submitted', 'passed', 'failed', 'pending_review'] } })
                 .sort({ submittedAt: -1 }).lean(),
         ]);
@@ -342,8 +355,9 @@ export const expressInterest = async (req: Request, res: Response) => {
             return;
         }
 
-        // Guard: intern must be placement-ready or completed
-        const app = await Application.findOne({ userId: new Types.ObjectId(userId), status: { $in: ['placement_ready', 'completed'] } });
+        // Guard: intern must be eligible
+        const allowedStatuses = await getAllowedPoolStatuses();
+        const app = await Application.findOne({ userId: new Types.ObjectId(userId), status: { $in: allowedStatuses } });
         if (!app) {
             res.status(400).json({ message: 'This intern is not currently available for selection.' });
             return;

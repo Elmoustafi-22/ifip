@@ -37,6 +37,8 @@ import {
     getWaitlist,
     deleteWaitlistEntry,
     exportApplicantsCSV,
+    getPartnerPoolVisibility,
+    setPartnerPoolVisibility,
 } from '../controllers/adminController.js';
 import {
     getAssessments,
@@ -233,6 +235,10 @@ router.patch('/partner-interests/:id/decline', authorize('admin', 'superadmin'),
 
 // Partner Push Notification
 router.post('/notifications/partner',          authorize('superadmin'), sendPartnerNotification);
+
+// Partner Pool Visibility (Admin & Superadmin toggle)
+router.get('/partner-pool-visibility',         authorize('admin', 'superadmin'), getPartnerPoolVisibility);
+router.patch('/partner-pool-visibility',       authorize('admin', 'superadmin'), setPartnerPoolVisibility);
 
 // ─── Superadmin Only — Form Options CRUD ──────────────────────────────────────
 router.get('/form-options',          authorize('superadmin'), adminListOptions);

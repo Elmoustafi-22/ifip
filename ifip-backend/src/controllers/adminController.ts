@@ -12,6 +12,7 @@ import { Module } from '../models/Module.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { Payment } from '../models/Payments.js';
 import { Broadcast } from '../models/Broadcast.js';
+import { CohortConfig } from '../models/CohortConfig.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { signSetPasswordToken, signApplicantSessionToken } from '../utils/jwt.js';
 import { generateResumeToken } from '../services/tokenService.js';
@@ -2113,5 +2114,59 @@ export const exportApplicantsCSV = async (req: Request, res: Response) => {
     }
 };
 
+// ── GET /api/v1/admin/partner-pool-visibility ──────────────────────────────────
+export const getPartnerPoolVisibility = async (req: Request, res: Response) => {
+    try {
+        let config = await CohortConfig.findOne();
+        if (!config) {
+            config = await CohortConfig.create({
+                cohortStartDate: new Date(),
+                cohortCap: 100,
+                showAllApplicantsToPartners: false,
+            });
+        }
+        res.json({ showAllApplicantsToPartners: config.showAllApplicantsToPartners ?? false });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error loading partner pool visibility setting.', error: err.message });
+    }
+};
 
+// ── PATCH /api/v1/admin/partner-pool-visibility ────────────────────────────────
+export const setPartnerPoolVisibility = async (req: Request, res: Response) => {
+    try {
+        const { showAll } = req.body;
+        if (typeof showAll !== 'boolean') {
+            res.status(400).json({ message: 'showAll must be a boolean.' });
+            return;
+        }
 
+        let config = await CohortConfig.findOne();
+        if (!config) {
+            config = await CohortConfig.create({
+                cohortStartDate: new Date(),
+                cohortCap: 100,
+                showAllApplicantsToPartners: showAll,
+            });
+        } else {
+            config.showAllApplicantsToPartners = showAll;
+            config.updatedAt = new Date();
+            await config.save();
+        }
+
+        logRawAction({
+            userId: (req as any).user?.id || 'admin',
+            userEmail: (req as any).user?.email || 'admin',
+            userRole: (req as any).user?.role || 'admin',
+            action: 'PARTNER_POOL_VISIBILITY_UPDATED',
+            description: `Admin updated partner pool visibility to: ${showAll ? 'Show All Enrolled Participants' : 'Placement-Ready Only'}`,
+            targetType: 'SystemConfig',
+        });
+
+        res.json({
+            message: `Partner pool visibility updated: ${showAll ? 'All enrolled participants visible' : 'Placement-ready participants only'}.`,
+            showAllApplicantsToPartners: config.showAllApplicantsToPartners,
+        });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error updating partner pool visibility.', error: err.message });
+    }
+};
