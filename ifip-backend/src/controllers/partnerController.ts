@@ -442,8 +442,14 @@ export const deletePartnerOrg = async (req: Request, res: Response) => {
             res.status(404).json({ message: 'Partner organization not found.' });
             return;
         }
+
+        // Clean up linked partner user login accounts
+        await User.deleteMany({ orgId: new Types.ObjectId(id) });
+        // Clean up partner interests & placement records associated with this org
+        await PartnerInterest.deleteMany({ partnerOrgId: new Types.ObjectId(id) });
+
         await updateContentVersion('partners');
-        res.json({ message: 'Partner organization deleted.' });
+        res.json({ message: 'Partner organization and associated login accounts deleted.' });
     } catch (err: any) {
         res.status(500).json({ message: 'Error deleting partner organization.', error: err.message });
     }

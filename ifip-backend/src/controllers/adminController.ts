@@ -13,6 +13,10 @@ import { AuditLog } from '../models/AuditLog.js';
 import { Payment } from '../models/Payments.js';
 import { Broadcast } from '../models/Broadcast.js';
 import { CohortConfig } from '../models/CohortConfig.js';
+import { AssessmentSubmission } from '../models/AssessmentSubmission.js';
+import { Progress } from '../models/Progress.js';
+import { Placement } from '../models/Placement.js';
+import { PartnerInterest } from '../models/PartnerInterest.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { signSetPasswordToken, signApplicantSessionToken } from '../utils/jwt.js';
 import { generateResumeToken } from '../services/tokenService.js';
@@ -2170,3 +2174,49 @@ export const setPartnerPoolVisibility = async (req: Request, res: Response) => {
         res.status(500).json({ message: 'Error updating partner pool visibility.', error: err.message });
     }
 };
+
+// ── DELETE /api/v1/admin/users/:id ───────────────────────────────────────────
+export const deleteAdminUser = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const currentUserId = req.user!.id;
+
+        if (id === currentUserId) {
+            res.status(400).json({ message: 'You cannot delete your own account.' });
+            return;
+        }
+
+        const user = await User.findById(id);
+        if (!user) {
+            res.status(404).json({ message: 'User not found.' });
+            return;
+        }
+
+        const targetUserObjId = new Types.ObjectId(id);
+
+        // Clean up linked Application and progression records
+        await Application.deleteMany({ userId: targetUserObjId });
+        await AssessmentSubmission.deleteMany({ userId: targetUserObjId });
+        await Progress.deleteMany({ userId: targetUserObjId });
+        await Placement.deleteMany({ userId: targetUserObjId });
+        await PartnerInterest.deleteMany({ userId: targetUserObjId });
+        await Notification.deleteMany({ userId: targetUserObjId });
+
+        await User.findByIdAndDelete(id);
+
+        logRawAction({
+            userId: req.user!.id,
+            userEmail: req.user!.email,
+            userRole: req.user!.role,
+            action: 'USER_DELETED',
+            description: `Admin deleted user ${user.fullName || user.email} (${user.email}, role: ${user.role}).`,
+            targetType: 'User',
+            targetId: user._id.toString(),
+        });
+
+        res.json({ message: `User ${user.fullName || user.email} deleted successfully.` });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error deleting user.', error: err.message });
+    }
+};
+

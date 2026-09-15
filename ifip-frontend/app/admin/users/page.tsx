@@ -17,13 +17,15 @@ import {
   HiOutlineBriefcase,
   HiOutlineUser,
   HiOutlinePlus,
+  HiOutlineTrash,
 } from "react-icons/hi2";
-import { getAdminUsers, AdminUser, AdminUsersResponse, getMyApplication, inviteAdmin, resendAdminInvite, setApplicationPlacementReady } from "@/lib/api/services";
+import { getAdminUsers, AdminUser, AdminUsersResponse, getMyApplication, inviteAdmin, resendAdminInvite, setApplicationPlacementReady, deleteAdminUser } from "@/lib/api/services";
 
 
 const ROLE_META: Record<string, { label: string; className: string }> = {
   applicant:   { label: "Applicant",   className: "bg-slate-100 text-slate-600" },
   participant: { label: "Participant", className: "bg-indigo-50 text-indigo-700" },
+  partner:     { label: "Partner",     className: "bg-teal-50 text-teal-700" },
   admin:       { label: "Admin",       className: "bg-amber-50 text-amber-700" },
   superadmin:  { label: "Super Admin", className: "bg-rose-50 text-rose-700" },
 };
@@ -41,6 +43,7 @@ const ROLE_TABS = [
   { key: "all",        label: "All Users" },
   { key: "applicant",  label: "Applicants" },
   { key: "participant",label: "Participants" },
+  { key: "partner",    label: "Partners" },
   { key: "admin",      label: "Admins" },
   { key: "superadmin", label: "Super Admins" },
 ];
@@ -83,6 +86,34 @@ export default function AdminUsersPage() {
   const [promotingId, setPromotingId] = useState<string | null>(null);
   const [promoteSuccessId, setPromoteSuccessId] = useState<string | null>(null);
 
+  // User Deletion state
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+
+  const handleDeleteUser = async (user: AdminUser) => {
+    const name = user.fullName || user.email;
+    if (user._id === currentUserId) {
+      alert("You cannot delete your own account.");
+      return;
+    }
+    const confirmed = confirm(
+      `Are you sure you want to permanently delete ${name} (${user.role})?\n\nThis will remove their user account, applications, and progression records.`
+    );
+    if (!confirmed) return;
+
+    setDeletingUserId(user._id);
+    try {
+      await deleteAdminUser(user._id);
+      alert(`User ${name} was deleted successfully.`);
+      setSelectedUser(null);
+      fetchUsers();
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Failed to delete user.");
+    } finally {
+      setDeletingUserId(null);
+    }
+  };
+
 
   useEffect(() => {
     (async () => {
@@ -91,6 +122,7 @@ export default function AdminUsersPage() {
         if (profile?.role === "admin" || profile?.role === "superadmin") {
           setAuthorized(true);
           setCurrentUserRole(profile.role);
+          setCurrentUserId(profile._id || profile.userId || "");
         } else {
           router.push("/dashboard?error=unauthorized");
         }
@@ -822,6 +854,16 @@ export default function AdminUsersPage() {
                     ) : (
                       "↗ Resend Set-Password Link"
                     )}
+                  </button>
+                )}
+                {currentUserRole === "superadmin" && selectedUser._id !== currentUserId && (
+                  <button
+                    onClick={() => handleDeleteUser(selectedUser)}
+                    disabled={deletingUserId === selectedUser._id}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-xl border transition-all disabled:opacity-50 bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 hover:border-rose-300 cursor-pointer"
+                  >
+                    <HiOutlineTrash className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{deletingUserId === selectedUser._id ? "Deleting..." : "Delete User"}</span>
                   </button>
                 )}
                 <button

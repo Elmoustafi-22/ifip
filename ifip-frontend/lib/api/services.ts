@@ -1915,3 +1915,9 @@ export const setPartnerPoolVisibility = async (showAll: boolean): Promise<Partne
   return data;
 };
 
+export const deleteAdminUser = async (id: string): Promise<{ message: string }> => {
+  const { data } = await authClient.delete<{ message: string }>(`/admin/users/${id}`);
+  return data;
+};
+
+

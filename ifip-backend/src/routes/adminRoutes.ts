@@ -39,6 +39,7 @@ import {
     exportApplicantsCSV,
     getPartnerPoolVisibility,
     setPartnerPoolVisibility,
+    deleteAdminUser,
 } from '../controllers/adminController.js';
 import {
     getAssessments,
@@ -122,6 +123,7 @@ router.get('/stats', getDashboardStats);
 router.get('/users', getAdminUsers);
 router.post('/users/invite', authorize('superadmin'), inviteAdmin);
 router.post('/users/:id/resend-invite', authorize('superadmin'), resendSetPasswordLink);
+router.delete('/users/:id', authorize('superadmin'), deleteAdminUser);
 router.get('/audit-logs', authorize('superadmin'), getAuditLogs);
 router.get('/applications', getAdminApplications);
 router.get('/applicants/export-csv', exportApplicantsCSV);
