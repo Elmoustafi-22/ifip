@@ -562,7 +562,7 @@ export const logInterview = async (req: Request, res: Response) => {
         const org = await getPartnerOrg(req, res);
         if (!org) return;
 
-        const { interviewScheduledAt, interviewFormat } = req.body;
+        const { interviewScheduledAt, interviewFormat, interviewLink, interviewLocation } = req.body;
         if (!interviewScheduledAt || !interviewFormat) {
             res.status(400).json({ message: 'interviewScheduledAt and interviewFormat are required.' });
             return;
@@ -580,18 +580,30 @@ export const logInterview = async (req: Request, res: Response) => {
 
         placement.interviewScheduledAt = new Date(interviewScheduledAt);
         placement.interviewFormat = interviewFormat;
+        placement.interviewLink = interviewLink ? String(interviewLink).trim() : undefined;
+        placement.interviewLocation = interviewLocation ? String(interviewLocation).trim() : undefined;
         placement.status = 'interviewing';
         await placement.save();
 
         const intern = await User.findById(placement.userId).select('fullName email');
+        const formattedDate = new Date(interviewScheduledAt).toLocaleString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
         notificationEmitter.emit('partner.interview_logged', {
             opsEmail: env.OPS_EMAIL || env.EMAIL_REPLY_TO,
             orgName: org.name,
             internUserId: placement.userId,
             internEmail: intern?.email,
             internName: intern?.fullName || 'Intern',
-            interviewDate: new Date(interviewScheduledAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+            interviewDate: formattedDate,
             format: interviewFormat,
+            interviewLink: placement.interviewLink,
+            interviewLocation: placement.interviewLocation,
         });
 
         res.json({ message: 'Interview logged.', placement });

@@ -1072,9 +1072,17 @@ export interface Placement {
   _id: string;
   userId: any;
   partnerOrgId: any;
+  role?: string;
+  workType?: 'Remote' | 'Hybrid' | 'On-site';
   areaOfInterest?: string;
   status: 'matched' | 'interviewing' | 'placed' | 'declined';
   notes?: string;
+  partnerNotes?: string;
+  interviewScheduledAt?: string;
+  interviewFormat?: 'Video' | 'Call' | 'In-person';
+  interviewLink?: string;
+  interviewLocation?: string;
+  partnerOutcome?: 'offer_extended' | 'not_selected';
   createdAt: string;
 }
 

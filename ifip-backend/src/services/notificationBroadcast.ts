@@ -811,7 +811,7 @@ notificationEmitter.on('partner.interest_declined', async ({
  * Notifies all admins in-app + email, and the intern in-app + email.
  */
 notificationEmitter.on('partner.interview_logged', async ({
-    opsEmail, orgName, internUserId, internEmail, internName, interviewDate, format
+    opsEmail, orgName, internUserId, internEmail, internName, interviewDate, format, interviewLink, interviewLocation
 }) => {
     try {
         // 1. Fetch all Superadmins and send email alerts
@@ -828,7 +828,7 @@ notificationEmitter.on('partner.interview_logged', async ({
 
         for (const email of recipientEmails) {
             try {
-                await sendInterviewLoggedAlert(email, orgName, internName, interviewDate, format);
+                await sendInterviewLoggedAlert(email, orgName, internName, interviewDate, format, interviewLink, interviewLocation);
             } catch (emailErr) {
                 console.error(`[Event:partner.interview_logged] Failed sending email to ${email}:`, emailErr);
             }
@@ -839,7 +839,7 @@ notificationEmitter.on('partner.interview_logged', async ({
         const adminNotifications = admins.map(admin => ({
             userId: admin._id,
             title: 'Interview Scheduled by Partner',
-            message: `${orgName} has scheduled an interview with intern ${internName} for ${interviewDate}.`,
+            message: `${orgName} has scheduled an interview with intern ${internName} for ${interviewDate} (${format}).`,
             type: 'info' as const,
             link: '/admin/partner-interests',
         }));
@@ -851,8 +851,8 @@ notificationEmitter.on('partner.interview_logged', async ({
         if (internUserId) {
             await Notification.create({
                 userId: new Types.ObjectId(internUserId as string),
-                title: 'Interview Scheduled',
-                message: `An interview has been scheduled with ${orgName} on ${interviewDate} via ${format}. Check your email for more details.`,
+                title: 'Interview Scheduled!',
+                message: `An interview has been scheduled with ${orgName} on ${interviewDate} (${format}).${interviewLink ? ' You can join via the link on your placement dashboard.' : ''}`,
                 type: 'info' as const,
                 link: '/dashboard/placement',
             });
@@ -860,7 +860,7 @@ notificationEmitter.on('partner.interview_logged', async ({
 
         // 4. Send email to the intern
         if (internEmail) {
-            await sendInterviewScheduledToIntern(internEmail, internName, orgName, interviewDate, format);
+            await sendInterviewScheduledToIntern(internEmail, internName, orgName, interviewDate, format, interviewLink, interviewLocation);
         }
     } catch (err) {
         console.error('[Event:partner.interview_logged] Error:', err);
@@ -876,13 +876,13 @@ notificationEmitter.on('partner.outcome_logged', async ({
     opsEmail, orgName, internUserId, internEmail, internName, outcome,
 }) => {
     try {
-        const outcomeLabel = outcome === 'offer_extended' ? 'Offer Extended' : 'Not Selected';
+        const outcomeLabel = outcome === 'offer_extended' ? 'Placement Confirmed' : 'Not Selected';
 
         // 1. Notify all admins/superadmins in-app
         const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } }).select('_id email').lean();
         const adminNotifications = admins.map(admin => ({
             userId: admin._id,
-            title: outcome === 'offer_extended' ? 'Placement Offer Extended' : 'Candidate Not Selected',
+            title: outcome === 'offer_extended' ? 'Placement Confirmed' : 'Candidate Not Selected',
             message: `${orgName} has recorded outcome "${outcomeLabel}" for participant ${internName}.`,
             type: (outcome === 'offer_extended' ? 'success' : 'info') as 'success' | 'info',
             link: '/admin/placements',
@@ -911,14 +911,14 @@ notificationEmitter.on('partner.outcome_logged', async ({
             }
         }
 
-        // 3. Notify the intern (in-app + email if offer extended)
+        // 3. Notify the intern (in-app + email if placement confirmed)
         if (outcome === 'offer_extended' && internUserId) {
             await Notification.create({
                 userId: new Types.ObjectId(internUserId as string),
-                title: 'Placement Offer Extended!',
-                message: `Congratulations! ${orgName} has extended a placement offer to you. Check your email or portal for details.`,
+                title: 'Placement Confirmed! 🎉',
+                message: `Congratulations! ${orgName} has confirmed your placement following your interview. Check your dashboard for details.`,
                 type: 'success' as const,
-                link: '/dashboard',
+                link: '/dashboard/placement',
             });
             if (internEmail) await sendOfferExtendedToIntern(internEmail, internName, orgName);
         }

@@ -1265,7 +1265,9 @@ export const sendInterviewLoggedAlert = async (
     orgName: string,
     internName: string,
     interviewDate: string,
-    format: string
+    format: string,
+    interviewLink?: string,
+    interviewLocation?: string
 ) => {
     const html = `
     <div style="${partnerWrapperStyle}">
@@ -1276,17 +1278,23 @@ export const sendInterviewLoggedAlert = async (
             <div style="${partnerContentStyle}">
                 <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">Interview Scheduled</h1>
                 <p style="font-size: 15px; color: #475569; line-height: 1.7;">
-                    <strong>${orgName}</strong> has logged an interview with <strong>${internName}</strong>.<br>
-                    Date: <strong>${interviewDate}</strong> &bull; Format: <strong>${format}</strong>
+                    <strong>${orgName}</strong> has scheduled an interview with <strong>${internName}</strong>.<br><br>
+                    <strong>Interview Details:</strong><br>
+                    📅 Date &amp; Time: <strong>${interviewDate}</strong><br>
+                    💻 Format: <strong>${format}</strong><br>
+                    ${interviewLink ? `🔗 Meeting Link: <a href="${interviewLink}" style="color: #0284c7; text-decoration: underline;">${interviewLink}</a><br>` : ''}
+                    ${interviewLocation ? `📍 Location / Notes: <strong>${interviewLocation}</strong><br>` : ''}
                 </p>
-                <a href="${env.CLIENT_URL}/admin/partner-interests" style="${partnerBtnStyle}">View Pipeline</a>
+                <div style="margin-top: 24px;">
+                    <a href="${env.CLIENT_URL}/admin/partner-interests" style="${partnerBtnStyle}">View Pipeline on Dashboard</a>
+                </div>
             </div>
             <div style="${partnerFooterStyle}">
                 <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026</p>
             </div>
         </div>
     </div>`;
-    await send(opsEmail, `Interview Logged: ${orgName} with ${internName}`, html);
+    await send(opsEmail, `Interview Scheduled: ${orgName} with ${internName}`, html);
 };
 
 export const sendInterviewScheduledToIntern = async (
@@ -1294,7 +1302,9 @@ export const sendInterviewScheduledToIntern = async (
     internName: string,
     orgName: string,
     interviewDate: string,
-    format: string
+    format: string,
+    interviewLink?: string,
+    interviewLocation?: string
 ) => {
     const html = `
     <div style="${partnerWrapperStyle}">
@@ -1303,23 +1313,34 @@ export const sendInterviewScheduledToIntern = async (
                 <img src="${LOGO_WHITE_WORDMARK_URL}" style="height: 40px; width: auto; display: block; margin: 0 auto;" alt="IFIP">
             </div>
             <div style="${partnerContentStyle}">
-                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">Interview Scheduled</h1>
+                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">Interview Invitation</h1>
                 <p style="font-size: 15px; color: #475569; line-height: 1.7;">
                     Hello <strong>${internName}</strong>,<br><br>
-                    An interview has been scheduled with <strong>${orgName}</strong>.<br><br>
+                    Great news! An interview has been scheduled for you with <strong>${orgName}</strong>.<br><br>
                     <strong>Interview Details:</strong><br>
-                    📅 Date: <strong>${interviewDate}</strong><br>
-                    💻 Format: <strong>${format}</strong><br><br>
-                    The partner organisation will contact you directly with instructions and links.
+                    📅 <strong>Date &amp; Time:</strong> ${interviewDate}<br>
+                    💻 <strong>Format:</strong> ${format}<br>
+                    ${interviewLink ? `🔗 <strong>Meeting Link:</strong> <a href="${interviewLink}" target="_blank" style="color: #0284c7; text-decoration: underline; word-break: break-all;">${interviewLink}</a><br>` : ''}
+                    ${interviewLocation ? `📍 <strong>Location / Notes:</strong> ${interviewLocation}<br>` : ''}
                 </p>
-                <a href="${env.CLIENT_URL}/dashboard" style="${partnerBtnStyle}">Go to Dashboard</a>
+                <div style="margin-top: 24px; text-align: center;">
+                    ${interviewLink ? `
+                    <a href="${interviewLink}" target="_blank" style="${partnerBtnStyle}; margin-bottom: 12px; display: inline-block;">
+                        Join Interview Meeting &rarr;
+                    </a>
+                    <br>
+                    ` : ''}
+                    <a href="${env.CLIENT_URL}/dashboard/placement" style="font-size: 13px; color: #0284c7; text-decoration: underline;">
+                        View Placement Details on Dashboard
+                    </a>
+                </div>
             </div>
             <div style="${partnerFooterStyle}">
                 <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026</p>
             </div>
         </div>
     </div>`;
-    await send(internEmail, `IFIP: Interview Scheduled with ${orgName}`, html);
+    await send(internEmail, `Interview Invitation from ${orgName} — IFIP Placement`, html);
 };
 
 export const sendOutcomeLoggedAlert = async (
@@ -1328,7 +1349,7 @@ export const sendOutcomeLoggedAlert = async (
     internName: string,
     outcome: 'offer_extended' | 'not_selected'
 ) => {
-    const outcomeLabel = outcome === 'offer_extended' ? 'Offer Extended' : 'Not Selected';
+    const outcomeLabel = outcome === 'offer_extended' ? 'Placement Confirmed' : 'Not Selected';
     const html = `
     <div style="${partnerWrapperStyle}">
         <div style="${partnerCardStyle}">
@@ -1336,11 +1357,13 @@ export const sendOutcomeLoggedAlert = async (
                 <img src="${LOGO_WHITE_WORDMARK_URL}" style="height: 40px; width: auto; display: block; margin: 0 auto;" alt="IFIP">
             </div>
             <div style="${partnerContentStyle}">
-                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">Placement Outcome</h1>
+                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">Placement Outcome Update</h1>
                 <p style="font-size: 15px; color: #475569; line-height: 1.7;">
-                    <strong>${orgName}</strong> has recorded outcome <strong>${outcomeLabel}</strong> for <strong>${internName}</strong>.
+                    <strong>${orgName}</strong> has recorded the outcome <strong>${outcomeLabel}</strong> for participant <strong>${internName}</strong>.
                 </p>
-                <a href="${env.CLIENT_URL}/admin/partner-interests" style="${partnerBtnStyle}">View Pipeline</a>
+                <div style="margin-top: 24px;">
+                    <a href="${env.CLIENT_URL}/admin/placements" style="${partnerBtnStyle}">View Placements on Dashboard</a>
+                </div>
             </div>
             <div style="${partnerFooterStyle}">
                 <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026</p>
@@ -1358,19 +1381,22 @@ export const sendOfferExtendedToIntern = async (to: string, internName: string, 
                 <img src="${LOGO_WHITE_WORDMARK_URL}" style="height: 40px; width: auto; display: block; margin: 0 auto;" alt="IFIP">
             </div>
             <div style="${partnerContentStyle}">
-                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">Placement Offer</h1>
+                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">Placement Confirmed! 🎉</h1>
                 <p style="font-size: 15px; color: #475569; line-height: 1.7; margin: 0 0 16px 0;">
-                    Dear ${internName},<br><br>
-                    <strong>${orgName}</strong> has extended a placement offer to you following your interview. Please respond to them directly to confirm acceptance.
+                    Dear <strong>${internName}</strong>,<br><br>
+                    Congratulations! <strong>${orgName}</strong> has confirmed your placement following your interview.<br><br>
+                    Please log in to your dashboard to review your placement status and connect with your host partner.
                 </p>
-                <a href="${env.CLIENT_URL}/dashboard" style="${partnerBtnStyle}">View Dashboard</a>
+                <div style="margin-top: 24px;">
+                    <a href="${env.CLIENT_URL}/dashboard/placement" style="${partnerBtnStyle}">View Placement Dashboard</a>
+                </div>
             </div>
             <div style="${partnerFooterStyle}">
                 <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026</p>
             </div>
         </div>
     </div>`;
-    await send(to, `Placement Offer from ${orgName}`, html);
+    await send(to, `Placement Confirmed: ${orgName} — IFIP`, html);
 };
 
 /**

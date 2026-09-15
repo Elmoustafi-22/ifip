@@ -120,6 +120,8 @@ export interface PartnerPlacementItem {
   partnerNotes?: string;
   interviewScheduledAt?: string;
   interviewFormat?: "Video" | "Call" | "In-person";
+  interviewLink?: string;
+  interviewLocation?: string;
   partnerOutcome?: "offer_extended" | "not_selected";
   createdAt: string;
   intern?: {
@@ -212,6 +214,8 @@ export const updatePlacementDetails = async (
     partnerNotes?: string;
     interviewScheduledAt?: string;
     interviewFormat?: "Video" | "Call" | "In-person";
+    interviewLink?: string;
+    interviewLocation?: string;
     partnerOutcome?: "offer_extended" | "not_selected";
   }
 ) => {
@@ -222,11 +226,15 @@ export const updatePlacementDetails = async (
 export const logInterview = async (
   placementId: string,
   interviewScheduledAt: string,
-  interviewFormat: "Video" | "Call" | "In-person"
+  interviewFormat: "Video" | "Call" | "In-person",
+  interviewLink?: string,
+  interviewLocation?: string
 ) => {
   const { data } = await authClient.patch(`/partners/placements/${placementId}/interview`, {
     interviewScheduledAt,
     interviewFormat,
+    interviewLink,
+    interviewLocation,
   });
   return data;
 };

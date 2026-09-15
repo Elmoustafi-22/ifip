@@ -12,6 +12,10 @@ import {
   HiOutlineBuildingOffice2,
   HiOutlineXMark,
   HiOutlinePencilSquare,
+  HiOutlineVideoCamera,
+  HiOutlineMapPin,
+  HiOutlineLink,
+  HiOutlineArrowTopRightOnSquare,
 } from "react-icons/hi2";
 import {
   getMyPlacements,
@@ -29,6 +33,8 @@ export default function MyPlacementsPage() {
   const [activeInterviewPlacement, setActiveInterviewPlacement] = useState<PartnerPlacementItem | null>(null);
   const [interviewDate, setInterviewDate] = useState("");
   const [interviewFormat, setInterviewFormat] = useState<"Video" | "Call" | "In-person">("Video");
+  const [interviewLink, setInterviewLink] = useState("");
+  const [interviewLocation, setInterviewLocation] = useState("");
   const [submittingInterview, setSubmittingInterview] = useState(false);
 
   const [activeOutcomePlacement, setActiveOutcomePlacement] = useState<PartnerPlacementItem | null>(null);
@@ -59,7 +65,13 @@ export default function MyPlacementsPage() {
     if (!activeInterviewPlacement) return;
     setSubmittingInterview(true);
     try {
-      await logInterview(activeInterviewPlacement._id, interviewDate, interviewFormat);
+      await logInterview(
+        activeInterviewPlacement._id,
+        interviewDate,
+        interviewFormat,
+        interviewLink.trim() || undefined,
+        interviewLocation.trim() || undefined
+      );
       setActiveInterviewPlacement(null);
       await fetchPlacements();
     } catch (err) {
@@ -207,15 +219,37 @@ export default function MyPlacementsPage() {
                         Interview Schedule
                       </span>
                       {p.interviewScheduledAt ? (
-                        <div className="space-y-1">
-                          <p className="text-slate-800 font-bold flex items-center space-x-1.5">
-                            <HiOutlineCalendar className="w-4 h-4 text-amber-600" />
+                        <div className="space-y-1.5">
+                          <p className="text-slate-800 font-bold flex items-center space-x-1.5 text-xs">
+                            <HiOutlineCalendar className="w-4 h-4 text-amber-600 shrink-0" />
                             <span>{new Date(p.interviewScheduledAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</span>
                           </p>
                           <p className="text-slate-500 text-[11px]">Format: <strong className="text-slate-800">{p.interviewFormat}</strong></p>
+                          
+                          {p.interviewLink && (
+                            <div className="pt-1">
+                              <a
+                                href={p.interviewLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center space-x-1 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-md text-[11px] font-bold transition-colors truncate max-w-full"
+                              >
+                                <HiOutlineVideoCamera className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
+                                <span className="truncate">Join / Open Meeting</span>
+                                <HiOutlineArrowTopRightOnSquare className="w-3 h-3 shrink-0" />
+                              </a>
+                            </div>
+                          )}
+
+                          {p.interviewLocation && (
+                            <p className="text-[11px] text-slate-600 flex items-start space-x-1 pt-0.5">
+                              <HiOutlineMapPin className="w-3.5 h-3.5 shrink-0 text-slate-400 mt-0.5" />
+                              <span className="line-clamp-2">{p.interviewLocation}</span>
+                            </p>
+                          )}
                         </div>
                       ) : (
-                        <p className="text-slate-400 italic">No interview scheduled yet.</p>
+                        <p className="text-slate-400 italic text-xs">No interview scheduled yet.</p>
                       )}
                     </div>
                     <button
@@ -223,11 +257,13 @@ export default function MyPlacementsPage() {
                         setActiveInterviewPlacement(p);
                         setInterviewDate(p.interviewScheduledAt ? new Date(p.interviewScheduledAt).toISOString().slice(0, 16) : "");
                         setInterviewFormat(p.interviewFormat || "Video");
+                        setInterviewLink(p.interviewLink || "");
+                        setInterviewLocation(p.interviewLocation || "");
                       }}
                       className="mt-3 inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-colors w-fit cursor-pointer"
                     >
                       <HiOutlineCalendar className="w-3.5 h-3.5" />
-                      <span>{p.interviewScheduledAt ? "Reschedule Interview" : "Log Interview Details"}</span>
+                      <span>{p.interviewScheduledAt ? "Reschedule / Edit Link" : "Log Interview Details"}</span>
                     </button>
                   </div>
 
@@ -244,10 +280,10 @@ export default function MyPlacementsPage() {
                             : "bg-slate-200 text-slate-700 border border-slate-300"
                         }`}>
                           <HiOutlineCheck className="w-3.5 h-3.5" />
-                          <span>{p.partnerOutcome === "offer_extended" ? "Offer Extended" : "Not Selected"}</span>
+                          <span>{p.partnerOutcome === "offer_extended" ? "Placement Confirmed" : "Not Selected"}</span>
                         </span>
                       ) : (
-                        <p className="text-slate-400 italic">Outcome pending interview.</p>
+                        <p className="text-slate-400 italic text-xs">Outcome pending interview.</p>
                       )}
 
                       {p.partnerNotes && (
@@ -296,7 +332,7 @@ export default function MyPlacementsPage() {
                 <HiOutlineCalendar className="w-5 h-5 text-emerald-600" />
                 <span>Log Interview Details</span>
               </h2>
-              <button onClick={() => setActiveInterviewPlacement(null)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setActiveInterviewPlacement(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <HiOutlineXMark className="w-5 h-5" />
               </button>
             </div>
@@ -324,6 +360,45 @@ export default function MyPlacementsPage() {
                   <option value="Call">Phone Call</option>
                   <option value="In-person">In-Person</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Meeting Link <span className="text-slate-400 font-normal">(e.g. Google Meet, Zoom, Teams)</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                    <HiOutlineLink className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="url"
+                    placeholder="https://meet.google.com/abc-defg-hij"
+                    value={interviewLink}
+                    onChange={(e) => setInterviewLink(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-9 pr-3 text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Participants will receive this link via email and can join directly from their dashboard.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Location / Additional Instructions <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute top-3 left-3 flex items-center pointer-events-none text-slate-400">
+                    <HiOutlineMapPin className="w-4 h-4" />
+                  </div>
+                  <textarea
+                    rows={2}
+                    placeholder={interviewFormat === "In-person" ? "e.g. Office Address, Floor number, Security check-in..." : "e.g. Passcode or dial-in number if applicable..."}
+                    value={interviewLocation}
+                    onChange={(e) => setInterviewLocation(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-9 pr-3 text-xs text-slate-800 focus:outline-none focus:border-emerald-600 resize-none"
+                  />
+                </div>
               </div>
 
               <div className="flex items-center justify-end space-x-3 pt-2">
@@ -375,8 +450,8 @@ export default function MyPlacementsPage() {
                       className="text-emerald-600 focus:ring-0 cursor-pointer"
                     />
                     <div>
-                      <span className="text-xs font-bold text-emerald-800 block">Offer Extended</span>
-                      <span className="text-[11px] text-slate-500 block">Candidate selected for placement position.</span>
+                      <span className="text-xs font-bold text-emerald-800 block">Placement Confirmed</span>
+                      <span className="text-[11px] text-slate-500 block">Candidate selected and confirmed for placement with your organization.</span>
                     </div>
                   </label>
 

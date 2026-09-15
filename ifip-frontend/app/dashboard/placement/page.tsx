@@ -7,7 +7,12 @@ import {
   HiOutlineSparkles,
   HiOutlineChatBubbleLeftRight,
   HiOutlineClipboardDocumentCheck,
-  HiOutlineShieldCheck
+  HiOutlineShieldCheck,
+  HiOutlineCalendar,
+  HiOutlineVideoCamera,
+  HiOutlineMapPin,
+  HiOutlineArrowTopRightOnSquare,
+  HiOutlineClipboard
 } from "react-icons/hi2";
 import { getMyPlacement, Placement } from "@/lib/api/services";
 
@@ -15,6 +20,7 @@ export default function ParticipantPlacementPage() {
   const [placement, setPlacement] = useState<Placement | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const fetchPlacement = async () => {
@@ -147,6 +153,94 @@ export default function ParticipantPlacementPage() {
               })}
             </div>
           </div>
+
+          {/* Scheduled Interview Card (if interview is logged) */}
+          {placement.interviewScheduledAt && (
+            <div className="bg-gradient-to-br from-emerald-900 to-slate-900 text-white border border-emerald-700/40 rounded-2xl p-6 shadow-md relative overflow-hidden">
+              <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+              
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div className="flex items-center space-x-2">
+                  <span className="flex h-2.5 w-2.5 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  </span>
+                  <span className="text-emerald-400 font-bold uppercase tracking-wider text-[11px]">
+                    Upcoming Interview Scheduled
+                  </span>
+                </div>
+                <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-semibold px-2.5 py-0.5 rounded-full w-fit">
+                  {placement.interviewFormat || "Video Call"}
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
+                  <div className="flex items-center space-x-2 text-slate-200">
+                    <HiOutlineCalendar className="w-5 h-5 text-amber-400 shrink-0" />
+                    <span className="font-bold text-sm sm:text-base text-white">
+                      {new Date(placement.interviewScheduledAt).toLocaleString("en-GB", {
+                        weekday: "short",
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit"
+                      })}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300">
+                    Host Partner: <strong className="text-white">{partner?.name || "Partner Organization"}</strong>
+                  </p>
+                </div>
+
+                {/* Video / Meeting Link */}
+                {placement.interviewLink && (
+                  <div className="space-y-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                      <a
+                        href={placement.interviewLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center space-x-2 px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                      >
+                        <HiOutlineVideoCamera className="w-5 h-5 text-slate-950" />
+                        <span>Join Interview Meeting</span>
+                        <HiOutlineArrowTopRightOnSquare className="w-4 h-4 text-slate-950" />
+                      </a>
+                      <button
+                        onClick={() => {
+                          if (placement.interviewLink) {
+                            navigator.clipboard.writeText(placement.interviewLink);
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
+                          }
+                        }}
+                        className="inline-flex items-center justify-center space-x-1.5 px-3 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-semibold border border-white/10 transition-colors cursor-pointer"
+                      >
+                        <HiOutlineClipboard className="w-4 h-4 text-slate-300" />
+                        <span>{copied ? "Copied Link!" : "Copy Link"}</span>
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-400 break-all font-mono">
+                      Meeting URL: <span className="text-slate-300">{placement.interviewLink}</span>
+                    </p>
+                  </div>
+                )}
+
+                {/* Location / Instructions */}
+                {placement.interviewLocation && (
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-start space-x-2 text-xs text-slate-300">
+                    <HiOutlineMapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-white block">Location / Instructions:</span>
+                      <span>{placement.interviewLocation}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Employer Card */}
           {partner && (

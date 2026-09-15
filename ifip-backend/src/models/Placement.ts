@@ -12,6 +12,8 @@ export interface IPlacement extends Document {
     partnerNotes?: string;
     interviewScheduledAt?: Date;
     interviewFormat?: 'Video' | 'Call' | 'In-person';
+    interviewLink?: string;
+    interviewLocation?: string;
     partnerOutcome?: 'offer_extended' | 'not_selected';
     createdAt: Date;
 }
@@ -32,6 +34,8 @@ const placementSchema = new Schema<IPlacement>({
     partnerNotes: { type: String },
     interviewScheduledAt: { type: Date },
     interviewFormat: { type: String, enum: ['Video', 'Call', 'In-person'] },
+    interviewLink: { type: String },
+    interviewLocation: { type: String },
     partnerOutcome: { type: String, enum: ['offer_extended', 'not_selected'] },
     createdAt: { type: Date, default: Date.now }
 });
