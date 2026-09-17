@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { Application } from '../models/Application.js';
 import { User } from '../models/User.js';
+import { logAction } from '../utils/auditLogger.js';
 
 export const getMyApplication = async (req: Request, res: Response) => {
     const application = await Application.findOne({ userId: req.user!.id }).populate('userId', 'email role mfaEnabled avatarUrl');
@@ -58,23 +59,61 @@ export const updateMyApplication = async (req: Request, res: Response) => {
         altInstituteCertUrl
     } = req.body;
 
+    const updatedFields: string[] = [];
+
     if (fullName !== undefined) {
         application.fullName = fullName;
         await User.findByIdAndUpdate(req.user!.id, { fullName });
+        updatedFields.push('fullName');
     }
     if (avatarUrl !== undefined) {
         application.avatarUrl = avatarUrl;
         await User.findByIdAndUpdate(req.user!.id, { avatarUrl });
+        updatedFields.push('avatarUrl');
     }
-    if (phone !== undefined) application.phone = phone;
-    if (country !== undefined) application.country = country;
-    if (stateCity !== undefined) application.stateCity = stateCity;
-    if (academicInfo !== undefined) application.academicInfo = academicInfo;
-    if (programInterest !== undefined) application.programInterest = programInterest;
-    if (skills !== undefined) application.skills = skills;
-    if (cvUrl !== undefined) application.cvUrl = cvUrl;
-    if (altInstituteCertUrl !== undefined) (application as any).altInstituteCertUrl = altInstituteCertUrl;
+    if (phone !== undefined) {
+        application.phone = phone;
+        updatedFields.push('phone');
+    }
+    if (country !== undefined) {
+        application.country = country;
+        updatedFields.push('country');
+    }
+    if (stateCity !== undefined) {
+        application.stateCity = stateCity;
+        updatedFields.push('stateCity');
+    }
+    if (academicInfo !== undefined) {
+        application.academicInfo = academicInfo;
+        updatedFields.push('academicInfo');
+    }
+    if (programInterest !== undefined) {
+        application.programInterest = programInterest;
+        updatedFields.push('programInterest');
+    }
+    if (skills !== undefined) {
+        application.skills = skills;
+        updatedFields.push('skills');
+    }
+    if (cvUrl !== undefined) {
+        application.cvUrl = cvUrl;
+        updatedFields.push('cvUrl');
+    }
+    if (altInstituteCertUrl !== undefined) {
+        (application as any).altInstituteCertUrl = altInstituteCertUrl;
+        updatedFields.push('altInstituteCertUrl');
+    }
 
     await application.save();
+
+    if (updatedFields.length > 0) {
+        await logAction(
+            req,
+            'PARTICIPANT_PROFILE_UPDATE',
+            `Updated profile fields: ${updatedFields.join(', ')}`,
+            { targetId: application._id.toString(), targetType: 'Application' }
+        );
+    }
+
     res.json(application);
 };

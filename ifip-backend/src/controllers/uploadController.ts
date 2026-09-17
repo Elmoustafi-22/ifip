@@ -97,6 +97,13 @@ export const uploadCvAuth = async (req: Request, res: Response) => {
         application.cvUrl = uploadResult.secure_url;
         await application.save();
 
+        await logAction(
+            req,
+            'PARTICIPANT_CV_UPDATE',
+            'Uploaded participant CV document',
+            { targetId: application._id.toString(), targetType: 'Application' }
+        );
+
         res.json({ cvUrl: application.cvUrl });
     } catch (err: any) {
         console.error('CV auth upload error:', err);
@@ -144,6 +151,13 @@ export const uploadAvatarAuth = async (req: Request, res: Response) => {
             application.avatarUrl = avatarUrl;
             await application.save();
         }
+
+        await logAction(
+            req,
+            'PARTICIPANT_AVATAR_UPDATE',
+            'Uploaded participant profile avatar',
+            { targetId: user?._id.toString() || req.user!.id, targetType: 'User' }
+        );
 
         res.json({ avatarUrl });
     } catch (err: any) {
@@ -415,6 +429,13 @@ export const uploadAltCertificate = async (req: Request, res: Response) => {
         if (application) {
             (application as any).altInstituteCertUrl = uploadResult.secure_url;
             await application.save();
+
+            await logAction(
+                req,
+                'PARTICIPANT_CERTIFICATE_UPDATE',
+                'Uploaded alternative institute certificate document',
+                { targetId: application._id.toString(), targetType: 'Application' }
+            );
         }
 
         res.json({ certUrl: uploadResult.secure_url });
@@ -443,6 +464,13 @@ export const saveAltCertificateUrl = async (req: Request, res: Response) => {
 
         (application as any).altInstituteCertUrl = certUrl;
         await application.save();
+
+        await logAction(
+            req,
+            'PARTICIPANT_CERTIFICATE_UPDATE',
+            'Saved alternative institute certificate URL link',
+            { targetId: application._id.toString(), targetType: 'Application' }
+        );
 
         res.json({ certUrl });
     } catch (err: any) {
@@ -493,6 +521,13 @@ export const saveCvUrlAuth = async (req: Request, res: Response) => {
 
         application.cvUrl = cvUrl;
         await application.save();
+
+        await logAction(
+            req,
+            'PARTICIPANT_CV_UPDATE',
+            'Saved participant CV document link',
+            { targetId: application._id.toString(), targetType: 'Application' }
+        );
 
         res.json({ cvUrl: application.cvUrl });
     } catch (err: any) {

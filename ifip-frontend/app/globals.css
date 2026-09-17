@@ -189,6 +189,25 @@
   }
 }
 
+@utility sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  &::-webkit-scrollbar {
+    width: 5px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 9999px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.35);
+  }
+}
+
+
 /* WCAG Focus Indicators */
 :focus-visible {
   outline: 3px solid #00A0E3; /* Vibrant blue focus ring */

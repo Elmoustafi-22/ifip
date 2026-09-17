@@ -21,7 +21,7 @@ import type {
 } from '../validators/authValidators.js';
 import { sendPasswordResetEmail } from '../services/emailService.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
-import { logRawAction } from '../utils/auditLogger.js';
+import { logAction, logRawAction } from '../utils/auditLogger.js';
 
 // ── Shared helper: issue tokens + set refresh cookie ──────────────────
 const getCookieOptions = (req?: Request) => {
@@ -238,6 +238,18 @@ export const resetPassword = async (req: Request<{}, {}, ResetPasswordInput>, re
     await user.save();
     notificationEmitter.emit('auth.password_changed', { user });
 
+    await logRawAction({
+        userId: user.id,
+        userEmail: user.email,
+        userRole: user.role,
+        action: 'PASSWORD_RESET',
+        description: 'Account password was reset via email verification link',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        targetId: user.id,
+        targetType: 'User',
+    });
+
     // Log the user in immediately after resetting
     const { accessToken } = issueTokens(res, user.id, user.role, req);
     res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
@@ -272,6 +284,13 @@ export const changePassword = async (req: Request, res: Response) => {
     user.passwordHash = await bcrypt.hash(newPassword, 12);
     await user.save();
     notificationEmitter.emit('auth.password_changed', { user });
+
+    await logAction(
+        req,
+        'PASSWORD_CHANGE',
+        'User changed account password',
+        { targetId: user._id.toString(), targetType: 'User' }
+    );
 
     res.json({ message: 'Password updated successfully.' });
 };
@@ -441,10 +460,29 @@ export const updateProfile = async (req: Request, res: Response) => {
             return;
         }
 
-        if (fullName !== undefined) user.fullName = fullName;
-        if (title !== undefined) user.title = title;
-        if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
+        const updatedFields: string[] = [];
+        if (fullName !== undefined) {
+            user.fullName = fullName;
+            updatedFields.push('fullName');
+        }
+        if (title !== undefined) {
+            user.title = title;
+            updatedFields.push('title');
+        }
+        if (avatarUrl !== undefined) {
+            user.avatarUrl = avatarUrl;
+            updatedFields.push('avatarUrl');
+        }
         await user.save();
+
+        if (updatedFields.length > 0) {
+            await logAction(
+                req,
+                'USER_PROFILE_UPDATE',
+                `Updated account profile: ${updatedFields.join(', ')}`,
+                { targetId: user._id.toString(), targetType: 'User' }
+            );
+        }
 
         res.json({
             message: 'Profile updated successfully.',

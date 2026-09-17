@@ -9,6 +9,7 @@ import { Application } from '../models/Application.js';
 import { Notification } from '../models/Notification.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { sendModuleTaskReminderEmail } from '../services/emailService.js';
+import { logAction } from '../utils/auditLogger.js';
 
 const getRouteParamId = (value: string | string[] | undefined) => {
     if (Array.isArray(value)) {
@@ -253,6 +254,13 @@ export const submitModuleTask = async (req: Request, res: Response) => {
             progress.moduleTaskSubmissionId = submission._id;
             await progress.save();
         }
+
+        await logAction(
+            req,
+            'MODULE_TASK_SUBMIT',
+            `Submitted task assignment for module "${module.title}" (Attempt #${attemptNumber})`,
+            { targetId: submission._id.toString(), targetType: 'ModuleTaskSubmission' }
+        );
 
         res.status(201).json({
             message: 'Task submitted successfully.',

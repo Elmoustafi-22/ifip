@@ -19,13 +19,46 @@ function formatDate(iso?: string) {
   });
 }
 
+const ROLE_BADGES: Record<string, string> = {
+  participant: "bg-teal-50 text-teal-700 border-teal-200",
+  partner: "bg-purple-50 text-purple-700 border-purple-200",
+  admin: "bg-blue-50 text-blue-700 border-blue-200",
+  superadmin: "bg-indigo-50 text-indigo-700 border-indigo-200",
+};
+
 const ACTION_COLORS: Record<string, string> = {
+  // Participant Actions
+  PARTICIPANT_PROFILE_UPDATE: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+  PARTICIPANT_CV_UPDATE: "bg-teal-50 text-teal-700 border border-teal-200",
+  PARTICIPANT_AVATAR_UPDATE: "bg-cyan-50 text-cyan-700 border border-cyan-200",
+  PARTICIPANT_CERTIFICATE_UPDATE: "bg-blue-50 text-blue-700 border border-blue-200",
+  MODULE_TASK_SUBMIT: "bg-sky-50 text-sky-700 border border-sky-200",
+  ASSESSMENT_SUBMIT: "bg-indigo-50 text-indigo-700 border border-indigo-200",
+  USER_PROFILE_UPDATE: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+  PASSWORD_CHANGE: "bg-amber-50 text-amber-700 border border-amber-200",
+  PASSWORD_RESET: "bg-rose-50 text-rose-700 border border-rose-200",
+
+  // Partner Actions
+  PARTNER_SETTINGS_UPDATE: "bg-purple-50 text-purple-700 border border-purple-200",
+  PARTNER_INTEREST_EXPRESS: "bg-violet-50 text-violet-700 border border-violet-200",
+  PARTNER_INTEREST_WITHDRAW: "bg-amber-50 text-amber-700 border border-amber-200",
+  PARTNER_INTERVIEW_SCHEDULE: "bg-fuchsia-50 text-fuchsia-700 border border-fuchsia-200",
+  PARTNER_OUTCOME_LOG: "bg-indigo-50 text-indigo-700 border border-indigo-200",
+  PARTNER_NOTES_UPDATE: "bg-slate-100 text-slate-700 border border-slate-200",
+  PARTNER_OPENING_CREATE: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+  PARTNER_OPENING_UPDATE: "bg-blue-50 text-blue-700 border border-blue-200",
+  PARTNER_OPENING_DELETE: "bg-red-50 text-red-700 border border-red-200",
+  PARTNER_APPLICATION_SUBMIT: "bg-pink-50 text-pink-700 border border-pink-200",
+
+  // Admin & System
   COHORT_CREATE: "bg-emerald-50 text-emerald-700 border border-emerald-100",
   COHORT_UPDATE: "bg-blue-50 text-blue-700 border border-blue-100",
   COHORT_DELETE: "bg-red-50 text-red-700 border border-red-100",
   SYSTEM_CONFIG_UPDATE: "bg-purple-50 text-purple-700 border border-purple-100",
   BROCHURE_UPLOAD: "bg-amber-50 text-amber-700 border border-amber-100",
   ADMIN_INVITE: "bg-rose-50 text-rose-700 border border-rose-100",
+
+  // Auth & Application Events
   USER_LOGIN: "bg-sky-50 text-sky-700 border border-sky-100",
   ADMIN_LOGIN: "bg-indigo-50 text-indigo-700 border border-indigo-100",
   APPLICATION_START: "bg-teal-50 text-teal-700 border border-teal-100",
@@ -38,12 +71,38 @@ const ACTION_COLORS: Record<string, string> = {
 };
 
 const ACTION_LABELS: Record<string, string> = {
+  // Participant Actions
+  PARTICIPANT_PROFILE_UPDATE: "Participant Profile Updated",
+  PARTICIPANT_CV_UPDATE: "CV Document Updated",
+  PARTICIPANT_AVATAR_UPDATE: "Profile Photo Updated",
+  PARTICIPANT_CERTIFICATE_UPDATE: "Certificate Updated",
+  MODULE_TASK_SUBMIT: "Module Task Submitted",
+  ASSESSMENT_SUBMIT: "Assessment Completed",
+  USER_PROFILE_UPDATE: "Account Profile Updated",
+  PASSWORD_CHANGE: "Password Changed",
+  PASSWORD_RESET: "Password Reset",
+
+  // Partner Actions
+  PARTNER_SETTINGS_UPDATE: "Partner Settings Updated",
+  PARTNER_INTEREST_EXPRESS: "Candidate Requested",
+  PARTNER_INTEREST_WITHDRAW: "Candidate Request Withdrawn",
+  PARTNER_INTERVIEW_SCHEDULE: "Interview Scheduled",
+  PARTNER_OUTCOME_LOG: "Placement Outcome Recorded",
+  PARTNER_NOTES_UPDATE: "Candidate Notes Updated",
+  PARTNER_OPENING_CREATE: "Opening Created",
+  PARTNER_OPENING_UPDATE: "Opening Updated",
+  PARTNER_OPENING_DELETE: "Opening Deleted",
+  PARTNER_APPLICATION_SUBMIT: "Partner Inquiry Submitted",
+
+  // Admin & System
   COHORT_CREATE: "Cohort Created",
   COHORT_UPDATE: "Cohort Updated",
   COHORT_DELETE: "Cohort Deleted",
   SYSTEM_CONFIG_UPDATE: "Config Overrides",
   BROCHURE_UPLOAD: "Brochure Upload",
   ADMIN_INVITE: "Admin Invited",
+
+  // Auth & Application Events
   USER_LOGIN: "User Login",
   ADMIN_LOGIN: "Admin Login",
   APPLICATION_START: "Application Started",
@@ -65,6 +124,7 @@ export default function AdminAuditLogsPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeAction, setActiveAction] = useState("all");
+  const [activeRole, setActiveRole] = useState("all");
   const [page, setPage] = useState(1);
   const [selectedLog, setSelectedLog] = useState<AuditLogItem | null>(null);
 
@@ -90,13 +150,14 @@ export default function AdminAuditLogsPage() {
     return () => clearTimeout(t);
   }, [search]);
 
-  useEffect(() => { setPage(1); }, [activeAction, debouncedSearch]);
+  useEffect(() => { setPage(1); }, [activeAction, activeRole, debouncedSearch]);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
       const result = await getAuditLogs({
         action: activeAction === "all" ? undefined : activeAction,
+        role: activeRole === "all" ? undefined : activeRole,
         search: debouncedSearch || undefined,
         page,
         limit: 50,
@@ -107,7 +168,7 @@ export default function AdminAuditLogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeAction, debouncedSearch, page]);
+  }, [activeAction, activeRole, debouncedSearch, page]);
 
   useEffect(() => {
     if (authorized) fetchLogs();
@@ -165,23 +226,62 @@ export default function AdminAuditLogsPage() {
       <div className="bg-white border border-[#E7E2D8] rounded-2xl shadow-sm overflow-hidden mb-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-white">
           <div className="flex items-center gap-2.5 flex-wrap">
-            <span className="text-xs font-bold text-slate-400">Filter Action:</span>
+            <span className="text-xs font-bold text-slate-400">Actor Role:</span>
+            <select
+              value={activeRole}
+              onChange={(e) => {
+                setActiveRole(e.target.value);
+                setPage(1);
+              }}
+              className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#00B0FF] bg-slate-50/50"
+            >
+              <option value="all">All Roles</option>
+              <option value="participant">Participant</option>
+              <option value="partner">Partner</option>
+              <option value="admin">Admin & Superadmin</option>
+            </select>
+
+            <span className="text-xs font-bold text-slate-400 ml-1">Filter Action:</span>
             <select
               value={activeAction}
-              onChange={(e) => setActiveAction(e.target.value)}
+              onChange={(e) => {
+                setActiveAction(e.target.value);
+                setPage(1);
+              }}
               className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#00B0FF] bg-slate-50/50"
             >
               <option value="all">All Actions</option>
-              <optgroup label="─── Auth Events">
+              <optgroup label="─── Participant Actions">
+                <option value="PARTICIPANT_PROFILE_UPDATE">Profile Update</option>
+                <option value="PARTICIPANT_CV_UPDATE">CV Upload / Update</option>
+                <option value="PARTICIPANT_AVATAR_UPDATE">Profile Photo Update</option>
+                <option value="PARTICIPANT_CERTIFICATE_UPDATE">Certificate Upload</option>
+                <option value="MODULE_TASK_SUBMIT">Module Task Submission</option>
+                <option value="ASSESSMENT_SUBMIT">Assessment Submission</option>
+              </optgroup>
+              <optgroup label="─── Partner Actions">
+                <option value="PARTNER_SETTINGS_UPDATE">Partner Profile Update</option>
+                <option value="PARTNER_INTEREST_EXPRESS">Candidate Requested</option>
+                <option value="PARTNER_INTEREST_WITHDRAW">Request Withdrawn</option>
+                <option value="PARTNER_INTERVIEW_SCHEDULE">Interview Scheduled</option>
+                <option value="PARTNER_OUTCOME_LOG">Outcome Recorded</option>
+                <option value="PARTNER_NOTES_UPDATE">Candidate Notes Updated</option>
+                <option value="PARTNER_OPENING_CREATE">Opening Created</option>
+                <option value="PARTNER_OPENING_UPDATE">Opening Updated</option>
+                <option value="PARTNER_OPENING_DELETE">Opening Deleted</option>
+                <option value="PARTNER_APPLICATION_SUBMIT">Partner Inquiry Submitted</option>
+              </optgroup>
+              <optgroup label="─── Auth & Security">
                 <option value="USER_LOGIN">User Logins</option>
                 <option value="ADMIN_LOGIN">Admin Logins</option>
+                <option value="PASSWORD_CHANGE">Password Changed</option>
+                <option value="PASSWORD_RESET">Password Reset</option>
+                <option value="USER_PROFILE_UPDATE">Account Profile Updated</option>
               </optgroup>
-              <optgroup label="─── Application Events">
+              <optgroup label="─── Application & Payment Events">
                 <option value="APPLICATION_START">Application Started</option>
                 <option value="OTP_VERIFIED">OTP Verified</option>
                 <option value="APPLICATION_SUBMIT">Application Submitted</option>
-              </optgroup>
-              <optgroup label="─── Payment Events">
                 <option value="PAYMENT_INITIATED">Payment Initiated</option>
                 <option value="PAYMENT_CONFIRMED">Payment Confirmed</option>
                 <option value="PAYMENT_FAILED">Payment Failed</option>
@@ -262,7 +362,7 @@ export default function AdminAuditLogsPage() {
                         <div className="font-bold text-[#000666] text-xs leading-none">
                           {log.userEmail}
                         </div>
-                        <span className="text-[9px] uppercase font-black text-slate-400 mt-1 inline-block tracking-wider">
+                        <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded border mt-1 inline-block tracking-wider ${ROLE_BADGES[log.userRole] ?? "bg-slate-100 text-slate-600 border-slate-200"}`}>
                           {log.userRole}
                         </span>
                       </td>
@@ -325,8 +425,11 @@ export default function AdminAuditLogsPage() {
                   <div className="text-xs font-semibold text-slate-800">
                     {log.description}
                   </div>
-                  <div className="text-[10px] text-slate-500">
-                    Actor: <strong className="text-[#000666]">{log.userEmail}</strong> ({log.userRole})
+                  <div className="text-[10px] text-slate-500 flex items-center gap-1.5 flex-wrap">
+                    <span>Actor: <strong className="text-[#000666]">{log.userEmail}</strong></span>
+                    <span className={`text-[8px] uppercase font-bold px-1.5 py-0.5 rounded border ${ROLE_BADGES[log.userRole] ?? "bg-slate-100 text-slate-600 border-slate-200"}`}>
+                      {log.userRole}
+                    </span>
                   </div>
                 </div>
               );
@@ -403,7 +506,7 @@ export default function AdminAuditLogsPage() {
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Actor Role</span>
                   <div className="mt-1">
-                    <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-2.5 py-1">
+                    <span className={`text-xs font-bold rounded-lg px-2.5 py-1 border ${ROLE_BADGES[selectedLog.userRole] ?? "bg-slate-100 text-slate-600 border-slate-200"}`}>
                       {selectedLog.userRole}
                     </span>
                   </div>

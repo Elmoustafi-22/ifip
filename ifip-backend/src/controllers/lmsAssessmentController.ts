@@ -9,6 +9,7 @@ import { unlockNextModule } from '../services/lmsService.js';
 import { User } from '../models/User.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { evaluateOpenAnswerWithAI, generateModelSolutionFromModule } from '../services/aiGradingService.js';
+import { logAction } from '../utils/auditLogger.js';
 
 // Helper to verify user module access and initialize progress if unlocked
 const ensureUserModuleAccess = async (userId: string, moduleId: string) => {
@@ -424,6 +425,13 @@ export const submitAssessment = async (req: Request, res: Response) => {
                 user: userObj
             });
         }
+
+        await logAction(
+            req,
+            'ASSESSMENT_SUBMIT',
+            `Completed assessment for module "${moduleObj?.title || 'Coursework'}" — Score: ${score}% (${submissionStatus.toUpperCase()}, Attempt #${newSubmission.attemptNumber})`,
+            { targetId: newSubmission._id.toString(), targetType: 'AssessmentSubmission' }
+        );
 
         res.status(201).json({
             message: 'Assessment submitted successfully.',

@@ -260,6 +260,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           className={`
             hidden lg:flex flex-col bg-[#000666] shrink-0
             transition-[width] duration-200 ease-in-out overflow-hidden
+            h-screen sticky top-0 z-40
             ${isExpanded ? "w-60" : "w-[68px]"}
           `}
         >
@@ -287,7 +288,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           {/* Nav */}
-          <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-4 px-2">
+          <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-4 px-2 sidebar-scroll">
             {NAV_GROUPS.map((group) => {
               const filteredItems = group.items.filter(item => !(item as any).roles || (item as any).roles.includes(adminRole));
               if (filteredItems.length === 0) return null;
@@ -391,7 +392,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
 
-          <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
+          <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5 sidebar-scroll">
             {NAV_GROUPS.map((group) => {
               const filteredItems = group.items.filter(item => !(item as any).roles || (item as any).roles.includes(adminRole));
               if (filteredItems.length === 0) return null;

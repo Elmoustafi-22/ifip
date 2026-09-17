@@ -821,7 +821,7 @@ export const resendSetPasswordLink = async (req: Request, res: Response) => {
 // ── GET /api/v1/admin/audit-logs ──────────────────────────────────────────────
 export const getAuditLogs = async (req: Request, res: Response) => {
     try {
-        const { search, page = '1', limit = '50', action } = req.query;
+        const { search, page = '1', limit = '50', action, role } = req.query;
 
         const pageNum = Math.max(1, parseInt(page as string, 10));
         const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
@@ -831,13 +831,21 @@ export const getAuditLogs = async (req: Request, res: Response) => {
         if (action && action !== 'all') {
             match.action = action;
         }
+        if (role && role !== 'all') {
+            if (role === 'admin') {
+                match.userRole = { $in: ['admin', 'superadmin'] };
+            } else {
+                match.userRole = role;
+            }
+        }
         if (search) {
             const regex = new RegExp(search as string, 'i');
             match.$or = [
                 { userEmail: regex },
                 { userRole: regex },
                 { action: regex },
-                { description: regex }
+                { description: regex },
+                { targetType: regex },
             ];
         }
 

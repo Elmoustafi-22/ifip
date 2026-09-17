@@ -9,6 +9,7 @@ import { PartnerInterest } from '../models/PartnerInterest.js';
 import { Notification } from '../models/Notification.js';
 import { CohortConfig } from '../models/CohortConfig.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
+import { logAction } from '../utils/auditLogger.js';
 import { env } from '../config/env.js';
 
 /** Helper to retrieve candidate statuses that should be visible to partners */
@@ -468,6 +469,13 @@ export const expressInterest = async (req: Request, res: Response) => {
             note,
         });
 
+        await logAction(
+            req,
+            'PARTNER_INTEREST_EXPRESS',
+            `Expressed interest in intern candidate "${intern?.fullName || 'Intern'}" (${role || 'General'}, ${workType || 'Standard'})`,
+            { targetId: interest._id.toString(), targetType: 'PartnerInterest' }
+        );
+
         res.status(201).json({ message: 'Interest request submitted.', interest });
     } catch (err: any) {
         res.status(500).json({ message: 'Error submitting interest request.', error: err.message });
@@ -517,6 +525,14 @@ export const withdrawInterest = async (req: Request, res: Response) => {
         }
 
         await interest.deleteOne();
+
+        await logAction(
+            req,
+            'PARTNER_INTEREST_WITHDRAW',
+            `Withdrew pending interest request for intern (${interest.userId})`,
+            { targetId: interest._id.toString(), targetType: 'PartnerInterest' }
+        );
+
         res.json({ message: 'Interest request withdrawn.' });
     } catch (err: any) {
         res.status(500).json({ message: 'Error withdrawing request.', error: err.message });
@@ -606,6 +622,13 @@ export const logInterview = async (req: Request, res: Response) => {
             interviewLocation: placement.interviewLocation,
         });
 
+        await logAction(
+            req,
+            'PARTNER_INTERVIEW_SCHEDULE',
+            `Scheduled ${interviewFormat} interview with intern "${intern?.fullName || 'Intern'}" for ${formattedDate}`,
+            { targetId: placement._id.toString(), targetType: 'Placement' }
+        );
+
         res.json({ message: 'Interview logged.', placement });
     } catch (err: any) {
         res.status(500).json({ message: 'Error logging interview.', error: err.message });
@@ -646,6 +669,13 @@ export const logOutcome = async (req: Request, res: Response) => {
             outcome: partnerOutcome,
         });
 
+        await logAction(
+            req,
+            'PARTNER_OUTCOME_LOG',
+            `Recorded placement outcome "${partnerOutcome}" for intern "${intern?.fullName || 'Intern'}"`,
+            { targetId: placement._id.toString(), targetType: 'Placement' }
+        );
+
         res.json({ message: 'Outcome recorded.', placement });
     } catch (err: any) {
         res.status(500).json({ message: 'Error logging outcome.', error: err.message });
@@ -666,6 +696,14 @@ export const savePlacementNotes = async (req: Request, res: Response) => {
 
         placement.partnerNotes = req.body.notes ?? '';
         await placement.save();
+
+        await logAction(
+            req,
+            'PARTNER_NOTES_UPDATE',
+            `Updated internal review notes for placement candidate`,
+            { targetId: placement._id.toString(), targetType: 'Placement' }
+        );
+
         res.json({ message: 'Notes saved.' });
     } catch (err: any) {
         res.status(500).json({ message: 'Error saving notes.', error: err.message });
@@ -707,6 +745,13 @@ export const addOpening = async (req: Request, res: Response) => {
         org.hasOpenings = true;
         await org.save();
 
+        await logAction(
+            req,
+            'PARTNER_OPENING_CREATE',
+            `Created internship opening "${role.trim()}" (${mode}, ${Number(count) || 1} slot(s))`,
+            { targetId: org._id.toString(), targetType: 'PartnerOrganization' }
+        );
+
         res.status(201).json({ message: 'Opening added.', openings: org.openings });
     } catch (err: any) {
         res.status(500).json({ message: 'Error adding opening.', error: err.message });
@@ -732,6 +777,14 @@ export const updateOpening = async (req: Request, res: Response) => {
         if (count !== undefined) opening.count = Number(count);
 
         await org.save();
+
+        await logAction(
+            req,
+            'PARTNER_OPENING_UPDATE',
+            `Updated internship opening "${opening.role}"`,
+            { targetId: org._id.toString(), targetType: 'PartnerOrganization' }
+        );
+
         res.json({ message: 'Opening updated.', openings: org.openings });
     } catch (err: any) {
         res.status(500).json({ message: 'Error updating opening.', error: err.message });
@@ -744,9 +797,19 @@ export const deleteOpening = async (req: Request, res: Response) => {
         const org = await getPartnerOrg(req, res);
         if (!org) return;
 
+        const opening = (org.openings as any).id(req.params.openingId);
+        const openingRole = opening?.role || 'Opening';
+
         (org.openings as any).pull({ _id: req.params.openingId });
         if (org.openings.length === 0) org.hasOpenings = false;
         await org.save();
+
+        await logAction(
+            req,
+            'PARTNER_OPENING_DELETE',
+            `Deleted internship opening "${openingRole}"`,
+            { targetId: org._id.toString(), targetType: 'PartnerOrganization' }
+        );
 
         res.json({ message: 'Opening removed.', openings: org.openings });
     } catch (err: any) {
@@ -831,6 +894,13 @@ export const updatePartnerSettings = async (req: Request, res: Response) => {
                 await user.save();
             }
         }
+
+        await logAction(
+            req,
+            'PARTNER_SETTINGS_UPDATE',
+            `Updated organization profile and contact settings for "${org.name}"`,
+            { targetId: org._id.toString(), targetType: 'PartnerOrganization' }
+        );
 
         res.json({ message: 'Settings updated.', org });
     } catch (err: any) {

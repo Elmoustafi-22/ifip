@@ -201,7 +201,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen flex font-sans bg-[#FDFBF7] w-full max-w-full">
       {/* Sidebar Shell — hidden on mobile, visible on md+ */}
-      <aside className="hidden md:flex w-64 bg-[#0E1B5D] text-white flex-col justify-between shrink-0 select-none border-r border-[#000666]/10 sticky top-0 h-screen z-40">
+      <aside className="hidden md:flex w-64 bg-[#0E1B5D] text-white flex-col justify-between shrink-0 select-none border-r border-[#000666]/10 sticky top-0 h-screen z-40 overflow-hidden">
         {/* Header Logo */}
         <div className="p-5 border-b border-white/5 flex flex-col gap-1.5 shrink-0">
           <Image
@@ -215,7 +215,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         {/* Navigation Menu */}
-        <nav className="p-4 flex-1 overflow-y-auto flex flex-col gap-1.5 scrollbar-thin">
+        <nav className="p-4 flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-1.5 sidebar-scroll">
           {menuItems.map((item) => {
             const active = pathname === item.href;
             const Icon = item.icon;

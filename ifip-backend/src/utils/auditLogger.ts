@@ -25,7 +25,13 @@ export const logAction = async (
             ? rawIp[0]
             : (typeof rawIp === 'string' ? rawIp.split(',')[0].trim() : undefined);
 
-        const targetId = targetDetails?.targetId ? new Types.ObjectId(targetDetails.targetId) : undefined;
+        let targetId: Types.ObjectId | undefined;
+        if (targetDetails?.targetId) {
+            const strId = targetDetails.targetId.toString();
+            if (Types.ObjectId.isValid(strId)) {
+                targetId = new Types.ObjectId(strId);
+            }
+        }
 
         await AuditLog.create({
             userId: new Types.ObjectId(req.user.id),
@@ -62,7 +68,13 @@ export const logRawAction = async (
     }
 ) => {
     try {
-        const targetId = params.targetId ? new Types.ObjectId(params.targetId) : undefined;
+        let targetId: Types.ObjectId | undefined;
+        if (params.targetId) {
+            const strId = params.targetId.toString();
+            if (Types.ObjectId.isValid(strId)) {
+                targetId = new Types.ObjectId(strId);
+            }
+        }
         await AuditLog.create({
             userId: new Types.ObjectId(params.userId),
             userEmail: params.userEmail,

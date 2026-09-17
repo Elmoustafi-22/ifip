@@ -761,15 +761,15 @@ export default function AdminModulesPage() {
       <div className="bg-white border border-[#E7E2D8] rounded-2xl overflow-hidden shadow-sm">
         {/* Desktop View Table */}
         <div className="hidden md:block overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-100 text-sm text-left">
+          <table className="min-w-[1080px] w-full divide-y divide-slate-100 text-sm text-left">
             <thead className="bg-slate-50 text-[10px] font-bold uppercase text-slate-400 tracking-wider">
               <tr>
-                <th className="px-6 py-3.5">Order</th>
-                <th className="px-6 py-3.5">Lesson & Outline</th>
-                <th className="px-6 py-3.5">Publish Status</th>
-                <th className="px-6 py-3.5">Schedule / Week</th>
-                <th className="px-6 py-3.5">Assigned Cohort</th>
-                <th className="px-6 py-3.5 text-right">Review Action</th>
+                <th className="w-16 px-4 py-3.5 text-center">Order</th>
+                <th className="min-w-[340px] px-6 py-3.5">Lesson & Outline</th>
+                <th className="w-40 px-5 py-3.5">Publish Status</th>
+                <th className="w-36 px-5 py-3.5">Schedule / Week</th>
+                <th className="w-48 px-5 py-3.5">Assigned Cohort</th>
+                <th className="w-64 px-6 py-3.5 text-right">Review Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -787,25 +787,29 @@ export default function AdminModulesPage() {
                   const isArchived = currentStatus === 'archived';
 
                   return (
-                    <tr key={mod._id} className="hover:bg-slate-50/50">
-                      <td className="px-6 py-4 font-mono font-bold text-[#000666]">
-                        #{mod.order}
+                    <tr key={mod._id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="px-4 py-4 text-center whitespace-nowrap align-middle">
+                        <span className="inline-flex items-center justify-center font-mono font-bold text-xs text-[#000666] bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/80">
+                          #{mod.order}
+                        </span>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="font-bold text-[#000666]">{mod.title}</div>
-                        <div className="flex items-center gap-1.5 mt-0.5 text-slate-400 text-xs">
-                          <span className="bg-slate-100 text-slate-600 text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded">
+                      <td className="px-6 py-4 align-middle">
+                        <div className="font-bold text-slate-900 text-sm leading-snug">{mod.title}</div>
+                        <div className="flex items-center gap-2 mt-1 text-slate-500 text-xs">
+                          <span className="bg-slate-100 text-slate-600 text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
                             {mod.contentType}
                           </span>
-                          <span className="line-clamp-1">{mod.description}</span>
+                          <span className="line-clamp-1 text-slate-400">{mod.description}</span>
                         </div>
-                        {mod.outline?.topics && mod.outline.topics.length > 0 && (
-                          <div className="mt-1 flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 bg-emerald-50 font-semibold px-2 py-0.5 rounded-full border border-emerald-200">
-                              ✓ {mod.outline.topics.length} Syllabus Topics
-                            </span>
-                            {mod.outline.learningObjectives && mod.outline.learningObjectives.length > 0 && (
-                              <span className="text-[10px] text-slate-500">
+                        {(mod.outline?.topics?.length || mod.pdfUrl) && (
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            {mod.outline?.topics && mod.outline.topics.length > 0 && (
+                              <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700 bg-emerald-50 font-semibold px-2.5 py-0.5 rounded-full border border-emerald-200/80 whitespace-nowrap shrink-0">
+                                ✓ {mod.outline.topics.length} Syllabus Topics
+                              </span>
+                            )}
+                            {mod.outline?.learningObjectives && mod.outline.learningObjectives.length > 0 && (
+                              <span className="inline-flex items-center text-[11px] text-slate-500 bg-slate-100 font-medium px-2.5 py-0.5 rounded-full whitespace-nowrap shrink-0">
                                 {mod.outline.learningObjectives.length} Objectives
                               </span>
                             )}
@@ -814,100 +818,101 @@ export default function AdminModulesPage() {
                                 href={mod.pdfUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-[10px] text-rose-700 bg-rose-50 font-semibold px-2 py-0.5 rounded-full border border-rose-200 hover:underline"
+                                className="inline-flex items-center gap-1 text-[11px] text-rose-700 bg-rose-50 font-semibold px-2.5 py-0.5 rounded-full border border-rose-200/80 hover:bg-rose-100 transition-colors whitespace-nowrap shrink-0"
                               >
                                 📄 PDF Document
                               </a>
                             )}
                           </div>
                         )}
-                        {!mod.outline?.topics?.length && mod.pdfUrl && (
-                          <div className="mt-1">
-                            <a
-                              href={mod.pdfUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-[10px] text-rose-700 bg-rose-50 font-semibold px-2 py-0.5 rounded-full border border-rose-200 hover:underline"
-                            >
-                              📄 PDF Document
-                            </a>
-                          </div>
-                        )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-4 whitespace-nowrap align-middle">
                         {isDraft && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300">
-                            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                            Draft (Admin Review)
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-300/80 whitespace-nowrap shadow-2xs">
+                            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
+                            Draft
                           </span>
                         )}
                         {isPublished && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-900 border border-emerald-300">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-900 border border-emerald-300/80 whitespace-nowrap shadow-2xs">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
                             Published
                           </span>
                         )}
                         {isArchived && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-slate-100 text-slate-700 border border-slate-300">
-                            <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-300 whitespace-nowrap shadow-2xs">
+                            <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
                             Archived
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200/70">
-                          <HiOutlineCalendar className="w-3.5 h-3.5 text-amber-700" /> Week {mod.weekNumber || mod.order}
+                      <td className="px-5 py-4 whitespace-nowrap align-middle">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200/80 whitespace-nowrap shadow-2xs">
+                          <HiOutlineCalendar className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                          <span>Week {mod.weekNumber || mod.order}</span>
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-4 whitespace-nowrap align-middle">
                         {(mod as any).cohortId ? (
-                          <span className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded">
-                            {cohorts.find(c => c._id === (mod as any).cohortId)?.name || "Cohort Linked"}
-                          </span>
+                          (() => {
+                            const cohortName = cohorts.find(c => c._id === (mod as any).cohortId)?.name || "Cohort Linked";
+                            return (
+                              <span
+                                title={cohortName}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50/80 border border-indigo-200/70 text-indigo-700 whitespace-nowrap max-w-[160px] truncate shadow-2xs"
+                              >
+                                <HiOutlineAcademicCap className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                <span className="truncate">{cohortName}</span>
+                              </span>
+                            );
+                          })()
                         ) : (
-                          <span className="bg-slate-50 border border-slate-200 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100/80 border border-slate-200 text-slate-500 whitespace-nowrap shadow-2xs">
                             Global (All Cohorts)
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="px-6 py-4 whitespace-nowrap align-middle text-right">
+                        <div className="inline-flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => setReviewModule(mod)}
-                            className="inline-flex items-center gap-1 text-slate-700 hover:text-[#000666] font-semibold text-xs bg-slate-100 hover:bg-slate-200/70 px-2.5 py-1.5 rounded-lg border border-slate-200 transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1 text-slate-700 hover:text-[#000666] font-semibold text-xs bg-slate-100 hover:bg-slate-200/70 px-2.5 py-1.5 rounded-lg border border-slate-200 transition-colors cursor-pointer shrink-0"
                             title="Review module contents"
                           >
-                            <HiOutlineEye className="w-3.5 h-3.5 text-slate-500" /> Review
+                            <HiOutlineEye className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                            <span>Review</span>
                           </button>
                           <button
                             onClick={() => handleOpenEdit(mod)}
-                            className="inline-flex items-center gap-1 text-slate-700 hover:text-[#000666] font-semibold text-xs bg-white hover:bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1 text-slate-700 hover:text-[#000666] font-semibold text-xs bg-white hover:bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 transition-colors cursor-pointer shrink-0"
+                            title="Edit module"
                           >
-                            <HiOutlinePencilSquare className="w-3.5 h-3.5 text-slate-500" /> Edit
+                            <HiOutlinePencilSquare className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                            <span>Edit</span>
                           </button>
                           {isDraft && (
                             <button
                               onClick={() => handlePublish(mod._id)}
                               disabled={publishingId === mod._id}
-                              className="text-white bg-emerald-700 hover:bg-emerald-800 inline-flex items-center gap-1 font-semibold text-xs px-3 py-1.5 rounded-lg shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
+                              className="text-white bg-emerald-700 hover:bg-emerald-800 inline-flex items-center gap-1 font-semibold text-xs px-2.5 py-1.5 rounded-lg shadow-2xs transition-colors disabled:opacity-50 cursor-pointer shrink-0"
                             >
-                              <HiOutlineArrowUpTray className="w-3.5 h-3.5" />
-                              {publishingId === mod._id ? "Publishing..." : "Publish"}
+                              <HiOutlineArrowUpTray className="w-3.5 h-3.5 shrink-0" />
+                              <span>{publishingId === mod._id ? "..." : "Publish"}</span>
                             </button>
                           )}
                           {isPublished && (
                             <button
                               onClick={() => handleUnpublish(mod._id)}
                               disabled={publishingId === mod._id}
-                              className="text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 inline-flex items-center gap-1 font-semibold text-xs px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+                              className="text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 inline-flex items-center gap-1 font-semibold text-xs px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50 cursor-pointer shrink-0"
                             >
-                              <HiOutlineArrowDownTray className="w-3.5 h-3.5 text-slate-400" />
-                              Unpublish
+                              <HiOutlineArrowDownTray className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span>Unpublish</span>
                             </button>
                           )}
                           <button
                             onClick={() => handleDelete(mod._id)}
-                            className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+                            className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg border border-transparent hover:border-rose-200 transition-colors cursor-pointer shrink-0"
                             title="Delete module"
                           >
                             <HiOutlineTrash className="w-4 h-4" />

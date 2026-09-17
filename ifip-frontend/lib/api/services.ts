@@ -896,6 +896,7 @@ export const getAuditLogs = async (params?: {
   page?: number;
   limit?: number;
   action?: string;
+  role?: string;
 }): Promise<AuditLogsResponse> => {
   const { data } = await authClient.get<AuditLogsResponse>("/admin/audit-logs", { params });
   return data;

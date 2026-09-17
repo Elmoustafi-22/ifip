@@ -11,6 +11,7 @@ import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { signSetPasswordToken } from '../utils/jwt.js';
 import { sendPartnerPortalInvite } from '../services/emailService.js';
 import { updateContentVersion } from './contentVersionController.js';
+import { logRawAction } from '../utils/auditLogger.js';
 import { env } from '../config/env.js';
 
 // ─── PUBLIC ───────────────────────────────────────────────────────────────────
@@ -102,6 +103,18 @@ export const submitPartnerApplication = async (req: Request, res: Response) => {
             contactPerson,
             hasOpenings: application.hasOpenings,
             openings: application.openings
+        });
+
+        await logRawAction({
+            userId: application._id.toString(),
+            userEmail: contactEmail,
+            userRole: 'partner',
+            action: 'PARTNER_APPLICATION_SUBMIT',
+            description: `Partner application submitted for "${companyName}" (${contactPerson}, ${contactEmail})`,
+            ipAddress: req.ip,
+            userAgent: req.headers['user-agent'],
+            targetId: application._id.toString(),
+            targetType: 'PartnerApplication'
         });
 
         res.status(201).json({

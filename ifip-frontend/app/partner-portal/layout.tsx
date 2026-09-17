@@ -203,7 +203,7 @@ export default function PartnerPortalLayout({ children }: { children: React.Reac
         </div>
 
         {/* Navigation Groups */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-4 px-2">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-4 px-2 sidebar-scroll">
           {NAV_GROUPS.map((group) => (
             <div key={group.label}>
               {!isExpanded ? (
@@ -292,7 +292,7 @@ export default function PartnerPortalLayout({ children }: { children: React.Reac
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5 sidebar-scroll">
           {NAV_GROUPS.map((group) => (
             <div key={group.label}>
               <p className="text-[9px] font-black uppercase tracking-[0.15em] text-white/30 px-3 mb-1.5">
