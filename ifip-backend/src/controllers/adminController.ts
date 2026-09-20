@@ -111,8 +111,8 @@ export const getDashboardStats = async (req: Request, res: Response) => {
             }
         }
 
-        const totalPaid = await Application.countDocuments({ ...filter, status: { $in: ['payment_confirmed', 'active', 'completed'] } });
-        const activeParticipants = await Application.countDocuments({ ...filter, status: 'active' });
+        const totalPaid = await Application.countDocuments({ ...filter, status: { $in: ['payment_confirmed', 'active', 'completed', 'placement_ready'] } });
+        const activeParticipants = await Application.countDocuments({ ...filter, status: { $in: ['active', 'placement_ready'] } });
         const completedCount = await Application.countDocuments({ ...filter, status: 'completed' });
         const waitlistCount = await Waitlist.countDocuments();
 

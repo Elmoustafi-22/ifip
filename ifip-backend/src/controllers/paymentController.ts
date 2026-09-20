@@ -35,7 +35,7 @@ export const checkCohortCapacity = async (cohortId: Types.ObjectId | string, exc
 
     const applicationsCount = await Application.countDocuments({
         cohortId: new Types.ObjectId(cohortId as string),
-        status: { $in: ['payment_confirmed', 'active', 'completed'] }
+        status: { $in: ['payment_confirmed', 'active', 'completed', 'placement_ready'] }
     });
 
     const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);

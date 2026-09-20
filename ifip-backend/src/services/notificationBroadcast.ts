@@ -457,7 +457,7 @@ notificationEmitter.on('admin.broadcast', async ({ targetType, targetCohortId, t
             if (targetType === 'paid') {
                 const apps = await Application.find({
                     ...cohortFilter,
-                    status: { $in: ['payment_confirmed', 'active', 'completed'] }
+                    status: { $in: ['payment_confirmed', 'active', 'completed', 'placement_ready'] }
                 });
                 recipientUserIds = apps.map((app: any) => app.userId);
             } else if (targetType === 'pending') {
@@ -469,7 +469,7 @@ notificationEmitter.on('admin.broadcast', async ({ targetType, targetCohortId, t
             } else if (targetType === 'all_applicants') {
                 const apps = await Application.find({
                     ...cohortFilter,
-                    status: { $in: ['payment_confirmed', 'active', 'completed'] }
+                    status: { $in: ['payment_confirmed', 'active', 'completed', 'placement_ready'] }
                 });
                 recipientUserIds = apps.map((app: any) => app.userId);
 
