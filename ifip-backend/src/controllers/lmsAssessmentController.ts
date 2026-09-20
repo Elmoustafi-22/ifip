@@ -22,25 +22,14 @@ const ensureUserModuleAccess = async (userId: string, moduleId: string) => {
     });
 
     if (progress) {
-        if (progress.status === 'locked') return null;
+        if (progress.status === 'locked') {
+            progress.status = 'in_progress';
+            await progress.save();
+        }
         return progress;
     }
 
-    // Check if previous published modules are all completed
-    const previousModules = await Module.find({ order: { $lt: mod.order }, status: { $ne: 'draft' } });
-    if (previousModules.length > 0) {
-        const prevIds = previousModules.map(m => m._id);
-        const completedCount = await Progress.countDocuments({
-            userId: new Types.ObjectId(userId),
-            moduleId: { $in: prevIds },
-            status: 'completed'
-        });
-        if (completedCount < previousModules.length) {
-            return null; // Locked
-        }
-    }
-
-    // Module is unlocked: initialize progress
+    // Module is accessible: initialize progress
     progress = await Progress.create({
         userId: new Types.ObjectId(userId),
         moduleId: new Types.ObjectId(moduleId),

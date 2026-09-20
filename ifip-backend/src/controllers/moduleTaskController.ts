@@ -19,12 +19,8 @@ const getRouteParamId = (value: string | string[] | undefined) => {
     return value;
 };
 
-const isSubmissionWindowOpen = (module: any) => {
-    if (!module?.moduleTask?.dueDate) {
-        return true;
-    }
-
-    return new Date() <= new Date(module.moduleTask.dueDate);
+const isSubmissionWindowOpen = (_module: any) => {
+    return true;
 };
 
 export const getTaskRewardSummary = async (_req: Request, res: Response) => {

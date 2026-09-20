@@ -19,17 +19,13 @@ export const getModules = async (req: Request, res: Response) => {
         const publishedAssessmentMap = new Map(publishedAssessments.map(a => [a.moduleId.toString(), a._id]));
         
         const result = [];
-        let previousCompleted = true; // First module is always unlocked
         
         for (let i = 0; i < modules.length; i++) {
             const mod = modules[i];
             const prog = progressMap.get(mod.id.toString());
             const publishedAssessmentId = publishedAssessmentMap.get(mod.id.toString()) || null;
             
-            let status: 'locked' | 'not_started' | 'in_progress' | 'completed' = 'locked';
-            if (previousCompleted) {
-                status = prog ? (prog.status as any) : 'not_started';
-            }
+            const status: 'locked' | 'not_started' | 'in_progress' | 'completed' = prog ? (prog.status as any) : 'not_started';
             
             result.push({
                 _id: mod.id,
@@ -52,8 +48,6 @@ export const getModules = async (req: Request, res: Response) => {
                 moduleStatus: mod.status || 'published',
                 status
             });
-            
-            previousCompleted = prog ? (prog.status === 'completed') : false;
         }
         
         res.json(result);
@@ -79,19 +73,7 @@ export const getModuleOutline = async (req: Request, res: Response) => {
             moduleId: mod._id
         });
 
-        // Find previous published modules to check lock status
-        const previousModules = await Module.find({ order: { $lt: mod.order }, status: { $ne: 'draft' } });
-        const progressList = await Progress.find({ userId: new Types.ObjectId(userId) });
-        const progressMap = new Map(progressList.map(p => [p.moduleId.toString(), p]));
-        
-        let isLocked = false;
-        for (const prevMod of previousModules) {
-            const prevProg = progressMap.get(prevMod.id.toString());
-            if (!prevProg || prevProg.status !== 'completed') {
-                isLocked = true;
-                break;
-            }
-        }
+        const isLocked = false;
 
         const { Assessment } = await import('../models/Assessment.js');
         const publishedAssessment = await Assessment.findOne({ moduleId: mod._id, status: 'published' });
@@ -111,7 +93,7 @@ export const getModuleOutline = async (req: Request, res: Response) => {
             pdfUrl: (mod as any).pdfUrl || null,
             pdfFileName: (mod as any).pdfFileName || null,
             isLocked,
-            status: isLocked ? 'locked' : (prog ? prog.status : 'not_started'),
+            status: prog ? prog.status : 'not_started',
             createdBy: mod.createdBy
         });
     } catch (e: any) {
@@ -131,25 +113,9 @@ export const getModuleById = async (req: Request, res: Response) => {
             return;
         }
 
-        // Get progress for this module to calculate locked status
+        // Get progress for this module
         const progressList = await Progress.find({ userId: new Types.ObjectId(userId) });
         const progressMap = new Map(progressList.map(p => [p.moduleId.toString(), p]));
-        
-        // Find previous published modules to check completion requirements
-        const previousModules = await Module.find({ order: { $lt: mod.order }, status: { $ne: 'draft' } });
-        let isLocked = false;
-        for (const prevMod of previousModules) {
-            const prevProg = progressMap.get(prevMod.id.toString());
-            if (!prevProg || prevProg.status !== 'completed') {
-                isLocked = true;
-                break;
-            }
-        }
-
-        if (isLocked) {
-            res.status(403).json({ message: 'Module is currently locked.' });
-            return;
-        }
 
         let prog = progressMap.get(mod.id.toString());
         // If not started yet, mark as in_progress upon opening
