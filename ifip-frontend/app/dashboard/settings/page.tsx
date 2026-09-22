@@ -305,7 +305,7 @@ export default function SettingsPage() {
       setCvError(
         isSessionError
           ? "Your session has expired. Please log in again."
-          : err.message || "Failed to upload CV. Please try again."
+          : err.message || "Failed to upload resume. Please try again."
       );
     } finally {
       setUploadingCv(false);
@@ -837,7 +837,7 @@ export default function SettingsPage() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
-                    Uploading CV PDF...
+                    Uploading Resume PDF...
                   </div>
                 ) : cvUrl ? (
                   <div className="flex flex-col items-center gap-2 select-none">
@@ -847,7 +847,7 @@ export default function SettingsPage() {
                       </svg>
                     </div>
                     <span className="text-xs font-bold text-slate-800 break-all max-w-[200px]">
-                      {getCvName(cvUrl) || "Curriculum_Vitae.pdf"}
+                      {getCvName(cvUrl) || "Resume.pdf"}
                     </span>
                     <a
                       href={cvUrl}
@@ -861,9 +861,9 @@ export default function SettingsPage() {
                 ) : (
                   <div className="flex flex-col items-center gap-1.5 text-slate-400 select-none">
                     <HiOutlineArrowUpTray className="w-8 h-8 opacity-60 mb-1" />
-                    <span className="text-xs font-bold text-slate-700">No CV Uploaded</span>
+                    <span className="text-xs font-bold text-slate-700">No Resume Uploaded</span>
                     <span className="text-[10px] leading-relaxed max-w-[180px]">
-                      Upload your curriculum vitae to complete admissions tracking parameters.
+                      Upload your resume to complete admissions tracking parameters.
                     </span>
                   </div>
                 )}
@@ -885,7 +885,7 @@ export default function SettingsPage() {
                 className="w-full border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 font-bold text-xs py-3 rounded-[6px] shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <HiOutlineArrowUpTray className="w-4 h-4" />
-                {cvUrl ? "Update CV (PDF)" : "Upload CV (PDF)"}
+                {cvUrl ? "Update Resume (PDF)" : "Upload Resume (PDF)"}
               </button>
             </div>
 

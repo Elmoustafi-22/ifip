@@ -473,7 +473,7 @@ export default function JobOpeningApplicationsReviewPage() {
                       className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-[#000666] transition"
                     >
                       <HiOutlineDocumentText className="w-3.5 h-3.5 text-slate-500" />
-                      <span>View CV</span>
+                      <span>View Resume</span>
                       <HiOutlineArrowTopRightOnSquare className="w-3 h-3 text-slate-400" />
                     </a>
                   </div>
@@ -723,15 +723,15 @@ export default function JobOpeningApplicationsReviewPage() {
                 </div>
               )}
 
-              {/* Curriculum Vitae (CV) Section */}
+              {/* Resume Section */}
               <div className="space-y-1.5">
                 <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
-                  Curriculum Vitae (CV)
+                  Resume
                 </span>
                 <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 text-slate-700 font-medium">
                     <HiOutlineDocumentText className="w-5 h-5 text-slate-500" />
-                    <span>Candidate Application CV</span>
+                    <span>Candidate Resume</span>
                   </div>
                   <a
                     href={selectedApplicant.cvUrl}
@@ -739,7 +739,7 @@ export default function JobOpeningApplicationsReviewPage() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg transition"
                   >
-                    <span>Open CV</span>
+                    <span>Open Resume</span>
                     <HiOutlineArrowTopRightOnSquare className="w-3.5 h-3.5 text-slate-400" />
                   </a>
                 </div>

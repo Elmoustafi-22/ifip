@@ -393,13 +393,13 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
                 >
                   <span className="flex items-center space-x-2">
                     <HiOutlineDocumentText className="w-4 h-4 text-[#000666]" />
-                    <span>Curriculum Vitae (CV)</span>
+                    <span>Resume</span>
                   </span>
                   <HiOutlineLink className="w-4 h-4 text-slate-400" />
                 </a>
               ) : (
                 <div className="p-3 rounded-xl bg-slate-50 text-slate-400 border border-slate-200 text-center">
-                  CV document not attached
+                  Resume document not attached
                 </div>
               )}
 

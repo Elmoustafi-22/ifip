@@ -278,7 +278,7 @@ export default function DashboardHome() {
               <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
                 <span>Profile Completion</span>
                 <span className={`font-bold ${cvUploaded ? "text-emerald-600" : "text-amber-500"}`}>
-                  {cvUploaded ? "100% Completed" : "80% (Upload CV)"}
+                  {cvUploaded ? "100% Completed" : "80% (Upload Resume)"}
                 </span>
               </div>
             </div>
@@ -401,10 +401,10 @@ export default function DashboardHome() {
         <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-2">
           <div>
             <h4 className="text-sm font-semibold text-slate-900">
-              Action Required: Upload CV &amp; Qualifications
+              Action Required: Upload Resume &amp; Qualifications
             </h4>
             <p className="text-xs text-slate-500 mt-1">
-              Upload your latest CV in PDF format to complete your admissions file.
+              Upload your latest resume in PDF format to complete your admissions file.
             </p>
           </div>
           <Link
@@ -466,7 +466,7 @@ export default function DashboardHome() {
                 <HiOutlineBriefcase className="w-5 h-5" />
               </div>
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
-                {cvUploaded ? "Profile On File" : "CV Required"}
+                {cvUploaded ? "Profile On File" : "Resume Required"}
               </span>
             </div>
             <div>

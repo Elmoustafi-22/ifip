@@ -122,7 +122,7 @@ export default function ParticipantJobOpeningsPage() {
       setUploadedCvUrl(res.cvUrl);
       setUploadedFileName(res.fileName || file.name);
     } catch (err: any) {
-      setApplyError(err?.response?.data?.message || "Failed to upload CV. Please try again.");
+      setApplyError(err?.response?.data?.message || "Failed to upload resume. Please try again.");
       setCvFile(null);
     } finally {
       setCvUploading(false);
@@ -138,7 +138,7 @@ export default function ParticipantJobOpeningsPage() {
     if (!activeOpening) return;
 
     if (!uploadedCvUrl) {
-      setApplyError("Please upload your CV before submitting.");
+      setApplyError("Please upload your resume before submitting.");
       return;
     }
 
@@ -511,7 +511,7 @@ export default function ParticipantJobOpeningsPage() {
                   Application Submitted Successfully
                 </h3>
                 <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
-                  Your application and CV have been transmitted to{" "}
+                  Your application and resume have been transmitted to{" "}
                   <strong>{activeOpening.partner?.name || "the partner organisation"}</strong>. You will receive an email and dashboard notification if selected for an interview.
                 </p>
                 <div className="pt-2">
@@ -533,13 +533,13 @@ export default function ParticipantJobOpeningsPage() {
                     </div>
                   )}
 
-                  {/* CV Upload */}
+                  {/* Resume Upload */}
                   <div className="space-y-2 p-3.5 sm:p-4 bg-slate-50 rounded-xl border border-slate-200">
                     <label className="font-bold text-slate-800 uppercase tracking-wider block">
-                      Upload CV <span className="text-rose-500">*</span>
+                      Upload Resume <span className="text-rose-500">*</span>
                     </label>
                     <p className="text-slate-500 text-[11px] leading-snug">
-                      Upload your CV for this position (PDF or Word, max 10MB).
+                      Upload your resume for this position (PDF or Word, max 10MB).
                     </p>
 
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 pt-1">
