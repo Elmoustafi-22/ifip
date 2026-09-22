@@ -111,6 +111,13 @@ export default function AdminJobOpeningsPage() {
 
   const handleReviewSubmit = async (action: "approve" | "reject") => {
     if (!selectedOpening) return;
+    if (action === "reject" && !adminNotes.trim()) {
+      setFeedbackMessage({
+        type: "error",
+        text: "Please provide a reason or feedback in Administrator Notes before rejecting this opening.",
+      });
+      return;
+    }
     setSubmittingAction(action);
     setFeedbackMessage(null);
 
@@ -355,54 +362,56 @@ export default function AdminJobOpeningsPage() {
 
       {/* Review Modal */}
       {selectedOpening && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl border border-slate-200 my-8">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-2xl w-full flex flex-col max-h-[92vh] sm:max-h-[90vh] shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header */}
-            <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-4">
-              <div>
-                <div className="mb-1">
+            <div className="flex items-start justify-between gap-3 px-5 sm:px-6 pt-5 pb-4 border-b border-slate-200 shrink-0">
+              <div className="space-y-1">
+                <div className="mb-0.5">
                   {getStatusBadge(selectedOpening.status)}
                 </div>
-                <h2 className="text-xl font-bold text-slate-900 leading-tight">
+                <h2 className="text-lg sm:text-xl font-bold text-slate-900 leading-snug">
                   {selectedOpening.title}
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-500">
                   Organisation:{" "}
-                  <strong className="text-slate-700">
+                  <strong className="text-slate-800 font-semibold">
                     {selectedOpening.partner?.name || "Partner Organisation"}
                   </strong>
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => setSelectedOpening(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer"
+                className="p-1.5 sm:p-2 -mr-1 -mt-1 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+                aria-label="Close dialog"
               >
                 <HiOutlineXMark className="w-5 h-5" />
               </button>
             </div>
 
             {modalLoading ? (
-              <div className="py-12 text-center text-slate-500 text-sm">
-                <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-slate-200 border-t-[#000666]" />
-                <p className="mt-2">Loading full details...</p>
+              <div className="py-16 text-center text-slate-500 text-sm">
+                <div className="inline-block animate-spin rounded-full h-7 w-7 border-2 border-slate-200 border-t-[#000666]" />
+                <p className="mt-3 text-xs font-medium text-slate-500">Loading full details...</p>
               </div>
             ) : (
-              <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 text-sm">
+              <div className="px-5 sm:px-6 py-4 overflow-y-auto space-y-4 text-sm flex-1 overscroll-contain">
                 {/* Job Specs */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3 bg-slate-50/80 p-3 sm:p-3.5 rounded-xl border border-slate-200 text-xs">
                   <div>
-                    <span className="text-slate-400 block font-medium">Work Mode</span>
-                    <span className="font-semibold text-slate-800">{selectedOpening.workMode}</span>
+                    <span className="text-slate-400 block font-medium text-[11px] uppercase tracking-wider">Work Mode</span>
+                    <span className="font-semibold text-slate-800 mt-0.5 block">{selectedOpening.workMode}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block font-medium">Location</span>
-                    <span className="font-semibold text-slate-800">
+                    <span className="text-slate-400 block font-medium text-[11px] uppercase tracking-wider">Location</span>
+                    <span className="font-semibold text-slate-800 mt-0.5 block truncate" title={selectedOpening.location || "Remote"}>
                       {selectedOpening.location || "Remote"}
                     </span>
                   </div>
-                  <div>
-                    <span className="text-slate-400 block font-medium">Positions Available</span>
-                    <span className="font-semibold text-slate-800">
+                  <div className="col-span-2 sm:col-span-1">
+                    <span className="text-slate-400 block font-medium text-[11px] uppercase tracking-wider">Positions Available</span>
+                    <span className="font-semibold text-slate-800 mt-0.5 block">
                       {selectedOpening.slots} {selectedOpening.slots === 1 ? "Slot" : "Slots"}
                     </span>
                   </div>
@@ -414,7 +423,7 @@ export default function AdminJobOpeningsPage() {
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
                       Role Description
                     </label>
-                    <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-200 whitespace-pre-wrap leading-relaxed">
+                    <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200 whitespace-pre-wrap leading-relaxed">
                       {selectedOpening.description}
                     </p>
                   </div>
@@ -426,16 +435,16 @@ export default function AdminJobOpeningsPage() {
                     Requirements Defined by Partner
                   </label>
                   {selectedOpening.requirements && selectedOpening.requirements.length > 0 ? (
-                    <ul className="space-y-1.5 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <ul className="space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-200">
                       {selectedOpening.requirements.map((req, idx) => (
                         <li key={idx} className="text-xs text-slate-700 flex items-start gap-2">
                           <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0" />
-                          <span>{req}</span>
+                          <span className="leading-relaxed">{req}</span>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl border border-slate-200">
                       No specific requirements listed by partner.
                     </p>
                   )}
@@ -443,9 +452,9 @@ export default function AdminJobOpeningsPage() {
 
                 {/* Admin Defined Requirements / Rules */}
                 <div className="space-y-2 pt-2 border-t border-slate-200">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-0.5 sm:gap-2">
                     <label className="text-xs font-bold text-[#000666] uppercase tracking-wider">
-                      Additional Admin Rules & Requirements (Optional)
+                      Additional Admin Rules & Requirements <span className="font-normal text-slate-400">(Optional)</span>
                     </label>
                     <span className="text-[11px] text-slate-500">
                       Candidates will respond to these when applying
@@ -457,13 +466,13 @@ export default function AdminJobOpeningsPage() {
                       {adminRequirements.map((rule, idx) => (
                         <li
                           key={idx}
-                          className="flex items-center justify-between gap-2 text-xs bg-sky-50 border border-sky-200 text-sky-950 px-3 py-2 rounded-lg"
+                          className="flex items-center justify-between gap-2 text-xs bg-sky-50 border border-sky-200 text-sky-950 px-3 py-2 rounded-xl"
                         >
-                          <span className="flex-1 font-medium">{rule}</span>
+                          <span className="flex-1 font-medium break-words">{rule}</span>
                           <button
                             type="button"
                             onClick={() => handleRemoveAdminRule(idx)}
-                            className="text-rose-600 hover:text-rose-800 p-1 cursor-pointer"
+                            className="text-rose-600 hover:text-rose-800 p-1 hover:bg-rose-100/60 rounded-lg transition-colors cursor-pointer shrink-0"
                             title="Remove rule"
                           >
                             <HiOutlineTrash className="w-4 h-4" />
@@ -477,7 +486,7 @@ export default function AdminJobOpeningsPage() {
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="Add an admin requirement (e.g. Minimum 80% on Sukuk assessment)..."
+                      placeholder="Add requirement (e.g. Min 80% on assessment)..."
                       value={newRuleInput}
                       onChange={(e) => setNewRuleInput(e.target.value)}
                       onKeyDown={(e) => {
@@ -486,15 +495,15 @@ export default function AdminJobOpeningsPage() {
                           handleAddAdminRule();
                         }
                       }}
-                      className="flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#000666]"
+                      className="flex-1 min-w-0 px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666]"
                     />
                     <button
                       type="button"
                       onClick={handleAddAdminRule}
-                      className="px-3 py-2 text-xs font-bold bg-[#000666] text-white rounded-lg hover:bg-[#000666]/90 flex items-center gap-1 cursor-pointer"
+                      className="px-3.5 py-2 text-xs font-bold bg-[#000666] text-white rounded-lg hover:bg-[#000666]/90 active:scale-[0.98] flex items-center justify-center gap-1.5 shrink-0 cursor-pointer shadow-xs transition"
                     >
                       <HiOutlinePlus className="w-3.5 h-3.5" />
-                      Add Rule
+                      <span>Add Rule</span>
                     </button>
                   </div>
                 </div>
@@ -509,14 +518,14 @@ export default function AdminJobOpeningsPage() {
                     placeholder="Enter notes or explanation for partner (required if rejecting)..."
                     value={adminNotes}
                     onChange={(e) => setAdminNotes(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#000666] leading-relaxed"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666] leading-relaxed resize-none"
                   />
                 </div>
 
                 {/* Feedback status message */}
                 {feedbackMessage && (
                   <div
-                    className={`p-3 rounded-lg text-xs font-semibold flex items-center gap-2 ${
+                    className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
                       feedbackMessage.type === "success"
                         ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                         : "bg-rose-50 text-rose-800 border border-rose-200"
@@ -534,41 +543,59 @@ export default function AdminJobOpeningsPage() {
             )}
 
             {/* Modal Actions */}
-            <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-200">
-              <button
-                type="button"
-                onClick={() => setSelectedOpening(null)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition cursor-pointer"
-              >
-                Close
-              </button>
-
-              {selectedOpening.status === "pending_review" && (
-                <>
-                  <button
-                    type="button"
-                    disabled={!!submittingAction}
-                    onClick={() => handleReviewSubmit("reject")}
-                    className="px-4 py-2 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition disabled:opacity-50 cursor-pointer"
-                  >
-                    {submittingAction === "reject" ? "Rejecting..." : "Reject Opening"}
-                  </button>
+            <div className="px-5 sm:px-6 py-3.5 sm:py-4 bg-slate-50/80 border-t border-slate-200 shrink-0">
+              {selectedOpening.status === "pending_review" ? (
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2.5">
+                  {/* Approve button: Top full-width on mobile, right-most on desktop */}
                   <button
                     type="button"
                     disabled={!!submittingAction}
                     onClick={() => handleReviewSubmit("approve")}
-                    className="px-5 py-2 text-xs font-bold text-white bg-[#000666] hover:bg-[#000666]/90 rounded-lg transition disabled:opacity-50 flex items-center gap-1.5 shadow-sm cursor-pointer"
+                    className="w-full sm:w-auto order-1 sm:order-3 px-5 py-2.5 sm:py-2 text-xs font-bold text-white bg-[#000666] hover:bg-[#000666]/90 active:scale-[0.98] rounded-xl sm:rounded-lg transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm whitespace-nowrap cursor-pointer"
                   >
                     {submittingAction === "approve" ? (
-                      "Publishing..."
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Publishing...</span>
+                      </>
                     ) : (
                       <>
                         <HiOutlineCheck className="w-4 h-4" />
-                        Approve & Declare Open
+                        <span>Approve & Declare Open</span>
                       </>
                     )}
                   </button>
-                </>
+
+                  {/* Secondary buttons: 2-column grid on mobile, flex row on desktop */}
+                  <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-2.5 order-2 sm:order-1 w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedOpening(null)}
+                      className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-xs font-semibold text-slate-600 bg-white sm:bg-slate-100 hover:bg-slate-200 border sm:border-transparent border-slate-200 rounded-xl sm:rounded-lg transition cursor-pointer text-center whitespace-nowrap"
+                    >
+                      Close
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={!!submittingAction}
+                      onClick={() => handleReviewSubmit("reject")}
+                      className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl sm:rounded-lg transition disabled:opacity-50 cursor-pointer text-center whitespace-nowrap"
+                    >
+                      {submittingAction === "reject" ? "Rejecting..." : "Reject Opening"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedOpening(null)}
+                    className="w-full sm:w-auto px-5 py-2.5 sm:py-2 text-xs font-semibold text-slate-600 bg-white sm:bg-slate-100 hover:bg-slate-200 border sm:border-transparent border-slate-200 rounded-xl sm:rounded-lg transition cursor-pointer text-center"
+                  >
+                    Close
+                  </button>
+                </div>
               )}
             </div>
           </div>
