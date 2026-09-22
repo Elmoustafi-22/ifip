@@ -248,17 +248,10 @@ export default function PartnerOpeningsPage() {
           <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
             <HiOutlineBriefcase className="w-6 h-6" />
           </div>
-          <h3 className="text-base font-bold text-slate-800">No Job Openings Created Yet</h3>
+          <h3 className="text-base font-bold text-slate-800">No Job Openings Announced Yet</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            You have not announced any job openings. Click the button below to submit your first placement opportunity.
+            You have not announced any job openings yet. Use the <strong>"Announce New Job Opening"</strong> button above to submit your first placement opportunity.
           </p>
-          <button
-            onClick={handleOpenAddModal}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#000666] text-white text-xs font-bold rounded-lg hover:bg-[#000666]/90 transition cursor-pointer mt-2"
-          >
-            <HiOutlinePlus className="w-4 h-4" />
-            Create Job Opening
-          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
