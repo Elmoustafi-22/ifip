@@ -58,13 +58,12 @@ export default function MyRequestsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center space-x-2">
-            <HiOutlineClipboardDocumentList className="w-6 h-6 text-emerald-600" />
-            <span>My Interest Requests</span>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#000666] tracking-tight">
+            My Interest Requests
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
             Track candidate selection requests submitted to IFIP admissions.
           </p>
         </div>
@@ -77,7 +76,7 @@ export default function MyRequestsPage() {
               onClick={() => setStatusFilter(st)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors cursor-pointer ${
                 statusFilter === st
-                  ? "bg-white text-emerald-700 shadow-sm border border-slate-200"
+                  ? "bg-white text-[#000666] font-bold shadow-xs border border-slate-200"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
@@ -95,7 +94,7 @@ export default function MyRequestsPage() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-xs">
           <HiOutlineFunnel className="w-10 h-10 text-slate-400 mx-auto mb-3" />
           <h3 className="text-base font-bold text-slate-800">No Requests Found</h3>
           <p className="text-xs text-slate-500 mt-1">
@@ -105,10 +104,9 @@ export default function MyRequestsPage() {
           </p>
           <Link
             href="/partner-portal/interns"
-            className="inline-flex items-center space-x-2 mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-colors"
+            className="inline-flex items-center space-x-2 mt-4 px-4 py-2 bg-[#000666] hover:bg-[#000666]/90 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors"
           >
             <span>Browse Intern Pool</span>
-            <HiOutlineChevronRight className="w-4 h-4" />
           </Link>
         </div>
       ) : (
@@ -116,11 +114,11 @@ export default function MyRequestsPage() {
           {filtered.map((req) => (
             <div
               key={req._id}
-              className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm hover:shadow-md transition-shadow"
+              className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-slate-300 transition-colors"
             >
               {/* Left Info */}
               <div className="flex items-start space-x-4">
-                <div className="w-10 h-10 rounded-full bg-slate-800 text-emerald-400 font-bold text-sm flex items-center justify-center border border-slate-700 shrink-0 mt-0.5">
+                <div className="w-10 h-10 rounded-full bg-slate-100 text-[#000666] font-bold text-sm flex items-center justify-center border border-slate-200 shrink-0 mt-0.5">
                   {req.intern?.fullName?.charAt(0) || "C"}
                 </div>
                 <div>
@@ -128,24 +126,24 @@ export default function MyRequestsPage() {
                     <span>{req.intern?.fullName || "Candidate"}</span>
                   </h3>
                   
-                  {/* Role, Work Mode, Domain badges */}
-                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                    {req.role && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                        Role: {req.role}
-                      </span>
-                    )}
-                    {req.workType && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                        {req.workType}
-                      </span>
-                    )}
-                    {req.interestArea && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-teal-50 text-teal-800 border border-teal-200">
-                        {req.interestArea}
-                      </span>
-                    )}
-                  </div>
+                  {/* Role, Work Mode, Domain text */}
+                  {(req.role || req.workType || req.interestArea) && (
+                    <div className="flex items-center gap-2 text-xs text-slate-600 font-medium mt-1 flex-wrap">
+                      {req.role && <span>Role: <strong className="text-slate-800">{req.role}</strong></span>}
+                      {req.workType && (
+                        <>
+                          <span className="text-slate-300">&bull;</span>
+                          <span>{req.workType}</span>
+                        </>
+                      )}
+                      {req.interestArea && (
+                        <>
+                          <span className="text-slate-300">&bull;</span>
+                          <span>{req.interestArea}</span>
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   <p className="text-xs text-slate-500 mt-1.5 font-medium">
                     Submitted on: {new Date(req.requestedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}

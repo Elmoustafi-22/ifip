@@ -1991,3 +1991,330 @@ export const sendModuleTaskReminderEmail = async (params: {
 
     await send(to, `Reminder: Your Task Submission for ${moduleTitle} — IFIP`, html);
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// JOB OPENING NOTIFICATION EMAILS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Admin Alert: New job opening submitted by partner for review.
+ */
+export const sendAdminJobOpeningCreatedEmail = async (
+    adminEmail: string,
+    openingTitle: string,
+    orgName: string,
+    workMode: string,
+    location?: string,
+    slots?: number
+) => {
+    const adminUrl = `${env.CLIENT_URL}/admin/job-openings`;
+    const html = `
+    <div style="font-family: Arial, sans-serif; background-color: #F8F9FA; padding: 40px 10px; margin: 0;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #E7E2D8;">
+            <div style="background-color: #000666; padding: 28px 24px; text-align: center;">
+                <h1 style="color: #ffffff; font-family: Georgia, serif; font-size: 20px; margin: 0;">New Job Opening Pending Review</h1>
+            </div>
+            <div style="padding: 32px 24px; color: #1E293B;">
+                <p style="font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">
+                    A partner organisation has submitted a new job opening that requires administrative verification before being published to participants.
+                </p>
+                <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-left: 4px solid #000666; border-radius: 6px; padding: 18px; margin-bottom: 24px;">
+                    <div style="font-size: 14px; line-height: 1.8;">
+                        <div><strong>Role:</strong> ${openingTitle}</div>
+                        <div><strong>Organisation:</strong> ${orgName}</div>
+                        <div><strong>Work Mode:</strong> ${workMode}</div>
+                        ${location ? `<div><strong>Location:</strong> ${location}</div>` : ''}
+                        ${slots ? `<div><strong>Open Positions:</strong> ${slots}</div>` : ''}
+                    </div>
+                </div>
+                <div style="text-align: center; margin: 28px 0;">
+                    <a href="${adminUrl}" style="display: inline-block; background-color: #000666; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-size: 14px; font-weight: bold;">
+                        Review Job Opening
+                    </a>
+                </div>
+            </div>
+            <div style="background-color: #FDFBF7; padding: 20px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <p style="font-size: 12px; color: #64748B; margin: 0;">Islamic Finance Internship Program &bull; Administrative Operations</p>
+            </div>
+        </div>
+    </div>`;
+
+    await send(adminEmail, `New Job Opening for Review: ${openingTitle} (${orgName})`, html);
+};
+
+/**
+ * Partner Alert: Job opening approved and declared open.
+ */
+export const sendPartnerJobOpeningOpenedEmail = async (
+    partnerEmail: string,
+    contactPerson: string,
+    openingTitle: string
+) => {
+    const portalUrl = `${env.CLIENT_URL}/partner-portal/job-openings`;
+    const nameStr = contactPerson ? contactPerson.trim() : 'Partner';
+    const html = `
+    <div style="font-family: Arial, sans-serif; background-color: #F8F9FA; padding: 40px 10px; margin: 0;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #E7E2D8;">
+            <div style="background-color: #000666; padding: 28px 24px; text-align: center;">
+                <h1 style="color: #ffffff; font-family: Georgia, serif; font-size: 20px; margin: 0;">Job Opening Approved</h1>
+            </div>
+            <div style="padding: 32px 24px; color: #1E293B;">
+                <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
+                    Dear <strong>${nameStr}</strong>,
+                </p>
+                <p style="font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">
+                    Your job opening for <strong>${openingTitle}</strong> has been reviewed and verified by our programme administration. It is now live and accepting applications from qualified participants.
+                </p>
+                <p style="font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 24px 0;">
+                    You will receive notifications as candidates apply. You can review candidate details, tailored CVs, and requirement responses directly from your partner portal.
+                </p>
+                <div style="text-align: center; margin: 28px 0;">
+                    <a href="${portalUrl}" style="display: inline-block; background-color: #000666; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-size: 14px; font-weight: bold;">
+                        View Job Opening
+                    </a>
+                </div>
+            </div>
+            <div style="background-color: #FDFBF7; padding: 20px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <p style="font-size: 12px; color: #64748B; margin: 0;">Islamic Finance Internship Program</p>
+            </div>
+        </div>
+    </div>`;
+
+    await send(partnerEmail, `Job Opening Approved: ${openingTitle}`, html);
+};
+
+/**
+ * Partner Alert: Job opening rejected or requires edits.
+ */
+export const sendPartnerJobOpeningRejectedEmail = async (
+    partnerEmail: string,
+    contactPerson: string,
+    openingTitle: string,
+    adminNotes?: string
+) => {
+    const portalUrl = `${env.CLIENT_URL}/partner-portal/job-openings`;
+    const nameStr = contactPerson ? contactPerson.trim() : 'Partner';
+    const html = `
+    <div style="font-family: Arial, sans-serif; background-color: #F8F9FA; padding: 40px 10px; margin: 0;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #E7E2D8;">
+            <div style="background-color: #000666; padding: 28px 24px; text-align: center;">
+                <h1 style="color: #ffffff; font-family: Georgia, serif; font-size: 20px; margin: 0;">Job Opening Review Update</h1>
+            </div>
+            <div style="padding: 32px 24px; color: #1E293B;">
+                <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
+                    Dear <strong>${nameStr}</strong>,
+                </p>
+                <p style="font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">
+                    Our programme administration has completed reviewing your submission for <strong>${openingTitle}</strong>. At this time, the opening could not be published.
+                </p>
+                ${adminNotes ? `
+                <div style="background-color: #FEF2F2; border: 1px solid #FECACA; border-left: 4px solid #DC2626; border-radius: 6px; padding: 16px; margin-bottom: 24px;">
+                    <div style="font-size: 14px; color: #991B1B; font-weight: bold; margin-bottom: 6px;">Administrator Feedback:</div>
+                    <div style="font-size: 14px; color: #7F1D1D; line-height: 1.6;">${adminNotes}</div>
+                </div>` : ''}
+                <p style="font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 24px 0;">
+                    Please log in to your partner portal if you wish to adjust the details or create a revised opening.
+                </p>
+                <div style="text-align: center; margin: 28px 0;">
+                    <a href="${portalUrl}" style="display: inline-block; background-color: #000666; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-size: 14px; font-weight: bold;">
+                        Go to Partner Portal
+                    </a>
+                </div>
+            </div>
+            <div style="background-color: #FDFBF7; padding: 20px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <p style="font-size: 12px; color: #64748B; margin: 0;">Islamic Finance Internship Program</p>
+            </div>
+        </div>
+    </div>`;
+
+    await send(partnerEmail, `Update Regarding Job Opening: ${openingTitle}`, html);
+};
+
+/**
+ * Participant Alert: New job opening announced.
+ */
+export const sendParticipantJobOpeningAnnouncedEmail = async (
+    to: string,
+    recipientName: string,
+    openingTitle: string,
+    orgName: string,
+    workMode: string,
+    location?: string
+) => {
+    const dashboardUrl = `${env.CLIENT_URL}/dashboard/job-openings`;
+    const nameStr = recipientName ? recipientName.trim() : 'Participant';
+    const html = `
+    <div style="font-family: Arial, sans-serif; background-color: #F8F9FA; padding: 40px 10px; margin: 0;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #E7E2D8;">
+            <div style="background-color: #000666; padding: 28px 24px; text-align: center;">
+                <h1 style="color: #ffffff; font-family: Georgia, serif; font-size: 20px; margin: 0;">New Job Opening Announced</h1>
+            </div>
+            <div style="padding: 32px 24px; color: #1E293B;">
+                <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
+                    Dear <strong>${nameStr}</strong>,
+                </p>
+                <p style="font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">
+                    A new placement opportunity is now available for applications:
+                </p>
+                <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-left: 4px solid #000666; border-radius: 6px; padding: 18px; margin-bottom: 24px;">
+                    <div style="font-size: 14px; line-height: 1.8;">
+                        <div><strong>Role:</strong> ${openingTitle}</div>
+                        <div><strong>Organisation:</strong> ${orgName}</div>
+                        <div><strong>Work Mode:</strong> ${workMode}</div>
+                        ${location ? `<div><strong>Location:</strong> ${location}</div>` : ''}
+                    </div>
+                </div>
+                <div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 6px; padding: 14px; margin-bottom: 24px; font-size: 13px; color: #14532D; line-height: 1.6;">
+                    <strong>Application Requirements:</strong> To submit an application, all your available module practical tasks must be completed and approved. You can check your task status and submit tailored materials on your dashboard.
+                </div>
+                <div style="text-align: center; margin: 28px 0;">
+                    <a href="${dashboardUrl}" style="display: inline-block; background-color: #000666; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-size: 14px; font-weight: bold;">
+                        View and Apply
+                    </a>
+                </div>
+            </div>
+            <div style="background-color: #FDFBF7; padding: 20px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <p style="font-size: 12px; color: #64748B; margin: 0;">Islamic Finance Internship Program</p>
+            </div>
+        </div>
+    </div>`;
+
+    await send(to, `New Placement Opening: ${openingTitle} at ${orgName}`, html);
+};
+
+/**
+ * Partner Alert: A candidate applied to a job opening.
+ */
+export const sendPartnerNewJobApplicationAlertEmail = async (
+    partnerEmail: string,
+    contactPerson: string,
+    openingTitle: string,
+    applicantName: string
+) => {
+    const portalUrl = `${env.CLIENT_URL}/partner-portal/job-openings`;
+    const nameStr = contactPerson ? contactPerson.trim() : 'Partner';
+    const html = `
+    <div style="font-family: Arial, sans-serif; background-color: #F8F9FA; padding: 40px 10px; margin: 0;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #E7E2D8;">
+            <div style="background-color: #000666; padding: 28px 24px; text-align: center;">
+                <h1 style="color: #ffffff; font-family: Georgia, serif; font-size: 20px; margin: 0;">New Application Received</h1>
+            </div>
+            <div style="padding: 32px 24px; color: #1E293B;">
+                <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
+                    Dear <strong>${nameStr}</strong>,
+                </p>
+                <p style="font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">
+                    A new candidate, <strong>${applicantName}</strong>, has applied for your job opening: <strong>${openingTitle}</strong>.
+                </p>
+                <p style="font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 24px 0;">
+                    All applicants have verified their required coursework and task submissions. You can review their CV, requirement answers, and schedule an interview directly from your partner portal.
+                </p>
+                <div style="text-align: center; margin: 28px 0;">
+                    <a href="${portalUrl}" style="display: inline-block; background-color: #000666; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-size: 14px; font-weight: bold;">
+                        Review Candidate Application
+                    </a>
+                </div>
+            </div>
+            <div style="background-color: #FDFBF7; padding: 20px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <p style="font-size: 12px; color: #64748B; margin: 0;">Islamic Finance Internship Program</p>
+            </div>
+        </div>
+    </div>`;
+
+    await send(partnerEmail, `New Application for ${openingTitle}: ${applicantName}`, html);
+};
+
+/**
+ * Participant Confirmation: Application successfully submitted.
+ */
+export const sendJobApplicationSubmittedEmail = async (
+    applicantEmail: string,
+    applicantName: string,
+    openingTitle: string,
+    orgName: string
+) => {
+    const dashboardUrl = `${env.CLIENT_URL}/dashboard/job-openings`;
+    const nameStr = applicantName ? applicantName.trim() : 'Participant';
+    const html = `
+    <div style="font-family: Arial, sans-serif; background-color: #F8F9FA; padding: 40px 10px; margin: 0;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #E7E2D8;">
+            <div style="background-color: #000666; padding: 28px 24px; text-align: center;">
+                <h1 style="color: #ffffff; font-family: Georgia, serif; font-size: 20px; margin: 0;">Application Submitted</h1>
+            </div>
+            <div style="padding: 32px 24px; color: #1E293B;">
+                <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
+                    Dear <strong>${nameStr}</strong>,
+                </p>
+                <p style="font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">
+                    Your application for the position of <strong>${openingTitle}</strong> at <strong>${orgName}</strong> has been successfully received.
+                </p>
+                <p style="font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 24px 0;">
+                    The partner organisation will review your profile and submission materials. If selected for an interview, you will be notified via email and in-app alert with the schedule details.
+                </p>
+                <div style="text-align: center; margin: 28px 0;">
+                    <a href="${dashboardUrl}" style="display: inline-block; background-color: #000666; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-size: 14px; font-weight: bold;">
+                        View Your Applications
+                    </a>
+                </div>
+            </div>
+            <div style="background-color: #FDFBF7; padding: 20px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <p style="font-size: 12px; color: #64748B; margin: 0;">Islamic Finance Internship Program</p>
+            </div>
+        </div>
+    </div>`;
+
+    await send(applicantEmail, `Application Submitted: ${openingTitle} at ${orgName}`, html);
+};
+
+/**
+ * Participant Alert: Interview scheduled for job opening application.
+ */
+export const sendJobApplicationInterviewScheduledEmail = async (
+    applicantEmail: string,
+    applicantName: string,
+    openingTitle: string,
+    orgName: string,
+    interviewDate: string,
+    format: string,
+    interviewLink?: string,
+    interviewLocation?: string
+) => {
+    const dashboardUrl = `${env.CLIENT_URL}/dashboard/job-openings`;
+    const nameStr = applicantName ? applicantName.trim() : 'Participant';
+    const html = `
+    <div style="font-family: Arial, sans-serif; background-color: #F8F9FA; padding: 40px 10px; margin: 0;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #E7E2D8;">
+            <div style="background-color: #000666; padding: 28px 24px; text-align: center;">
+                <h1 style="color: #ffffff; font-family: Georgia, serif; font-size: 20px; margin: 0;">Interview Scheduled</h1>
+            </div>
+            <div style="padding: 32px 24px; color: #1E293B;">
+                <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
+                    Dear <strong>${nameStr}</strong>,
+                </p>
+                <p style="font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">
+                    <strong>${orgName}</strong> has reviewed your application for <strong>${openingTitle}</strong> and scheduled an interview.
+                </p>
+                <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-left: 4px solid #000666; border-radius: 6px; padding: 18px; margin-bottom: 24px;">
+                    <div style="font-size: 14px; line-height: 1.8;">
+                        <div><strong>Role:</strong> ${openingTitle}</div>
+                        <div><strong>Organisation:</strong> ${orgName}</div>
+                        <div><strong>Date and Time:</strong> ${interviewDate}</div>
+                        <div><strong>Format:</strong> ${format}</div>
+                        ${interviewLink ? `<div><strong>Meeting Link:</strong> <a href="${interviewLink}" style="color: #000666; word-break: break-all;">${interviewLink}</a></div>` : ''}
+                        ${interviewLocation ? `<div><strong>Location:</strong> ${interviewLocation}</div>` : ''}
+                    </div>
+                </div>
+                <div style="text-align: center; margin: 28px 0;">
+                    <a href="${dashboardUrl}" style="display: inline-block; background-color: #000666; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-size: 14px; font-weight: bold;">
+                        View Application Details
+                    </a>
+                </div>
+            </div>
+            <div style="background-color: #FDFBF7; padding: 20px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <p style="font-size: 12px; color: #64748B; margin: 0;">Islamic Finance Internship Program</p>
+            </div>
+        </div>
+    </div>`;
+
+    await send(applicantEmail, `Interview Scheduled: ${openingTitle} at ${orgName}`, html);
+};

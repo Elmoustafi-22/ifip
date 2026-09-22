@@ -8,6 +8,8 @@ import { PartnerOrganization } from '../models/PartnerOrganization.js';
 import { PartnerInterest } from '../models/PartnerInterest.js';
 import { Notification } from '../models/Notification.js';
 import { CohortConfig } from '../models/CohortConfig.js';
+import { JobOpening } from '../models/JobOpening.js';
+import { JobApplication } from '../models/JobApplication.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { logAction } from '../utils/auditLogger.js';
 import { env } from '../config/env.js';
@@ -905,5 +907,447 @@ export const updatePartnerSettings = async (req: Request, res: Response) => {
         res.json({ message: 'Settings updated.', org });
     } catch (err: any) {
         res.status(500).json({ message: 'Error updating settings.', error: err.message });
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// JOB OPENINGS — Partner-managed job announcement flow
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── POST /api/v1/partners/job-openings ───────────────────────────────────────
+export const createJobOpening = async (req: Request, res: Response) => {
+    try {
+        const org = await getPartnerOrg(req, res);
+        if (!org) return;
+
+        const { title, description, department, workMode, location, slots, requirements, qualifications, applicationDeadline } = req.body;
+        if (!title || !workMode) {
+            res.status(400).json({ message: 'Title and work mode are required.' });
+            return;
+        }
+        if (!['Remote', 'Hybrid', 'On-site'].includes(workMode)) {
+            res.status(400).json({ message: 'Work mode must be Remote, Hybrid, or On-site.' });
+            return;
+        }
+        if (['Hybrid', 'On-site'].includes(workMode) && !location) {
+            res.status(400).json({ message: `Location is required for ${workMode} openings.` });
+            return;
+        }
+
+        const opening = await JobOpening.create({
+            partnerOrgId: org._id,
+            createdByUserId: req.user!.id,
+            title: title.trim(),
+            description: description || '',
+            department: department?.trim(),
+            workMode,
+            location: location?.trim(),
+            slots: Number(slots) || 1,
+            requirements: Array.isArray(requirements) ? requirements.filter((r: string) => r.trim()) : [],
+            qualifications: qualifications?.trim(),
+            applicationDeadline: applicationDeadline ? new Date(applicationDeadline) : undefined,
+            status: 'pending_review',
+        });
+
+        // Notify admins
+        notificationEmitter.emit('jobOpening.created', {
+            openingId: opening._id.toString(),
+            orgName: org.name,
+            title: opening.title,
+            workMode: opening.workMode,
+            slots: opening.slots,
+        });
+
+        await logAction(
+            req,
+            'PARTNER_JOB_OPENING_CREATE',
+            `Created job opening "${opening.title}" (${workMode}, ${opening.slots} slot(s))`,
+            { targetId: opening._id.toString(), targetType: 'JobOpening' }
+        );
+
+        res.status(201).json({ message: 'Job opening submitted for review.', opening });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error creating job opening.', error: err.message });
+    }
+};
+
+// ─── GET /api/v1/partners/job-openings ────────────────────────────────────────
+export const getPartnerJobOpenings = async (req: Request, res: Response) => {
+    try {
+        const org = await getPartnerOrg(req, res);
+        if (!org) return;
+
+        const openings = await JobOpening.find({ partnerOrgId: org._id })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Get application counts
+        const openingIds = openings.map(o => (o as any)._id);
+        const appCounts = await JobApplication.aggregate([
+            { $match: { jobOpeningId: { $in: openingIds } } },
+            { $group: { _id: '$jobOpeningId', count: { $sum: 1 } } },
+        ]);
+        const countMap = new Map(appCounts.map(a => [a._id.toString(), a.count]));
+
+        const enriched = openings.map(o => ({
+            ...o,
+            applicationCount: countMap.get((o as any)._id.toString()) || 0,
+        }));
+
+        res.json({ openings: enriched });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error loading job openings.', error: err.message });
+    }
+};
+
+// ─── GET /api/v1/partners/job-openings/:id ────────────────────────────────────
+export const getPartnerJobOpeningById = async (req: Request, res: Response) => {
+    try {
+        const org = await getPartnerOrg(req, res);
+        if (!org) return;
+
+        const opening = await JobOpening.findOne({
+            _id: req.params.id,
+            partnerOrgId: org._id,
+        }).lean();
+
+        if (!opening) {
+            res.status(404).json({ message: 'Job opening not found.' });
+            return;
+        }
+
+        const appCount = await JobApplication.countDocuments({ jobOpeningId: opening._id });
+
+        res.json({ ...opening, applicationCount: appCount });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error loading job opening.', error: err.message });
+    }
+};
+
+// ─── PATCH /api/v1/partners/job-openings/:id ──────────────────────────────────
+export const updateJobOpening = async (req: Request, res: Response) => {
+    try {
+        const org = await getPartnerOrg(req, res);
+        if (!org) return;
+
+        const opening = await JobOpening.findOne({
+            _id: req.params.id,
+            partnerOrgId: org._id,
+        });
+
+        if (!opening) {
+            res.status(404).json({ message: 'Job opening not found.' });
+            return;
+        }
+        if (opening.status !== 'pending_review') {
+            res.status(409).json({ message: 'Only openings that are pending review can be edited.' });
+            return;
+        }
+
+        const { title, description, department, workMode, location, slots, requirements, qualifications, applicationDeadline } = req.body;
+
+        if (title !== undefined) opening.title = title.trim();
+        if (description !== undefined) opening.description = description;
+        if (department !== undefined) opening.department = department?.trim();
+        if (workMode !== undefined) opening.workMode = workMode;
+        if (location !== undefined) opening.location = location?.trim();
+        if (slots !== undefined) opening.slots = Number(slots) || 1;
+        if (requirements !== undefined) opening.requirements = Array.isArray(requirements) ? requirements.filter((r: string) => r.trim()) : [];
+        if (qualifications !== undefined) opening.qualifications = qualifications?.trim();
+        if (applicationDeadline !== undefined) opening.applicationDeadline = applicationDeadline ? new Date(applicationDeadline) : undefined;
+
+        await opening.save();
+
+        await logAction(
+            req,
+            'PARTNER_JOB_OPENING_UPDATE',
+            `Updated job opening "${opening.title}"`,
+            { targetId: opening._id.toString(), targetType: 'JobOpening' }
+        );
+
+        res.json({ message: 'Job opening updated.', opening });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error updating job opening.', error: err.message });
+    }
+};
+
+// ─── DELETE /api/v1/partners/job-openings/:id ─────────────────────────────────
+export const deleteJobOpening = async (req: Request, res: Response) => {
+    try {
+        const org = await getPartnerOrg(req, res);
+        if (!org) return;
+
+        const opening = await JobOpening.findOne({
+            _id: req.params.id,
+            partnerOrgId: org._id,
+        });
+
+        if (!opening) {
+            res.status(404).json({ message: 'Job opening not found.' });
+            return;
+        }
+        if (opening.status !== 'pending_review') {
+            res.status(409).json({ message: 'Only openings that are pending review can be withdrawn.' });
+            return;
+        }
+
+        await opening.deleteOne();
+
+        await logAction(
+            req,
+            'PARTNER_JOB_OPENING_DELETE',
+            `Withdrew job opening "${opening.title}"`,
+            { targetId: (opening._id as Types.ObjectId).toString(), targetType: 'JobOpening' }
+        );
+
+        res.json({ message: 'Job opening withdrawn.' });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error withdrawing job opening.', error: err.message });
+    }
+};
+
+// ─── GET /api/v1/partners/job-openings/:id/applications ───────────────────────
+export const getJobOpeningApplications = async (req: Request, res: Response) => {
+    try {
+        const org = await getPartnerOrg(req, res);
+        if (!org) return;
+
+        const opening = await JobOpening.findOne({
+            _id: req.params.id,
+            partnerOrgId: org._id,
+        });
+
+        if (!opening) {
+            res.status(404).json({ message: 'Job opening not found.' });
+            return;
+        }
+
+        const applications = await JobApplication.find({ jobOpeningId: opening._id })
+            .sort({ submittedAt: -1 })
+            .lean();
+
+        // Enrich with user info
+        const userIds = applications.map(a => a.userId);
+        const users = await User.find({ _id: { $in: userIds } })
+            .select('fullName avatarUrl email phone country')
+            .lean();
+        const userMap = new Map(users.map(u => [(u as any)._id.toString(), u]));
+
+        // Get programme interests from Application model
+        const appRecords = await Application.find({ userId: { $in: userIds } })
+            .select('userId programInterest')
+            .lean();
+        const interestMap = new Map(appRecords.map(a => [a.userId.toString(), a.programInterest]));
+
+        const enriched = applications.map(app => {
+            const user = userMap.get(app.userId.toString()) as any;
+            const isContactVisible = ['shortlisted', 'interview_scheduled'].includes(app.status);
+            return {
+                ...app,
+                applicant: {
+                    fullName: user?.fullName,
+                    avatarUrl: user?.avatarUrl,
+                    country: user?.country,
+                    email: isContactVisible ? user?.email : undefined,
+                    phone: isContactVisible ? user?.phone : undefined,
+                },
+                programInterests: interestMap.get(app.userId.toString()),
+            };
+        });
+
+        res.json({ applications: enriched, total: enriched.length });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error loading applications.', error: err.message });
+    }
+};
+
+// ─── GET /api/v1/partners/job-openings/:id/applications/:appId ────────────────
+export const getJobApplicationById = async (req: Request, res: Response) => {
+    try {
+        const org = await getPartnerOrg(req, res);
+        if (!org) return;
+
+        const opening = await JobOpening.findOne({
+            _id: req.params.id,
+            partnerOrgId: org._id,
+        });
+        if (!opening) {
+            res.status(404).json({ message: 'Job opening not found.' });
+            return;
+        }
+
+        const application = await JobApplication.findOne({
+            _id: req.params.appId,
+            jobOpeningId: opening._id,
+        }).lean();
+
+        if (!application) {
+            res.status(404).json({ message: 'Application not found.' });
+            return;
+        }
+
+        const user = await User.findById(application.userId)
+            .select('fullName avatarUrl email phone country')
+            .lean() as any;
+
+        const appRecord = await Application.findOne({ userId: application.userId })
+            .select('programInterest skills motivation academicInfo cvUrl')
+            .lean();
+
+        const isContactVisible = ['shortlisted', 'interview_scheduled'].includes(application.status);
+
+        res.json({
+            ...application,
+            applicant: {
+                fullName: user?.fullName,
+                avatarUrl: user?.avatarUrl,
+                country: user?.country,
+                email: isContactVisible ? user?.email : undefined,
+                phone: isContactVisible ? user?.phone : undefined,
+            },
+            profile: {
+                programInterest: appRecord?.programInterest,
+                skills: appRecord?.skills,
+                motivation: appRecord?.motivation,
+                academic: appRecord?.academicInfo,
+                programCvUrl: appRecord?.cvUrl,
+            },
+        });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error loading application.', error: err.message });
+    }
+};
+
+// ─── PATCH /api/v1/partners/job-openings/:id/applications/:appId/review ───────
+export const reviewJobApplication = async (req: Request, res: Response) => {
+    try {
+        const org = await getPartnerOrg(req, res);
+        if (!org) return;
+
+        const opening = await JobOpening.findOne({
+            _id: req.params.id,
+            partnerOrgId: org._id,
+        });
+        if (!opening) {
+            res.status(404).json({ message: 'Job opening not found.' });
+            return;
+        }
+
+        const { action, partnerNotes } = req.body;
+        if (!action || !['shortlisted', 'not_selected'].includes(action)) {
+            res.status(400).json({ message: 'Action must be "shortlisted" or "not_selected".' });
+            return;
+        }
+
+        const application = await JobApplication.findOne({
+            _id: req.params.appId,
+            jobOpeningId: opening._id,
+        });
+        if (!application) {
+            res.status(404).json({ message: 'Application not found.' });
+            return;
+        }
+
+        application.status = action;
+        application.reviewedAt = new Date();
+        if (partnerNotes !== undefined) application.partnerNotes = partnerNotes;
+        await application.save();
+
+        const user = await User.findById(application.userId).select('fullName email').lean();
+
+        notificationEmitter.emit('jobApplication.reviewed', {
+            userId: application.userId.toString(),
+            userEmail: (user as any)?.email,
+            userName: (user as any)?.fullName || 'Participant',
+            jobTitle: opening.title,
+            partnerOrgName: org.name,
+            action,
+        });
+
+        await logAction(
+            req,
+            'PARTNER_JOB_APPLICATION_REVIEW',
+            `${action === 'shortlisted' ? 'Shortlisted' : 'Rejected'} applicant "${(user as any)?.fullName || 'Participant'}" for "${opening.title}"`,
+            { targetId: application._id.toString(), targetType: 'JobApplication' }
+        );
+
+        res.json({ message: `Applicant ${action === 'shortlisted' ? 'shortlisted' : 'not selected'}.`, application });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error reviewing application.', error: err.message });
+    }
+};
+
+// ─── PATCH /api/v1/partners/job-openings/:id/applications/:appId/interview ────
+export const scheduleJobInterview = async (req: Request, res: Response) => {
+    try {
+        const org = await getPartnerOrg(req, res);
+        if (!org) return;
+
+        const opening = await JobOpening.findOne({
+            _id: req.params.id,
+            partnerOrgId: org._id,
+        });
+        if (!opening) {
+            res.status(404).json({ message: 'Job opening not found.' });
+            return;
+        }
+
+        const { interviewScheduledAt, interviewFormat, interviewLink, interviewLocation } = req.body;
+        if (!interviewScheduledAt || !interviewFormat) {
+            res.status(400).json({ message: 'Interview date and format are required.' });
+            return;
+        }
+        if (!['Video', 'Call', 'In-person'].includes(interviewFormat)) {
+            res.status(400).json({ message: 'Interview format must be Video, Call, or In-person.' });
+            return;
+        }
+
+        const application = await JobApplication.findOne({
+            _id: req.params.appId,
+            jobOpeningId: opening._id,
+        });
+        if (!application) {
+            res.status(404).json({ message: 'Application not found.' });
+            return;
+        }
+
+        application.interviewScheduledAt = new Date(interviewScheduledAt);
+        application.interviewFormat = interviewFormat;
+        application.interviewLink = interviewLink ? String(interviewLink).trim() : undefined;
+        application.interviewLocation = interviewLocation ? String(interviewLocation).trim() : undefined;
+        application.status = 'interview_scheduled';
+        await application.save();
+
+        const user = await User.findById(application.userId).select('fullName email').lean();
+        const formattedDate = new Date(interviewScheduledAt).toLocaleString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+
+        notificationEmitter.emit('jobApplication.interview_scheduled', {
+            userId: application.userId.toString(),
+            userEmail: (user as any)?.email,
+            userName: (user as any)?.fullName || 'Participant',
+            jobTitle: opening.title,
+            partnerOrgName: org.name,
+            interviewDate: formattedDate,
+            format: interviewFormat,
+            interviewLink: application.interviewLink,
+            interviewLocation: application.interviewLocation,
+        });
+
+        await logAction(
+            req,
+            'PARTNER_JOB_INTERVIEW_SCHEDULE',
+            `Scheduled ${interviewFormat} interview with "${(user as any)?.fullName || 'Participant'}" for "${opening.title}" on ${formattedDate}`,
+            { targetId: application._id.toString(), targetType: 'JobApplication' }
+        );
+
+        res.json({ message: 'Interview scheduled.', application });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error scheduling interview.', error: err.message });
     }
 };

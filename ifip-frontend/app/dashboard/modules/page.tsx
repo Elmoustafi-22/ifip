@@ -349,21 +349,6 @@ export default function ModulesPage() {
                           In Progress
                         </span>
                       )}
-                      {isNotStarted && (
-                        <span className="bg-slate-100 text-slate-600 text-[10px] font-medium px-2 py-0.5 rounded-md">
-                          Not Started
-                        </span>
-                      )}
-                      {isLocked && (
-                        <span className="bg-slate-100 text-slate-400 text-[10px] font-medium px-2 py-0.5 rounded-md inline-flex items-center gap-1">
-                          <HiOutlineLockClosed className="w-3 h-3" /> Locked
-                        </span>
-                      )}
-                      {mod.pdfUrl && (
-                        <span className="bg-rose-50 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded-md border border-rose-200/60 inline-flex items-center gap-1">
-                          PDF Pack
-                        </span>
-                      )}
                     </div>
 
                     <div className="w-7 h-7 rounded-lg bg-[#000666]/5 border border-[#000666]/10 flex items-center justify-center shrink-0">

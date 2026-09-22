@@ -245,19 +245,14 @@ export default function ParticipantPlacementPage() {
           {/* Employer Card */}
           {partner && (
             <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 shadow-sm">
-              <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-4">
                 <div>
-                  <span className="bg-sky-50 text-sky-700 text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded border border-sky-100">
-                    Matched Employer
-                  </span>
-                  <h3 className="text-lg font-black text-[#000666] mt-2.5">{partner.name}</h3>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {partner.sectorTags?.map((tag: string, index: number) => (
-                    <span key={index} className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                      {tag}
-                    </span>
-                  ))}
+                  <h3 className="text-lg font-black text-[#000666]">{partner.name}</h3>
+                  {partner.sectorTags && partner.sectorTags.length > 0 && (
+                    <p className="text-xs text-slate-500 font-medium mt-1">
+                      {partner.sectorTags.join(" • ")}
+                    </p>
+                  )}
                 </div>
               </div>
               <p className="text-slate-500 text-xs sm:text-sm leading-relaxed mb-6">

@@ -40,6 +40,9 @@ import {
     getPartnerPoolVisibility,
     setPartnerPoolVisibility,
     deleteAdminUser,
+    getAdminJobOpenings,
+    getAdminJobOpeningById,
+    reviewJobOpening,
 } from '../controllers/adminController.js';
 import {
     getAssessments,
@@ -261,6 +264,9 @@ router.get('/placement-opportunities',          authorize('superadmin'), adminLi
 router.post('/placement-opportunities',         authorize('superadmin'), adminCreateOpportunity);
 router.post('/placement-opportunities/reorder', authorize('superadmin'), adminReorderOpportunities);
 router.patch('/placement-opportunities/:id',    authorize('superadmin'), adminUpdateOpportunity);
-router.delete('/placement-opportunities/:id',   authorize('superadmin'), adminDeleteOpportunity);
+// ─── Job Openings Management (Admin + Superadmin) ───────────────────────────
+router.get('/job-openings', getAdminJobOpenings);
+router.get('/job-openings/:id', getAdminJobOpeningById);
+router.patch('/job-openings/:id/review', reviewJobOpening);
 
 export default router;

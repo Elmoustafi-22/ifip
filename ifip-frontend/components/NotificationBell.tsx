@@ -2,7 +2,13 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { HiOutlineBell as BellIcon, HiOutlineCheckCircle as CheckIcon, HiOutlineTrash as TrashIcon, HiOutlineEnvelopeOpen as EnvelopeIcon } from "react-icons/hi2";
+import {
+  HiOutlineBell as BellIcon,
+  HiOutlineCheckCircle as CheckIcon,
+  HiOutlineTrash as TrashIcon,
+  HiOutlineEnvelopeOpen as EnvelopeIcon,
+  HiOutlineXMark,
+} from "react-icons/hi2";
 import {
   getNotifications,
   markNotificationRead,
@@ -121,88 +127,113 @@ export default function NotificationBell() {
 
       {/* Dropdown Card */}
       {isOpen && (
-        <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white border border-[#E7E2D8] rounded-2xl shadow-xl z-[999] overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-[#000666]/5">
-            <h3 className="font-bold text-[#000666] text-sm">Notifications</h3>
-            {unreadCount > 0 && (
-              <button
-                onClick={handleMarkAllRead}
-                className="text-[10px] uppercase font-bold text-[#00B0FF] hover:underline cursor-pointer"
-              >
-                Mark all as read
-              </button>
-            )}
-          </div>
+        <>
+          {/* Mobile backdrop for easy dismissal */}
+          <div
+            className="fixed inset-0 z-[990] bg-black/25 backdrop-blur-xs sm:hidden"
+            onClick={() => setIsOpen(false)}
+            aria-hidden="true"
+          />
 
-          {/* List Wrapper */}
-          <div className="max-h-96 overflow-y-auto divide-y divide-slate-100">
-            {notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 px-4 text-center text-slate-400 gap-2">
-                <EnvelopeIcon className="w-8 h-8 opacity-40 text-[#000666]" />
-                <p className="italic">No notifications yet.</p>
+          <div className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 top-16 sm:top-full sm:mt-3 sm:w-96 bg-white border border-[#E7E2D8] rounded-2xl shadow-2xl z-[999] overflow-hidden max-h-[calc(100vh-5.5rem)] sm:max-h-none flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3.5 sm:px-5 sm:py-4 border-b border-slate-100 bg-[#000666]/5 shrink-0">
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-[#000666] text-sm">Notifications</h3>
+                {unreadCount > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#000666] text-white">
+                    {unreadCount}
+                  </span>
+                )}
               </div>
-            ) : (
-              notifications.map((n) => {
-                const styles = getTypeStyles(n.type);
-                return (
-                  <div
-                    key={n._id}
-                    className={`p-4 flex gap-3 hover:bg-slate-50/70 transition-colors relative group ${
-                      !n.read ? "bg-sky-50/20 border-l-2 " + styles.border : ""
-                    }`}
+              <div className="flex items-center gap-3">
+                {unreadCount > 0 && (
+                  <button
+                    onClick={handleMarkAllRead}
+                    className="text-[10px] uppercase font-bold text-[#006591] hover:underline cursor-pointer"
                   >
-                    {/* Status Indicator dot */}
-                    <div className="mt-1 shrink-0">
-                      <span className={`block h-2 w-2 rounded-full ${styles.dot}`}></span>
-                    </div>
+                    Mark all as read
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="sm:hidden p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer"
+                  aria-label="Close notifications"
+                >
+                  <HiOutlineXMark className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0 pr-10">
-                      <div className="flex justify-between items-start mb-0.5">
-                        <span className="font-bold text-[#000666] truncate block">{n.title}</span>
+            {/* List Wrapper */}
+            <div className="max-h-[calc(100vh-10rem)] sm:max-h-96 overflow-y-auto divide-y divide-slate-100">
+              {notifications.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 px-4 text-center text-slate-400 gap-2">
+                  <EnvelopeIcon className="w-8 h-8 opacity-40 text-[#000666]" />
+                  <p className="italic">No notifications yet.</p>
+                </div>
+              ) : (
+                notifications.map((n) => {
+                  const styles = getTypeStyles(n.type);
+                  return (
+                    <div
+                      key={n._id}
+                      className={`p-3.5 sm:p-4 flex gap-3 hover:bg-slate-50/70 transition-colors relative group ${
+                        !n.read ? "bg-sky-50/20 border-l-2 " + styles.border : ""
+                      }`}
+                    >
+                      {/* Status Indicator dot */}
+                      <div className="mt-1 shrink-0">
+                        <span className={`block h-2 w-2 rounded-full ${styles.dot}`}></span>
                       </div>
-                      <p className="text-slate-600 leading-relaxed text-[11px] mb-2">{n.message}</p>
-                      
-                      <div className="flex items-center justify-between text-[10px] text-slate-400">
-                        <span>{formatDate(n.createdAt)}</span>
-                        {n.link && (
-                          <Link
-                            href={n.link}
-                            onClick={() => setIsOpen(false)}
-                            className="text-[#00B0FF] font-bold hover:underline"
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0 pr-12 sm:pr-10">
+                        <div className="flex justify-between items-start mb-0.5">
+                          <span className="font-bold text-[#000666] truncate block">{n.title}</span>
+                        </div>
+                        <p className="text-slate-600 leading-relaxed text-[11px] mb-2">{n.message}</p>
+                        
+                        <div className="flex items-center justify-between text-[10px] text-slate-400">
+                          <span>{formatDate(n.createdAt)}</span>
+                          {n.link && (
+                            <Link
+                              href={n.link}
+                              onClick={() => setIsOpen(false)}
+                              className="text-[#006591] font-bold hover:underline"
+                            >
+                              View details &rarr;
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Inline Quick Action Buttons */}
+                      <div className="absolute right-2.5 top-2.5 flex gap-1 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                        {!n.read && (
+                          <button
+                            onClick={(e) => handleMarkRead(n._id, e)}
+                            title="Mark as read"
+                            className="p-1 rounded-md bg-white border border-slate-200 text-slate-400 hover:text-emerald-500 shadow-xs transition-colors cursor-pointer"
                           >
-                            View details &rarr;
-                          </Link>
+                            <CheckIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          </button>
                         )}
+                        <button
+                          onClick={(e) => handleDelete(n._id, e)}
+                          title="Dismiss notification"
+                          className="p-1 rounded-md bg-white border border-slate-200 text-slate-400 hover:text-rose-500 shadow-xs transition-colors cursor-pointer"
+                        >
+                          <TrashIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        </button>
                       </div>
                     </div>
-
-                    {/* Inline Quick Action Buttons */}
-                    <div className="absolute right-3 top-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {!n.read && (
-                        <button
-                          onClick={(e) => handleMarkRead(n._id, e)}
-                          title="Mark as read"
-                          className="p-1 rounded-md bg-white border border-slate-100 text-slate-400 hover:text-emerald-500 shadow-sm transition-colors cursor-pointer"
-                        >
-                          <CheckIcon className="w-4 h-4" />
-                        </button>
-                      )}
-                      <button
-                        onClick={(e) => handleDelete(n._id, e)}
-                        title="Dismiss notification"
-                        className="p-1 rounded-md bg-white border border-slate-100 text-slate-400 hover:text-rose-500 shadow-sm transition-colors cursor-pointer"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+                  );
+                })
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

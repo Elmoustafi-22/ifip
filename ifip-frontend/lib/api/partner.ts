@@ -413,3 +413,153 @@ export const declinePartnerInterest = async (id: string, adminReason?: string) =
   const { data } = await authClient.patch(`/admin/partner-interests/${id}/decline`, { adminReason });
   return data;
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// JOB OPENINGS — Partner Portal APIs
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export type JobOpeningStatus = 'pending_review' | 'open' | 'closed' | 'rejected';
+export type JobWorkMode = 'Remote' | 'Hybrid' | 'On-site';
+
+export interface JobOpeningItem {
+  _id: string;
+  partnerOrgId: string;
+  title: string;
+  description: string;
+  department?: string;
+  workMode: JobWorkMode;
+  location?: string;
+  slots: number;
+  requirements: string[];
+  adminRequirements?: string[];
+  qualifications?: string;
+  applicationDeadline?: string;
+  status: JobOpeningStatus;
+  adminNotes?: string;
+  openedAt?: string;
+  closedAt?: string;
+  applicationCount?: number;
+  createdAt: string;
+  updatedAt: string;
+  partner?: {
+    name: string;
+    logoUrl?: string;
+    contactPerson?: string;
+  };
+}
+
+export interface JobApplicantRecord {
+  _id: string;
+  jobOpeningId: string;
+  userId: string;
+  cvUrl: string;
+  coverNote?: string;
+  responses: Array<{ requirement: string; answer: string }>;
+  status: 'submitted' | 'under_review' | 'shortlisted' | 'interview_scheduled' | 'not_selected';
+  partnerNotes?: string;
+  interviewScheduledAt?: string;
+  interviewFormat?: 'Video' | 'Call' | 'In-person';
+  interviewLink?: string;
+  interviewLocation?: string;
+  submittedAt: string;
+  reviewedAt?: string;
+  applicant?: {
+    fullName?: string;
+    avatarUrl?: string;
+    country?: string;
+    email?: string;
+    phone?: string;
+  };
+  programInterests?: any;
+  profile?: {
+    programInterest?: any;
+    skills?: any;
+    motivation?: string;
+    academic?: any;
+    programCvUrl?: string;
+  };
+}
+
+export const getPartnerJobOpenings = async (): Promise<{ openings: JobOpeningItem[] }> => {
+  const { data } = await authClient.get('/partners/job-openings');
+  return data;
+};
+
+export const getPartnerJobOpeningById = async (id: string): Promise<JobOpeningItem> => {
+  const { data } = await authClient.get(`/partners/job-openings/${id}`);
+  return data;
+};
+
+export const createPartnerJobOpening = async (payload: {
+  title: string;
+  description?: string;
+  department?: string;
+  workMode: JobWorkMode;
+  location?: string;
+  slots?: number;
+  requirements?: string[];
+  qualifications?: string;
+  applicationDeadline?: string;
+}): Promise<{ message: string; opening: JobOpeningItem }> => {
+  const { data } = await authClient.post('/partners/job-openings', payload);
+  return data;
+};
+
+export const updatePartnerJobOpening = async (
+  id: string,
+  payload: Partial<JobOpeningItem>
+): Promise<{ message: string; opening: JobOpeningItem }> => {
+  const { data } = await authClient.patch(`/partners/job-openings/${id}`, payload);
+  return data;
+};
+
+export const deletePartnerJobOpening = async (id: string): Promise<{ message: string }> => {
+  const { data } = await authClient.delete(`/partners/job-openings/${id}`);
+  return data;
+};
+
+export const getJobOpeningApplications = async (
+  openingId: string
+): Promise<{ applications: JobApplicantRecord[]; total: number }> => {
+  const { data } = await authClient.get(`/partners/job-openings/${openingId}/applications`);
+  return data;
+};
+
+export const getJobApplicationById = async (
+  openingId: string,
+  appId: string
+): Promise<JobApplicantRecord> => {
+  const { data } = await authClient.get(`/partners/job-openings/${openingId}/applications/${appId}`);
+  return data;
+};
+
+export const reviewJobApplication = async (
+  openingId: string,
+  appId: string,
+  action: 'shortlisted' | 'not_selected',
+  partnerNotes?: string
+): Promise<{ message: string; application: JobApplicantRecord }> => {
+  const { data } = await authClient.patch(`/partners/job-openings/${openingId}/applications/${appId}/review`, {
+    action,
+    partnerNotes,
+  });
+  return data;
+};
+
+export const scheduleJobInterview = async (
+  openingId: string,
+  appId: string,
+  details: {
+    interviewScheduledAt: string;
+    interviewFormat: 'Video' | 'Call' | 'In-person';
+    interviewLink?: string;
+    interviewLocation?: string;
+  }
+): Promise<{ message: string; application: JobApplicantRecord }> => {
+  const { data } = await authClient.patch(
+    `/partners/job-openings/${openingId}/applications/${appId}/interview`,
+    details
+  );
+  return data;
+};
+

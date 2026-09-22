@@ -7,6 +7,7 @@ import { ContentVersion } from '../models/ContentVersion.js';
  */
 export const getContentVersions = async (req: Request, res: Response): Promise<void> => {
     try {
+        res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
         const versions = await ContentVersion.find({});
         const mapping: Record<string, Date> = {};
         for (const v of versions) {

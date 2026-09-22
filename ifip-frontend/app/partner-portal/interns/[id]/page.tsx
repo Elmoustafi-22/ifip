@@ -143,7 +143,7 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
       {/* Back Button */}
       <Link
         href="/partner-portal/interns"
-        className="inline-flex items-center space-x-2 text-xs font-semibold text-slate-600 hover:text-emerald-700 transition-colors"
+        className="inline-flex items-center space-x-2 text-xs font-semibold text-slate-600 hover:text-[#000666] transition-colors"
       >
         <HiOutlineArrowLeft className="w-4 h-4" />
         <span>Back to Intern Pool</span>
@@ -172,39 +172,36 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
                 <Image src={profile.avatarUrl} alt={profile.fullName} fill className="object-cover" />
               </div>
             ) : (
-              <div className="w-20 h-20 rounded-full bg-slate-800 text-emerald-400 font-bold text-2xl flex items-center justify-center border-2 border-slate-700 shrink-0">
+              <div className="w-20 h-20 rounded-full bg-slate-100 text-[#000666] font-bold text-2xl flex items-center justify-center border border-slate-200 shrink-0">
                 {profile.fullName?.charAt(0) || "I"}
               </div>
             )}
             <div>
-              <div className="flex items-center space-x-3 flex-wrap">
+              <div className="flex items-center space-x-2 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-bold text-slate-900">{profile.fullName}</h1>
                 {profile.country && (
-                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-semibold">
-                    {profile.country}
+                  <span className="text-xs text-slate-500 font-medium">
+                    &bull; {profile.country}
                   </span>
                 )}
               </div>
 
-              {/* Assessment Score Badge */}
-              <div className="mt-2 flex items-center space-x-2 flex-wrap gap-y-1">
-                {profile.assessment.status === "passed" ? (
-                  <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+              {/* Assessment Score Badge (Only when evaluated) */}
+              {profile.assessment.status === "passed" ? (
+                <div className="mt-2">
+                  <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                     <HiOutlineCheckBadge className="w-4 h-4 text-emerald-600" />
                     <span>Passed Evaluation ({profile.assessment.score ?? 100}%)</span>
                   </span>
-                ) : profile.assessment.score !== null ? (
-                  <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                </div>
+              ) : profile.assessment.score !== null ? (
+                <div className="mt-2">
+                  <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
                     <HiOutlineAcademicCap className="w-4 h-4 text-slate-500" />
                     <span>Evaluation Score ({profile.assessment.score}%)</span>
                   </span>
-                ) : (
-                  <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200">
-                    <HiOutlineClock className="w-4 h-4 text-slate-400" />
-                    <span>Pending Evaluation</span>
-                  </span>
-                )}
-              </div>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -230,7 +227,7 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
                 <span className="text-xs text-rose-600 font-semibold">Previous Request Declined</span>
                 <button
                   onClick={() => setShowNoteModal(true)}
-                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-colors flex items-center space-x-2 cursor-pointer"
+                  className="px-4 py-2.5 rounded-lg bg-[#000666] hover:bg-[#000666]/90 text-white text-xs font-semibold shadow-xs transition-colors flex items-center space-x-2 cursor-pointer"
                 >
                   <HiOutlinePaperAirplane className="w-4 h-4" />
                   <span>Re-Express Interest</span>
@@ -239,7 +236,7 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
             ) : (
               <button
                 onClick={() => setShowNoteModal(true)}
-                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-md transition-colors flex items-center justify-center space-x-2 cursor-pointer"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-[#000666] hover:bg-[#000666]/90 text-white text-xs font-semibold shadow-xs transition-colors flex items-center justify-center space-x-2 cursor-pointer"
               >
                 <HiOutlinePaperAirplane className="w-4 h-4" />
                 <span>Express Interest in Candidate</span>
@@ -257,7 +254,7 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
           {profile.motivation && (profile.motivation.whyApplying || profile.motivation.careerGoals) && (
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
               <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center space-x-2">
-                <HiOutlineUserCircle className="w-4 h-4 text-emerald-600" />
+                <HiOutlineUserCircle className="w-4 h-4 text-[#000666]" />
                 <span>Motivation &amp; Career Statement</span>
               </h2>
               {profile.motivation.whyApplying && (
@@ -309,7 +306,7 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
           {profile.academic && (
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
               <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center space-x-2">
-                <HiOutlineAcademicCap className="w-4 h-4 text-emerald-600" />
+                <HiOutlineAcademicCap className="w-4 h-4 text-[#000666]" />
                 <span>Academic Information</span>
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -345,7 +342,7 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
           {profile.skills && (
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
               <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center space-x-2">
-                <HiOutlineBriefcase className="w-4 h-4 text-emerald-600" />
+                <HiOutlineBriefcase className="w-4 h-4 text-[#000666]" />
                 <span>Skills &amp; Technical Tools</span>
               </h2>
               <div className="space-y-3">
@@ -383,7 +380,7 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
           {/* Professional Documents */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center space-x-2">
-              <HiOutlineDocumentText className="w-4 h-4 text-emerald-600" />
+              <HiOutlineDocumentText className="w-4 h-4 text-[#000666]" />
               <span>Professional Credentials</span>
             </h2>
             <div className="space-y-3 text-xs">
@@ -395,7 +392,7 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
                   className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 transition-colors font-medium"
                 >
                   <span className="flex items-center space-x-2">
-                    <HiOutlineDocumentText className="w-4 h-4 text-emerald-600" />
+                    <HiOutlineDocumentText className="w-4 h-4 text-[#000666]" />
                     <span>Curriculum Vitae (CV)</span>
                   </span>
                   <HiOutlineLink className="w-4 h-4 text-slate-400" />
@@ -429,7 +426,7 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
                   className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 transition-colors font-medium"
                 >
                   <span className="flex items-center space-x-2">
-                    <HiOutlineGlobeAlt className="w-4 h-4 text-emerald-600" />
+                    <HiOutlineGlobeAlt className="w-4 h-4 text-[#000666]" />
                     <span>Portfolio / Work Samples</span>
                   </span>
                   <HiOutlineLink className="w-4 h-4 text-slate-400" />
@@ -441,22 +438,22 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
           {/* Contact Details Gated Card */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center space-x-2">
-              <HiOutlineEnvelope className="w-4 h-4 text-emerald-600" />
+              <HiOutlineEnvelope className="w-4 h-4 text-[#000666]" />
               <span>Contact Information</span>
             </h2>
 
             {profile.email ? (
               <div className="space-y-3 text-xs">
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
                   <span className="text-slate-500 font-semibold block mb-0.5">Email Address</span>
-                  <a href={`mailto:${profile.email}`} className="text-emerald-800 font-bold hover:underline">
+                  <a href={`mailto:${profile.email}`} className="text-[#000666] font-bold hover:underline">
                     {profile.email}
                   </a>
                 </div>
                 {profile.phone && (
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
                     <span className="text-slate-500 font-semibold block mb-0.5">Phone Number</span>
-                    <a href={`tel:${profile.phone}`} className="text-emerald-800 font-bold hover:underline">
+                    <a href={`tel:${profile.phone}`} className="text-[#000666] font-bold hover:underline">
                       {profile.phone}
                     </a>
                   </div>
@@ -481,7 +478,7 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
           <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
-                <HiOutlinePaperAirplane className="w-5 h-5 text-emerald-600" />
+                <HiOutlinePaperAirplane className="w-5 h-5 text-[#000666]" />
                 <span>Request Candidate: {profile.fullName}</span>
               </h2>
               <button onClick={() => setShowNoteModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
@@ -503,7 +500,7 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
                     <select
                       value={selectedRole}
                       onChange={(e) => handleOpeningChange(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-emerald-600 focus:bg-white transition-colors cursor-pointer"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] focus:bg-white transition-colors cursor-pointer"
                     >
                       {partnerOpenings.map((op, idx) => (
                         <option key={idx} value={op.role}>
@@ -519,7 +516,7 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
                         value={customRole}
                         onChange={(e) => setCustomRole(e.target.value)}
                         required
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-600 focus:bg-white"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] focus:bg-white"
                       />
                     )}
                   </div>
@@ -530,7 +527,7 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
                     value={customRole}
                     onChange={(e) => setCustomRole(e.target.value)}
                     required
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-600 focus:bg-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] focus:bg-white"
                   />
                 )}
               </div>
@@ -546,9 +543,9 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
                       key={m}
                       type="button"
                       onClick={() => setWorkType(m)}
-                      className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer ${
+                      className={`py-2 px-3 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
                         workType === m
-                          ? "bg-emerald-50 text-emerald-800 border-emerald-500 shadow-xs"
+                          ? "bg-[#000666] text-white border-[#000666] shadow-xs"
                           : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
                       }`}
                     >
@@ -566,7 +563,7 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
                 <select
                   value={interestArea}
                   onChange={(e) => setInterestArea(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-emerald-600 focus:bg-white transition-colors cursor-pointer"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] focus:bg-white transition-colors cursor-pointer"
                 >
                   <option value="">Select Domain...</option>
                   {interestOptions && interestOptions.length > 0 ? (
@@ -602,7 +599,7 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
                   placeholder="e.g., Fits our Q3 Sukuk desk expansion or specific placement timing..."
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] focus:bg-white"
                 />
               </div>
 
@@ -610,14 +607,14 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
                 <button
                   type="button"
                   onClick={() => setShowNoteModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  className="px-4 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-colors disabled:opacity-50 cursor-pointer"
+                  className="px-5 py-2 rounded-lg bg-[#000666] hover:bg-[#000666]/90 text-white text-xs font-bold shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {submitting ? "Submitting Request..." : "Confirm & Send Request"}
                 </button>

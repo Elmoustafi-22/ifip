@@ -502,7 +502,7 @@ export default function PendingApplicantsPage() {
   };
 
   return (
-    <div className="space-y-6 md:space-y-8 pb-16">
+    <div className="max-w-7xl mx-auto py-6 sm:py-8 px-4 sm:px-6 lg:px-8 font-sans space-y-6 md:space-y-8 pb-16">
       {/* Toast Notification */}
       {toastMessage && (
         <div
@@ -522,30 +522,29 @@ export default function PendingApplicantsPage() {
       )}
 
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-gradient-to-br from-slate-900 via-slate-800 to-sky-950 p-5 sm:p-6 md:p-8 rounded-2xl text-white shadow-xl">
-        <div className="space-y-1.5">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-400/20 text-sky-300 text-xs font-semibold tracking-wide uppercase">
-            <HiOutlineSparkles className="w-3.5 h-3.5 text-sky-400" /> Admissions Outreach & Pipeline
-          </div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold font-serif tracking-tight">Pending Applicants Tracker</h1>
-          <p className="text-slate-300 text-xs sm:text-sm max-w-2xl leading-relaxed">
-            Monitor non-paid applicants who have not completed checkout. Inspect full form responses, review payment attempt logs, and compose custom message templates or reminders to contact candidates.
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#000666] tracking-tight">
+            Pending Applicants Tracker
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
+            Monitor non-paid applicants who have not completed checkout, inspect responses, and send outreach reminders.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
+        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
           <button
             onClick={() => setExportModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs sm:text-sm font-bold transition shadow-md border border-sky-400/30 cursor-pointer"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition shadow-xs cursor-pointer"
             title="Configure filters and download applicants insights in CSV format"
           >
-            <HiOutlineArrowDownTray className="w-4 h-4" /> Export Insights CSV
+            <HiOutlineArrowDownTray className="w-4 h-4 text-slate-500" /> Export CSV
           </button>
           <button
             onClick={() => fetchApplicants()}
             disabled={loading}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs sm:text-sm font-medium transition backdrop-blur-sm border border-white/10"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition shadow-xs cursor-pointer disabled:opacity-50"
           >
-            <HiOutlineArrowPath className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh Data
+            <HiOutlineArrowPath className={`w-4 h-4 text-slate-500 ${loading ? "animate-spin" : ""}`} /> Refresh
           </button>
         </div>
       </div>

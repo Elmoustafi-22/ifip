@@ -132,6 +132,7 @@ export const submitPartnerApplication = async (req: Request, res: Response) => {
  */
 export const getActivePartners = async (_req: Request, res: Response) => {
     try {
+        res.set('Cache-Control', 'public, max-age=120, stale-while-revalidate=600');
         const partners = await PartnerOrganization.find({ status: { $ne: 'inactive' } })
             .select('name logoUrl sectorTags description activeSlots website')
             .sort({ name: 1 });

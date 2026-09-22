@@ -24,6 +24,7 @@ import activeOpeningRoutes from './routes/activeOpeningRoutes.js';
 import placementOpportunityRoutes from './routes/placementOpportunityRoutes.js';
 import contentVersionRoutes from './routes/contentVersionRoutes.js';
 import resourceRoutes from './routes/resourceRoutes.js';
+import jobOpeningRoutes from './routes/jobOpeningRoutes.js';
 import { otpEmailLimiter } from './middleware/otpEmailLimiter.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -156,6 +157,7 @@ app.use('/api/v1/active-openings', activeOpeningRoutes);
 app.use('/api/v1/placement-opportunities', placementOpportunityRoutes);
 app.use('/api/v1/content-versions', contentVersionRoutes);
 app.use('/api/v1/resources', resourceRoutes);
+app.use('/api/v1/job-openings', jobOpeningRoutes);
 
 app.get('/', (_req, res) => {
     res.json({ message: 'IFIP Backend API is running. Check /api/v1/health for status.' });

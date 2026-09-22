@@ -535,3 +535,56 @@ export const saveCvUrlAuth = async (req: Request, res: Response) => {
         res.status(500).json({ message: err.message || 'Failed to save CV URL' });
     }
 };
+
+/**
+ * POST /uploads/job-application-cv
+ * Authenticated participant upload for tailoring a CV to a specific job opening application.
+ * Accepts PDF, DOC, DOCX up to 10MB.
+ */
+export const uploadJobApplicationCv = async (req: Request, res: Response) => {
+    if (!req.file) {
+        res.status(400).json({ message: 'No file uploaded.' });
+        return;
+    }
+
+    const originalName = req.file.originalname || '';
+    const ext = originalName.split('.').pop()?.toLowerCase() || '';
+    const mime = req.file.mimetype || '';
+
+    const isPdfOrDoc =
+        mime === 'application/pdf' ||
+        mime === 'application/msword' ||
+        mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        ['pdf', 'doc', 'docx'].includes(ext);
+
+    if (!isPdfOrDoc) {
+        res.status(400).json({ message: 'Only PDF, DOC, or DOCX files are accepted.' });
+        return;
+    }
+
+    try {
+        const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                reject(new Error('Cloud storage upload timed out. Please try again.'));
+            }, 60000);
+
+            const stream = cloudinary.uploader.upload_stream(
+                { resource_type: 'auto', folder: 'ifipp/job-cvs' },
+                (error, result) => {
+                    clearTimeout(timer);
+                    if (error || !result) {
+                        reject(error || new Error('Cloudinary upload returned empty result'));
+                    } else {
+                        resolve(result as { secure_url: string });
+                    }
+                }
+            );
+            stream.end(req.file!.buffer);
+        });
+
+        res.json({ cvUrl: uploadResult.secure_url, fileName: originalName });
+    } catch (err: any) {
+        console.error('Job application CV upload error:', err);
+        res.status(500).json({ message: err.message || 'CV upload failed.' });
+    }
+};

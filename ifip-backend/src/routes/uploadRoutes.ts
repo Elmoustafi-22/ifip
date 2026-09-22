@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { authenticateApplicant } from '../middleware/applicantAuth.js';
 import { authenticate, authorize } from '../middleware/auth.js';
-import { uploadCv, uploadCvAuth, uploadLogo, uploadBrochure, uploadAvatarAuth, getUploadSignature, saveCvUrl, saveCvUrlAuth, uploadModuleTaskEvidence, uploadResourceFile, uploadAltCertificate, saveAltCertificateUrl } from '../controllers/uploadController.js';
+import { uploadCv, uploadCvAuth, uploadLogo, uploadBrochure, uploadAvatarAuth, getUploadSignature, saveCvUrl, saveCvUrlAuth, uploadModuleTaskEvidence, uploadResourceFile, uploadAltCertificate, saveAltCertificateUrl, uploadJobApplicationCv } from '../controllers/uploadController.js';
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -38,6 +38,7 @@ router.post('/save-cv-auth', authenticate, saveCvUrlAuth);
 // Fallback legacy proxy uploads
 router.post('/cv', authenticateApplicant, handleUpload('cv'), uploadCv);
 router.post('/cv-auth', authenticate, handleUpload('cv'), uploadCvAuth);
+router.post('/job-cv', authenticate, handleUpload('cv'), uploadJobApplicationCv);
 
 router.post('/avatar', authenticate, handleUpload('avatar'), uploadAvatarAuth);
 router.post('/module-task-evidence', authenticate, handleUpload('file'), uploadModuleTaskEvidence);

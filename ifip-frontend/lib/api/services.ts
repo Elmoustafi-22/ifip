@@ -1929,4 +1929,158 @@ export const deleteAdminUser = async (id: string): Promise<{ message: string }> 
   return data;
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// JOB OPENINGS — Admin & Participant APIs
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface AdminJobOpeningItem {
+  _id: string;
+  partnerOrgId: string;
+  title: string;
+  description: string;
+  department?: string;
+  workMode: 'Remote' | 'Hybrid' | 'On-site';
+  location?: string;
+  slots: number;
+  requirements: string[];
+  adminRequirements: string[];
+  qualifications?: string;
+  applicationDeadline?: string;
+  status: 'pending_review' | 'open' | 'closed' | 'rejected';
+  adminNotes?: string;
+  openedAt?: string;
+  applicationCount?: number;
+  isMigrated?: boolean;
+  partner?: {
+    name: string;
+    logoUrl?: string;
+    contactPerson?: string;
+    contactEmail?: string;
+    sectorTags?: string[];
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const getAdminJobOpenings = async (
+  status?: string
+): Promise<{ openings: AdminJobOpeningItem[]; total: number }> => {
+  const { data } = await authClient.get('/admin/job-openings', {
+    params: status ? { status } : {},
+  });
+  return data;
+};
+
+export const getAdminJobOpeningById = async (id: string): Promise<AdminJobOpeningItem> => {
+  const { data } = await authClient.get(`/admin/job-openings/${id}`);
+  return data;
+};
+
+export const reviewAdminJobOpening = async (
+  id: string,
+  payload: {
+    action: 'approve' | 'reject';
+    adminNotes?: string;
+    adminRequirements?: string[];
+  }
+): Promise<{ message: string; opening: AdminJobOpeningItem }> => {
+  const { data } = await authClient.patch(`/admin/job-openings/${id}/review`, payload);
+  return data;
+};
+
+// ── Participant Job Openings ──────────────────────────────────────────────────
+
+export interface ParticipantJobOpening {
+  _id: string;
+  partnerOrgId: string;
+  title: string;
+  description: string;
+  department?: string;
+  workMode: 'Remote' | 'Hybrid' | 'On-site';
+  location?: string;
+  slots: number;
+  requirements: string[];
+  adminRequirements: string[];
+  allRequirements?: string[];
+  qualifications?: string;
+  applicationDeadline?: string;
+  status: 'open';
+  openedAt?: string;
+  partner?: {
+    name: string;
+    logoUrl?: string;
+    description?: string;
+    sectorTags?: string[];
+    website?: string;
+  };
+  applicationCount?: number;
+  hasApplied?: boolean;
+  existingApplication?: any;
+  createdAt: string;
+}
+
+export interface TaskEligibilityStatus {
+  eligible: boolean;
+  message?: string;
+  totalRequired: number;
+  approvedCount: number;
+  pendingCount: number;
+  unsubmittedCount: number;
+  incompleteTasks: Array<{
+    moduleId: string;
+    moduleTitle: string;
+    moduleOrder?: number;
+    weekNumber?: number;
+    taskTitle?: string;
+    submissionStatus: string;
+  }>;
+}
+
+export const getParticipantJobOpenings = async (
+  workMode?: string
+): Promise<{ openings: ParticipantJobOpening[] }> => {
+  const { data } = await authClient.get('/job-openings', {
+    params: workMode ? { workMode } : {},
+  });
+  return data;
+};
+
+export const checkJobEligibility = async (): Promise<TaskEligibilityStatus> => {
+  const { data } = await authClient.get('/job-openings/eligibility/check');
+  return data;
+};
+
+export const getParticipantJobOpeningById = async (id: string): Promise<ParticipantJobOpening> => {
+  const { data } = await authClient.get(`/job-openings/${id}`);
+  return data;
+};
+
+export const applyToJobOpening = async (
+  id: string,
+  payload: {
+    cvUrl: string;
+    coverNote?: string;
+    responses?: Array<{ requirement: string; answer: string }>;
+  }
+): Promise<{ message: string; application: any }> => {
+  const { data } = await authClient.post(`/job-openings/${id}/apply`, payload);
+  return data;
+};
+
+export const getMyJobApplications = async (): Promise<{ applications: any[] }> => {
+  const { data } = await authClient.get('/job-openings/my-applications');
+  return data;
+};
+
+export const uploadJobCv = async (file: File): Promise<{ cvUrl: string; fileName: string }> => {
+  const formData = new FormData();
+  formData.append('cv', file);
+  const { data } = await authClient.post('/uploads/job-cv', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 60000,
+  });
+  return data;
+};
+
+
 

@@ -91,7 +91,7 @@ export default function AdminPartnerInterestsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-7xl mx-auto py-6 sm:py-8 px-4 sm:px-6 lg:px-8 font-sans space-y-6 pb-16">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
@@ -208,24 +208,20 @@ export default function AdminPartnerInterestsPage() {
                 </button>
               </div>
 
-              {/* Request Metadata Badges: Role, Work Mode, Interest Domain */}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                {item.role && (
-                  <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-900 border border-emerald-200">
-                    <HiOutlineBriefcase className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Role: <strong>{item.role}</strong></span>
-                  </span>
-                )}
+              {/* Request Metadata: Role, Work Mode, Interest Domain */}
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-600 font-medium">
+                {item.role && <span>Role: <strong className="text-slate-800">{item.role}</strong></span>}
                 {item.workType && (
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                    Mode: <strong className="ml-1 text-slate-900">{item.workType}</strong>
-                  </span>
+                  <>
+                    <span className="text-slate-300">&bull;</span>
+                    <span>Mode: <strong className="text-slate-800">{item.workType}</strong></span>
+                  </>
                 )}
                 {item.interestArea && (
-                  <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-teal-50 text-teal-800 border border-teal-200">
-                    <HiOutlineTag className="w-3.5 h-3.5 text-teal-600" />
-                    <span>Domain: <strong>{item.interestArea}</strong></span>
-                  </span>
+                  <>
+                    <span className="text-slate-300">&bull;</span>
+                    <span>Domain: <strong className="text-slate-800">{item.interestArea}</strong></span>
+                  </>
                 )}
                 <span className="text-xs text-slate-400 ml-auto">
                   Requested on: <strong className="text-slate-600">{new Date(item.requestedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</strong>

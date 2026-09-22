@@ -18,6 +18,7 @@ export const getPublicOptions = async (req: Request, res: Response) => {
             return;
         }
 
+        res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=1200');
         const options = await FormOption.find({ group: group as FormOptionGroup, isActive: true })
             .sort({ order: 1, createdAt: 1 })
             .select('label value -_id');

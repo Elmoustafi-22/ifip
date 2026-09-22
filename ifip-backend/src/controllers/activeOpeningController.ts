@@ -10,6 +10,7 @@ import { updateContentVersion } from './contentVersionController.js';
  */
 export const getPublicOpenings = async (req: Request, res: Response) => {
     try {
+        res.set('Cache-Control', 'public, max-age=120, stale-while-revalidate=600');
         const openings = await ActiveOpening.find({ isActive: true })
             .sort({ order: 1, createdAt: -1 });
         res.json({ openings });

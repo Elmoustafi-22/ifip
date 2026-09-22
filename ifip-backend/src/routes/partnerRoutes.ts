@@ -19,6 +19,15 @@ import {
     getPartnerNotifications,
     markNotificationRead,
     updatePartnerSettings,
+    createJobOpening,
+    getPartnerJobOpenings,
+    getPartnerJobOpeningById,
+    updateJobOpening,
+    deleteJobOpening,
+    getJobOpeningApplications,
+    getJobApplicationById,
+    reviewJobApplication,
+    scheduleJobInterview,
 } from '../controllers/partnerPortalController.js';
 
 const router = Router();
@@ -48,9 +57,21 @@ router.post('/openings',                               ...partnerAuth, addOpenin
 router.patch('/openings/:openingId',                   ...partnerAuth, updateOpening);
 router.delete('/openings/:openingId',                  ...partnerAuth, deleteOpening);
 
+// ─── Job Openings (announcement flow) ─────────────────────────────────────────
+router.get('/job-openings',                                               ...partnerAuth, getPartnerJobOpenings);
+router.post('/job-openings',                                              ...partnerAuth, createJobOpening);
+router.get('/job-openings/:id',                                           ...partnerAuth, getPartnerJobOpeningById);
+router.patch('/job-openings/:id',                                         ...partnerAuth, updateJobOpening);
+router.delete('/job-openings/:id',                                        ...partnerAuth, deleteJobOpening);
+router.get('/job-openings/:id/applications',                              ...partnerAuth, getJobOpeningApplications);
+router.get('/job-openings/:id/applications/:appId',                       ...partnerAuth, getJobApplicationById);
+router.patch('/job-openings/:id/applications/:appId/review',              ...partnerAuth, reviewJobApplication);
+router.patch('/job-openings/:id/applications/:appId/interview',           ...partnerAuth, scheduleJobInterview);
+
 router.get('/notifications',                           ...partnerAuth, getPartnerNotifications);
 router.patch('/notifications/:id/read',                ...partnerAuth, markNotificationRead);
 
 router.patch('/settings',                              ...partnerAuth, updatePartnerSettings);
 
 export default router;
+

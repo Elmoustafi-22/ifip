@@ -52,13 +52,12 @@ export default function PartnerNotificationsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center space-x-2">
-            <HiOutlineBell className="w-6 h-6 text-emerald-600" />
-            <span>Portal Notifications</span>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#000666] tracking-tight">
+            Portal Notifications
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
             System alerts and direct communications from IFIP admissions.
           </p>
         </div>
@@ -69,7 +68,7 @@ export default function PartnerNotificationsPage() {
             <button
               onClick={() => setFilter("all")}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                filter === "all" ? "bg-white text-emerald-700 shadow-sm border border-slate-200" : "text-slate-600 hover:text-slate-900"
+                filter === "all" ? "bg-[#000666] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
               }`}
             >
               All ({notifications.length})
@@ -77,7 +76,7 @@ export default function PartnerNotificationsPage() {
             <button
               onClick={() => setFilter("unread")}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                filter === "unread" ? "bg-white text-emerald-700 shadow-sm border border-slate-200" : "text-slate-600 hover:text-slate-900"
+                filter === "unread" ? "bg-[#000666] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
               }`}
             >
               Unread ({unreadCount})
@@ -106,9 +105,9 @@ export default function PartnerNotificationsPage() {
           {filtered.map((n) => (
             <div
               key={n._id}
-              className={`p-4 sm:p-5 rounded-2xl border transition-colors flex items-start justify-between gap-4 shadow-sm ${
+              className={`p-4 sm:p-5 rounded-2xl border transition-colors flex items-start justify-between gap-4 shadow-xs ${
                 !n.read
-                  ? "bg-emerald-50/40 border-emerald-300"
+                  ? "bg-blue-50/30 border-blue-200"
                   : "bg-white border-slate-200"
               }`}
             >
@@ -126,7 +125,7 @@ export default function PartnerNotificationsPage() {
                   <div className="flex items-center space-x-2 flex-wrap">
                     <h3 className="text-sm font-bold text-slate-900">{n.title}</h3>
                     {!n.read && (
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                      <span className="w-2 h-2 rounded-full bg-[#000666] inline-block" />
                     )}
                   </div>
                   <p className="text-xs text-slate-700 mt-1 leading-relaxed font-medium">{n.message}</p>
@@ -141,7 +140,7 @@ export default function PartnerNotificationsPage() {
                 {n.link && (
                   <Link
                     href={n.link}
-                    className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-[#000666] hover:bg-[#00054d] text-xs text-white font-semibold shadow-xs transition-colors cursor-pointer"
+                    className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-[#000666] hover:bg-[#000666]/90 text-xs text-white font-semibold shadow-xs transition-colors cursor-pointer"
                   >
                     <span>View Detail</span>
                   </Link>
@@ -149,9 +148,9 @@ export default function PartnerNotificationsPage() {
                 {!n.read && (
                   <button
                     onClick={() => handleMarkRead(n._id)}
-                    className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 font-semibold text-xs border border-slate-200 transition-colors cursor-pointer"
+                    className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs border border-slate-200 transition-colors cursor-pointer"
                   >
-                    <HiOutlineCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <HiOutlineCheck className="w-3.5 h-3.5 text-slate-500" />
                     <span>Mark Read</span>
                   </button>
                 )}

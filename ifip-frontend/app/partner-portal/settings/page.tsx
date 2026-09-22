@@ -87,14 +87,15 @@ export default function PartnerSettingsPage() {
   return (
     <div className="space-y-6 max-w-3xl">
       {/* Header */}
-      <div className="border-b border-slate-200 pb-5">
-        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center space-x-2">
-          <HiOutlineCog6Tooth className="w-6 h-6 text-emerald-600" />
-          <span>Organisation Settings &amp; Profile</span>
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Update primary contact information, organisation description, and branding.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#000666] tracking-tight">
+            Organisation Settings &amp; Profile
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
+            Update primary contact information, organisation description, and branding.
+          </p>
+        </div>
       </div>
 
       {successMsg && (
@@ -114,7 +115,7 @@ export default function PartnerSettingsPage() {
         {/* Contact Representative */}
         <div>
           <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center space-x-2">
-            <HiOutlineUser className="w-4 h-4 text-emerald-600" />
+            <HiOutlineUser className="w-4 h-4 text-[#000666]" />
             <span>Primary Contact Person</span>
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -125,7 +126,7 @@ export default function PartnerSettingsPage() {
                 required
                 value={contactPerson}
                 onChange={(e) => setContactPerson(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666]"
               />
             </div>
             <div>
@@ -135,7 +136,7 @@ export default function PartnerSettingsPage() {
                 required
                 value={contactPhone}
                 onChange={(e) => setContactPhone(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666]"
               />
             </div>
             <div className="sm:col-span-2">
@@ -145,7 +146,7 @@ export default function PartnerSettingsPage() {
                 required
                 value={contactEmail}
                 onChange={(e) => setContactEmail(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666]"
               />
             </div>
           </div>
@@ -156,7 +157,7 @@ export default function PartnerSettingsPage() {
         {/* Organisation Branding & Details */}
         <div>
           <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center space-x-2">
-            <HiOutlineBuildingOffice2 className="w-4 h-4 text-emerald-600" />
+            <HiOutlineBuildingOffice2 className="w-4 h-4 text-[#000666]" />
             <span>Organisation Details &amp; Branding</span>
           </h2>
           <div className="space-y-4">
@@ -167,7 +168,7 @@ export default function PartnerSettingsPage() {
                 placeholder="https://example.com"
                 value={website}
                 onChange={(e) => setWebsite(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-600"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666]"
               />
             </div>
 
@@ -178,7 +179,7 @@ export default function PartnerSettingsPage() {
                 placeholder="https://example.com/logo.png"
                 value={logoUrl}
                 onChange={(e) => setLogoUrl(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-600"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666]"
               />
               {logoUrl && (
                 <div className="mt-2 flex items-center space-x-3 p-2 bg-slate-50 rounded-xl border border-slate-200 w-fit">
@@ -197,7 +198,7 @@ export default function PartnerSettingsPage() {
                 placeholder="Islamic Banking, Takaful, Sukuk, FinTech"
                 value={sectorTagsInput}
                 onChange={(e) => setSectorTagsInput(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-600"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666]"
               />
             </div>
 
@@ -208,7 +209,7 @@ export default function PartnerSettingsPage() {
                 placeholder="Brief summary of your organisation's focus and internship program objectives..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-600"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666]"
               />
             </div>
           </div>
@@ -218,7 +219,7 @@ export default function PartnerSettingsPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+            className="px-6 py-2.5 rounded-lg bg-[#000666] hover:bg-[#000666]/90 text-white font-semibold text-xs transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
           >
             {submitting ? "Saving Changes..." : "Save Settings"}
           </button>

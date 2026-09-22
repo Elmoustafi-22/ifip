@@ -12,6 +12,7 @@ const router = Router();
 
 router.get('/registration-status', async (req, res) => {
     try {
+        res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
         const cohort = await getActiveRegistrationCohort();
         if (!cohort) {
             res.json({ hasActiveCohort: false, isFull: true });

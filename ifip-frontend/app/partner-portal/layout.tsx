@@ -44,7 +44,7 @@ const NAV_GROUPS = [
   {
     label: "Organization",
     items: [
-      { href: "/partner-portal/openings", label: "Openings", icon: HiOutlineBriefcase },
+      { href: "/partner-portal/openings", label: "Job Openings", icon: HiOutlineBriefcase },
       { href: "/partner-portal/settings", label: "Settings", icon: HiOutlineCog6Tooth },
     ],
   },

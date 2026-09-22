@@ -17,6 +17,9 @@ import { AssessmentSubmission } from '../models/AssessmentSubmission.js';
 import { Progress } from '../models/Progress.js';
 import { Placement } from '../models/Placement.js';
 import { PartnerInterest } from '../models/PartnerInterest.js';
+import { JobOpening } from '../models/JobOpening.js';
+import { JobApplication } from '../models/JobApplication.js';
+import { PartnerOrganization } from '../models/PartnerOrganization.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { signSetPasswordToken, signApplicantSessionToken } from '../utils/jwt.js';
 import { generateResumeToken } from '../services/tokenService.js';
@@ -2225,6 +2228,158 @@ export const deleteAdminUser = async (req: Request, res: Response) => {
         res.json({ message: `User ${user.fullName || user.email} deleted successfully.` });
     } catch (err: any) {
         res.status(500).json({ message: 'Error deleting user.', error: err.message });
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// JOB OPENINGS — Admin approval flow
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── GET /api/v1/admin/job-openings ───────────────────────────────────────────
+export const getAdminJobOpenings = async (req: Request, res: Response) => {
+    try {
+        const { status } = req.query;
+        const filter: any = {};
+        if (status && ['pending_review', 'open', 'closed', 'rejected'].includes(status as string)) {
+            filter.status = status;
+        }
+
+        const openings = await JobOpening.find(filter)
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Enrich with partner org info
+        const orgIds = [...new Set(openings.map(o => o.partnerOrgId.toString()))];
+        const orgs = await PartnerOrganization.find({ _id: { $in: orgIds } })
+            .select('name logoUrl contactPerson contactEmail')
+            .lean();
+        const orgMap = new Map(orgs.map(o => [(o as any)._id.toString(), o]));
+
+        // Get application counts
+        const openingIds = openings.map(o => (o as any)._id);
+        const appCounts = await JobApplication.aggregate([
+            { $match: { jobOpeningId: { $in: openingIds } } },
+            { $group: { _id: '$jobOpeningId', count: { $sum: 1 } } },
+        ]);
+        const countMap = new Map(appCounts.map(a => [a._id.toString(), a.count]));
+
+        const enriched = openings.map(o => {
+            const org = orgMap.get(o.partnerOrgId.toString());
+            return {
+                ...o,
+                partner: org ? { name: (org as any).name, logoUrl: (org as any).logoUrl, contactPerson: (org as any).contactPerson } : null,
+                applicationCount: countMap.get((o as any)._id.toString()) || 0,
+                isMigrated: !!o.migratedFromOpeningId,
+            };
+        });
+
+        res.json({ openings: enriched, total: enriched.length });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error loading job openings.', error: err.message });
+    }
+};
+
+// ─── GET /api/v1/admin/job-openings/:id ───────────────────────────────────────
+export const getAdminJobOpeningById = async (req: Request, res: Response) => {
+    try {
+        const opening = await JobOpening.findById(req.params.id).lean();
+        if (!opening) {
+            res.status(404).json({ message: 'Job opening not found.' });
+            return;
+        }
+
+        const org = await PartnerOrganization.findById(opening.partnerOrgId)
+            .select('name logoUrl contactPerson contactEmail sectorTags')
+            .lean();
+
+        const appCount = await JobApplication.countDocuments({ jobOpeningId: opening._id });
+
+        res.json({
+            ...opening,
+            partner: org,
+            applicationCount: appCount,
+            isMigrated: !!opening.migratedFromOpeningId,
+        });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error loading job opening.', error: err.message });
+    }
+};
+
+// ─── PATCH /api/v1/admin/job-openings/:id/review ──────────────────────────────
+export const reviewJobOpening = async (req: Request, res: Response) => {
+    try {
+        const opening = await JobOpening.findById(req.params.id);
+        if (!opening) {
+            res.status(404).json({ message: 'Job opening not found.' });
+            return;
+        }
+        if (opening.status !== 'pending_review') {
+            res.status(409).json({ message: 'Only openings with status "pending_review" can be reviewed.' });
+            return;
+        }
+
+        const { action, adminNotes, adminRequirements } = req.body;
+        if (!action || !['approve', 'reject'].includes(action)) {
+            res.status(400).json({ message: 'Action must be "approve" or "reject".' });
+            return;
+        }
+
+        if (adminNotes !== undefined) opening.adminNotes = adminNotes;
+        if (Array.isArray(adminRequirements)) {
+            opening.adminRequirements = adminRequirements.filter((r: string) => r.trim());
+        }
+
+        const org = await PartnerOrganization.findById(opening.partnerOrgId).select('name').lean();
+
+        if (action === 'approve') {
+            opening.status = 'open';
+            opening.openedAt = new Date();
+            await opening.save();
+
+            // Notify participants + partner
+            notificationEmitter.emit('jobOpening.opened', {
+                openingId: opening._id.toString(),
+                title: opening.title,
+                orgName: (org as any)?.name || 'Partner',
+                partnerOrgId: opening.partnerOrgId.toString(),
+                createdByUserId: opening.createdByUserId?.toString(),
+                workMode: opening.workMode,
+                location: opening.location,
+                slots: opening.slots,
+            });
+
+            await logAction(
+                req,
+                'ADMIN_JOB_OPENING_APPROVE',
+                `Approved job opening "${opening.title}" from ${(org as any)?.name || 'Partner'} — now live`,
+                { targetId: opening._id.toString(), targetType: 'JobOpening' }
+            );
+
+            res.json({ message: 'Job opening approved and now open.', opening });
+        } else {
+            opening.status = 'rejected';
+            await opening.save();
+
+            notificationEmitter.emit('jobOpening.rejected', {
+                openingId: opening._id.toString(),
+                title: opening.title,
+                orgName: (org as any)?.name || 'Partner',
+                partnerOrgId: opening.partnerOrgId.toString(),
+                createdByUserId: opening.createdByUserId?.toString(),
+                adminNotes: opening.adminNotes,
+            });
+
+            await logAction(
+                req,
+                'ADMIN_JOB_OPENING_REJECT',
+                `Rejected job opening "${opening.title}" from ${(org as any)?.name || 'Partner'}`,
+                { targetId: opening._id.toString(), targetType: 'JobOpening' }
+            );
+
+            res.json({ message: 'Job opening rejected.', opening });
+        }
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error reviewing job opening.', error: err.message });
     }
 };
 

@@ -34,7 +34,15 @@ import {
     sendNewAssessmentNotificationEmail,
     sendNewResourceNotificationEmail,
     sendModuleTaskReviewedEmail,
+    sendAdminJobOpeningCreatedEmail,
+    sendPartnerJobOpeningOpenedEmail,
+    sendPartnerJobOpeningRejectedEmail,
+    sendParticipantJobOpeningAnnouncedEmail,
+    sendPartnerNewJobApplicationAlertEmail,
+    sendJobApplicationSubmittedEmail,
+    sendJobApplicationInterviewScheduledEmail,
 } from './emailService.js';
+import { PartnerOrganization } from '../models/PartnerOrganization.js';
 
 export const notificationEmitter = new EventEmitter();
 
@@ -967,5 +975,282 @@ notificationEmitter.on('participant.placement_ready', async ({ userId }) => {
         }
     } catch (err) {
         console.error('[Event:participant.placement_ready] Error:', err);
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// JOB OPENING NOTIFICATION EVENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * jobOpening.created
+ * Emitted when a partner submits a new job opening for admin review.
+ * In-app + email alerts to all admins/superadmins.
+ */
+notificationEmitter.on('jobOpening.created', async ({ openingId, orgName, title, workMode, slots }) => {
+    try {
+        const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } });
+
+        // 1. In-app alerts for all admins
+        const notifications = admins.map(admin => ({
+            userId: admin._id,
+            title: 'New Job Opening Pending Review',
+            message: `${orgName} submitted a new opening for "${title}" (${workMode}). Review and approve to publish to candidates.`,
+            type: 'info' as const,
+            link: '/admin/job-openings',
+        }));
+        if (notifications.length > 0) {
+            await Notification.insertMany(notifications);
+        }
+
+        // 2. Email alerts for admins
+        for (const admin of admins) {
+            if (admin.email) {
+                try {
+                    await sendAdminJobOpeningCreatedEmail(admin.email, title, orgName, workMode, undefined, slots);
+                } catch (emailErr) {
+                    console.error(`[Event:jobOpening.created] Admin email error for ${admin.email}:`, emailErr);
+                }
+            }
+        }
+    } catch (err) {
+        console.error('[Event:jobOpening.created] Error:', err);
+    }
+});
+
+/**
+ * jobOpening.opened
+ * Emitted when an admin declares a job opening open/verified.
+ * 1. Alerts partner (in-app + email).
+ * 2. Alerts all active participants (in-app + email).
+ */
+notificationEmitter.on('jobOpening.opened', async ({ openingId, title, orgName, partnerOrgId, createdByUserId, workMode, location, slots }) => {
+    try {
+        // 1. Notify the partner creator
+        if (createdByUserId && Types.ObjectId.isValid(createdByUserId as string)) {
+            await Notification.create({
+                userId: new Types.ObjectId(createdByUserId as string),
+                title: 'Job Opening Approved & Live',
+                message: `Your job opening for "${title}" has been reviewed and declared open. Participants can now submit applications.`,
+                type: 'success',
+                link: '/partner-portal/job-openings',
+            });
+        }
+
+        // Send email to partner user(s)
+        const partnerUsers = await User.find({
+            $or: [
+                { orgId: new Types.ObjectId(partnerOrgId as string), role: 'partner' },
+                ...(createdByUserId && Types.ObjectId.isValid(createdByUserId as string) ? [{ _id: new Types.ObjectId(createdByUserId as string) }] : []),
+            ]
+        }).select('email fullName').lean();
+
+        for (const pu of partnerUsers) {
+            if (pu.email) {
+                try {
+                    await sendPartnerJobOpeningOpenedEmail(pu.email, pu.fullName || 'Partner', title);
+                } catch (pEmailErr) {
+                    console.error(`[Event:jobOpening.opened] Partner email error for ${pu.email}:`, pEmailErr);
+                }
+            }
+        }
+
+        // 2. Notify all active participants
+        const activeApps = await Application.find({
+            status: { $in: ['active', 'payment_confirmed', 'placement_ready'] }
+        }).populate<{ userId: { _id: Types.ObjectId; email: string; fullName?: string } }>('userId', 'email fullName');
+
+        const validApps = activeApps.filter(app => app.userId && (app.userId as any)._id);
+
+        const participantNotifications = validApps.map(app => ({
+            userId: (app.userId as any)._id,
+            title: `New Job Opening: ${title}`,
+            message: `${orgName} is now accepting applications for "${title}" (${workMode}). Complete all your module tasks to apply.`,
+            type: 'info' as const,
+            link: '/dashboard/job-openings',
+        }));
+
+        if (participantNotifications.length > 0) {
+            await Notification.insertMany(participantNotifications);
+        }
+
+        // Send email alerts to active participants
+        for (const app of validApps) {
+            const user = app.userId as any;
+            if (user?.email) {
+                try {
+                    await sendParticipantJobOpeningAnnouncedEmail(
+                        user.email,
+                        user.fullName || (app as any).fullName || 'Participant',
+                        title,
+                        orgName,
+                        workMode,
+                        location
+                    );
+                } catch (emailErr) {
+                    console.error(`[Event:jobOpening.opened] Participant email error for ${user.email}:`, emailErr);
+                }
+            }
+        }
+    } catch (err) {
+        console.error('[Event:jobOpening.opened] Error:', err);
+    }
+});
+
+/**
+ * jobOpening.rejected
+ * Emitted when an admin rejects a job opening.
+ * In-app + email alert to the partner.
+ */
+notificationEmitter.on('jobOpening.rejected', async ({ openingId, title, orgName, partnerOrgId, createdByUserId, adminNotes }) => {
+    try {
+        if (createdByUserId && Types.ObjectId.isValid(createdByUserId as string)) {
+            await Notification.create({
+                userId: new Types.ObjectId(createdByUserId as string),
+                title: 'Job Opening Needs Revision',
+                message: `Your job opening for "${title}" could not be approved at this time.${adminNotes ? ` Feedback: "${adminNotes}"` : ''}`,
+                type: 'warning',
+                link: '/partner-portal/job-openings',
+            });
+        }
+
+        const partnerUsers = await User.find({
+            $or: [
+                { orgId: new Types.ObjectId(partnerOrgId as string), role: 'partner' },
+                ...(createdByUserId && Types.ObjectId.isValid(createdByUserId as string) ? [{ _id: new Types.ObjectId(createdByUserId as string) }] : []),
+            ]
+        }).select('email fullName').lean();
+
+        for (const pu of partnerUsers) {
+            if (pu.email) {
+                try {
+                    await sendPartnerJobOpeningRejectedEmail(pu.email, pu.fullName || 'Partner', title, adminNotes);
+                } catch (emailErr) {
+                    console.error(`[Event:jobOpening.rejected] Email error for ${pu.email}:`, emailErr);
+                }
+            }
+        }
+    } catch (err) {
+        console.error('[Event:jobOpening.rejected] Error:', err);
+    }
+});
+
+/**
+ * jobApplication.submitted
+ * Emitted when a candidate submits an application for an open job.
+ * 1. Notifies candidate (in-app + email confirmation).
+ * 2. Notifies partner (in-app + email alert).
+ */
+notificationEmitter.on('jobApplication.submitted', async ({ applicationId, userId, userName, jobTitle, partnerOrgName, partnerOrgId }) => {
+    try {
+        // 1. Candidate confirmation
+        const userObjId = new Types.ObjectId(userId as string);
+        await Notification.create({
+            userId: userObjId,
+            title: 'Application Received',
+            message: `Your application for "${jobTitle}" at ${partnerOrgName} has been submitted successfully.`,
+            type: 'success',
+            link: '/dashboard/job-openings',
+        });
+
+        const user = await User.findById(userObjId).select('email fullName').lean();
+        if (user?.email) {
+            try {
+                await sendJobApplicationSubmittedEmail(user.email, user.fullName || userName || 'Participant', jobTitle, partnerOrgName);
+            } catch (emailErr) {
+                console.error(`[Event:jobApplication.submitted] Candidate email error:`, emailErr);
+            }
+        }
+
+        // 2. Partner notification
+        const partnerUsers = await User.find({
+            orgId: new Types.ObjectId(partnerOrgId as string),
+            role: 'partner',
+        }).select('_id email fullName').lean();
+
+        const partnerNotifications = partnerUsers.map(pu => ({
+            userId: pu._id,
+            title: 'New Job Opening Application',
+            message: `${userName} has applied for your opening "${jobTitle}". Review their profile and CV in your partner portal.`,
+            type: 'info' as const,
+            link: '/partner-portal/job-openings',
+        }));
+
+        if (partnerNotifications.length > 0) {
+            await Notification.insertMany(partnerNotifications);
+        }
+
+        for (const pu of partnerUsers) {
+            if (pu.email) {
+                try {
+                    await sendPartnerNewJobApplicationAlertEmail(pu.email, pu.fullName || 'Partner', jobTitle, userName);
+                } catch (emailErr) {
+                    console.error(`[Event:jobApplication.submitted] Partner email error for ${pu.email}:`, emailErr);
+                }
+            }
+        }
+    } catch (err) {
+        console.error('[Event:jobApplication.submitted] Error:', err);
+    }
+});
+
+/**
+ * jobApplication.interview_scheduled
+ * Emitted when partner schedules an interview for an applicant.
+ * In-app + email to the candidate.
+ */
+notificationEmitter.on('jobApplication.interview_scheduled', async ({
+    userId, userEmail, userName, jobTitle, partnerOrgName, interviewDate, format, interviewLink, interviewLocation
+}) => {
+    try {
+        const userObjId = new Types.ObjectId(userId as string);
+        await Notification.create({
+            userId: userObjId,
+            title: 'Interview Scheduled',
+            message: `${partnerOrgName} has scheduled an interview for "${jobTitle}" on ${interviewDate} (${format}).`,
+            type: 'success',
+            link: '/dashboard/job-openings',
+        });
+
+        if (userEmail) {
+            await sendJobApplicationInterviewScheduledEmail(
+                userEmail,
+                userName || 'Participant',
+                jobTitle,
+                partnerOrgName,
+                interviewDate,
+                format,
+                interviewLink,
+                interviewLocation
+            );
+        }
+    } catch (err) {
+        console.error('[Event:jobApplication.interview_scheduled] Error:', err);
+    }
+});
+
+/**
+ * jobApplication.reviewed
+ * Emitted when partner reviews an applicant (shortlisted / not_selected).
+ * In-app alert to candidate.
+ */
+notificationEmitter.on('jobApplication.reviewed', async ({
+    userId, userEmail, userName, jobTitle, partnerOrgName, action
+}) => {
+    try {
+        const userObjId = new Types.ObjectId(userId as string);
+        const isShortlisted = action === 'shortlisted';
+
+        await Notification.create({
+            userId: userObjId,
+            title: isShortlisted ? 'Application Shortlisted' : 'Application Update',
+            message: isShortlisted
+                ? `Congratulations! You have been shortlisted for "${jobTitle}" at ${partnerOrgName}.`
+                : `Thank you for applying for "${jobTitle}" at ${partnerOrgName}. They have chosen to proceed with other candidates at this time.`,
+            type: isShortlisted ? 'success' : 'info',
+            link: '/dashboard/job-openings',
+        });
+    } catch (err) {
+        console.error('[Event:jobApplication.reviewed] Error:', err);
     }
 });

@@ -185,6 +185,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: "Assessments", href: "/dashboard/assessments", icon: HiOutlineClipboardDocumentList, disabled: !isLaunched },
     { name: "Resources", href: "/dashboard/resources", icon: HiOutlineFolderMinus, disabled: !isLaunched },
     { name: "Placement", href: "/dashboard/placement", icon: HiOutlineBriefcase, disabled: !isLaunched },
+    { name: "Job Openings", href: "/dashboard/job-openings", icon: HiOutlineBriefcase, disabled: !isLaunched },
     { name: "Settings", href: "/dashboard/settings", icon: HiOutlineCog6Tooth, disabled: false }
   ];
 
