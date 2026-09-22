@@ -223,7 +223,7 @@ export default function PartnerOpeningsPage() {
           className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#000666] text-white text-sm font-semibold rounded-lg hover:bg-[#000666]/90 transition shadow-xs cursor-pointer shrink-0 whitespace-nowrap self-start sm:self-auto"
         >
           <HiOutlinePlus className="w-4 h-4 shrink-0" />
-          <span>Announce Job Opening</span>
+          <span>Post Job Opening</span>
         </button>
       </div>
 
@@ -233,7 +233,7 @@ export default function PartnerOpeningsPage() {
           <HiOutlineBriefcase className="w-5 h-5" />
         </div>
         <div className="leading-relaxed">
-          <strong className="font-bold">How Job Announcements Work:</strong> When you submit a job opening, our programme administration conducts a swift verification to ensure alignment with candidate coursework. Once declared open, all qualified participants are notified via email and in-app alerts and can apply directly.
+          <strong className="font-bold">How Job Postings Work:</strong> When you submit a job opening, our programme administration conducts a swift verification to ensure alignment with candidate coursework. Once declared open, all qualified participants are notified via email and in-app alerts and can apply directly.
         </div>
       </div>
 
@@ -248,9 +248,9 @@ export default function PartnerOpeningsPage() {
           <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
             <HiOutlineBriefcase className="w-6 h-6" />
           </div>
-          <h3 className="text-base font-bold text-slate-800">No Job Openings Announced Yet</h3>
+          <h3 className="text-base font-bold text-slate-800">No Job Openings Posted Yet</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            You have not announced any job openings yet. Use the <strong>"Announce Job Opening"</strong> button above to submit your first placement opportunity.
+            You have not posted any job openings yet. Use the <strong>"Post Job Opening"</strong> button above to submit your first placement opportunity.
           </p>
         </div>
       ) : (
@@ -357,7 +357,7 @@ export default function PartnerOpeningsPage() {
           <div className="bg-white rounded-2xl max-w-xl w-full p-6 space-y-5 shadow-2xl border border-slate-200 my-8">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h2 className="text-lg font-bold text-slate-900">
-                {editingOpening ? "Edit Job Opening" : "Announce New Job Opening"}
+                {editingOpening ? "Edit Job Opening" : "Post Job Opening"}
               </h2>
               <button
                 onClick={() => setShowModal(false)}
