@@ -10,7 +10,10 @@ Promise.all([connectDB(), connectRedis()]).then(async () => {
     // Migration: Set portalEnabled to false for existing partners who have never been invited
     try {
         await PartnerOrganization.updateMany(
-            { $or: [ { inviteSentAt: { $exists: false } }, { inviteSentAt: null } ] },
+            { 
+                portalEnabled: { $exists: false },
+                $or: [ { inviteSentAt: { $exists: false } }, { inviteSentAt: null } ] 
+            },
             { $set: { portalEnabled: false } }
         );
         console.log('Database migration: portalEnabled set to false for uninvited partners');

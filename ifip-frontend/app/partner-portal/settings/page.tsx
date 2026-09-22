@@ -215,13 +215,20 @@ export default function PartnerSettingsPage() {
           </div>
         </div>
 
-        <div className="pt-2 flex justify-end">
+        <div className="pt-2 flex flex-col sm:flex-row sm:justify-end">
           <button
             type="submit"
             disabled={submitting}
-            className="px-6 py-2.5 rounded-lg bg-[#000666] hover:bg-[#000666]/90 text-white font-semibold text-xs transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
+            className="w-full sm:w-auto px-6 py-3 sm:py-2.5 rounded-xl sm:rounded-lg bg-[#000666] hover:bg-[#000666]/90 active:scale-[0.98] text-white font-semibold text-xs transition-all shadow-xs disabled:opacity-50 cursor-pointer text-center flex items-center justify-center gap-1.5"
           >
-            {submitting ? "Saving Changes..." : "Save Settings"}
+            {submitting ? (
+              <>
+                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Saving Changes...</span>
+              </>
+            ) : (
+              "Save Settings"
+            )}
           </button>
         </div>
       </form>

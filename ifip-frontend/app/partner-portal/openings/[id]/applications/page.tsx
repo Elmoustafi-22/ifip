@@ -454,11 +454,11 @@ export default function JobOpeningApplicationsReviewPage() {
                   </a>
 
                   {/* Review Actions */}
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     {app.status !== "shortlisted" && app.status !== "interview_scheduled" && (
                       <button
                         onClick={() => handleReviewAction(app._id, "shortlisted")}
-                        className="px-3 py-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition cursor-pointer"
+                        className="w-full sm:w-auto px-3 py-2 sm:py-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition cursor-pointer text-center"
                       >
                         Shortlist Candidate
                       </button>
@@ -466,16 +466,16 @@ export default function JobOpeningApplicationsReviewPage() {
 
                     <button
                       onClick={() => handleOpenInterviewModal(app)}
-                      className="px-3.5 py-1.5 text-xs font-bold text-white bg-[#000666] hover:bg-[#000666]/90 rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      className="w-full sm:w-auto px-3.5 py-2 sm:py-1.5 text-xs font-bold text-white bg-[#000666] hover:bg-[#000666]/90 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs text-center"
                     >
                       <HiOutlineCalendar className="w-3.5 h-3.5" />
-                      {app.status === "interview_scheduled" ? "Reschedule Interview" : "Schedule Interview"}
+                      <span>{app.status === "interview_scheduled" ? "Reschedule Interview" : "Schedule Interview"}</span>
                     </button>
 
                     {app.status !== "not_selected" && (
                       <button
                         onClick={() => handleReviewAction(app._id, "not_selected")}
-                        className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                        className="w-full sm:w-auto px-3 py-2 sm:py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer text-center"
                       >
                         Not Selected
                       </button>
@@ -490,18 +490,20 @@ export default function JobOpeningApplicationsReviewPage() {
 
       {/* Schedule Interview Modal */}
       {interviewModalOpen && activeApp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between border-b border-slate-200 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900">Schedule Candidate Interview</h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Candidate: <strong>{activeApp.applicant?.fullName || "Candidate"}</strong>
+                  Candidate: <strong className="text-slate-700">{activeApp.applicant?.fullName || "Candidate"}</strong>
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => setInterviewModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer"
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                aria-label="Close dialog"
               >
                 <HiOutlineXMark className="w-5 h-5" />
               </button>
@@ -509,7 +511,7 @@ export default function JobOpeningApplicationsReviewPage() {
 
             <form onSubmit={handleScheduleSubmit} className="space-y-3.5 text-xs">
               {scheduleError && (
-                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 font-medium">
+                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 font-medium">
                   {scheduleError}
                 </div>
               )}
@@ -523,7 +525,7 @@ export default function JobOpeningApplicationsReviewPage() {
                   required
                   value={interviewDate}
                   onChange={(e) => setInterviewDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#000666]"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666]"
                 />
               </div>
 
@@ -534,7 +536,7 @@ export default function JobOpeningApplicationsReviewPage() {
                 <select
                   value={interviewFormat}
                   onChange={(e) => setInterviewFormat(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#000666]"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666]"
                 >
                   <option value="Video">Video Call (Google Meet, Teams, Zoom)</option>
                   <option value="Call">Phone Call</option>
@@ -553,7 +555,7 @@ export default function JobOpeningApplicationsReviewPage() {
                     placeholder="https://meet.google.com/xyz or Zoom link"
                     value={interviewLink}
                     onChange={(e) => setInterviewLink(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#000666]"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666]"
                   />
                 </div>
               )}
@@ -569,29 +571,36 @@ export default function JobOpeningApplicationsReviewPage() {
                     placeholder="Full address of interview venue"
                     value={interviewLocation}
                     onChange={(e) => setInterviewLocation(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#000666]"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666]"
                   />
                 </div>
               )}
 
-              <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-[11px] text-blue-900 leading-relaxed">
+              <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900 leading-relaxed">
                 The candidate will receive an email and in-app notification with these interview details.
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+              <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-3 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setInterviewModalOpen(false)}
-                  className="px-3.5 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold cursor-pointer"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-slate-600 bg-white sm:bg-slate-100 hover:bg-slate-200 border sm:border-transparent border-slate-200 rounded-xl sm:rounded-lg font-semibold cursor-pointer text-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={schedulingSubmitting}
-                  className="px-4 py-2 font-bold text-white bg-[#000666] hover:bg-[#000666]/90 rounded-lg transition disabled:opacity-50 cursor-pointer shadow-xs"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 font-bold text-white bg-[#000666] hover:bg-[#000666]/90 active:scale-[0.98] rounded-xl sm:rounded-lg transition disabled:opacity-50 cursor-pointer shadow-xs text-center flex items-center justify-center gap-1.5"
                 >
-                  {schedulingSubmitting ? "Sending..." : "Confirm & Send Notice"}
+                  {schedulingSubmitting ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Sending...</span>
+                    </>
+                  ) : (
+                    "Confirm & Send Notice"
+                  )}
                 </button>
               </div>
             </form>

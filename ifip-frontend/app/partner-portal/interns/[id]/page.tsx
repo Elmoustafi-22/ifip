@@ -474,149 +474,165 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
 
       {/* Modal for Expressing Interest */}
       {showNoteModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
-                <HiOutlinePaperAirplane className="w-5 h-5 text-[#000666]" />
-                <span>Request Candidate: {profile.fullName}</span>
-              </h2>
-              <button onClick={() => setShowNoteModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full flex flex-col max-h-[92vh] sm:max-h-[90vh] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between border-b border-slate-100 px-5 sm:px-6 py-4 shrink-0">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+                  <HiOutlinePaperAirplane className="w-5 h-5 text-[#000666]" />
+                  <span>Request Candidate: {profile.fullName}</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Specify the role and working arrangement. IFIP admissions will review and confirm.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowNoteModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+                aria-label="Close dialog"
+              >
                 <HiOutlineXMark className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Specify the role, working arrangement, and area of interest you are requesting this candidate for. IFIP admissions will review and confirm the match.
-            </p>
 
-            <form onSubmit={handleExpressInterest} className="space-y-4 pt-1">
-              {/* Role Selection */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Proposed Role / Position <span className="text-rose-500">*</span>
-                </label>
-                {partnerOpenings.length > 0 ? (
-                  <div className="space-y-2">
-                    <select
-                      value={selectedRole}
-                      onChange={(e) => handleOpeningChange(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] focus:bg-white transition-colors cursor-pointer"
-                    >
-                      {partnerOpenings.map((op, idx) => (
-                        <option key={idx} value={op.role}>
-                          {op.role} ({op.mode}{op.location ? ` • ${op.location}` : ""})
-                        </option>
-                      ))}
-                      <option value="custom">+ Other / Custom Role...</option>
-                    </select>
-                    {selectedRole === "custom" && (
-                      <input
-                        type="text"
-                        placeholder="Type custom role title..."
-                        value={customRole}
-                        onChange={(e) => setCustomRole(e.target.value)}
-                        required
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] focus:bg-white"
-                      />
-                    )}
+            <form onSubmit={handleExpressInterest} className="flex flex-col flex-1 overflow-hidden">
+              <div className="px-5 sm:px-6 py-4 overflow-y-auto space-y-4 flex-1 overscroll-contain text-xs">
+                {/* Role Selection */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Proposed Role / Position <span className="text-rose-500">*</span>
+                  </label>
+                  {partnerOpenings.length > 0 ? (
+                    <div className="space-y-2">
+                      <select
+                        value={selectedRole}
+                        onChange={(e) => handleOpeningChange(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] focus:bg-white transition-colors cursor-pointer"
+                      >
+                        {partnerOpenings.map((op, idx) => (
+                          <option key={idx} value={op.role}>
+                            {op.role} ({op.mode}{op.location ? ` • ${op.location}` : ""})
+                          </option>
+                        ))}
+                        <option value="custom">+ Other / Custom Role...</option>
+                      </select>
+                      {selectedRole === "custom" && (
+                        <input
+                          type="text"
+                          placeholder="Type custom role title..."
+                          value={customRole}
+                          onChange={(e) => setCustomRole(e.target.value)}
+                          required
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] focus:bg-white"
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder="e.g. Islamic Finance Analyst, Sukuk Structuring Intern..."
+                      value={customRole}
+                      onChange={(e) => setCustomRole(e.target.value)}
+                      required
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] focus:bg-white"
+                    />
+                  )}
+                </div>
+
+                {/* Working Arrangement / Mode */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Working Arrangement / Mode <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(["Hybrid", "Remote", "On-site"] as const).map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setWorkType(m)}
+                        className={`py-2 px-1.5 sm:px-3 text-xs font-semibold rounded-xl border transition-all cursor-pointer text-center truncate ${
+                          workType === m
+                            ? "bg-[#000666] text-white border-[#000666] shadow-xs"
+                            : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                        }`}
+                      >
+                        {m}
+                      </button>
+                    ))}
                   </div>
-                ) : (
-                  <input
-                    type="text"
-                    placeholder="e.g. Islamic Finance Analyst, Sukuk Structuring Intern..."
-                    value={customRole}
-                    onChange={(e) => setCustomRole(e.target.value)}
-                    required
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] focus:bg-white"
-                  />
-                )}
-              </div>
+                </div>
 
-              {/* Working Arrangement / Mode */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Working Arrangement / Mode <span className="text-rose-500">*</span>
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["Hybrid", "Remote", "On-site"] as const).map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => setWorkType(m)}
-                      className={`py-2 px-3 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
-                        workType === m
-                          ? "bg-[#000666] text-white border-[#000666] shadow-xs"
-                          : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-                      }`}
-                    >
-                      {m}
-                    </button>
-                  ))}
+                {/* Interest / Specialization Area */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Department / Interest Domain
+                  </label>
+                  <select
+                    value={interestArea}
+                    onChange={(e) => setInterestArea(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] focus:bg-white transition-colors cursor-pointer"
+                  >
+                    <option value="">Select Domain...</option>
+                    {interestOptions && interestOptions.length > 0 ? (
+                      interestOptions
+                        .filter((o) => o.label && o.label.toLowerCase() !== "other (specify)")
+                        .map((o) => (
+                          <option key={o.value || o.label} value={o.label}>
+                            {o.label}
+                          </option>
+                        ))
+                    ) : (
+                      <>
+                        <option value="Islamic Banking & Finance">Islamic Banking & Finance</option>
+                        <option value="Sukuk & Capital Markets">Sukuk & Capital Markets</option>
+                        <option value="Takaful & Islamic Insurance">Takaful & Islamic Insurance</option>
+                        <option value="FinTech & Digital Transformation">FinTech & Digital Transformation</option>
+                        <option value="Shariah Governance & Compliance">Shariah Governance & Compliance</option>
+                        <option value="Wealth & Asset Management">Wealth & Asset Management</option>
+                        <option value="ESG & Sustainable Finance">ESG & Sustainable Finance</option>
+                        <option value="Financial Analysis & Research">Financial Analysis & Research</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                {/* Note / Message */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Optional Note / Message for IFIP Admissions
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="e.g., Fits our Q3 Sukuk desk expansion or specific placement timing..."
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] focus:bg-white resize-none"
+                  />
                 </div>
               </div>
 
-              {/* Interest / Specialization Area */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Department / Interest Domain
-                </label>
-                <select
-                  value={interestArea}
-                  onChange={(e) => setInterestArea(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] focus:bg-white transition-colors cursor-pointer"
-                >
-                  <option value="">Select Domain...</option>
-                  {interestOptions && interestOptions.length > 0 ? (
-                    interestOptions
-                      .filter((o) => o.label && o.label.toLowerCase() !== "other (specify)")
-                      .map((o) => (
-                        <option key={o.value || o.label} value={o.label}>
-                          {o.label}
-                        </option>
-                      ))
-                  ) : (
-                    <>
-                      <option value="Islamic Banking & Finance">Islamic Banking & Finance</option>
-                      <option value="Sukuk & Capital Markets">Sukuk & Capital Markets</option>
-                      <option value="Takaful & Islamic Insurance">Takaful & Islamic Insurance</option>
-                      <option value="FinTech & Digital Transformation">FinTech & Digital Transformation</option>
-                      <option value="Shariah Governance & Compliance">Shariah Governance & Compliance</option>
-                      <option value="Wealth & Asset Management">Wealth & Asset Management</option>
-                      <option value="ESG & Sustainable Finance">ESG & Sustainable Finance</option>
-                      <option value="Financial Analysis & Research">Financial Analysis & Research</option>
-                    </>
-                  )}
-                </select>
-              </div>
-
-              {/* Note / Message */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Optional Note / Message for IFIP Admissions
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="e.g., Fits our Q3 Sukuk desk expansion or specific placement timing..."
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] focus:bg-white"
-                />
-              </div>
-
-              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+              <div className="px-5 sm:px-6 py-3.5 sm:py-4 bg-slate-50/80 border-t border-slate-100 shrink-0 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-2.5">
                 <button
                   type="button"
                   onClick={() => setShowNoteModal(false)}
-                  className="px-4 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-xl sm:rounded-lg text-xs font-semibold text-slate-600 bg-white sm:bg-slate-100 hover:bg-slate-200 border sm:border-transparent border-slate-200 cursor-pointer text-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 rounded-lg bg-[#000666] hover:bg-[#000666]/90 text-white text-xs font-bold shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+                  className="w-full sm:w-auto px-5 py-2.5 sm:py-2 rounded-xl sm:rounded-lg bg-[#000666] hover:bg-[#000666]/90 active:scale-[0.98] text-white text-xs font-bold shadow-xs transition-colors disabled:opacity-50 cursor-pointer text-center flex items-center justify-center gap-1.5"
                 >
-                  {submitting ? "Submitting Request..." : "Confirm & Send Request"}
+                  {submitting ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Submitting Request...</span>
+                    </>
+                  ) : (
+                    "Confirm & Send Request"
+                  )}
                 </button>
               </div>
             </form>

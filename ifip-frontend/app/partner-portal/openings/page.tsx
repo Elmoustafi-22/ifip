@@ -353,206 +353,216 @@ export default function PartnerOpeningsPage() {
 
       {/* Create / Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 space-y-5 shadow-2xl border border-slate-200 my-8">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-xl w-full flex flex-col max-h-[92vh] sm:max-h-[90vh] shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 sm:px-6 py-4 shrink-0">
               <h2 className="text-lg font-bold text-slate-900">
                 {editingOpening ? "Edit Job Opening" : "Post Job Opening"}
               </h2>
               <button
+                type="button"
                 onClick={() => setShowModal(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer"
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+                aria-label="Close dialog"
               >
                 <HiOutlineXMark className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-              {errorMsg && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 font-medium">
-                  {errorMsg}
-                </div>
-              )}
-
-              {/* Title & Department */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1 sm:col-span-2">
-                  <label className="font-bold text-slate-700 uppercase tracking-wider block">
-                    Role Title <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Junior Islamic Finance Analyst"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#000666]"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700 uppercase tracking-wider block">
-                    Department
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Shariah Advisory & Compliance"
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#000666]"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700 uppercase tracking-wider block">
-                    Available Positions <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={50}
-                    required
-                    value={slots}
-                    onChange={(e) => setSlots(parseInt(e.target.value) || 1)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#000666]"
-                  />
-                </div>
-              </div>
-
-              {/* Work Mode & Location */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700 uppercase tracking-wider block">
-                    Work Mode <span className="text-rose-500">*</span>
-                  </label>
-                  <select
-                    value={workMode}
-                    onChange={(e) => setWorkMode(e.target.value as JobWorkMode)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#000666]"
-                  >
-                    <option value="Remote">Remote</option>
-                    <option value="Hybrid">Hybrid</option>
-                    <option value="On-site">On-site</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700 uppercase tracking-wider block">
-                    Location {workMode !== "Remote" && <span className="text-rose-500">*</span>}
-                  </label>
-                  <input
-                    type="text"
-                    placeholder={workMode === "Remote" ? "Optional for remote" : "City, Country or Office address"}
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    required={workMode !== "Remote"}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#000666]"
-                  />
-                </div>
-              </div>
-
-              {/* Application Deadline */}
-              <div className="space-y-1">
-                <label className="font-bold text-slate-700 uppercase tracking-wider block">
-                  Application Deadline (Optional)
-                </label>
-                <input
-                  type="date"
-                  value={applicationDeadline}
-                  onChange={(e) => setApplicationDeadline(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#000666]"
-                />
-              </div>
-
-              {/* Description */}
-              <div className="space-y-1">
-                <label className="font-bold text-slate-700 uppercase tracking-wider block">
-                  Role Overview & Responsibilities
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Describe the tasks, projects, and learning opportunities the intern will undertake..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#000666] leading-relaxed"
-                />
-              </div>
-
-              {/* Requirements Builder */}
-              <div className="space-y-2 pt-2 border-t border-slate-100">
-                <div className="flex items-center justify-between">
-                  <label className="font-bold text-slate-700 uppercase tracking-wider">
-                    Specific Job Requirements
-                  </label>
-                  <span className="text-[11px] text-slate-500">
-                    Candidates answer these when applying
-                  </span>
-                </div>
-
-                {requirements.length > 0 && (
-                  <ul className="space-y-1.5">
-                    {requirements.map((req, idx) => (
-                      <li
-                        key={idx}
-                        className="flex items-center justify-between gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-slate-800"
-                      >
-                        <span className="flex-1 font-medium">{req}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveRequirement(idx)}
-                          className="text-rose-600 hover:text-rose-800 p-1 cursor-pointer"
-                        >
-                          <HiOutlineTrash className="w-4 h-4" />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+              <div className="px-5 sm:px-6 py-4 overflow-y-auto space-y-4 text-xs flex-1 overscroll-contain">
+                {errorMsg && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 font-medium">
+                    {errorMsg}
+                  </div>
                 )}
 
-                <div className="flex gap-2">
+                {/* Title & Department */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="font-bold text-slate-700 uppercase tracking-wider block">
+                      Role Title <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Junior Islamic Finance Analyst"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666]"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 uppercase tracking-wider block">
+                      Department
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Shariah Advisory & Compliance"
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666]"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 uppercase tracking-wider block">
+                      Available Positions <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      required
+                      value={slots}
+                      onChange={(e) => setSlots(parseInt(e.target.value) || 1)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666]"
+                    />
+                  </div>
+                </div>
+
+                {/* Work Mode & Location */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 uppercase tracking-wider block">
+                      Work Mode <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      value={workMode}
+                      onChange={(e) => setWorkMode(e.target.value as JobWorkMode)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666]"
+                    >
+                      <option value="Remote">Remote</option>
+                      <option value="Hybrid">Hybrid</option>
+                      <option value="On-site">On-site</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 uppercase tracking-wider block">
+                      Location {workMode !== "Remote" && <span className="text-rose-500">*</span>}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={workMode === "Remote" ? "Optional for remote" : "City, Country or Office address"}
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      required={workMode !== "Remote"}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666]"
+                    />
+                  </div>
+                </div>
+
+                {/* Application Deadline */}
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 uppercase tracking-wider block">
+                    Application Deadline (Optional)
+                  </label>
                   <input
-                    type="text"
-                    placeholder="Add a requirement (e.g. Strong knowledge of Sukuk structures)..."
-                    value={reqInput}
-                    onChange={(e) => setReqInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleAddRequirement();
-                      }
-                    }}
-                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#000666]"
+                    type="date"
+                    value={applicationDeadline}
+                    onChange={(e) => setApplicationDeadline(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666]"
                   />
-                  <button
-                    type="button"
-                    onClick={handleAddRequirement}
-                    className="px-3 py-2 font-bold bg-[#000666] text-white rounded-lg hover:bg-[#000666]/90 cursor-pointer flex items-center gap-1"
-                  >
-                    <HiOutlinePlus className="w-3.5 h-3.5" />
-                    Add
-                  </button>
+                </div>
+
+                {/* Description */}
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 uppercase tracking-wider block">
+                    Role Overview & Responsibilities
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Describe the tasks, projects, and learning opportunities the intern will undertake..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666] leading-relaxed resize-none"
+                  />
+                </div>
+
+                {/* Requirements Builder */}
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
+                    <label className="font-bold text-slate-700 uppercase tracking-wider">
+                      Specific Job Requirements
+                    </label>
+                    <span className="text-[11px] text-slate-500">
+                      Candidates answer these when applying
+                    </span>
+                  </div>
+
+                  {requirements.length > 0 && (
+                    <ul className="space-y-1.5">
+                      {requirements.map((req, idx) => (
+                        <li
+                          key={idx}
+                          className="flex items-center justify-between gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-slate-800"
+                        >
+                          <span className="flex-1 font-medium break-words">{req}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveRequirement(idx)}
+                            className="text-rose-600 hover:text-rose-800 p-1 hover:bg-rose-100/50 rounded-lg transition-colors cursor-pointer shrink-0"
+                            title="Remove requirement"
+                          >
+                            <HiOutlineTrash className="w-4 h-4" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. Strong knowledge of Sukuk structures..."
+                      value={reqInput}
+                      onChange={(e) => setReqInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddRequirement();
+                        }
+                      }}
+                      className="flex-1 min-w-0 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666]"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddRequirement}
+                      className="px-3.5 py-2 font-bold bg-[#000666] text-white rounded-lg hover:bg-[#000666]/90 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1 shrink-0 shadow-xs transition whitespace-nowrap"
+                    >
+                      <HiOutlinePlus className="w-3.5 h-3.5" />
+                      <span>Add</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-200">
+              <div className="px-5 sm:px-6 py-3.5 sm:py-4 bg-slate-50/80 border-t border-slate-200 shrink-0 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-2.5">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold transition cursor-pointer"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-slate-600 bg-white sm:bg-slate-100 hover:bg-slate-200 border sm:border-transparent border-slate-200 rounded-xl sm:rounded-lg font-semibold transition cursor-pointer text-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 font-bold text-white bg-[#000666] hover:bg-[#000666]/90 rounded-lg transition disabled:opacity-50 cursor-pointer shadow-xs"
+                  className="w-full sm:w-auto px-5 py-2.5 sm:py-2 font-bold text-white bg-[#000666] hover:bg-[#000666]/90 active:scale-[0.98] rounded-xl sm:rounded-lg transition disabled:opacity-50 cursor-pointer shadow-xs text-center flex items-center justify-center gap-1.5"
                 >
-                  {submitting
-                    ? "Submitting..."
-                    : editingOpening
-                    ? "Save Changes"
-                    : "Submit for Verification"}
+                  {submitting ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Submitting...</span>
+                    </>
+                  ) : editingOpening ? (
+                    "Save Changes"
+                  ) : (
+                    "Submit for Verification"
+                  )}
                 </button>
               </div>
             </form>
@@ -562,23 +572,25 @@ export default function PartnerOpeningsPage() {
 
       {/* Delete Confirmation Modal */}
       {deleteTargetId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-base font-bold text-slate-900">Withdraw Job Opening?</h3>
             <p className="text-xs text-slate-600 leading-relaxed">
               Are you sure you want to withdraw this job opening? It will be permanently removed from the verification queue.
             </p>
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-2">
               <button
+                type="button"
                 onClick={() => setDeleteTargetId(null)}
-                className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer"
+                className="w-full sm:w-auto px-3.5 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl sm:rounded-lg cursor-pointer text-center"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleDelete}
                 disabled={deleting}
-                className="px-4 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition disabled:opacity-50 cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:scale-[0.98] rounded-xl sm:rounded-lg transition disabled:opacity-50 cursor-pointer text-center flex items-center justify-center gap-1.5"
               >
                 {deleting ? "Withdrawing..." : "Confirm Withdrawal"}
               </button>

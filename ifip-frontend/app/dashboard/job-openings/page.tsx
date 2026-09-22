@@ -51,12 +51,16 @@ export default function ParticipantJobOpeningsPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [openingsRes, eligibilityRes] = await Promise.all([
+      const [openingsRes, eligibilityRes] = await Promise.allSettled([
         getParticipantJobOpenings(),
         checkJobEligibility(),
       ]);
-      setOpenings(openingsRes.openings || []);
-      setEligibility(eligibilityRes);
+      if (openingsRes.status === "fulfilled") {
+        setOpenings(openingsRes.value?.openings || []);
+      }
+      if (eligibilityRes.status === "fulfilled") {
+        setEligibility(eligibilityRes.value);
+      }
     } catch (err) {
       console.error("Failed to load job openings or eligibility:", err);
     } finally {
@@ -430,8 +434,8 @@ export default function ParticipantJobOpeningsPage() {
 
       {/* Ineligible Warning Modal */}
       {ineligibleModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start gap-3 text-amber-800">
               <div className="p-2 bg-amber-100 rounded-xl text-amber-700 shrink-0">
                 <HiOutlineExclamationTriangle className="w-6 h-6" />
@@ -447,29 +451,30 @@ export default function ParticipantJobOpeningsPage() {
             </div>
 
             {eligibility?.incompleteTasks && eligibility.incompleteTasks.length > 0 && (
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-1 text-xs">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1 text-xs">
                 <span className="font-bold text-slate-700 block">Pending Tasks:</span>
                 <ul className="space-y-1 text-slate-600">
                   {eligibility.incompleteTasks.map((t, i) => (
-                    <li key={i}>
-                      &bull; {t.weekNumber ? `Week ${t.weekNumber}: ` : ""}
-                      <strong>{t.moduleTitle}</strong>
+                    <li key={i} className="flex items-start gap-1.5">
+                      <span className="text-amber-500 font-bold">&bull;</span>
+                      <span>{t.weekNumber ? `Week ${t.weekNumber}: ` : ""}<strong>{t.moduleTitle}</strong></span>
                     </li>
                   ))}
                 </ul>
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-2 border-t border-slate-100">
               <button
+                type="button"
                 onClick={() => setIneligibleModalOpen(false)}
-                className="px-3.5 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl sm:rounded-lg cursor-pointer text-center"
               >
                 Close
               </button>
               <Link
                 href="/dashboard/modules"
-                className="px-4 py-2 text-xs font-bold text-white bg-[#000666] hover:bg-[#000666]/90 rounded-lg cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-xs font-bold text-white bg-[#000666] hover:bg-[#000666]/90 rounded-xl sm:rounded-lg cursor-pointer text-center"
               >
                 Go to Modules
               </Link>
@@ -480,30 +485,32 @@ export default function ParticipantJobOpeningsPage() {
 
       {/* Apply Modal */}
       {activeOpening && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl border border-slate-200 my-8">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-2xl w-full flex flex-col max-h-[92vh] sm:max-h-[90vh] shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between border-b border-slate-200 px-5 sm:px-6 py-4 shrink-0">
               <div>
                 <h2 className="text-lg font-bold text-slate-900">
                   Apply for {activeOpening.title}
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Organisation:{" "}
-                  <strong className="text-slate-700">
+                  <strong className="text-slate-800 font-semibold">
                     {activeOpening.partner?.name || "Partner Organisation"}
                   </strong>
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => setActiveOpening(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer"
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+                aria-label="Close dialog"
               >
                 <HiOutlineXMark className="w-5 h-5" />
               </button>
             </div>
 
             {applySuccess ? (
-              <div className="py-8 text-center space-y-3">
+              <div className="px-5 sm:px-6 py-8 text-center space-y-4">
                 <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
                   <HiOutlineCheckCircle className="w-8 h-8" />
                 </div>
@@ -514,119 +521,131 @@ export default function ParticipantJobOpeningsPage() {
                   Your application and tailored CV have been transmitted to{" "}
                   <strong>{activeOpening.partner?.name || "the partner organisation"}</strong>. You will receive an email and dashboard notification if selected for an interview.
                 </p>
-                <button
-                  onClick={() => setActiveOpening(null)}
-                  className="px-5 py-2 text-xs font-bold text-white bg-[#000666] rounded-lg hover:bg-[#000666]/90 cursor-pointer"
-                >
-                  Done
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleApplySubmit} className="space-y-4 text-xs">
-                {applyError && (
-                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 font-medium">
-                    {applyError}
-                  </div>
-                )}
-
-                {/* Tailored CV Upload */}
-                <div className="space-y-2 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                  <label className="font-bold text-slate-800 uppercase tracking-wider block">
-                    Upload Tailored CV <span className="text-rose-500">*</span>
-                  </label>
-                  <p className="text-slate-500 text-[11px] leading-snug">
-                    Upload a CV tailored to this position's specific focus areas (PDF or Word, max 10MB).
-                  </p>
-
-                  <div className="flex items-center gap-3 pt-1">
-                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-100 transition shadow-2xs">
-                      <HiOutlineArrowUpTray className="w-4 h-4 text-slate-500" />
-                      {cvUploading ? "Uploading..." : "Choose File"}
-                      <input
-                        type="file"
-                        accept=".pdf,.doc,.docx"
-                        onChange={handleFileChange}
-                        disabled={cvUploading}
-                        className="hidden"
-                      />
-                    </label>
-
-                    {uploadedFileName && (
-                      <span className="text-xs font-medium text-emerald-700 flex items-center gap-1 truncate max-w-xs">
-                        <HiOutlineCheckCircle className="w-4 h-4 shrink-0 text-emerald-600" />
-                        {uploadedFileName}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Requirements Questionnaire */}
-                {((activeOpening.allRequirements && activeOpening.allRequirements.length > 0) ||
-                  (activeOpening.requirements && activeOpening.requirements.length > 0) ||
-                  (activeOpening.adminRequirements && activeOpening.adminRequirements.length > 0)) && (
-                  <div className="space-y-3 pt-2">
-                    <div className="border-b border-slate-200 pb-1">
-                      <h4 className="font-bold text-slate-800 uppercase tracking-wider">
-                        Specific Role Requirements
-                      </h4>
-                      <p className="text-[11px] text-slate-500">
-                        Please provide your response or relevant experience for each requirement.
-                      </p>
-                    </div>
-
-                    <div className="space-y-3">
-                      {(
-                        activeOpening.allRequirements || [
-                          ...(activeOpening.requirements || []),
-                          ...(activeOpening.adminRequirements || []),
-                        ]
-                      ).map((req, idx) => (
-                        <div key={idx} className="space-y-1">
-                          <label className="font-semibold text-slate-700 block">
-                            {idx + 1}. {req}
-                          </label>
-                          <textarea
-                            rows={2}
-                            placeholder="Detail your experience, coursework, or qualifications relevant to this requirement..."
-                            value={responses[req] || ""}
-                            onChange={(e) => handleResponseChange(req, e.target.value)}
-                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#000666] leading-relaxed"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Optional Cover Note */}
-                <div className="space-y-1 pt-2">
-                  <label className="font-bold text-slate-700 uppercase tracking-wider block">
-                    Additional Cover Note (Optional)
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="Introduce yourself to the hiring team and explain why you are interested in this position..."
-                    value={coverNote}
-                    onChange={(e) => setCoverNote(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#000666] leading-relaxed"
-                  />
-                </div>
-
-                {/* Modal Footer */}
-                <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-200">
+                <div className="pt-2">
                   <button
                     type="button"
                     onClick={() => setActiveOpening(null)}
-                    className="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold transition cursor-pointer"
+                    className="w-full sm:w-auto px-6 py-2.5 text-xs font-bold text-white bg-[#000666] rounded-xl sm:rounded-lg hover:bg-[#000666]/90 cursor-pointer shadow-xs"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleApplySubmit} className="flex flex-col flex-1 overflow-hidden">
+                <div className="px-5 sm:px-6 py-4 overflow-y-auto space-y-4 text-xs flex-1 overscroll-contain">
+                  {applyError && (
+                    <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 font-medium">
+                      {applyError}
+                    </div>
+                  )}
+
+                  {/* Tailored CV Upload */}
+                  <div className="space-y-2 p-3.5 sm:p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <label className="font-bold text-slate-800 uppercase tracking-wider block">
+                      Upload Tailored CV <span className="text-rose-500">*</span>
+                    </label>
+                    <p className="text-slate-500 text-[11px] leading-snug">
+                      Upload a CV tailored to this position's specific focus areas (PDF or Word, max 10MB).
+                    </p>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 pt-1">
+                      <label className="cursor-pointer inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white border border-slate-300 rounded-xl sm:rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-100 transition shadow-2xs">
+                        <HiOutlineArrowUpTray className="w-4 h-4 text-slate-500" />
+                        <span>{cvUploading ? "Uploading..." : "Choose File"}</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx"
+                          onChange={handleFileChange}
+                          disabled={cvUploading}
+                          className="hidden"
+                        />
+                      </label>
+
+                      {uploadedFileName && (
+                        <span className="text-xs font-medium text-emerald-700 flex items-center gap-1.5 truncate max-w-xs">
+                          <HiOutlineCheckCircle className="w-4 h-4 shrink-0 text-emerald-600" />
+                          <span className="truncate">{uploadedFileName}</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Requirements Questionnaire */}
+                  {((activeOpening.allRequirements && activeOpening.allRequirements.length > 0) ||
+                    (activeOpening.requirements && activeOpening.requirements.length > 0) ||
+                    (activeOpening.adminRequirements && activeOpening.adminRequirements.length > 0)) && (
+                    <div className="space-y-3 pt-2">
+                      <div className="border-b border-slate-200 pb-1">
+                        <h4 className="font-bold text-slate-800 uppercase tracking-wider">
+                          Specific Role Requirements
+                        </h4>
+                        <p className="text-[11px] text-slate-500">
+                          Please provide your response or relevant experience for each requirement.
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        {(
+                          activeOpening.allRequirements || [
+                            ...(activeOpening.requirements || []),
+                            ...(activeOpening.adminRequirements || []),
+                          ]
+                        ).map((req, idx) => (
+                          <div key={idx} className="space-y-1">
+                            <label className="font-semibold text-slate-700 block">
+                              {idx + 1}. {req}
+                            </label>
+                            <textarea
+                              rows={2}
+                              placeholder="Detail your experience, coursework, or qualifications relevant to this requirement..."
+                              value={responses[req] || ""}
+                              onChange={(e) => handleResponseChange(req, e.target.value)}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666] leading-relaxed resize-none"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Optional Cover Note */}
+                  <div className="space-y-1 pt-2">
+                    <label className="font-bold text-slate-700 uppercase tracking-wider block">
+                      Additional Cover Note (Optional)
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Introduce yourself to the hiring team and explain why you are interested in this position..."
+                      value={coverNote}
+                      onChange={(e) => setCoverNote(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666] leading-relaxed resize-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="px-5 sm:px-6 py-3.5 sm:py-4 bg-slate-50/80 border-t border-slate-200 shrink-0 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setActiveOpening(null)}
+                    className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-slate-600 bg-white sm:bg-slate-100 hover:bg-slate-200 border sm:border-transparent border-slate-200 rounded-xl sm:rounded-lg font-semibold transition cursor-pointer text-center"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={submittingApp || cvUploading || !uploadedCvUrl}
-                    className="px-5 py-2 font-bold text-white bg-[#000666] hover:bg-[#000666]/90 rounded-lg transition disabled:opacity-50 cursor-pointer shadow-xs"
+                    className="w-full sm:w-auto px-5 py-2.5 sm:py-2 font-bold text-white bg-[#000666] hover:bg-[#000666]/90 active:scale-[0.98] rounded-xl sm:rounded-lg transition disabled:opacity-50 cursor-pointer shadow-xs text-center flex items-center justify-center gap-1.5"
                   >
-                    {submittingApp ? "Submitting Application..." : "Submit Application"}
+                    {submittingApp ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Submitting Application...</span>
+                      </>
+                    ) : (
+                      "Submit Application"
+                    )}
                   </button>
                 </div>
               </form>

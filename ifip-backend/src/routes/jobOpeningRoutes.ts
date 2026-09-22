@@ -15,6 +15,7 @@ router.use(authenticate, authorize('participant'));
 
 router.get('/', getOpenJobOpenings);
 router.get('/eligibility', checkEligibility);
+router.get('/eligibility/check', checkEligibility);
 router.get('/my-applications', getMyJobApplications);
 router.get('/:id', getJobOpeningById);
 router.post('/:id/apply', applyToJobOpening);

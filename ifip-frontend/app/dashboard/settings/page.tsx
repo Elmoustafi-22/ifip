@@ -1232,20 +1232,27 @@ export default function SettingsPage() {
         </div>
 
         {/* BOTTOM ACTION BUTTONS */}
-        <div className="flex items-center justify-end gap-6 border-t border-slate-200/60 pt-6 mt-2">
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 sm:gap-6 border-t border-slate-200/60 pt-6 mt-2">
           <button
             type="button"
             onClick={handleDiscard}
-            className="text-xs font-bold text-slate-500 hover:underline cursor-pointer"
+            className="w-full sm:w-auto text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer py-2.5 text-center"
           >
             Discard Changes
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="bg-[#FF9800] hover:bg-[#FF9800]/95 text-white font-bold text-xs px-8 py-3.5 rounded-[6px] shadow-md hover-lift transition-all disabled:bg-slate-300 cursor-pointer"
+            className="w-full sm:w-auto bg-[#FF9800] hover:bg-[#FF9800]/95 active:scale-[0.98] text-white font-bold text-xs px-8 py-3.5 rounded-xl sm:rounded-[6px] shadow-md hover-lift transition-all disabled:bg-slate-300 cursor-pointer flex items-center justify-center gap-2"
           >
-            {saving ? "Saving Changes..." : "Save Changes"}
+            {saving ? (
+              <>
+                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Saving Changes...</span>
+              </>
+            ) : (
+              "Save Changes"
+            )}
           </button>
         </div>
       </form>
