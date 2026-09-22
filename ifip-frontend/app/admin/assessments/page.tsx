@@ -826,14 +826,21 @@ export default function AdminAssessmentsPage() {
                           )}
                         </td>
                         <td className="py-4 px-6 text-center">
-                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                          <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${
                             item.status === 'published' 
-                              ? 'bg-emerald-55/10 border border-emerald-100 text-emerald-700' 
+                              ? 'text-emerald-700' 
                               : item.status === 'archived'
-                              ? 'bg-red-50 border border-red-100 text-red-600'
-                              : 'bg-slate-100 border border-slate-200 text-slate-600'
+                              ? 'text-slate-400'
+                              : 'text-amber-700'
                           }`}>
-                            {item.status}
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              item.status === 'published' 
+                                ? 'bg-emerald-600' 
+                                : item.status === 'archived'
+                                ? 'bg-slate-300'
+                                : 'bg-amber-500'
+                            }`} />
+                            <span className="capitalize">{item.status}</span>
                           </span>
                         </td>
                         <td className="py-4 px-6 text-center text-slate-500">{item.passMark}%</td>
@@ -925,14 +932,21 @@ export default function AdminAssessmentsPage() {
                           )}
                         </div>
                       </div>
-                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0 ${
+                      <span className={`inline-flex items-center gap-1 text-[11px] font-medium shrink-0 ${
                         item.status === 'published' 
-                          ? 'bg-emerald-55/10 border border-emerald-100 text-emerald-700' 
+                          ? 'text-emerald-700' 
                           : item.status === 'archived'
-                          ? 'bg-red-55/10 border border-red-100 text-red-700'
-                          : 'bg-slate-100 border border-slate-200 text-slate-650'
+                          ? 'text-slate-400'
+                          : 'text-amber-700'
                       }`}>
-                        {item.status}
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          item.status === 'published' 
+                            ? 'bg-emerald-600' 
+                            : item.status === 'archived'
+                            ? 'bg-slate-300'
+                            : 'bg-amber-500'
+                        }`} />
+                        <span className="capitalize">{item.status}</span>
                       </span>
                     </div>
 

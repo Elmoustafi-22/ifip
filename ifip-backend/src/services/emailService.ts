@@ -2056,7 +2056,7 @@ export const sendPartnerJobOpeningOpenedEmail = async (
                     Your job opening for <strong>${openingTitle}</strong> has been reviewed and verified by our programme administration. It is now live and accepting applications from qualified participants.
                 </p>
                 <p style="font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 24px 0;">
-                    You will receive notifications as candidates apply. You can review candidate details, tailored CVs, and requirement responses directly from your partner portal.
+                    You will receive notifications as candidates apply. You can review candidate details, CVs, and requirement responses directly from your partner portal.
                 </p>
                 <div style="text-align: center; margin: 28px 0;">
                     <a href="${portalUrl}" style="display: inline-block; background-color: #000666; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-size: 14px; font-weight: bold;">
@@ -2155,7 +2155,7 @@ export const sendParticipantJobOpeningAnnouncedEmail = async (
                     </div>
                 </div>
                 <div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 6px; padding: 14px; margin-bottom: 24px; font-size: 13px; color: #14532D; line-height: 1.6;">
-                    <strong>Application Requirements:</strong> To submit an application, all your available module practical tasks must be completed and approved. You can check your task status and submit tailored materials on your dashboard.
+                    <strong>Application Requirements:</strong> To submit an application, all your available module practical tasks must be completed and approved. You can check your task status and submit your application materials on your dashboard.
                 </div>
                 <div style="text-align: center; margin: 28px 0;">
                     <a href="${dashboardUrl}" style="display: inline-block; background-color: #000666; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-size: 14px; font-weight: bold;">

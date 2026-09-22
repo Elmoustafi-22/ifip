@@ -706,8 +706,7 @@ export default function AdminModulesPage() {
             }`}
         >
           <span>All</span>
-          <span className={`text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-full font-bold transition-colors ${statusFilter === "all" ? "bg-slate-100 text-slate-800" : "bg-slate-200/60 text-slate-500"
-            }`}>
+          <span className="text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-md font-bold transition-colors bg-slate-100 text-slate-600">
             {modules.length}
           </span>
         </button>
@@ -720,8 +719,7 @@ export default function AdminModulesPage() {
             }`}
         >
           <span>Drafts</span>
-          <span className={`text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-full font-bold transition-colors ${statusFilter === "draft" ? "bg-amber-100 text-amber-800" : "bg-slate-200/60 text-slate-500"
-            }`}>
+          <span className="text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-md font-bold transition-colors bg-slate-100 text-slate-600">
             {modules.filter(m => (m.moduleStatus || m.status || 'published') === 'draft').length}
           </span>
         </button>
@@ -735,8 +733,7 @@ export default function AdminModulesPage() {
         >
           <span className="hidden min-[400px]:inline">Published</span>
           <span className="min-[400px]:hidden">Live</span>
-          <span className={`text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-full font-bold transition-colors ${statusFilter === "published" ? "bg-emerald-100 text-emerald-800" : "bg-slate-200/60 text-slate-500"
-            }`}>
+          <span className="text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-md font-bold transition-colors bg-slate-100 text-slate-600">
             {modules.filter(m => (m.moduleStatus || m.status || 'published') === 'published').length}
           </span>
         </button>
@@ -750,8 +747,7 @@ export default function AdminModulesPage() {
         >
           <span className="hidden min-[400px]:inline">Archived</span>
           <span className="min-[400px]:hidden">Arch.</span>
-          <span className={`text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-full font-bold transition-colors ${statusFilter === "archived" ? "bg-slate-100 text-slate-700" : "bg-slate-200/60 text-slate-500"
-            }`}>
+          <span className="text-[10px] sm:text-[11px] font-mono px-1.5 py-0.2 rounded-md font-bold transition-colors bg-slate-100 text-slate-600">
             {modules.filter(m => (m.moduleStatus || m.status || 'published') === 'archived').length}
           </span>
         </button>
@@ -789,66 +785,69 @@ export default function AdminModulesPage() {
                   return (
                     <tr key={mod._id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="px-4 py-4 text-center whitespace-nowrap align-middle">
-                        <span className="inline-flex items-center justify-center font-mono font-bold text-xs text-[#000666] bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/80">
+                        <span className="font-mono font-semibold text-xs text-slate-500">
                           #{mod.order}
                         </span>
                       </td>
                       <td className="px-6 py-4 align-middle">
                         <div className="font-bold text-slate-900 text-sm leading-snug">{mod.title}</div>
                         <div className="flex items-center gap-2 mt-1 text-slate-500 text-xs">
-                          <span className="bg-slate-100 text-slate-600 text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
+                          <span className="text-slate-400 font-medium uppercase text-[10px] tracking-wider shrink-0">
                             {mod.contentType}
                           </span>
                           <span className="line-clamp-1 text-slate-400">{mod.description}</span>
                         </div>
-                        {(mod.outline?.topics?.length || mod.pdfUrl) && (
-                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        {(mod.outline?.topics?.length || mod.outline?.learningObjectives?.length || mod.pdfUrl) && (
+                          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
                             {mod.outline?.topics && mod.outline.topics.length > 0 && (
-                              <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700 bg-emerald-50 font-semibold px-2.5 py-0.5 rounded-full border border-emerald-200/80 whitespace-nowrap shrink-0">
-                                ✓ {mod.outline.topics.length} Syllabus Topics
-                              </span>
+                              <span>{mod.outline.topics.length} topic{mod.outline.topics.length > 1 ? 's' : ''}</span>
                             )}
                             {mod.outline?.learningObjectives && mod.outline.learningObjectives.length > 0 && (
-                              <span className="inline-flex items-center text-[11px] text-slate-500 bg-slate-100 font-medium px-2.5 py-0.5 rounded-full whitespace-nowrap shrink-0">
-                                {mod.outline.learningObjectives.length} Objectives
-                              </span>
+                              <>
+                                <span className="text-slate-300">•</span>
+                                <span>{mod.outline.learningObjectives.length} objective{mod.outline.learningObjectives.length > 1 ? 's' : ''}</span>
+                              </>
                             )}
                             {mod.pdfUrl && (
-                              <a
-                                href={mod.pdfUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-[11px] text-rose-700 bg-rose-50 font-semibold px-2.5 py-0.5 rounded-full border border-rose-200/80 hover:bg-rose-100 transition-colors whitespace-nowrap shrink-0"
-                              >
-                                📄 PDF Document
-                              </a>
+                              <>
+                                <span className="text-slate-300">•</span>
+                                <a
+                                  href={mod.pdfUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-slate-600 hover:text-slate-900 inline-flex items-center gap-1 hover:underline font-medium"
+                                >
+                                  <HiOutlineDocumentText className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>PDF</span>
+                                </a>
+                              </>
                             )}
                           </div>
                         )}
                       </td>
                       <td className="px-5 py-4 whitespace-nowrap align-middle">
                         {isDraft && (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-300/80 whitespace-nowrap shadow-2xs">
-                            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                             Draft
                           </span>
                         )}
                         {isPublished && (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-900 border border-emerald-300/80 whitespace-nowrap shadow-2xs">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
                             Published
                           </span>
                         )}
                         {isArchived && (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-300 whitespace-nowrap shadow-2xs">
-                            <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                             Archived
                           </span>
                         )}
                       </td>
                       <td className="px-5 py-4 whitespace-nowrap align-middle">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200/80 whitespace-nowrap shadow-2xs">
-                          <HiOutlineCalendar className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                        <span className="text-xs text-slate-600 font-medium inline-flex items-center gap-1.5">
+                          <HiOutlineCalendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           <span>Week {mod.weekNumber || mod.order}</span>
                         </span>
                       </td>
@@ -859,16 +858,16 @@ export default function AdminModulesPage() {
                             return (
                               <span
                                 title={cohortName}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50/80 border border-indigo-200/70 text-indigo-700 whitespace-nowrap max-w-[160px] truncate shadow-2xs"
+                                className="text-xs text-slate-600 font-medium inline-flex items-center gap-1.5 max-w-[170px] truncate"
                               >
-                                <HiOutlineAcademicCap className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                <HiOutlineAcademicCap className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                                 <span className="truncate">{cohortName}</span>
                               </span>
                             );
                           })()
                         ) : (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100/80 border border-slate-200 text-slate-500 whitespace-nowrap shadow-2xs">
-                            Global (All Cohorts)
+                          <span className="text-xs text-slate-400 font-medium">
+                            All Cohorts
                           </span>
                         )}
                       </td>
@@ -948,19 +947,19 @@ export default function AdminModulesPage() {
                       {mod.title}
                     </h3>
 
-                    {/* Only Publish Status Badge */}
+                    {/* Only Publish Status */}
                     {isDraft ? (
-                      <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-semibold px-2.5 py-0.5 rounded-full shrink-0">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 shrink-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                         Draft
                       </span>
                     ) : isPublished ? (
-                      <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold px-2.5 py-0.5 rounded-full shrink-0">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
                         Published
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 border border-slate-200 text-[11px] font-semibold px-2.5 py-0.5 rounded-full shrink-0">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 shrink-0">
                         Archived
                       </span>
                     )}
@@ -1803,7 +1802,7 @@ export default function AdminModulesPage() {
                         </p>
                       </div>
                       {pdfUrl && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full shrink-0">
+                        <span className="text-xs text-emerald-700 font-medium inline-flex items-center gap-1 shrink-0">
                           ✓ PDF Attached
                         </span>
                       )}
@@ -2164,25 +2163,25 @@ export default function AdminModulesPage() {
             {/* Review Body */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs sm:text-sm">
               {/* Status and Meta Bar */}
-              <div className="flex flex-wrap items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-200 gap-3">
+              <div className="flex flex-wrap items-center justify-between py-2.5 px-4 bg-slate-50 rounded-xl border border-slate-200 gap-3">
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-slate-500 text-xs">Publish Status:</span>
+                  <span className="text-xs text-slate-500 font-medium">Publish Status:</span>
                   {(reviewModule.moduleStatus || reviewModule.status || 'published') === 'draft' ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-black bg-amber-100 text-amber-900 border border-amber-300">
-                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                       Draft (Hidden from Participants)
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-300">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
                       Published (Live for Participants)
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
+                <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
                   <span>Week {reviewModule.weekNumber || reviewModule.order}</span>
                   <span>•</span>
-                  <span className="uppercase font-bold text-slate-700">{reviewModule.contentType}</span>
+                  <span className="uppercase text-slate-600">{reviewModule.contentType}</span>
                 </div>
               </div>
 
@@ -2221,8 +2220,8 @@ export default function AdminModulesPage() {
                           </div>
                         )}
                         {topic.learningActivity && (
-                          <div className="text-xs text-amber-800 bg-amber-50 p-2 rounded-lg font-medium">
-                            <strong>Activity:</strong> {topic.learningActivity}
+                          <div className="text-xs text-slate-600 bg-slate-50/80 p-2.5 rounded-lg border border-slate-100">
+                            <strong className="text-slate-700 font-semibold">Activity:</strong> {topic.learningActivity}
                           </div>
                         )}
                       </div>
@@ -2239,13 +2238,10 @@ export default function AdminModulesPage() {
                       <h4 className="font-bold text-[#000666] text-xs uppercase tracking-wider">Module Task Submissions</h4>
                       <p className="text-[11px] text-slate-500 mt-1">Each participant is shown once — review their latest submission and decide. All prior attempts are available in the history accordion.</p>
                     </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold uppercase tracking-wider">
-                        {taskSubmissions.length} participant{taskSubmissions.length !== 1 ? 's' : ''}
-                      </span>
-                      <span className="inline-flex items-center px-2 py-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider">
-                        {taskSubmissions.filter((e) => e.latestSubmission.status === 'pending_review' || e.latestSubmission.status === 'needs_resubmission' || e.latestSubmission.status === 'submitted').length} pending
-                      </span>
+                    <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                      <span>{taskSubmissions.length} participant{taskSubmissions.length !== 1 ? 's' : ''}</span>
+                      <span>•</span>
+                      <span>{taskSubmissions.filter((e) => e.latestSubmission.status === 'pending_review' || e.latestSubmission.status === 'needs_resubmission' || e.latestSubmission.status === 'submitted').length} pending</span>
                     </div>
                   </div>
 
@@ -2271,12 +2267,12 @@ export default function AdminModulesPage() {
                             const isSelected = selectedTaskParticipantId === uid;
                             const s = entry.latestSubmission;
                             const statusTone = s.status === 'approved'
-                              ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                              ? 'text-emerald-700'
                               : s.status === 'rejected'
-                                ? 'bg-rose-100 text-rose-700 border-rose-200'
+                                ? 'text-rose-700'
                                 : s.status === 'needs_resubmission'
-                                  ? 'bg-amber-100 text-amber-700 border-amber-200'
-                                  : 'bg-sky-100 text-sky-700 border-sky-200';
+                                  ? 'text-amber-700'
+                                  : 'text-slate-600';
 
                             return (
                               <button
@@ -2292,13 +2288,13 @@ export default function AdminModulesPage() {
                                     </div>
                                     <div className="text-[11px] text-slate-500 truncate">{entry.userId?.email || 'No email on record'}</div>
                                   </div>
-                                  <div className="flex flex-col items-end gap-1 shrink-0">
-                                    <span className={`text-[9px] font-bold uppercase tracking-[0.12em] px-2 py-1 rounded-full border ${statusTone}`}>
+                                  <div className="flex flex-col items-end gap-0.5 shrink-0">
+                                    <span className={`text-[10px] font-semibold uppercase tracking-wider ${statusTone}`}>
                                       {s.status.replace(/_/g, ' ')}
                                     </span>
                                     {entry.totalAttempts > 1 && (
-                                      <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full border border-slate-200">
-                                        {entry.totalAttempts} attempts
+                                      <span className="text-[10px] text-slate-400">
+                                        {entry.totalAttempts} att.
                                       </span>
                                     )}
                                   </div>
@@ -2335,15 +2331,16 @@ export default function AdminModulesPage() {
                                   </div>
                                   <div className="text-xs text-slate-500">{entry.userId?.email || 'No email on record'}</div>
                                 </div>
-                                <div className="flex flex-col items-end gap-1">
-                                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.18em] border ${draft.status === 'approved'
-                                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                                    : draft.status === 'rejected'
-                                      ? 'bg-rose-100 text-rose-700 border-rose-200'
-                                      : draft.status === 'needs_resubmission'
-                                        ? 'bg-amber-100 text-amber-700 border-amber-200'
-                                        : 'bg-sky-100 text-sky-700 border-sky-200'
-                                    }`}>
+                                <div className="flex flex-col items-end gap-0.5">
+                                  <span className={`text-xs font-semibold capitalize ${
+                                    draft.status === 'approved'
+                                      ? 'text-emerald-700'
+                                      : draft.status === 'rejected'
+                                        ? 'text-rose-700'
+                                        : draft.status === 'needs_resubmission'
+                                          ? 'text-amber-700'
+                                          : 'text-slate-600'
+                                  }`}>
                                     {draft.status.replace(/_/g, ' ')}
                                   </span>
                                   <span className="text-[10px] text-slate-400 font-medium">{entry.totalAttempts} attempt{entry.totalAttempts !== 1 ? 's' : ''} total</span>
@@ -2545,7 +2542,7 @@ export default function AdminModulesPage() {
                       </p>
                     </div>
                     {nonSubmitters.length > 0 && (
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider shrink-0">
+                      <span className="text-xs text-slate-500 font-medium shrink-0">
                         {nonSubmitters.length} not submitted
                       </span>
                     )}
@@ -2611,7 +2608,7 @@ export default function AdminModulesPage() {
                               </div>
                               <div className="text-[11px] text-slate-500 truncate">{user.email}</div>
                             </div>
-                            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200 shrink-0">
+                            <span className="text-[11px] text-slate-500 font-medium shrink-0">
                               Not submitted
                             </span>
                           </label>

@@ -1653,14 +1653,21 @@ export default function PendingApplicantsPage() {
                               {payment.provider} Payment
                             </span>
                             <span
-                              className={`px-2.5 py-0.5 rounded-full font-bold uppercase text-[10px] ${
+                              className={`inline-flex items-center gap-1.5 font-medium uppercase text-[10px] ${
                                 payment.status === "success"
-                                  ? "bg-emerald-100 text-emerald-800"
+                                  ? "text-emerald-700"
                                   : payment.status === "failed"
-                                  ? "bg-red-100 text-red-800"
-                                  : "bg-amber-100 text-amber-800"
+                                  ? "text-rose-700"
+                                  : "text-amber-700"
                               }`}
                             >
+                              <span className={`w-1.5 h-1.5 rounded-full ${
+                                payment.status === "success"
+                                  ? "bg-emerald-600"
+                                  : payment.status === "failed"
+                                  ? "bg-rose-500"
+                                  : "bg-amber-500"
+                              }`} />
                               {payment.status}
                             </span>
                           </div>

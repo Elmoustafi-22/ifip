@@ -467,8 +467,8 @@ export default function AdminPlacementsPage() {
                   }`}
                 >
                   <span>Matched to Company</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                    activeFilterTab === "matched" ? "bg-white/20 text-white" : "bg-indigo-100 text-indigo-800"
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-mono font-bold ${
+                    activeFilterTab === "matched" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
                   }`}>
                     {counts.matched}
                   </span>
@@ -483,8 +483,8 @@ export default function AdminPlacementsPage() {
                   }`}
                 >
                   <span>Talent Pool (Unmatched)</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                    activeFilterTab === "unmatched" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-mono font-bold ${
+                    activeFilterTab === "unmatched" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
                   }`}>
                     {counts.unmatched}
                   </span>
@@ -499,8 +499,8 @@ export default function AdminPlacementsPage() {
                   }`}
                 >
                   <span>Placement Confirmed</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                    activeFilterTab === "placed" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-mono font-bold ${
+                    activeFilterTab === "placed" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
                   }`}>
                     {counts.placed}
                   </span>
@@ -818,9 +818,7 @@ export default function AdminPlacementsPage() {
                         <div className="font-bold text-slate-800 text-xs line-clamp-1">
                           {partner.name}
                         </div>
-                        <span className={`font-mono font-bold text-[10px] px-2 py-0.5 rounded shrink-0 ${
-                          partner.activeSlots > 0 ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
-                        }`}>
+                        <span className="font-mono text-[11px] font-medium text-slate-500 shrink-0">
                           {partner.activeSlots} slots
                         </span>
                       </div>

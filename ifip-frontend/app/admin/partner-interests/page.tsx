@@ -270,15 +270,15 @@ export default function AdminPartnerInterestsPage() {
                   )}
 
                   {item.status === "approved" && (
-                    <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                      <HiOutlineCheckCircle className="w-4 h-4 text-emerald-600" />
+                    <span className="inline-flex items-center space-x-1.5 text-xs font-medium text-emerald-700">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
                       <span>Approved Placement</span>
                     </span>
                   )}
 
                   {item.status === "declined" && (
-                    <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-300">
-                      <HiOutlineXCircle className="w-4 h-4 text-rose-600" />
+                    <span className="inline-flex items-center space-x-1.5 text-xs font-medium text-rose-700">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                       <span>Declined</span>
                     </span>
                   )}

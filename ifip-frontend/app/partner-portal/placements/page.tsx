@@ -172,16 +172,16 @@ export default function MyPlacementsPage() {
 
                   {/* Status Pipeline Progress Bar */}
                   <div className="flex items-center space-x-2 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200">
-                    <div className="flex items-center space-x-1.5 text-xs font-semibold">
-                      <span className={`px-2 py-0.5 rounded-md ${statusStep >= 1 ? "bg-emerald-100 text-emerald-800 border border-emerald-300" : "text-slate-400"}`}>
+                    <div className="flex items-center space-x-2 text-xs">
+                      <span className={statusStep >= 1 ? "text-emerald-700 font-semibold" : "text-slate-400 font-medium"}>
                         1. Matched
                       </span>
-                      <span className="text-slate-400">&rarr;</span>
-                      <span className={`px-2 py-0.5 rounded-md ${statusStep >= 2 ? "bg-emerald-100 text-emerald-800 border border-emerald-300" : "text-slate-400"}`}>
+                      <span className="text-slate-300">&rarr;</span>
+                      <span className={statusStep >= 2 ? "text-emerald-700 font-semibold" : "text-slate-400 font-medium"}>
                         2. Interviewing
                       </span>
-                      <span className="text-slate-400">&rarr;</span>
-                      <span className={`px-2 py-0.5 rounded-md ${statusStep >= 3 ? "bg-emerald-100 text-emerald-800 border border-emerald-300" : "text-slate-400"}`}>
+                      <span className="text-slate-300">&rarr;</span>
+                      <span className={statusStep >= 3 ? "text-emerald-700 font-semibold" : "text-slate-400 font-medium"}>
                         3. Placed
                       </span>
                     </div>
@@ -275,10 +275,10 @@ export default function MyPlacementsPage() {
                         Outcome &amp; Internal Notes
                       </span>
                       {p.partnerOutcome ? (
-                        <span className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-md text-xs font-semibold ${
+                        <span className={`inline-flex items-center space-x-1.5 text-xs font-semibold ${
                           p.partnerOutcome === "offer_extended"
-                            ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
-                            : "bg-slate-200 text-slate-700 border border-slate-300"
+                            ? "text-emerald-700"
+                            : "text-slate-600"
                         }`}>
                           <HiOutlineCheck className="w-3.5 h-3.5" />
                           <span>{p.partnerOutcome === "offer_extended" ? "Placement Confirmed" : "Not Selected"}</span>

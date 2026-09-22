@@ -449,7 +449,7 @@ export default function JobOpeningApplicationsReviewPage() {
                     className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold text-[#000666] bg-sky-50 border border-sky-200 rounded-lg hover:bg-sky-100 transition"
                   >
                     <HiOutlineDocumentText className="w-4 h-4" />
-                    View Tailored CV
+                    View CV
                     <HiOutlineArrowTopRightOnSquare className="w-3.5 h-3.5" />
                   </a>
 

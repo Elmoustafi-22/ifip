@@ -164,20 +164,20 @@ export default function MyRequestsPage() {
               {/* Right Status Badge & Actions */}
               <div className="flex items-center space-x-3 self-end sm:self-auto">
                 {req.status === "pending" && (
-                  <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300">
-                    <HiOutlineClock className="w-3.5 h-3.5 text-amber-600" />
+                  <span className="inline-flex items-center space-x-1.5 text-xs font-medium text-amber-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                     <span>Pending Review</span>
                   </span>
                 )}
                 {req.status === "approved" && (
-                  <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    <HiOutlineCheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="inline-flex items-center space-x-1.5 text-xs font-medium text-emerald-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
                     <span>Approved Placement</span>
                   </span>
                 )}
                 {req.status === "declined" && (
-                  <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-300">
-                    <HiOutlineXCircle className="w-3.5 h-3.5 text-rose-600" />
+                  <span className="inline-flex items-center space-x-1.5 text-xs font-medium text-rose-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                     <span>Declined</span>
                   </span>
                 )}

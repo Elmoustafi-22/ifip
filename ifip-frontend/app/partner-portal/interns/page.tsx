@@ -189,17 +189,17 @@ export default function InternPoolPage() {
                   {/* Status Indicator Badges */}
                   <div className="flex flex-col items-end gap-1">
                     {intern.isPlaced ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                      <span className="text-[11px] font-medium text-slate-500">
                         Placed
                       </span>
                     ) : intern.interestStatus === "approved" ? (
-                      <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-800 border border-teal-300">
-                        <HiOutlineCheckCircle className="w-3 h-3 text-teal-600" />
+                      <span className="inline-flex items-center space-x-1 text-[11px] font-medium text-emerald-700">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
                         <span>Matched</span>
                       </span>
                     ) : intern.interestStatus === "pending" ? (
-                      <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                        <HiOutlineClock className="w-3 h-3 text-amber-600" />
+                      <span className="inline-flex items-center space-x-1 text-[11px] font-medium text-amber-700">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                         <span>Request Sent</span>
                       </span>
                     ) : null}
@@ -210,13 +210,13 @@ export default function InternPoolPage() {
                 {(intern.assessmentStatus === "passed" || intern.assessmentScore !== null) && (
                   <div className="mb-3">
                     {intern.assessmentStatus === "passed" ? (
-                      <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                      <span className="inline-flex items-center space-x-1 text-xs font-medium text-emerald-700">
                         <HiOutlineCheckBadge className="w-3.5 h-3.5 text-emerald-600" />
                         <span>Assessment Passed ({intern.assessmentScore ?? 100}%)</span>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                        <HiOutlineAcademicCap className="w-3.5 h-3.5 text-slate-500" />
+                      <span className="inline-flex items-center space-x-1 text-xs font-medium text-slate-600">
+                        <HiOutlineAcademicCap className="w-3.5 h-3.5 text-slate-400" />
                         <span>Evaluated ({intern.assessmentScore}%)</span>
                       </span>
                     )}
