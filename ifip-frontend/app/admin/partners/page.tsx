@@ -224,6 +224,12 @@ export default function AdminPartnersPage() {
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("tab") === "applications") {
+        setActiveTab("applications");
+      }
+    }
     fetchPartners();
     fetchCohorts();
     fetchVisibility();

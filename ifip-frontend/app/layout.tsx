@@ -113,12 +113,15 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        <script
-          defer
-          src="https://cloud.umami.is/script.js"
-          data-website-id="1aca708e-956b-4d5d-bcbf-95ddb772733f"
-        />
       </head>
+
+      {/* Umami Analytics */}
+      <Script
+        defer
+        src="https://cloud.umami.is/script.js"
+        data-website-id="1aca708e-956b-4d5d-bcbf-95ddb772733f"
+        strategy="afterInteractive"
+      />
 
       {/* Google Analytics */}
       <Script
