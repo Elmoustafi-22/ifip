@@ -153,7 +153,7 @@ export default function InternPoolPage() {
           <HiOutlineFunnel className="w-10 h-10 text-slate-400 mx-auto mb-3" />
           <h3 className="text-base font-bold text-slate-800">No Candidates Found</h3>
           <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-            Try switching the interest filter to &quot;All Candidates&quot; or clear search filters to view full roster.
+            Try switching the interest filter to &quot;All Candidates&quot; or clear search filters to view all candidates.
           </p>
         </div>
       ) : (
@@ -212,12 +212,12 @@ export default function InternPoolPage() {
                     {intern.assessmentStatus === "passed" ? (
                       <span className="inline-flex items-center space-x-1 text-xs font-medium text-emerald-700">
                         <HiOutlineCheckBadge className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Assessment Passed ({intern.assessmentScore ?? 100}%)</span>
+                        <span>Assessment Passed</span>
                       </span>
                     ) : (
                       <span className="inline-flex items-center space-x-1 text-xs font-medium text-slate-600">
                         <HiOutlineAcademicCap className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Evaluated ({intern.assessmentScore}%)</span>
+                        <span>Evaluated</span>
                       </span>
                     )}
                   </div>

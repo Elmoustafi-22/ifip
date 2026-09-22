@@ -132,7 +132,7 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
           className="inline-flex items-center space-x-2 mt-4 px-4 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-200 transition-colors"
         >
           <HiOutlineArrowLeft className="w-4 h-4" />
-          <span>Back to Roster</span>
+          <span>Back to Intern Pool</span>
         </Link>
       </div>
     );
@@ -191,14 +191,14 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
                 <div className="mt-2">
                   <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                     <HiOutlineCheckBadge className="w-4 h-4 text-emerald-600" />
-                    <span>Passed Evaluation ({profile.assessment.score ?? 100}%)</span>
+                    <span>Passed Evaluation</span>
                   </span>
                 </div>
               ) : profile.assessment.score !== null ? (
                 <div className="mt-2">
                   <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
                     <HiOutlineAcademicCap className="w-4 h-4 text-slate-500" />
-                    <span>Evaluation Score ({profile.assessment.score}%)</span>
+                    <span>Evaluated</span>
                   </span>
                 </div>
               ) : null}

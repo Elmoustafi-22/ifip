@@ -1133,14 +1133,15 @@ export const getJobOpeningApplications = async (req: Request, res: Response) => 
             .lean();
         const userMap = new Map(users.map(u => [(u as any)._id.toString(), u]));
 
-        // Get programme interests from Application model
+        // Get programme profile from Application model
         const appRecords = await Application.find({ userId: { $in: userIds } })
-            .select('userId programInterest')
+            .select('userId programInterest skills motivation academicInfo cvUrl')
             .lean();
-        const interestMap = new Map(appRecords.map(a => [a.userId.toString(), a.programInterest]));
+        const appRecordMap = new Map(appRecords.map(a => [a.userId.toString(), a]));
 
         const enriched = applications.map(app => {
             const user = userMap.get(app.userId.toString()) as any;
+            const appRecord = appRecordMap.get(app.userId.toString()) as any;
             const isContactVisible = ['shortlisted', 'interview_scheduled'].includes(app.status);
             return {
                 ...app,
@@ -1151,7 +1152,13 @@ export const getJobOpeningApplications = async (req: Request, res: Response) => 
                     email: isContactVisible ? user?.email : undefined,
                     phone: isContactVisible ? user?.phone : undefined,
                 },
-                programInterests: interestMap.get(app.userId.toString()),
+                programInterests: appRecord?.programInterest,
+                profile: {
+                    programInterest: appRecord?.programInterest,
+                    skills: appRecord?.skills,
+                    academic: appRecord?.academicInfo,
+                    programCvUrl: appRecord?.cvUrl,
+                },
             };
         });
 
@@ -1208,7 +1215,6 @@ export const getJobApplicationById = async (req: Request, res: Response) => {
             profile: {
                 programInterest: appRecord?.programInterest,
                 skills: appRecord?.skills,
-                motivation: appRecord?.motivation,
                 academic: appRecord?.academicInfo,
                 programCvUrl: appRecord?.cvUrl,
             },

@@ -19,6 +19,8 @@ import {
   HiOutlineXMark,
   HiOutlineArrowTopRightOnSquare,
   HiOutlineChatBubbleLeftRight,
+  HiOutlineUser,
+  HiOutlineAcademicCap,
 } from "react-icons/hi2";
 import {
   getPartnerJobOpeningById,
@@ -42,6 +44,7 @@ export default function JobOpeningApplicationsReviewPage() {
   // Review / Schedule Modal State
   const [activeApp, setActiveApp] = useState<JobApplicantRecord | null>(null);
   const [interviewModalOpen, setInterviewModalOpen] = useState(false);
+  const [selectedApplicant, setSelectedApplicant] = useState<JobApplicantRecord | null>(null);
   const [interviewDate, setInterviewDate] = useState("");
   const [interviewFormat, setInterviewFormat] = useState<"Video" | "Call" | "In-person">("Video");
   const [interviewLink, setInterviewLink] = useState("");
@@ -166,28 +169,29 @@ export default function JobOpeningApplicationsReviewPage() {
       case "submitted":
       case "under_review":
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200">
-            <HiOutlineClock className="w-3.5 h-3.5 text-blue-600" />
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
             Submitted &bull; Pending Review
           </span>
         );
       case "shortlisted":
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-            <HiOutlineCheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
             Shortlisted
           </span>
         );
       case "interview_scheduled":
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-800 border border-purple-200">
-            <HiOutlineCalendar className="w-3.5 h-3.5 text-purple-600" />
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-purple-700">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-600" />
             Interview Scheduled
           </span>
         );
       case "not_selected":
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
             Not Selected
           </span>
         );
@@ -232,21 +236,21 @@ export default function JobOpeningApplicationsReviewPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <div className="text-xs font-medium text-slate-500 uppercase">Total Received</div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Received</div>
           <div className="text-xl font-bold text-slate-900 mt-1">{stats.total}</div>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-blue-200 bg-blue-50/20 shadow-xs">
-          <div className="text-xs font-medium text-blue-700 uppercase">Awaiting Review</div>
-          <div className="text-xl font-bold text-blue-900 mt-1">{stats.submitted}</div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Awaiting Review</div>
+          <div className="text-xl font-bold text-slate-900 mt-1">{stats.submitted}</div>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-emerald-200 bg-emerald-50/20 shadow-xs">
-          <div className="text-xs font-medium text-emerald-700 uppercase">Shortlisted</div>
-          <div className="text-xl font-bold text-emerald-900 mt-1">{stats.shortlisted}</div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Shortlisted</div>
+          <div className="text-xl font-bold text-slate-900 mt-1">{stats.shortlisted}</div>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-purple-200 bg-purple-50/20 shadow-xs">
-          <div className="text-xs font-medium text-purple-700 uppercase">Interviews</div>
-          <div className="text-xl font-bold text-purple-900 mt-1">{stats.interviewScheduled}</div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Interviews</div>
+          <div className="text-xl font-bold text-slate-900 mt-1">{stats.interviewScheduled}</div>
         </div>
       </div>
 
@@ -296,7 +300,12 @@ export default function JobOpeningApplicationsReviewPage() {
                 {/* Header: Candidate Info & Status */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-700 overflow-hidden shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedApplicant(app)}
+                      className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-700 overflow-hidden shrink-0 hover:ring-2 hover:ring-[#000666]/20 transition cursor-pointer"
+                      title="View applicant details"
+                    >
                       {app.applicant?.avatarUrl ? (
                         <img
                           src={app.applicant.avatarUrl}
@@ -315,11 +324,16 @@ export default function JobOpeningApplicationsReviewPage() {
                             : "CD"}
                         </span>
                       )}
-                    </div>
+                    </button>
                     <div>
-                      <h3 className="text-base font-bold text-slate-900 leading-snug">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedApplicant(app)}
+                        className="text-base font-bold text-slate-900 hover:text-[#000666] hover:underline leading-snug text-left cursor-pointer transition-colors block"
+                        title="Click to view applicant details"
+                      >
                         {app.applicant?.fullName || "Verified Participant"}
-                      </h3>
+                      </button>
                       <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
                         {app.applicant?.country && <span>{app.applicant.country}</span>}
                         <span>&bull;</span>
@@ -442,23 +456,34 @@ export default function JobOpeningApplicationsReviewPage() {
 
                 {/* Actions & CV Link */}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
-                  <a
-                    href={app.cvUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold text-[#000666] bg-sky-50 border border-sky-200 rounded-lg hover:bg-sky-100 transition"
-                  >
-                    <HiOutlineDocumentText className="w-4 h-4" />
-                    View CV
-                    <HiOutlineArrowTopRightOnSquare className="w-3.5 h-3.5" />
-                  </a>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedApplicant(app)}
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200/80 border border-slate-200 rounded-lg transition cursor-pointer"
+                    >
+                      <HiOutlineUser className="w-3.5 h-3.5 text-slate-500" />
+                      <span>View Details</span>
+                    </button>
+
+                    <a
+                      href={app.cvUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-[#000666] transition"
+                    >
+                      <HiOutlineDocumentText className="w-3.5 h-3.5 text-slate-500" />
+                      <span>View CV</span>
+                      <HiOutlineArrowTopRightOnSquare className="w-3 h-3 text-slate-400" />
+                    </a>
+                  </div>
 
                   {/* Review Actions */}
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     {app.status !== "shortlisted" && app.status !== "interview_scheduled" && (
                       <button
                         onClick={() => handleReviewAction(app._id, "shortlisted")}
-                        className="w-full sm:w-auto px-3 py-2 sm:py-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition cursor-pointer text-center"
+                        className="w-full sm:w-auto px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition cursor-pointer text-center"
                       >
                         Shortlist Candidate
                       </button>
@@ -466,7 +491,7 @@ export default function JobOpeningApplicationsReviewPage() {
 
                     <button
                       onClick={() => handleOpenInterviewModal(app)}
-                      className="w-full sm:w-auto px-3.5 py-2 sm:py-1.5 text-xs font-bold text-white bg-[#000666] hover:bg-[#000666]/90 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs text-center"
+                      className="w-full sm:w-auto px-3.5 py-1.5 text-xs font-semibold text-white bg-[#000666] hover:bg-[#000666]/90 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs text-center"
                     >
                       <HiOutlineCalendar className="w-3.5 h-3.5" />
                       <span>{app.status === "interview_scheduled" ? "Reschedule Interview" : "Schedule Interview"}</span>
@@ -475,7 +500,7 @@ export default function JobOpeningApplicationsReviewPage() {
                     {app.status !== "not_selected" && (
                       <button
                         onClick={() => handleReviewAction(app._id, "not_selected")}
-                        className="w-full sm:w-auto px-3 py-2 sm:py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer text-center"
+                        className="w-full sm:w-auto px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer text-center"
                       >
                         Not Selected
                       </button>
@@ -485,6 +510,294 @@ export default function JobOpeningApplicationsReviewPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Applicant Details Modal */}
+      {selectedApplicant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-full bg-slate-200 text-[#000666] flex items-center justify-center font-bold text-xs shrink-0">
+                  {selectedApplicant.applicant?.fullName
+                    ? selectedApplicant.applicant.fullName
+                        .split(" ")
+                        .map((n) => n[0])
+                        .slice(0, 2)
+                        .join("")
+                        .toUpperCase()
+                    : "AP"}
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 leading-none">
+                    {selectedApplicant.applicant?.fullName || "Candidate"}
+                  </h3>
+                  <div className="mt-1 flex items-center gap-2">
+                    {getStatusBadge(selectedApplicant.status)}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedApplicant(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Close"
+              >
+                <HiOutlineXMark className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 text-xs">
+              {/* Quick Info Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Country</span>
+                  <span className="text-xs font-semibold text-slate-700">{selectedApplicant.applicant?.country || "—"}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Applied On</span>
+                  <span className="text-xs font-semibold text-slate-700">
+                    {new Date(selectedApplicant.submittedAt).toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Candidate Profile</span>
+                  <Link
+                    href={`/partner-portal/interns/${selectedApplicant.userId}`}
+                    target="_blank"
+                    className="text-xs font-semibold text-[#000666] hover:underline inline-flex items-center gap-1"
+                  >
+                    <span>View Full Profile</span>
+                    <HiOutlineArrowTopRightOnSquare className="w-3 h-3" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              {["shortlisted", "interview_scheduled"].includes(selectedApplicant.status) ? (
+                <div className="p-3.5 bg-emerald-50/50 border border-emerald-200 rounded-xl space-y-1.5">
+                  <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider block">
+                    Contact Information (Unlocked)
+                  </span>
+                  <div className="flex flex-wrap gap-4 text-xs font-medium text-emerald-950">
+                    {selectedApplicant.applicant?.email && (
+                      <a href={`mailto:${selectedApplicant.applicant.email}`} className="flex items-center gap-1.5 hover:underline">
+                        <HiOutlineEnvelope className="w-4 h-4 text-emerald-700" />
+                        <span>{selectedApplicant.applicant.email}</span>
+                      </a>
+                    )}
+                    {selectedApplicant.applicant?.phone && (
+                      <a href={`tel:${selectedApplicant.applicant.phone}`} className="flex items-center gap-1.5 hover:underline">
+                        <HiOutlinePhone className="w-4 h-4 text-emerald-700" />
+                        <span>{selectedApplicant.applicant.phone}</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-[11px] leading-relaxed">
+                  <strong className="text-slate-700">Contact Policy:</strong> Direct candidate phone and email will be made accessible once you shortlist the candidate or schedule an interview.
+                </div>
+              )}
+
+              {/* Academic Background */}
+              {selectedApplicant.profile?.academic && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    <HiOutlineAcademicCap className="w-4 h-4 text-slate-500" />
+                    <span>Academic &amp; Educational Background</span>
+                  </div>
+                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-semibold">Institution / University</span>
+                        <span className="font-semibold text-slate-800">
+                          {selectedApplicant.profile.academic.university || selectedApplicant.profile.academic.institution || "—"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-semibold">Field of Study</span>
+                        <span className="font-semibold text-slate-800">
+                          {selectedApplicant.profile.academic.fieldOfStudy || selectedApplicant.profile.academic.major || "—"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-semibold">Degree / Qualification</span>
+                        <span className="font-semibold text-slate-800">
+                          {selectedApplicant.profile.academic.degree || selectedApplicant.profile.academic.qualification || "—"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-semibold">Graduation Year</span>
+                        <span className="font-semibold text-slate-800">
+                          {selectedApplicant.profile.academic.graduationYear || "—"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Skills & Program Interests */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                  Skills &amp; Focus Domains
+                </span>
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2.5">
+                  {selectedApplicant.profile?.skills?.tools && selectedApplicant.profile.skills.tools.length > 0 && (
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-semibold mb-1">Tools &amp; Platforms</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedApplicant.profile.skills.tools.map((t: string, i: number) => (
+                          <span key={i} className="px-2 py-0.5 bg-white border border-slate-200 rounded text-slate-700 font-medium">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedApplicant.profile?.skills?.languages && selectedApplicant.profile.skills.languages.length > 0 && (
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-semibold mb-1">Languages</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedApplicant.profile.skills.languages.map((l: string, i: number) => (
+                          <span key={i} className="px-2 py-0.5 bg-white border border-slate-200 rounded text-slate-700 font-medium">
+                            {l}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(selectedApplicant.programInterests || selectedApplicant.profile?.programInterest) && (
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-semibold mb-1">Islamic Finance Interests</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(Array.isArray(selectedApplicant.programInterests) ? selectedApplicant.programInterests : Array.isArray(selectedApplicant.profile?.programInterest) ? selectedApplicant.profile.programInterest : []).map((area: string, i: number) => (
+                          <span key={i} className="px-2 py-0.5 bg-white border border-slate-200 rounded text-slate-700 font-medium">
+                            {area}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Candidate Note (Specific to this job opening, if provided) */}
+              {selectedApplicant.coverNote && (
+                <div className="space-y-1.5">
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                    Candidate Note
+                  </span>
+                  <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-slate-700 leading-relaxed whitespace-pre-wrap">
+                    {selectedApplicant.coverNote}
+                  </div>
+                </div>
+              )}
+
+              {/* Requirement Answers */}
+              {selectedApplicant.responses && selectedApplicant.responses.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                    Job Requirement Responses
+                  </span>
+                  <div className="space-y-2">
+                    {selectedApplicant.responses.map((resp, i) => (
+                      <div key={i} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                        <div className="font-semibold text-slate-800">{resp.requirement}</div>
+                        <div className="text-slate-600 pl-2.5 border-l-2 border-slate-300">
+                          {resp.answer || "No response provided."}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Curriculum Vitae (CV) Section */}
+              <div className="space-y-1.5">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                  Curriculum Vitae (CV)
+                </span>
+                <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-slate-700 font-medium">
+                    <HiOutlineDocumentText className="w-5 h-5 text-slate-500" />
+                    <span>Candidate Application CV</span>
+                  </div>
+                  <a
+                    href={selectedApplicant.cvUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg transition"
+                  >
+                    <span>Open CV</span>
+                    <HiOutlineArrowTopRightOnSquare className="w-3.5 h-3.5 text-slate-400" />
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 px-5 py-3.5 border-t border-slate-200 bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => setSelectedApplicant(null)}
+                className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200/70 rounded-lg transition cursor-pointer text-center"
+              >
+                Close
+              </button>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                {selectedApplicant.status !== "shortlisted" && selectedApplicant.status !== "interview_scheduled" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleReviewAction(selectedApplicant._id, "shortlisted");
+                      setSelectedApplicant(prev => prev ? { ...prev, status: "shortlisted" } : null);
+                    }}
+                    className="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition cursor-pointer text-center"
+                  >
+                    Shortlist Candidate
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const app = selectedApplicant;
+                    setSelectedApplicant(null);
+                    handleOpenInterviewModal(app);
+                  }}
+                  className="px-3.5 py-2 text-xs font-semibold text-white bg-[#000666] hover:bg-[#000666]/90 rounded-lg transition cursor-pointer text-center flex items-center gap-1.5"
+                >
+                  <HiOutlineCalendar className="w-3.5 h-3.5" />
+                  <span>{selectedApplicant.status === "interview_scheduled" ? "Reschedule Interview" : "Schedule Interview"}</span>
+                </button>
+
+                {selectedApplicant.status !== "not_selected" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleReviewAction(selectedApplicant._id, "not_selected");
+                      setSelectedApplicant(prev => prev ? { ...prev, status: "not_selected" } : null);
+                    }}
+                    className="px-3 py-2 text-xs font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer text-center"
+                  >
+                    Not Selected
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

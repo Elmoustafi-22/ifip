@@ -474,7 +474,6 @@ export interface JobApplicantRecord {
   profile?: {
     programInterest?: any;
     skills?: any;
-    motivation?: string;
     academic?: any;
     programCvUrl?: string;
   };
