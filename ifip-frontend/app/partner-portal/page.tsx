@@ -168,8 +168,8 @@ export default function PartnerOverviewPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
           {(stats?.pendingRequests ?? 0) > 0 ? (
-            <div className="p-4 bg-amber-50/60 border border-amber-200 rounded-xl text-xs text-amber-900 leading-relaxed">
-              You have <strong className="font-bold">{stats?.pendingRequests}</strong> pending candidate request(s) awaiting IFIP admissions review.
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 leading-relaxed">
+              You have <strong className="font-semibold text-slate-900">{stats?.pendingRequests}</strong> pending candidate request(s) awaiting IFIP admissions review.
             </div>
           ) : (
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600">

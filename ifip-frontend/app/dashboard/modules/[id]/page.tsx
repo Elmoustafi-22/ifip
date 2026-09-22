@@ -704,24 +704,19 @@ export default function ModuleViewerPage() {
 
         {/* End of Lesson: Assessment Available State */}
         {currentMod.assessmentId && assessment && (!assessmentResult || assessmentResult.status !== 'passed') && (
-          <div className="mb-8 border border-amber-200 bg-gradient-to-r from-amber-50/90 to-orange-50/70 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-fadeIn">
-            <div className="flex items-start gap-3.5 text-left">
-              <div className="w-10 h-10 rounded-xl bg-[#FF9800]/20 flex items-center justify-center text-[#FF9800] shrink-0">
-                <HiOutlineAcademicCap className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-[#000666]">Lesson Material Completed</h4>
-                <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
-                  You have finished the study material. Proceed to the <strong>Week {currentMod.weekNumber || currentMod.order} Knowledge Check</strong> on the dedicated Assessments Page to test your understanding and unlock the next module.
-                </p>
-              </div>
+          <div className="mb-8 border border-slate-200 bg-white rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h4 className="text-sm font-semibold text-slate-900">Lesson Material Completed</h4>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                You have finished the study material. Proceed to the <strong>Week {currentMod.weekNumber || currentMod.order} Knowledge Check</strong> on the dedicated Assessments Page to test your understanding and unlock the next module.
+              </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <Link
                 href={`/dashboard/assessments/${currentMod._id}`}
-                className="bg-[#000666] hover:bg-[#000666]/90 text-white font-bold text-xs px-5 py-3 rounded-xl transition-all shadow-sm flex items-center gap-1.5 hover:scale-[1.02]"
+                className="bg-[#000666] hover:bg-[#000666]/90 text-white font-semibold text-xs px-4 py-2 rounded-lg transition-colors shrink-0"
               >
-                <span>Take Knowledge Check</span> &rarr;
+                Take Knowledge Check &rarr;
               </Link>
             </div>
           </div>
@@ -1068,23 +1063,20 @@ export default function ModuleViewerPage() {
                     </Link>
                   </div>
                 ) : (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <HiOutlineExclamationTriangle className="w-5 h-5 text-amber-600 shrink-0" />
-                      <div>
-                        <h4 className="text-xs font-bold text-amber-950">
-                          Latest Score: {assessmentResult.score}% (Required: {assessment.passMark}%)
-                        </h4>
-                        <p className="text-[11px] text-amber-700 font-medium">
-                          Attempt {assessmentResult.attemptNumber} of {assessment.maxAttempts} completed.
-                        </p>
-                      </div>
+                  <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                      <h4 className="text-xs font-semibold text-slate-900">
+                        Latest Score: {assessmentResult.score}% (Required: {assessment.passMark}%)
+                      </h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Attempt {assessmentResult.attemptNumber} of {assessment.maxAttempts} completed.
+                      </p>
                     </div>
                     <Link
                       href={`/dashboard/assessments/${currentMod._id}`}
-                      className="bg-[#000666] hover:bg-[#000666]/90 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-xs inline-flex items-center gap-1"
+                      className="bg-[#000666] hover:bg-[#000666]/90 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors inline-flex items-center gap-1"
                     >
-                      {assessmentResult.attemptNumber < assessment.maxAttempts ? "Re-Attempt on Assessments Page →" : "View Solutions & Review →"}
+                      {assessmentResult.attemptNumber < assessment.maxAttempts ? "Re-Attempt Assessment →" : "View Solutions →"}
                     </Link>
                   </div>
                 )}

@@ -196,59 +196,57 @@ export default function ParticipantJobOpeningsPage() {
 
       {/* Task Completion Eligibility Banner */}
       {eligibility && (
-        <div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
           {eligibility.eligible ? (
-            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3 text-emerald-900">
-              <HiOutlineCheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-              <div className="text-xs leading-relaxed">
-                <strong className="font-bold block text-emerald-950">
-                  Coursework Task Verification Complete
-                </strong>
-                All your available module practical tasks are completed and approved. You are eligible to apply for any open job position below.
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h4 className="text-sm font-semibold text-slate-900">
+                  Coursework Verification Complete
+                </h4>
+                <p className="text-xs text-slate-500 mt-1">
+                  All your required coursework practical tasks have been verified. You can apply directly to any placement opening below.
+                </p>
               </div>
             </div>
           ) : (
-            <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl space-y-3 text-amber-950">
-              <div className="flex items-start gap-3">
-                <HiOutlineExclamationTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                <div className="text-xs leading-relaxed">
-                  <strong className="font-bold block text-amber-900">
-                    Action Required: Pending Module Tasks
-                  </strong>
-                  You have <strong>{eligibility.incompleteTasks.length}</strong> pending practical task(s). All required module tasks must be completed and approved before your job applications can be accepted.
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-5">
+              <div className="space-y-3">
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-900">
+                    Action Required: Pending Coursework Tasks
+                  </h4>
+                  <p className="text-xs text-slate-600 mt-1 max-w-2xl leading-relaxed">
+                    You have {eligibility.incompleteTasks.length} pending practical task(s). All required module tasks must be completed and approved before your job applications can be accepted.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5 pt-1">
+                  <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">
+                    Pending Tasks:
+                  </div>
+                  <ul className="space-y-1.5 text-xs text-slate-700">
+                    {eligibility.incompleteTasks.map((t, idx) => (
+                      <li key={idx} className="flex items-center gap-2">
+                        <span>
+                          {t.weekNumber ? `Week ${t.weekNumber}: ` : ""}
+                          <span className="font-medium text-slate-800">{t.moduleTitle}</span>
+                          {t.taskTitle ? ` — ${t.taskTitle}` : ""}
+                        </span>
+                        <span className="text-slate-500 text-[11px]">
+                          ({t.submissionStatus === "needs_resubmission" ? "Needs Revision" : "Pending Submission"})
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </div>
 
-              {/* List of pending tasks */}
-              <div className="bg-white/80 border border-amber-200 rounded-lg p-3 space-y-1.5 text-xs">
-                <div className="font-bold text-amber-900 text-[11px] uppercase tracking-wider">
-                  Pending Coursework Tasks to Complete:
-                </div>
-                <ul className="space-y-1">
-                  {eligibility.incompleteTasks.map((t, idx) => (
-                    <li key={idx} className="flex items-center justify-between gap-2 text-slate-700">
-                      <span>
-                        &bull; {t.weekNumber ? `Week ${t.weekNumber}: ` : ""}
-                        <strong>{t.moduleTitle}</strong>
-                        {t.taskTitle ? ` — ${t.taskTitle}` : ""}
-                      </span>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-800 shrink-0">
-                        {t.submissionStatus === "needs_resubmission" ? "Needs Revision" : "Pending Submission"}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <Link
-                  href="/dashboard/modules"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#000666] text-white text-xs font-bold rounded-lg hover:bg-[#000666]/90 transition"
-                >
-                  Go to Modules & Complete Tasks
-                  <HiOutlineArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
+              <Link
+                href="/dashboard/modules"
+                className="inline-flex items-center justify-center px-4 py-2 bg-[#000666] hover:bg-[#000666]/90 text-white text-xs font-semibold rounded-lg transition-colors shrink-0"
+              >
+                Go to Modules
+              </Link>
             </div>
           )}
         </div>
@@ -436,18 +434,13 @@ export default function ParticipantJobOpeningsPage() {
       {ineligibleModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start gap-3 text-amber-800">
-              <div className="p-2 bg-amber-100 rounded-xl text-amber-700 shrink-0">
-                <HiOutlineExclamationTriangle className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  Complete Your Pending Tasks to Apply
-                </h3>
-                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                  To ensure all candidates meet partner quality standards, all currently available coursework tasks must be completed and verified before submitting applications.
-                </p>
-              </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                Complete Your Pending Tasks to Apply
+              </h3>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                To ensure all candidates meet partner quality standards, all currently available coursework tasks must be completed and verified before submitting applications.
+              </p>
             </div>
 
             {eligibility?.incompleteTasks && eligibility.incompleteTasks.length > 0 && (

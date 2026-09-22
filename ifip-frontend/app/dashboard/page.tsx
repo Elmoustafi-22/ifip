@@ -398,26 +398,20 @@ export default function DashboardHome() {
 
       {/* Action Required Alert Banner (Only shown if CV is still missing) */}
       {!cvUploaded && (
-        <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-2">
-          <div className="flex items-start sm:items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-              <HiOutlineBookOpen className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="text-xs sm:text-sm font-bold text-amber-950">
-                Action Required: Upload CV &amp; Qualifications
-              </h4>
-              <p className="text-xs text-amber-800/80 font-medium mt-0.5">
-                Upload your latest CV in PDF format to complete your admissions file.
-              </p>
-            </div>
+        <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-2">
+          <div>
+            <h4 className="text-sm font-semibold text-slate-900">
+              Action Required: Upload CV &amp; Qualifications
+            </h4>
+            <p className="text-xs text-slate-500 mt-1">
+              Upload your latest CV in PDF format to complete your admissions file.
+            </p>
           </div>
           <Link
             href="/dashboard/settings"
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs transition self-start sm:self-auto shrink-0 cursor-pointer"
+            className="inline-flex items-center justify-center px-4 py-2 bg-[#000666] hover:bg-[#000666]/90 text-white font-semibold text-xs rounded-lg transition self-start sm:self-auto shrink-0 cursor-pointer"
           >
-            <span>Upload Now</span>
-            <HiOutlineChevronRight className="w-3.5 h-3.5" />
+            Upload Now
           </Link>
         </div>
       )}
