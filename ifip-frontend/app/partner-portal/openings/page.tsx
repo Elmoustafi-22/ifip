@@ -211,8 +211,8 @@ export default function PartnerOpeningsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
+        <div className="max-w-2xl">
           <h1 className="text-2xl font-bold text-[#000666]">Job Openings</h1>
           <p className="text-sm text-slate-500 mt-1">
             Create placement openings for your organisation. Once verified by administration, candidates can apply directly with tailored CVs.
@@ -220,10 +220,10 @@ export default function PartnerOpeningsPage() {
         </div>
         <button
           onClick={handleOpenAddModal}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#000666] text-white text-xs font-bold rounded-lg hover:bg-[#000666]/90 transition shadow-sm cursor-pointer self-start sm:self-auto"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#000666] text-white text-sm font-semibold rounded-lg hover:bg-[#000666]/90 transition shadow-xs cursor-pointer shrink-0 whitespace-nowrap self-start sm:self-auto"
         >
-          <HiOutlinePlus className="w-4 h-4" />
-          Announce New Job Opening
+          <HiOutlinePlus className="w-4 h-4 shrink-0" />
+          <span>Announce Job Opening</span>
         </button>
       </div>
 
@@ -250,7 +250,7 @@ export default function PartnerOpeningsPage() {
           </div>
           <h3 className="text-base font-bold text-slate-800">No Job Openings Announced Yet</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            You have not announced any job openings yet. Use the <strong>"Announce New Job Opening"</strong> button above to submit your first placement opportunity.
+            You have not announced any job openings yet. Use the <strong>"Announce Job Opening"</strong> button above to submit your first placement opportunity.
           </p>
         </div>
       ) : (
