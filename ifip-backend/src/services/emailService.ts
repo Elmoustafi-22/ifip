@@ -12,11 +12,21 @@ const brevoApi = axios.create({
     timeout: 10000,
 });
 
-const send = async (to: string, subject: string, html: string) => {
+export const EMAIL_SENDERS = {
+    DEFAULT: 'Islamic Finance Internship Program',
+    ADMISSIONS: 'IFIP Admissions',
+    ACADEMIC: 'IFIP Academic Team',
+    PARTNER: 'IFIP Partner Network',
+    PLACEMENT: 'IFIP Placement Office',
+    SECURITY: 'IFIP Security',
+    ADMIN: 'IFIP Administration',
+} as const;
+
+const send = async (to: string, subject: string, html: string, senderName: string = EMAIL_SENDERS.DEFAULT) => {
     try {
         await brevoApi.post('/smtp/email', {
             sender: {
-                name: 'IFIP Admissions',
+                name: senderName,
                 email: env.EMAIL_FROM,
             },
             replyTo: {
@@ -101,7 +111,7 @@ export const sendOtpEmail = async (to: string, otp: string) => {
     </div>
     `;
 
-    await send(to, 'Verify Your Application — IFIP', html);
+    await send(to, 'Verify Your Application — IFIP', html, EMAIL_SENDERS.ADMISSIONS);
 };
 
 export const sendResumeLinkEmail = async (to: string, resumeToken: string, isPaid = false) => {
@@ -217,22 +227,11 @@ export const sendResumeLinkEmail = async (to: string, resumeToken: string, isPai
     </div>
     `;
 
-    await send(to, subject, html);
+    await send(to, subject, html, EMAIL_SENDERS.ADMISSIONS);
 };
 
 export const sendPaymentSuccessEmail = async (to: string, resumeToken: string, country = 'Nigeria') => {
     const resumeUrl = `${env.CLIENT_URL}/apply?token=${resumeToken}`;
-
-    // Currency config
-    const isNigeria = country.toLowerCase() === 'nigeria';
-    const amountText = isNigeria ? '₦20,000' : '$30';
-    const amountSummary = isNigeria ? '₦20,000.00' : '$30.00';
-    const method = 'Flutterwave Checkout';
-    const formattedDate = new Date().toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric'
-    });
 
     const html = `
     <div style="${wrapperStyle}">
@@ -249,48 +248,39 @@ export const sendPaymentSuccessEmail = async (to: string, resumeToken: string, c
                     ✓
                 </div>
                 
-                <h1 style="font-family: Georgia, serif; font-size: 28px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 24px 0;">Payment Confirmed</h1>
+                <h1 style="font-family: Georgia, serif; font-size: 28px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 12px 0;">Payment Confirmed</h1>
+                <p style="font-size: 13px; color: #10B981; font-weight: bold; text-align: center; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 24px 0;">Commitment Levy Received</p>
                 
                 <div style="max-width: 440px; margin: 0 auto; text-align: center; font-size: 15px; color: #454652; line-height: 1.6;">
-                    <p style="margin: 0 0 16px 0;">Thank you for your commitment to the program.</p>
+                    <p style="margin: 0 0 16px 0;">Your commitment levy payment has been successfully verified.</p>
                     <p style="margin: 0 0 32px 0;">
-                        You have successfully paid the <strong style="color: #000666;">${amountText}</strong> commitment levy.
+                        To secure your seat in the upcoming cohort, please complete the remaining sections of your application: Academic Background, Program Interests & Skills, and your Statement of Motivation.
                     </p>
-                </div>
-                
-                <!-- Transaction Summary Card -->
-                <div style="background-color: #FDFBF7; border: 1px solid #E7E2D8; border-radius: 12px; padding: 24px; margin-bottom: 32px; text-align: left;">
-                    <h3 style="font-size: 11px; font-weight: bold; color: #000666; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 16px 0; border-bottom: 1px solid #E7E2D8; padding-bottom: 8px;">
-                        Transaction Summary
-                    </h3>
-                    
-                    <table style="width: 100%; font-size: 13px; line-height: 1.5; border-collapse: collapse;">
-                        <tr style="border-bottom: 1px solid rgba(231,226,216,0.5);">
-                            <td style="padding: 10px 0; color: #454652; text-align: left;">Amount Paid</td>
-                            <td style="padding: 10px 0; font-weight: bold; color: #1D1B16; text-align: right;">${amountSummary}</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid rgba(231,226,216,0.5);">
-                            <td style="padding: 10px 0; color: #454652; text-align: left;">Payment Method</td>
-                            <td style="padding: 10px 0; color: #1D1B16; text-align: right;">${method}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 10px 0; color: #454652; text-align: left;">Date</td>
-                            <td style="padding: 10px 0; color: #1D1B16; text-align: right;">${formattedDate}</td>
-                        </tr>
-                    </table>
                 </div>
                 
                 <!-- Action section -->
                 <div style="text-align: center; margin-bottom: 24px;">
-                    <p style="font-size: 13px; color: #454652; font-weight: bold; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">Next step: Complete Your Application</p>
-                    <a href="${resumeUrl}" style="display: inline-block; background-color: #FF9800; color: #FFFFFF; font-size: 12px; font-weight: bold; text-decoration: none; padding: 16px 40px; border-radius: 30px; text-transform: uppercase; letter-spacing: 1.5px; box-shadow: 0 4px 12px rgba(255,152,0,0.35);">
+                    <p style="font-size: 13px; color: #454652; font-weight: bold; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">Next step: Finalize your profile</p>
+                    <a href="${resumeUrl}" style="display: inline-block; background-color: #000666; color: #FFFFFF; font-size: 12px; font-weight: bold; text-decoration: none; padding: 16px 40px; border-radius: 30px; text-transform: uppercase; letter-spacing: 1.5px; box-shadow: 0 4px 12px rgba(0,6,102,0.25);">
                         Complete Application
                     </a>
                 </div>
                 
-                <p style="font-size: 13px; color: #767683; text-align: center; margin: 32px 0 0 0; line-height: 1.5;">
-                    If you did not make this transaction, please contact our support team immediately.
+                <p style="font-size: 13px; color: #767683; text-align: center; margin: 0 0 32px 0; line-height: 1.5;">
+                    Your draft is saved automatically at each step. You can pause and return at any time before the cohort cap is reached.
                 </p>
+                
+                <!-- Support Callout -->
+                <div style="background-color: #FDFBF7; border-left: 4px solid #000666; padding: 16px 20px; border-radius: 6px; border: 1px solid #E7E2D8; border-left: 4px solid #000666; margin-bottom: 32px; text-align: left;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="vertical-align: top; width: 28px; font-size: 16px; color: #000666;">ℹ️</td>
+                            <td style="vertical-align: top;">
+                                <p style="font-size: 13px; color: #454652; line-height: 1.5; margin: 0;">Need help completing your application? Reply directly to this email or contact support at <a href="mailto:ifip.program@gmail.com" style="color: #000666; font-weight: bold;">ifip.program@gmail.com</a>.</p>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
             </div>
             
             <!-- Dark Navy Footer -->
@@ -311,7 +301,7 @@ export const sendPaymentSuccessEmail = async (to: string, resumeToken: string, c
     </div>
     `;
 
-    await send(to, 'Payment Confirmed — Complete Your IFIP Application', html);
+    await send(to, 'Payment Confirmed — Complete Your IFIP Application', html, EMAIL_SENDERS.ADMISSIONS);
 };
 
 export const sendSetPasswordEmail = async (to: string, setPasswordToken: string, country = 'Nigeria') => {
@@ -372,7 +362,7 @@ export const sendSetPasswordEmail = async (to: string, setPasswordToken: string,
     </div>
     `;
 
-    await send(to, 'Application Submitted — Set Your Password — IFIP', html);
+    await send(to, 'Application Submitted — Set Your Password — IFIP', html, EMAIL_SENDERS.ADMISSIONS);
 };
 
 export const sendPasswordResetEmail = async (to: string, resetToken: string) => {
@@ -465,7 +455,7 @@ export const sendPasswordResetEmail = async (to: string, resetToken: string) => 
     </div>
     `;
 
-    await send(to, 'Reset Your Password — IFIP', html);
+    await send(to, 'Reset Your Password — IFIP', html, EMAIL_SENDERS.SECURITY);
 };
 
 // ─── Partner Application Emails ──────────────────────────────────────────────
@@ -533,7 +523,7 @@ export const sendPartnerApplicationReceived = async (to: string, companyName: st
         </div>
     </div>
     `;
-    await send(to, 'Partnership Application Received — IFIP', html);
+    await send(to, 'Partnership Application Received — IFIP', html, EMAIL_SENDERS.PARTNER);
 };
 
 export const sendPartnerApplicationApproved = async (to: string, companyName: string, contactPerson: string) => {
@@ -567,7 +557,7 @@ export const sendPartnerApplicationApproved = async (to: string, companyName: st
         </div>
     </div>
     `;
-    await send(to, 'Partnership Application Approved — IFIP', html);
+    await send(to, 'Partnership Application Approved — IFIP', html, EMAIL_SENDERS.PARTNER);
 };
 
 export const sendPartnerApplicationDeclined = async (to: string, companyName: string, contactPerson: string, reason?: string) => {
@@ -605,7 +595,7 @@ export const sendPartnerApplicationDeclined = async (to: string, companyName: st
         </div>
     </div>
     `;
-    await send(to, 'Partnership Application Update — IFIP', html);
+    await send(to, 'Partnership Application Update — IFIP', html, EMAIL_SENDERS.PARTNER);
 };
 
 export const sendWaitlistEmail = async (to: string, cohortName: string) => {
@@ -638,7 +628,7 @@ export const sendWaitlistEmail = async (to: string, cohortName: string) => {
         </div>
     </div>
     `;
-    await send(to, 'Waitlist Registered Confirmation — IFIP', html);
+    await send(to, 'Waitlist Registered Confirmation — IFIP', html, EMAIL_SENDERS.ADMISSIONS);
 };
 
 export const sendCohortWelcomeEmail = async (to: string, fullName: string, cohortName: string, kickoffDate: string) => {
@@ -675,7 +665,7 @@ export const sendCohortWelcomeEmail = async (to: string, fullName: string, cohor
         </div>
     </div>
     `;
-    await send(to, `Welcome to ${cohortName} — IFIP`, html);
+    await send(to, `Welcome to ${cohortName} — IFIP`, html, EMAIL_SENDERS.ADMISSIONS);
 };
 
 export const sendAssessmentGradedEmail = async (to: string, fullName: string, assessmentTitle: string, score: number, passed: boolean, attemptsRemaining: number) => {
@@ -714,7 +704,7 @@ export const sendAssessmentGradedEmail = async (to: string, fullName: string, as
         </div>
     </div>
     `;
-    await send(to, `Assessment Graded: ${assessmentTitle} — IFIP`, html);
+    await send(to, `Assessment Graded: ${assessmentTitle} — IFIP`, html, EMAIL_SENDERS.ACADEMIC);
 };
 
 export const sendPlacementMatchedEmail = async (to: string, fullName: string, partnerName: string, area: string, onboardingNotes?: string) => {
@@ -756,7 +746,7 @@ export const sendPlacementMatchedEmail = async (to: string, fullName: string, pa
         </div>
     </div>
     `;
-    await send(to, `Placement Match: ${partnerName} — IFIP`, html);
+    await send(to, `Placement Match: ${partnerName} — IFIP`, html, EMAIL_SENDERS.PLACEMENT);
 };
 
 export const sendPasswordChangedAlert = async (to: string, email: string) => {
@@ -788,7 +778,7 @@ export const sendPasswordChangedAlert = async (to: string, email: string) => {
         </div>
     </div>
     `;
-    await send(to, 'Security Alert: Password Changed — IFIP', html);
+    await send(to, 'Security Alert: Password Changed — IFIP', html, EMAIL_SENDERS.SECURITY);
 };
 
 export const sendAdminEnrollmentDigest = async (to: string, newStudentCount: number) => {
@@ -820,7 +810,7 @@ export const sendAdminEnrollmentDigest = async (to: string, newStudentCount: num
         </div>
     </div>
     `;
-    await send(to, 'Admin Notice: New Enrollments Logged — IFIP', html);
+    await send(to, 'Admin Notice: New Enrollments Logged — IFIP', html, EMAIL_SENDERS.ADMIN);
 };
 
 export const sendCustomBroadcastEmail = async (to: string, title: string, message: string) => {
@@ -847,7 +837,7 @@ export const sendCustomBroadcastEmail = async (to: string, title: string, messag
         </div>
     </div>
     `;
-    await send(to, `Announcement: ${title} — IFIP`, html);
+    await send(to, `Announcement: ${title} — IFIP`, html, EMAIL_SENDERS.ADMIN);
 };
 
 export const sendAdminInvitationEmail = async (to: string, name: string, role: string, title: string, token: string) => {
@@ -909,7 +899,7 @@ export const sendAdminInvitationEmail = async (to: string, name: string, role: s
         </div>
     </div>
     `;
-    await send(to, 'Invitation to join IFIP Admin Panel', html);
+    await send(to, 'Invitation to join IFIP Admin Panel', html, EMAIL_SENDERS.ADMIN);
 };
 
 export const sendAdminPartnerApplicationReceived = async (to: string, companyName: string, contactPerson: string, contactEmail: string, hasOpenings?: boolean, openings?: any[]) => {
@@ -990,7 +980,7 @@ export const sendAdminPartnerApplicationReceived = async (to: string, companyNam
         </div>
     </div>
     `;
-    await send(to, `Admin Alert: New Partner Application from ${companyName} — IFIP`, html);
+    await send(to, `Admin Alert: New Partner Application from ${companyName} — IFIP`, html, EMAIL_SENDERS.ADMIN);
 };
 
 export const sendPendingReminderEmail = async (
@@ -1085,7 +1075,7 @@ export const sendPendingReminderEmail = async (
     </div>
     `;
 
-    await send(to, subject, html);
+    await send(to, subject, html, EMAIL_SENDERS.ADMISSIONS);
 };
 
 // ─── Partner Portal Emails ─────────────────────────────────────────────────────
@@ -1131,7 +1121,7 @@ export const sendPartnerPortalInvite = async (
             </div>
         </div>
     </div>`;
-    await send(to, `Your IFIP Partner Portal Access — ${orgName}`, html);
+    await send(to, `Your IFIP Partner Portal Access — ${orgName}`, html, EMAIL_SENDERS.PARTNER);
 };
 
 export const sendInterestExpressedAlert = async (
@@ -1172,7 +1162,7 @@ export const sendInterestExpressedAlert = async (
             </div>
         </div>
     </div>`;
-    await send(recipientEmail, `New Placement Request: ${orgName} ➔ ${internName}`, html);
+    await send(recipientEmail, `New Placement Request: ${orgName} ➔ ${internName}`, html, EMAIL_SENDERS.PLACEMENT);
 };
 
 export const sendInterestApprovedToPartner = async (
@@ -1200,7 +1190,7 @@ export const sendInterestApprovedToPartner = async (
             </div>
         </div>
     </div>`;
-    await send(to, `Placement Confirmed — ${internName} at ${orgName}`, html);
+    await send(to, `Placement Confirmed — ${internName} at ${orgName}`, html, EMAIL_SENDERS.PLACEMENT);
 };
 
 export const sendPlacementMatchedToIntern = async (
@@ -1227,7 +1217,7 @@ export const sendPlacementMatchedToIntern = async (
             </div>
         </div>
     </div>`;
-    await send(to, `Internship Match — ${orgName}`, html);
+    await send(to, `Internship Match — ${orgName}`, html, EMAIL_SENDERS.PLACEMENT);
 };
 
 export const sendInterestDeclinedToPartner = async (
@@ -1257,7 +1247,7 @@ export const sendInterestDeclinedToPartner = async (
             </div>
         </div>
     </div>`;
-    await send(to, `Request Update — ${internName}`, html);
+    await send(to, `Request Update — ${internName}`, html, EMAIL_SENDERS.PLACEMENT);
 };
 
 export const sendInterviewLoggedAlert = async (
@@ -1294,7 +1284,7 @@ export const sendInterviewLoggedAlert = async (
             </div>
         </div>
     </div>`;
-    await send(opsEmail, `Interview Scheduled: ${orgName} with ${internName}`, html);
+    await send(opsEmail, `Interview Scheduled: ${orgName} with ${internName}`, html, EMAIL_SENDERS.PLACEMENT);
 };
 
 export const sendInterviewScheduledToIntern = async (
@@ -1340,7 +1330,7 @@ export const sendInterviewScheduledToIntern = async (
             </div>
         </div>
     </div>`;
-    await send(internEmail, `Interview Invitation from ${orgName} — IFIP Placement`, html);
+    await send(internEmail, `Interview Invitation from ${orgName} — IFIP Placement`, html, EMAIL_SENDERS.PLACEMENT);
 };
 
 export const sendOutcomeLoggedAlert = async (
@@ -1370,7 +1360,7 @@ export const sendOutcomeLoggedAlert = async (
             </div>
         </div>
     </div>`;
-    await send(opsEmail, `Outcome: ${outcomeLabel} — ${internName} at ${orgName}`, html);
+    await send(opsEmail, `Outcome: ${outcomeLabel} — ${internName} at ${orgName}`, html, EMAIL_SENDERS.PLACEMENT);
 };
 
 export const sendOfferExtendedToIntern = async (to: string, internName: string, orgName: string) => {
@@ -1396,7 +1386,7 @@ export const sendOfferExtendedToIntern = async (to: string, internName: string, 
             </div>
         </div>
     </div>`;
-    await send(to, `Placement Confirmed: ${orgName} — IFIP`, html);
+    await send(to, `Placement Confirmed: ${orgName} — IFIP`, html, EMAIL_SENDERS.PLACEMENT);
 };
 
 /**
@@ -1456,7 +1446,7 @@ export const sendAccountActivatedWelcomeEmail = async (to: string, fullName: str
         </div>
     </div>`;
 
-    await send(to, 'Welcome to IFIP — Account Activated!', html);
+    await send(to, 'Welcome to IFIP — Account Activated!', html, EMAIL_SENDERS.ADMISSIONS);
 };
 
 /**
@@ -1514,7 +1504,7 @@ export const sendPartnerActivatedWelcomeEmail = async (to: string, fullName: str
         </div>
     </div>`;
 
-    await send(to, 'Welcome to the IFIP Partner Network — Account Activated!', html);
+    await send(to, 'Welcome to the IFIP Partner Network — Account Activated!', html, EMAIL_SENDERS.PARTNER);
 };
 
 /**
@@ -1593,7 +1583,7 @@ export const sendNewModuleNotificationEmail = async (params: {
         </div>
     </div>`;
 
-    await send(to, `New Coursework: ${moduleTitle} — IFIP`, html);
+    await send(to, `New Coursework: ${moduleTitle} — IFIP`, html, EMAIL_SENDERS.ACADEMIC);
 };
 
 /**
@@ -1673,7 +1663,7 @@ export const sendNewAssessmentNotificationEmail = async (params: {
         </div>
     </div>`;
 
-    await send(to, `Assessment Available: ${assessmentTitle} — IFIP`, html);
+    await send(to, `Assessment Available: ${assessmentTitle} — IFIP`, html, EMAIL_SENDERS.ACADEMIC);
 };
 
 /**
@@ -1753,7 +1743,7 @@ export const sendNewResourceNotificationEmail = async (params: {
         </div>
     </div>`;
 
-    await send(to, `New Resource Uploaded: ${resourceTitle} — IFIP`, html);
+    await send(to, `New Resource Uploaded: ${resourceTitle} — IFIP`, html, EMAIL_SENDERS.ACADEMIC);
 };
 
 /**
@@ -1906,7 +1896,7 @@ export const sendModuleTaskReviewedEmail = async (params: {
         </div>
     </div>`;
 
-    await send(to, currentStatus.subject, html);
+    await send(to, currentStatus.subject, html, EMAIL_SENDERS.ACADEMIC);
 };
 
 /**
@@ -1989,7 +1979,7 @@ export const sendModuleTaskReminderEmail = async (params: {
         </div>
     </div>`;
 
-    await send(to, `Reminder: Your Task Submission for ${moduleTitle} — IFIP`, html);
+    await send(to, `Reminder: Your Task Submission for ${moduleTitle} — IFIP`, html, EMAIL_SENDERS.ACADEMIC);
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2039,7 +2029,7 @@ export const sendAdminJobOpeningCreatedEmail = async (
         </div>
     </div>`;
 
-    await send(adminEmail, `New Job Opening for Review: ${openingTitle} (${orgName})`, html);
+    await send(adminEmail, `New Job Opening for Review: ${openingTitle} (${orgName})`, html, EMAIL_SENDERS.ADMIN);
 };
 
 /**
@@ -2080,7 +2070,7 @@ export const sendPartnerJobOpeningOpenedEmail = async (
         </div>
     </div>`;
 
-    await send(partnerEmail, `Job Opening Approved: ${openingTitle}`, html);
+    await send(partnerEmail, `Job Opening Approved: ${openingTitle}`, html, EMAIL_SENDERS.PLACEMENT);
 };
 
 /**
@@ -2127,7 +2117,7 @@ export const sendPartnerJobOpeningRejectedEmail = async (
         </div>
     </div>`;
 
-    await send(partnerEmail, `Update Regarding Job Opening: ${openingTitle}`, html);
+    await send(partnerEmail, `Update Regarding Job Opening: ${openingTitle}`, html, EMAIL_SENDERS.PLACEMENT);
 };
 
 /**
@@ -2179,7 +2169,7 @@ export const sendParticipantJobOpeningAnnouncedEmail = async (
         </div>
     </div>`;
 
-    await send(to, `New Placement Opening: ${openingTitle} at ${orgName}`, html);
+    await send(to, `New Placement Opening: ${openingTitle} at ${orgName}`, html, EMAIL_SENDERS.PLACEMENT);
 };
 
 /**
@@ -2221,7 +2211,7 @@ export const sendPartnerNewJobApplicationAlertEmail = async (
         </div>
     </div>`;
 
-    await send(partnerEmail, `New Application for ${openingTitle}: ${applicantName}`, html);
+    await send(partnerEmail, `New Application for ${openingTitle}: ${applicantName}`, html, EMAIL_SENDERS.PLACEMENT);
 };
 
 /**
@@ -2263,7 +2253,7 @@ export const sendJobApplicationSubmittedEmail = async (
         </div>
     </div>`;
 
-    await send(applicantEmail, `Application Submitted: ${openingTitle} at ${orgName}`, html);
+    await send(applicantEmail, `Application Submitted: ${openingTitle} at ${orgName}`, html, EMAIL_SENDERS.PLACEMENT);
 };
 
 /**
@@ -2316,5 +2306,5 @@ export const sendJobApplicationInterviewScheduledEmail = async (
         </div>
     </div>`;
 
-    await send(applicantEmail, `Interview Scheduled: ${openingTitle} at ${orgName}`, html);
+    await send(applicantEmail, `Interview Scheduled: ${openingTitle} at ${orgName}`, html, EMAIL_SENDERS.PLACEMENT);
 };
