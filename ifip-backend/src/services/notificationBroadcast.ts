@@ -389,7 +389,7 @@ notificationEmitter.on('partner.applied', async ({ email, companyName, contactPe
                     title: 'New Partner Application',
                     message: `A new partnership application has been submitted by "${companyName}" (${contactPerson}).`,
                     type: 'info',
-                    link: '/admin/partners/applications'
+                    link: '/admin/partners?tab=applications'
                 });
 
                 // Send notification email to the admin

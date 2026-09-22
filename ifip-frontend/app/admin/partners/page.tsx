@@ -34,6 +34,8 @@ import {
   getPartnerPoolVisibility,
   setPartnerPoolVisibility,
   PartnerApplicationRecord,
+  getNotifications,
+  markNotificationRead,
 } from "@/lib/api/services";
 import { sendPartnerInvite } from "@/lib/api/partner";
 import { AdminCohortContext } from "../layout";
@@ -400,11 +402,32 @@ export default function AdminPartnersPage() {
 
   // ── Application review handlers ───────────────────────────────────────────
 
-  const openReviewDrawer = (app: PartnerApplicationRecord) => {
+  const openReviewDrawer = async (app: PartnerApplicationRecord) => {
     setReviewingApp(app);
     setAdminNotes(app.adminNotes || "");
     setReviewAction(null);
     setReviewDrawerOpen(true);
+
+    // Automatically mark related unread partner notifications as read
+    try {
+      const allNotifs = await getNotifications(true);
+      const appCompanyName = (app.companyName || "").toLowerCase();
+      const appPerson = (app.contactPerson || "").toLowerCase();
+      const matching = allNotifs.filter(
+        (n) =>
+          !n.read &&
+          (
+            (appCompanyName && n.message?.toLowerCase().includes(appCompanyName)) ||
+            (appPerson && n.message?.toLowerCase().includes(appPerson))
+          )
+      );
+      if (matching.length > 0) {
+        await Promise.allSettled(matching.map((m) => markNotificationRead(m._id)));
+        window.dispatchEvent(new CustomEvent("notifications:refresh"));
+      }
+    } catch {
+      // non-blocking
+    }
   };
 
   const handleReview = async (action: "approve" | "decline") => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   HiOutlineBell as BellIcon,
   HiOutlineCheckCircle as CheckIcon,
@@ -18,6 +18,7 @@ import {
 } from "@/lib/api/services";
 
 export default function NotificationBell() {
+  const router = useRouter();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -35,7 +36,12 @@ export default function NotificationBell() {
     fetchList();
     // Poll every 30 seconds for new alerts
     const interval = setInterval(fetchList, 30000);
-    return () => clearInterval(interval);
+    const handleRefresh = () => fetchList();
+    window.addEventListener("notifications:refresh", handleRefresh);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("notifications:refresh", handleRefresh);
+    };
   }, []);
 
   // Close dropdown on click outside
@@ -60,6 +66,23 @@ export default function NotificationBell() {
       );
     } catch (err) {
       console.error("Failed to mark read:", err);
+    }
+  };
+
+  const handleItemClick = async (n: AppNotification) => {
+    if (!n.read) {
+      setNotifications((prev) =>
+        prev.map((item) => (item._id === n._id ? { ...item, read: true } : item))
+      );
+      try {
+        await markNotificationRead(n._id);
+      } catch (err) {
+        console.error("Failed to mark read:", err);
+      }
+    }
+    setIsOpen(false);
+    if (n.link) {
+      router.push(n.link);
     }
   };
 
@@ -178,7 +201,8 @@ export default function NotificationBell() {
                   return (
                     <div
                       key={n._id}
-                      className={`p-3.5 sm:p-4 flex gap-3 hover:bg-slate-50/70 transition-colors relative group ${
+                      onClick={() => handleItemClick(n)}
+                      className={`p-3.5 sm:p-4 flex gap-3 hover:bg-slate-50 transition-colors relative group cursor-pointer ${
                         !n.read ? "bg-sky-50/20 border-l-2 " + styles.border : ""
                       }`}
                     >
@@ -197,13 +221,9 @@ export default function NotificationBell() {
                         <div className="flex items-center justify-between text-[10px] text-slate-400">
                           <span>{formatDate(n.createdAt)}</span>
                           {n.link && (
-                            <Link
-                              href={n.link}
-                              onClick={() => setIsOpen(false)}
-                              className="text-[#006591] font-bold hover:underline"
-                            >
+                            <span className="text-[#006591] font-bold hover:underline flex items-center gap-0.5">
                               View details &rarr;
-                            </Link>
+                            </span>
                           )}
                         </div>
                       </div>
