@@ -500,9 +500,6 @@ export default function AdminPartnersPage() {
             <HiOutlineBriefcase className="w-8 h-8 text-emerald-600 shrink-0" />
             <span>Placement Partners Desk</span>
           </h1>
-          <p className="text-slate-500 text-sm">
-            Manage partner organizations and review incoming partnership applications.
-          </p>
         </div>
         {activeTab === "organizations" && (
           <button
@@ -878,19 +875,19 @@ export default function AdminPartnersPage() {
               <div className="flex flex-col gap-1.5">
                 <label className="font-bold text-slate-700">Organization Name *</label>
                 <input type="text" required value={name} onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600" placeholder="e.g. Organization Name" />
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600" placeholder="Organization name" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="font-bold text-slate-700">Description</label>
                 <textarea value={description} onChange={(e) => setDescription(e.target.value)}
                   className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600 min-h-[72px]"
-                  placeholder="Briefly describe the partner organization..." />
+                  placeholder="" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="font-bold text-slate-700">Website URL</label>
                 <input type="url" value={website} onChange={(e) => setWebsite(e.target.value)}
                   className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600"
-                  placeholder="e.g. https://yourorganization.com" />
+                  placeholder="https://..." />
               </div>
               {/* Contact Details */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl">
@@ -903,20 +900,19 @@ export default function AdminPartnersPage() {
                   <label className="font-bold text-slate-700 text-xs">Contact Person Name</label>
                   <input type="text" value={contactPerson} onChange={(e) => setContactPerson(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-500 text-sm"
-                    placeholder="e.g. John Smith" />
+                    placeholder="John Smith" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="font-bold text-slate-700 text-xs">Contact Email <span className="text-emerald-600">*</span></label>
                   <input type="email" required value={contactEmail} onChange={(e) => setContactEmail(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-500 text-sm"
-                    placeholder="e.g. partner@company.com" />
-                  <span className="text-[10px] text-slate-400">Used to send the portal invite email.</span>
+                    placeholder="partner@company.com" />
                 </div>
                 <div className="flex flex-col gap-1.5 sm:col-span-2">
                   <label className="font-bold text-slate-700 text-xs">Contact Phone Number</label>
                   <input type="text" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600 text-sm"
-                    placeholder="e.g. +234 800 000 0000" />
+                    placeholder="+234 800 000 0000" />
                 </div>
               </div>
               <div className="flex flex-col gap-4">
@@ -925,15 +921,12 @@ export default function AdminPartnersPage() {
                   <input type="number" required min={0} value={activeSlots} onChange={(e) => setActiveSlots(Number(e.target.value))}
                     className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600"
                     disabled={hasOpenings} />
-                  {hasOpenings && (
-                    <span className="text-[10px] text-slate-400 mt-1">Slots are calculated automatically from the active openings counts.</span>
-                  )}
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="font-bold text-slate-700">Sector Tags <span className="font-normal text-slate-400">(comma-separated)</span></label>
                   <input type="text" value={sectorTagsInput} onChange={(e) => setSectorTagsInput(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600"
-                    placeholder="e.g. Finance, Advisory" />
+                    placeholder="Finance, Advisory" />
                 </div>
               </div>
 
@@ -979,7 +972,7 @@ export default function AdminPartnersPage() {
                               value={op.role}
                               onChange={(e) => updateOpeningField(index, "role", e.target.value)}
                               className="px-2 py-1 border border-slate-200 rounded text-xs"
-                              placeholder="e.g. Associate Analyst"
+                              placeholder="Role title"
                             />
                           </div>
                           <div className="flex flex-col gap-1">
@@ -1017,7 +1010,7 @@ export default function AdminPartnersPage() {
                                 value={op.location || ""}
                                 onChange={(e) => updateOpeningField(index, "location", e.target.value)}
                                 className="px-2 py-1 border border-slate-200 rounded text-xs"
-                                placeholder="e.g. Lagos, Nigeria"
+                                placeholder="Location"
                               />
                             </div>
                           )}
@@ -1067,7 +1060,7 @@ export default function AdminPartnersPage() {
                     <span className="text-xs text-slate-400 font-medium">Or enter image URL manually:</span>
                     <input type="text" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)}
                       className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600 text-xs disabled:bg-slate-50 disabled:text-slate-400"
-                      placeholder="e.g. https://res.cloudinary.com/..." disabled={!!logoFile} />
+                      placeholder="https://..." disabled={!!logoFile} />
                   </div>
                 </div>
               </div>
@@ -1226,13 +1219,13 @@ export default function AdminPartnersPage() {
                 <div className="border-t border-slate-100 pt-5 flex flex-col gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-sm font-bold text-slate-700">
-                      Admin Notes <span className="font-normal text-slate-400">(optional — included in decline email)</span>
+                      Admin Notes
                     </label>
                     <textarea
                       value={adminNotes}
                       onChange={(e) => setAdminNotes(e.target.value)}
                       rows={3}
-                      placeholder="Add a reason for your decision, feedback for the applicant, or internal notes..."
+                      placeholder=""
                       className="w-full px-4 py-3 border border-[#E7E2D8] rounded-xl text-sm focus:outline-none focus:border-[#000666] resize-none transition-colors"
                     />
                   </div>

@@ -401,7 +401,7 @@ export default function AdminCouponsPage() {
           <HiOutlineMagnifyingGlass className="w-4 h-4 text-on-surface-variant/60 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search code (e.g. SCHOLAR)..."
+            placeholder="Search coupons"
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -632,7 +632,7 @@ export default function AdminCouponsPage() {
                 </div>
                 <input
                   type="text"
-                  placeholder="e.g. SCHOLAR100"
+                  placeholder="Coupon code"
                   value={formCode}
                   onChange={(e) => setFormCode(e.target.value.toUpperCase())}
                   className="w-full border border-outline-variant/40 rounded-xl px-4 py-3 text-sm font-mono font-bold tracking-wider uppercase focus:outline-none focus:border-primary bg-slate-50/50"
@@ -653,11 +653,6 @@ export default function AdminCouponsPage() {
                     onChange={(e) => setFormDiscountPercent(e.target.value)}
                     className="w-32 border border-outline-variant/40 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-primary bg-slate-50/50"
                   />
-                  <span className="text-xs text-on-surface-variant font-medium">
-                    {Number(formDiscountPercent) === 100
-                      ? "⚡ 100% Discount = Bypasses Flutterwave completely"
-                      : `Applies a ${formDiscountPercent}% reduction to the levy fee`}
-                  </span>
                 </div>
               </div>
 
@@ -681,25 +676,22 @@ export default function AdminCouponsPage() {
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="Message displayed to applicant when attempting to redeem an expired code..."
+                  placeholder=""
                   value={formExpiredMessage}
                   onChange={(e) => setFormExpiredMessage(e.target.value)}
                   className="w-full border border-outline-variant/40 rounded-xl p-3.5 text-xs font-medium focus:outline-none focus:border-primary bg-slate-50/50"
                 />
-                <span className="text-[10px] text-on-surface-variant/70 mt-1 block">
-                  * Displayed directly to applicants if redemption is attempted after the expiration timestamp.
-                </span>
               </div>
 
               {/* Max Uses Pool Cap */}
               <div>
                 <label className="text-xs font-bold uppercase text-primary block mb-1.5">
-                  Usage Cap / Max Redemptions (Optional)
+                  Usage Cap
                 </label>
                 <input
                   type="number"
                   min="1"
-                  placeholder="Leave empty for unlimited redemptions"
+                  placeholder=""
                   value={formMaxUses}
                   onChange={(e) => setFormMaxUses(e.target.value)}
                   className="w-full border border-outline-variant/40 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-primary bg-slate-50/50"

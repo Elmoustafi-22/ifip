@@ -190,9 +190,7 @@ export default function AdminOpeningsPage() {
           <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight mb-1 flex items-center gap-2">
             <HiOutlineCog6Tooth className="w-8 h-8 text-[#FF9800]" /> Active Openings Manager
           </h1>
-          <p className="text-slate-500 text-sm">
-            Manage placement positions and career pathway listings shown to public site visitors.
-          </p>
+
         </div>
         <button
           onClick={openCreateModal}
@@ -465,7 +463,7 @@ export default function AdminOpeningsPage() {
                   required
                   value={title}
                   onChange={e => setTitle(e.target.value)}
-                  placeholder="e.g. Digital Marketing Intern"
+                  placeholder="Position title"
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#000666]"
                 />
               </div>
@@ -477,7 +475,7 @@ export default function AdminOpeningsPage() {
                   required
                   value={department}
                   onChange={e => setDepartment(e.target.value)}
-                  placeholder="e.g. Marketing & Communications"
+                  placeholder="Department"
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#000666]"
                 />
               </div>
@@ -503,7 +501,7 @@ export default function AdminOpeningsPage() {
                     required
                     value={location}
                     onChange={e => setLocation(e.target.value)}
-                    placeholder="e.g. Lagos, Kano, or Remote"
+                    placeholder="Location"
                     className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#000666]"
                   />
                 </div>
@@ -515,7 +513,7 @@ export default function AdminOpeningsPage() {
                   type="number"
                   value={order}
                   onChange={e => setOrder(e.target.value)}
-                  placeholder={`Defaults to end of list (${openings.length})`}
+                  placeholder=""
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#000666]"
                 />
               </div>

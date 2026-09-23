@@ -2155,7 +2155,7 @@ export const sendParticipantJobOpeningAnnouncedEmail = async (
                     </div>
                 </div>
                 <div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 6px; padding: 14px; margin-bottom: 24px; font-size: 13px; color: #14532D; line-height: 1.6;">
-                    <strong>Application Requirements:</strong> To submit an application, all your available module practical tasks must be completed and approved. You can check your task status and submit your application materials on your dashboard.
+                    <strong>Application Requirements:</strong> To submit an application, you must have at most 1 uncompleted coursework practical task remaining. You can check your task status and submit your application materials on your dashboard.
                 </div>
                 <div style="text-align: center; margin: 28px 0;">
                     <a href="${dashboardUrl}" style="display: inline-block; background-color: #000666; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-size: 14px; font-weight: bold;">

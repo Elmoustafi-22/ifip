@@ -1065,7 +1065,7 @@ notificationEmitter.on('jobOpening.opened', async ({ openingId, title, orgName, 
         const participantNotifications = validApps.map(app => ({
             userId: (app.userId as any)._id,
             title: `New Job Opening: ${title}`,
-            message: `${orgName} is now accepting applications for "${title}" (${workMode}). Complete all your module tasks to apply.`,
+            message: `${orgName} is now accepting applications for "${title}" (${workMode}). Complete your coursework module tasks (maximum 1 pending task allowed) to apply.`,
             type: 'info' as const,
             link: '/dashboard/job-openings',
         }));

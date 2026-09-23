@@ -245,9 +245,7 @@ export default function AdminSchedulePage() {
             <HiOutlineCalendar className="w-8 h-8 text-[#FF9800] shrink-0" />
             <span>Programme Timetable & Calendar Manager</span>
           </h1>
-          <p className="text-slate-500 text-sm">
-            Schedule live Zoom lectures, orientation, async study blocks, and knowledge checks by week.
-          </p>
+
         </div>
         <div className="w-full md:w-auto shrink-0 mt-2 md:mt-0 flex gap-3">
           <button
@@ -498,7 +496,7 @@ export default function AdminSchedulePage() {
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. Live Class: Islamic Social Finance Structuring"
+                    placeholder="Session title"
                     className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs bg-white font-medium"
                     required
                   />
@@ -554,12 +552,12 @@ export default function AdminSchedulePage() {
 
               <div>
                 <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
-                  Description / Instructions for Participants
+                  Description
                 </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Outline key agenda points, prerequisites, or preparation instructions..."
+                  placeholder=""
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs h-16 bg-white"
                 />
               </div>
@@ -567,7 +565,7 @@ export default function AdminSchedulePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
-                    Meeting Platform & Link
+                    Meeting Link
                   </label>
                   <div className="flex gap-2">
                     <select
@@ -584,7 +582,7 @@ export default function AdminSchedulePage() {
                       type="url"
                       value={meetingUrl}
                       onChange={(e) => setMeetingUrl(e.target.value)}
-                      placeholder="https://zoom.us/j/..."
+                      placeholder="Meeting URL"
                       className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs bg-white"
                     />
                   </div>
@@ -608,7 +606,7 @@ export default function AdminSchedulePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
-                    Link to LMS Coursework Module (Optional)
+                    LMS Coursework Module
                   </label>
                   <select
                     value={moduleId}
@@ -626,7 +624,7 @@ export default function AdminSchedulePage() {
 
                 <div>
                   <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
-                    Assigned Cohort (Optional)
+                    Assigned Cohort
                   </label>
                   <select
                     value={sessionCohortId}

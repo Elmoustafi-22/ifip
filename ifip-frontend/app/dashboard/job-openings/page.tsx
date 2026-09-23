@@ -198,16 +198,44 @@ export default function ParticipantJobOpeningsPage() {
       {eligibility && (
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           {eligibility.eligible ? (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
-                <h4 className="text-sm font-semibold text-slate-900">
-                  Coursework Verification Complete
-                </h4>
-                <p className="text-xs text-slate-500 mt-1">
-                  All your required coursework practical tasks have been verified. You can apply directly to any placement opening below.
-                </p>
+            eligibility.incompleteTasks.length === 0 ? (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                    <h4 className="text-sm font-semibold text-slate-900">
+                      Coursework Verification Complete
+                    </h4>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    All your required coursework practical tasks have been verified. You can apply directly to any placement opening below.
+                  </p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                    <h4 className="text-sm font-semibold text-slate-900">
+                      Eligible to Apply (1 Task Remaining)
+                    </h4>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Good to Go
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 max-w-2xl leading-relaxed">
+                    You have completed {eligibility.approvedCount} of {eligibility.totalRequired} coursework task(s). You meet the requirement to apply (maximum 1 pending task allowed). Please make sure to complete your remaining task (<span className="font-medium text-slate-800">{eligibility.incompleteTasks[0]?.moduleTitle}</span>).
+                  </p>
+                </div>
+                <Link
+                  href="/dashboard/modules"
+                  className="inline-flex items-center justify-center px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors shrink-0"
+                >
+                  View Remaining Task
+                </Link>
+              </div>
+            )
           ) : (
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-5">
               <div className="space-y-3">
@@ -216,7 +244,7 @@ export default function ParticipantJobOpeningsPage() {
                     Action Required: Pending Coursework Tasks
                   </h4>
                   <p className="text-xs text-slate-600 mt-1 max-w-2xl leading-relaxed">
-                    You have {eligibility.incompleteTasks.length} pending practical task(s). All required module tasks must be completed and approved before your job applications can be accepted.
+                    You have {eligibility.incompleteTasks.length} pending practical task(s). To be eligible to apply, you must have at most 1 task uncompleted (complete at least {Math.max(1, eligibility.totalRequired - 1)} of {eligibility.totalRequired} tasks).
                   </p>
                 </div>
 
@@ -233,7 +261,7 @@ export default function ParticipantJobOpeningsPage() {
                           {t.taskTitle ? ` — ${t.taskTitle}` : ""}
                         </span>
                         <span className="text-slate-500 text-[11px]">
-                          ({t.submissionStatus === "needs_resubmission" ? "Needs Revision" : "Pending Submission"})
+                          ({t.submissionStatus === "needs_resubmission" ? "Needs Revision" : t.submissionStatus === "pending_review" || t.submissionStatus === "submitted" ? "Under Review" : "Pending Submission"})
                         </span>
                       </li>
                     ))}
@@ -436,10 +464,10 @@ export default function ParticipantJobOpeningsPage() {
           <div className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                Complete Your Pending Tasks to Apply
+                Coursework Requirement for Applications
               </h3>
               <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                To ensure all candidates meet partner quality standards, all currently available coursework tasks must be completed and verified before submitting applications.
+                To ensure all candidates meet partner quality standards, you may have at most 1 uncompleted coursework task remaining before submitting applications. You currently have {eligibility?.incompleteTasks?.length || 0} pending task(s).
               </p>
             </div>
 
@@ -591,7 +619,7 @@ export default function ParticipantJobOpeningsPage() {
                             </label>
                             <textarea
                               rows={2}
-                              placeholder="Detail your experience, coursework, or qualifications relevant to this requirement..."
+                              placeholder=""
                               value={responses[req] || ""}
                               onChange={(e) => handleResponseChange(req, e.target.value)}
                               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666] leading-relaxed resize-none"
@@ -605,11 +633,11 @@ export default function ParticipantJobOpeningsPage() {
                   {/* Optional Cover Note */}
                   <div className="space-y-1 pt-2">
                     <label className="font-bold text-slate-700 uppercase tracking-wider block">
-                      Additional Cover Note (Optional)
+                      Cover Note
                     </label>
                     <textarea
                       rows={3}
-                      placeholder="Introduce yourself to the hiring team and explain why you are interested in this position..."
+                      placeholder=""
                       value={coverNote}
                       onChange={(e) => setCoverNote(e.target.value)}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666] leading-relaxed resize-none"

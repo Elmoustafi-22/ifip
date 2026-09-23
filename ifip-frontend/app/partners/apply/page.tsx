@@ -405,7 +405,7 @@ export default function PartnerApplyPage() {
                 required
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="e.g. Your Company Name"
+                placeholder="Company name"
                 className="w-full px-4 py-3 border border-[#E7E2D8] rounded-xl text-sm focus:outline-none focus:border-[#000666] transition-colors"
               />
             </div>
@@ -418,7 +418,7 @@ export default function PartnerApplyPage() {
                 type="url"
                 value={website}
                 onChange={(e) => setWebsite(e.target.value)}
-                placeholder="e.g. https://yourcompany.com"
+                placeholder="https://..."
                 className="w-full px-4 py-3 border border-[#E7E2D8] rounded-xl text-sm focus:outline-none focus:border-[#000666] transition-colors"
               />
             </div>
@@ -488,7 +488,7 @@ export default function PartnerApplyPage() {
                 min={0}
                 value={activeSlots}
                 onChange={(e) => setActiveSlots(e.target.value === "" ? "" : Number(e.target.value))}
-                placeholder="e.g. 3"
+                placeholder="Number of slots"
                 className="w-full px-4 py-3 border border-[#E7E2D8] rounded-xl text-sm focus:outline-none focus:border-[#000666] transition-colors"
               />
             </div>
@@ -534,7 +534,7 @@ export default function PartnerApplyPage() {
                             required
                             value={op.role}
                             onChange={(e) => updateOpeningField(index, "role", e.target.value)}
-                            placeholder="e.g. Associate Research Analyst"
+                            placeholder="Role title"
                             className="w-full px-3 py-2 border border-[#E7E2D8] rounded-lg text-sm focus:outline-none focus:border-[#000666]"
                           />
                         </div>
@@ -575,7 +575,7 @@ export default function PartnerApplyPage() {
                               required
                               value={op.location}
                               onChange={(e) => updateOpeningField(index, "location", e.target.value)}
-                              placeholder="e.g. Lagos, Nigeria"
+                              placeholder="Location"
                               className="w-full px-3 py-2 border border-[#E7E2D8] rounded-lg text-sm focus:outline-none focus:border-[#000666]"
                             />
                           </div>
@@ -648,7 +648,7 @@ export default function PartnerApplyPage() {
                     required
                     value={contactPerson}
                     onChange={(e) => setContactPerson(e.target.value)}
-                    placeholder="e.g. Your Full Name"
+                    placeholder="Full name"
                     className="w-full px-4 py-3 border border-[#E7E2D8] rounded-xl text-sm focus:outline-none focus:border-[#000666] transition-colors"
                   />
                 </div>
@@ -665,7 +665,7 @@ export default function PartnerApplyPage() {
                       required
                       value={contactEmail}
                       onChange={(e) => setContactEmail(e.target.value)}
-                      placeholder="e.g. contact@yourcompany.com"
+                      placeholder="contact@company.com"
                       className="w-full px-4 py-3 border border-[#E7E2D8] rounded-xl text-sm focus:outline-none focus:border-[#000666] transition-colors"
                     />
                   </div>
@@ -681,7 +681,7 @@ export default function PartnerApplyPage() {
                       required
                       value={contactPhone}
                       onChange={(e) => setContactPhone(e.target.value)}
-                      placeholder="e.g. +000 800 000 0000"
+                      placeholder="+000 000 000 0000"
                       className="w-full px-4 py-3 border border-[#E7E2D8] rounded-xl text-sm focus:outline-none focus:border-[#000666] transition-colors"
                     />
                   </div>

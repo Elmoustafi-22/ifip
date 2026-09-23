@@ -215,9 +215,6 @@ export default function AdminPaymentsPage() {
               <Hi2.HiOutlineCreditCard className="w-7 h-7 text-[#FF9800]" />
               Payment Records
             </h1>
-            <p className="text-slate-500 text-sm mt-0.5">
-              Track, investigate, and resolve payment conflicts for all applicants.
-            </p>
           </div>
         </div>
         <button
@@ -721,13 +718,13 @@ export default function AdminPaymentsPage() {
 
                         <div>
                           <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1.5">
-                            Reason / Note (optional)
+                            Reason / Note
                           </label>
                           <textarea
                             rows={2}
                             value={resolveNote}
                             onChange={(e) => setResolveNote(e.target.value)}
-                            placeholder="e.g. Confirmed payment receipt via bank statement..."
+                            placeholder=""
                             className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-[#00B0FF] resize-none bg-white placeholder-slate-400"
                           />
                         </div>

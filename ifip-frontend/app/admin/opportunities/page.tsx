@@ -215,9 +215,7 @@ export default function AdminOpportunitiesPage() {
           <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight mb-1 flex items-center gap-2">
             <HiOutlineCog6Tooth className="w-8 h-8 text-[#FF9800]" /> Opportunities Editor
           </h1>
-          <p className="text-slate-500 text-sm">
-            Configure internship pathways and opportunity categories displayed on the landing page.
-          </p>
+
         </div>
         <button
           onClick={openCreateModal}
@@ -495,7 +493,7 @@ export default function AdminOpportunitiesPage() {
                   required
                   value={category}
                   onChange={e => setCategory(e.target.value)}
-                  placeholder="e.g. Shariah Audit & Advisory"
+                  placeholder="Category name"
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#000666]"
                 />
               </div>
@@ -506,7 +504,7 @@ export default function AdminOpportunitiesPage() {
                   required
                   value={rolesInput}
                   onChange={e => setRolesInput(e.target.value)}
-                  placeholder="e.g. Shariah Auditor Intern, Compliance Intern, Audit Assistant"
+                  placeholder="Roles (comma-separated)"
                   rows={3}
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#000666] resize-none"
                 />

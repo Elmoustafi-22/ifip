@@ -540,11 +540,11 @@ export default function MyPlacementsPage() {
             <form onSubmit={handleSaveNotes} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Internal Notes (Visible only to your organisation)
+                  Internal Notes
                 </label>
                 <textarea
                   rows={4}
-                  placeholder="Enter internal comments or interview feedback..."
+                  placeholder=""
                   value={notesText}
                   onChange={(e) => setNotesText(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] resize-none"

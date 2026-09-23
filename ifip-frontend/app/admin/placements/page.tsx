@@ -330,9 +330,6 @@ export default function AdminPlacementsPage() {
             </div>
             <span>Placements Matchmaking Desk</span>
           </h1>
-          <p className="text-slate-500 text-xs sm:text-sm mt-1">
-            Track candidates matched to partner institutions, manage talent pipeline, and oversee interview outcomes.
-          </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Link
@@ -523,7 +520,7 @@ export default function AdminPlacementsPage() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search candidate name, email, or company..."
+                  placeholder="Search candidates"
                   className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-9 pr-8 text-xs text-slate-800 focus:outline-none focus:border-[#000666]"
                 />
                 {searchQuery && (
@@ -939,7 +936,7 @@ export default function AdminPlacementsPage() {
                   type="text" 
                   value={matchArea}
                   onChange={(e) => setMatchArea(e.target.value)}
-                  placeholder="e.g. Islamic Banking Analyst, Shariah Audit"
+                  placeholder="Target role or pathway"
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500 text-xs"
                 />
               </div>
@@ -951,7 +948,7 @@ export default function AdminPlacementsPage() {
                 <textarea 
                   value={matchNotes}
                   onChange={(e) => setMatchNotes(e.target.value)}
-                  placeholder="Insert schedule info or instructions..."
+                  placeholder=""
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500 text-xs h-20 bg-white"
                 />
               </div>
@@ -996,19 +993,19 @@ export default function AdminPlacementsPage() {
               <div className="flex flex-col gap-1.5">
                 <label className="font-bold text-slate-700">Organization Name *</label>
                 <input type="text" required value={newPartnerName} onChange={(e) => setNewPartnerName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600 text-xs" placeholder="e.g. Organization Name" />
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600 text-xs" placeholder="Organization name" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="font-bold text-slate-700">Description</label>
                 <textarea value={newPartnerDesc} onChange={(e) => setNewPartnerDesc(e.target.value)}
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600 min-h-[72px] text-xs"
-                  placeholder="Briefly describe the partner organization..." />
+                  placeholder="" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="font-bold text-slate-700">Website URL</label>
                 <input type="url" value={newPartnerWebsite} onChange={(e) => setNewPartnerWebsite(e.target.value)}
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600 text-xs"
-                  placeholder="e.g. https://yourorganization.com" />
+                  placeholder="https://..." />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
@@ -1020,7 +1017,7 @@ export default function AdminPlacementsPage() {
                   <label className="font-bold text-slate-700">Sector Tags <span className="font-normal text-slate-400">(csv)</span></label>
                   <input type="text" value={newPartnerTags} onChange={(e) => setNewPartnerTags(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600 text-xs"
-                    placeholder="e.g. Finance, Advisory" />
+                    placeholder="Finance, Advisory" />
                 </div>
               </div>
               <div className="flex flex-col gap-2 border-t border-slate-100 pt-4">
@@ -1056,7 +1053,7 @@ export default function AdminPlacementsPage() {
                     <span className="text-xs text-slate-400 font-medium">Or enter image URL manually:</span>
                     <input type="text" value={newPartnerLogoUrl} onChange={(e) => setNewPartnerLogoUrl(e.target.value)}
                       className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600 text-xs disabled:bg-slate-50 disabled:text-slate-400"
-                      placeholder="e.g. https://res.cloudinary.com/..." disabled={!!newPartnerLogoFile} />
+                      placeholder="https://..." disabled={!!newPartnerLogoFile} />
                   </div>
                 </div>
               </div>

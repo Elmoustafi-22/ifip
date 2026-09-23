@@ -869,7 +869,7 @@ export default function AssessmentTakingPage({ params }: { params: Promise<{ mod
                   <div className="pt-2">
                     <textarea
                       rows={4}
-                      placeholder="Type your answer here based on what you learned in the module..."
+                      placeholder=""
                       value={textAnswers[currentQ._id] || ''}
                       onChange={(e) => handleTextChange(currentQ._id, e.target.value)}
                       className="w-full border border-slate-200 rounded-xl p-4 text-xs focus:outline-none focus:border-[#000666] font-semibold text-[#000666]"

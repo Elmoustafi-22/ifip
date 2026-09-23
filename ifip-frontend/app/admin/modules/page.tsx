@@ -673,9 +673,7 @@ export default function AdminModulesPage() {
             <HiOutlineBookOpen className="w-6 h-6 sm:w-7 sm:h-7 text-[#000666] shrink-0" />
             <span>Curriculum &amp; Coursework Editor</span>
           </h1>
-          <p className="text-slate-500 text-xs sm:text-sm max-w-2xl leading-relaxed">
-            Manage structural syllabus outlines, weekly schedules, learning materials, and coursework tasks.
-          </p>
+
         </div>
         <div className="w-full sm:w-auto shrink-0 flex items-center gap-2.5">
           <Link
@@ -1077,7 +1075,6 @@ export default function AdminModulesPage() {
                 <HiOutlineListBullet className={`w-4 h-4 shrink-0 ${activeTab === "outline" ? "text-[#FF9800]" : "text-slate-400"}`} />
                 <div className="text-left sm:text-center min-w-0">
                   <span className="block text-xs font-bold truncate">1. Syllabus Outline</span>
-                  <span className="hidden sm:block text-[10px] font-normal text-slate-400">Topics &amp; Outcomes</span>
                 </div>
               </button>
 
@@ -1092,7 +1089,6 @@ export default function AdminModulesPage() {
                 <HiOutlineDocumentText className={`w-4 h-4 shrink-0 ${activeTab === "content" ? "text-[#FF9800]" : "text-slate-400"}`} />
                 <div className="text-left sm:text-center min-w-0">
                   <span className="block text-xs font-bold truncate">2. Learning Content</span>
-                  <span className="hidden sm:block text-[10px] font-normal text-slate-400">Reading &amp; Materials</span>
                 </div>
               </button>
             </div>
@@ -1104,13 +1100,13 @@ export default function AdminModulesPage() {
                 {/* Module Title */}
                 <div>
                   <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5 block">
-                    Module Title / Header *
+                    Title *
                   </label>
                   <input
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. Module 1: Foundations of Islamic Economics & Humanitarian Finance"
+                    placeholder="Module title"
                     className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs bg-white font-medium"
                     required
                   />
@@ -1120,7 +1116,7 @@ export default function AdminModulesPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5 block">
-                      Display Sequence Order *
+                      Order *
                     </label>
                     <input
                       type="number"
@@ -1133,7 +1129,7 @@ export default function AdminModulesPage() {
                   </div>
                   <div>
                     <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5 block">
-                      Programme Week
+                      Week
                     </label>
                     <select
                       value={weekNumber}
@@ -1155,9 +1151,9 @@ export default function AdminModulesPage() {
                       onChange={(e) => setModuleStatus(e.target.value as any)}
                       className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 text-xs bg-white font-bold text-[#000666]"
                     >
-                      <option value="draft">Draft (Hidden from participants)</option>
-                      <option value="published">Published (Visible to participants)</option>
-                      <option value="archived">Archived (Hidden / Read-only)</option>
+                      <option value="draft">Draft</option>
+                      <option value="published">Published</option>
+                      <option value="archived">Archived</option>
                     </select>
                   </div>
                 </div>
@@ -1165,7 +1161,7 @@ export default function AdminModulesPage() {
                 {/* Module Purpose & Overview Summary */}
                 <div>
                   <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5 block">
-                    Module Purpose &amp; Overview Summary *
+                    Description *
                   </label>
                   <textarea
                     value={description}
@@ -1174,7 +1170,7 @@ export default function AdminModulesPage() {
                       setPurpose(e.target.value);
                     }}
                     rows={3}
-                    placeholder="Describe why this module exists, its overview summary, and fundamental principles imparted..."
+                    placeholder="Module overview"
                     className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs bg-white resize-y"
                     required
                   />
@@ -1185,7 +1181,7 @@ export default function AdminModulesPage() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-700">Module Task</p>
-                    <h4 className="text-sm font-black text-[#000666] mt-1">Ask participants to complete a task linked to this module</h4>
+
                   </div>
                   <label className="inline-flex items-center gap-2 text-[11px] font-bold text-slate-700">
                     <input
@@ -1207,7 +1203,7 @@ export default function AdminModulesPage() {
                       type="text"
                       value={moduleTaskTitle}
                       onChange={(e) => setModuleTaskTitle(e.target.value)}
-                      placeholder="e.g. Complete the course certificate task"
+                      placeholder="Task title"
                       className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs bg-white"
                     />
                   </div>
@@ -1219,7 +1215,7 @@ export default function AdminModulesPage() {
                     <textarea
                       value={moduleTaskDescription}
                       onChange={(e) => setModuleTaskDescription(e.target.value)}
-                      placeholder="Brief explanation of the task participants need to do."
+                      placeholder="Task description"
                       className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs bg-white h-[72px]"
                     />
                   </div>
@@ -1231,14 +1227,14 @@ export default function AdminModulesPage() {
                     <textarea
                       value={moduleTaskInstructions}
                       onChange={(e) => setModuleTaskInstructions(e.target.value)}
-                      placeholder="Explain exactly what the participant should do, such as taking a course or uploading a screenshot and certificate."
+                      placeholder="Task instructions"
                       className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs bg-white h-[90px]"
                     />
                   </div>
 
                   <div className="flex flex-col justify-end">
                     <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
-                      Task Evidence Requirement
+                      Evidence
                     </label>
                     <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 h-[38px]">
                       <input
@@ -1260,7 +1256,7 @@ export default function AdminModulesPage() {
                       type="text"
                       value={moduleTaskEvidenceLabel}
                       onChange={(e) => setModuleTaskEvidenceLabel(e.target.value)}
-                      placeholder="Certificate of completion"
+                      placeholder="Evidence label"
                       className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs bg-white"
                     />
                   </div>
@@ -1268,7 +1264,7 @@ export default function AdminModulesPage() {
                   <div className="sm:col-span-2">
                     <div className="flex flex-wrap items-center justify-between gap-1.5 mb-2">
                       <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block">
-                        Accepted file types {moduleTaskAllowedFileTypes.length > 0 ? `(${moduleTaskAllowedFileTypes.length} selected)` : "(any format allowed)"}
+                        File Types
                       </label>
                       <div className="flex items-center gap-2">
                         <button
@@ -1339,7 +1335,7 @@ export default function AdminModulesPage() {
 
                   <div>
                     <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
-                      Due date & time
+                      Due Date
                     </label>
                     <input
                       type="datetime-local"
@@ -1351,13 +1347,13 @@ export default function AdminModulesPage() {
 
                   <div>
                     <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
-                      Optional due note
+                      Due Note
                     </label>
                     <input
                       type="text"
                       value={moduleTaskDueText}
                       onChange={(e) => setModuleTaskDueText(e.target.value)}
-                      placeholder="Due within 7 days of module completion"
+                      placeholder="Due note"
                       className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 text-xs bg-white"
                     />
                   </div>
@@ -1367,13 +1363,7 @@ export default function AdminModulesPage() {
               {/* TAB 1: OUTLINE & SYLLABUS BREAKDOWN */}
               {activeTab === "outline" && (
                 <div className="space-y-6">
-                  {/* Tip banner */}
-                  <div className="bg-sky-50 border border-sky-200/80 rounded-xl p-3.5 flex items-start gap-2.5 text-xs text-sky-800">
-                    <HiOutlineLightBulb className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />
-                    <div>
-                      <strong className="font-bold">Smart Multi-Line Paste Active:</strong> You can copy a numbered or bulleted list directly from your curriculum doc/PDF and paste (Ctrl+V) into any objective, topic, or subtopic field. It will automatically strip the numbers/bullets and generate separate list items for you!
-                    </div>
-                  </div>
+
 
                   {/* Learning Objectives */}
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
@@ -1382,7 +1372,6 @@ export default function AdminModulesPage() {
                         <label className="text-xs font-bold text-[#000666] uppercase tracking-wider block">
                           Learning Objectives
                         </label>
-                        <span className="text-[10px] text-slate-400">Paste multi-line text directly below or use the bulk paste tool</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
@@ -1420,7 +1409,7 @@ export default function AdminModulesPage() {
                           value={obj}
                           onChange={(e) => updateObjective(i, e.target.value)}
                           onPaste={(e) => handlePasteObjectives(e, i)}
-                          placeholder="e.g. Understand the core principles of Zakat, Waqf, and Sadaqah (or paste multi-line list)"
+                          placeholder="Learning objective"
                           className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-sky-500 font-medium"
                         />
                         {learningObjectives.length > 1 && (
@@ -1442,11 +1431,8 @@ export default function AdminModulesPage() {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <h4 className="text-xs font-bold text-[#000666] uppercase tracking-wider">
-                          Module Topic Breakdown (Sections & Activities)
+                          Topics
                         </h4>
-                        <p className="text-[11px] text-slate-500">
-                          Structured outline of topics, subtopics, recommended activities, and reference materials.
-                        </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
@@ -1523,7 +1509,7 @@ export default function AdminModulesPage() {
                             value={topic.title}
                             onChange={(e) => updateTopicTitle(tIdx, e.target.value)}
                             onPaste={(e) => handlePasteTopicTitle(e, tIdx)}
-                            placeholder="e.g. 1.1 Overview of Islamic Social Finance Tools (or paste multi-line list)"
+                            placeholder="Topic title"
                             className="w-full font-bold text-xs sm:text-sm px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50/60 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 transition-all"
                           />
                         </div>
@@ -1533,7 +1519,6 @@ export default function AdminModulesPage() {
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div>
                               <span className="text-xs font-bold text-slate-700 block">Subtopics &amp; Key Concepts</span>
-                              <span className="text-[10px] text-slate-400">Add key bullet points or paste lists</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <button
@@ -1576,7 +1561,7 @@ export default function AdminModulesPage() {
                                   value={sub}
                                   onChange={(e) => updateSubtopic(tIdx, sIdx, e.target.value)}
                                   onPaste={(e) => handlePasteSubtopics(e, tIdx, sIdx)}
-                                  placeholder="Subtopic key concept (or paste multi-line bullet points)..."
+                                  placeholder="Subtopic"
                                   className="flex-1 text-xs px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-sky-500 font-medium"
                                 />
                                 {(topic.subtopics || []).length > 1 && (
@@ -1598,13 +1583,13 @@ export default function AdminModulesPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
                           <div>
                             <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5 block">
-                              Learning Activity (Optional)
+                              Activity
                             </label>
                             <input
                               type="text"
                               value={topic.learningActivity || ""}
                               onChange={(e) => updateTopicActivity(tIdx, e.target.value)}
-                              placeholder="e.g. Breakout group exercise: Waqf structuring"
+                              placeholder="Learning activity"
                               className="w-full text-xs px-3.5 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20"
                             />
                           </div>
@@ -1612,7 +1597,7 @@ export default function AdminModulesPage() {
                           <div>
                             <div className="flex items-center justify-between mb-1.5">
                               <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block">
-                                Required External Materials
+                                Materials
                               </label>
                               <button
                                 type="button"
@@ -1633,14 +1618,14 @@ export default function AdminModulesPage() {
                                       type="text"
                                       value={mat.label}
                                       onChange={(e) => updateMaterial(tIdx, mIdx, "label", e.target.value)}
-                                      placeholder="Label (e.g. DisasterReady)"
+                                      placeholder="Material label"
                                       className="flex-1 text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none"
                                     />
                                     <input
                                       type="url"
                                       value={mat.url || ""}
                                       onChange={(e) => updateMaterial(tIdx, mIdx, "url", e.target.value)}
-                                      placeholder="https://..."
+                                      placeholder="URL"
                                       className="flex-1 text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none"
                                     />
                                     <button
@@ -1677,7 +1662,6 @@ export default function AdminModulesPage() {
                         <label className="text-xs font-bold text-[#000666] uppercase tracking-wider block">
                           Action Items &amp; Deliverables
                         </label>
-                        <span className="text-[10px] text-slate-400">Course links, tasks, and certificate instructions (links will be clickable)</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
@@ -1715,7 +1699,7 @@ export default function AdminModulesPage() {
                           value={outc}
                           onChange={(e) => updateOutcome(i, e.target.value)}
                           onPaste={(e) => handlePasteOutcomes(e, i)}
-                          placeholder="e.g. Complete the AltInstitute course at https://altinstitute.ng/ and upload certificate"
+                          placeholder="Action item"
                           className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-sky-500 font-medium"
                         />
                         {expectedOutcomes.length > 1 && (
@@ -1740,7 +1724,7 @@ export default function AdminModulesPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
-                        Content Delivery Format
+                        Format
                       </label>
                       <select
                         value={contentType}
@@ -1756,7 +1740,7 @@ export default function AdminModulesPage() {
                     </div>
                     <div>
                       <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
-                        Assigned Cohort (Optional)
+                        Cohort
                       </label>
                       <select
                         value={moduleCohortId}
@@ -1776,13 +1760,13 @@ export default function AdminModulesPage() {
                   {contentType === "video" && (
                     <div>
                       <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">
-                        Video Embed / Stream URL
+                        Video URL
                       </label>
                       <input
                         type="url"
                         value={contentUrl}
                         onChange={(e) => setContentUrl(e.target.value)}
-                        placeholder="https://youtube.com/embed/..."
+                        placeholder="Video URL"
                         className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500 text-xs bg-white"
                         required={contentType === "video"}
                       />
@@ -1900,18 +1884,13 @@ export default function AdminModulesPage() {
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
-                          Online Reading Material / Text Editor {pdfUrl ? "(Optional — PDF attached)" : "(Optional)"}
+                          Online Reading Material / Text Editor
                         </label>
-                        {pdfUrl && (
-                          <span className="text-[10px] text-slate-400 italic">
-                            The uploaded PDF above will serve as the primary study pack.
-                          </span>
-                        )}
                       </div>
                       <RichTextEditor
                         value={body}
                         onChange={(html) => setBody(html)}
-                        placeholder="Optional: Write or paste online e-book learning materials, summary notes, or guidance..."
+                        placeholder=""
                       />
                     </div>
                   )}
@@ -2090,7 +2069,7 @@ export default function AdminModulesPage() {
                     <textarea
                       value={bulkPasteText}
                       onChange={(e) => setBulkPasteText(e.target.value)}
-                      placeholder="1. First item...&#10;2. Second item...&#10;3. Third item..."
+                      placeholder=""
                       className="w-full h-56 p-3.5 border border-slate-200 rounded-xl text-xs font-mono bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF9800]/20 leading-relaxed"
                       autoFocus
                     />
@@ -2506,7 +2485,7 @@ export default function AdminModulesPage() {
                                       [selectedSubmission._id]: { ...prev[selectedSubmission._id], feedback: e.target.value },
                                     }))}
                                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 resize-none focus:outline-none focus:ring-2 focus:ring-sky-100"
-                                    placeholder="Add comments or guidance to send back to the participant..."
+                                    placeholder=""
                                   />
                                 </div>
                               </div>

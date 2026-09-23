@@ -527,9 +527,6 @@ export default function PendingApplicantsPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-[#000666] tracking-tight">
             Pending Applicants Tracker
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
-            Monitor non-paid applicants who have not completed checkout, inspect responses, and send outreach reminders.
-          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
           <button
@@ -616,7 +613,7 @@ export default function PendingApplicantsPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, email, or phone number..."
+              placeholder="Search applicants..."
               className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white text-slate-900 transition"
             />
           </div>
@@ -1210,7 +1207,7 @@ export default function PendingApplicantsPage() {
                   type="text"
                   value={emailSubject}
                   onChange={(e) => setEmailSubject(e.target.value)}
-                  placeholder="Enter email subject line..."
+                  placeholder=""
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 text-xs"
                 />
               </div>
@@ -1224,7 +1221,7 @@ export default function PendingApplicantsPage() {
                   rows={7}
                   value={emailBody}
                   onChange={(e) => setEmailBody(e.target.value)}
-                  placeholder="Type your message content here..."
+                  placeholder=""
                   className="w-full p-3 bg-white border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 text-xs leading-relaxed"
                 />
               </div>
@@ -1869,7 +1866,7 @@ export default function PendingApplicantsPage() {
                     type="number"
                     value={manualAmount}
                     onChange={(e) => setManualAmount(e.target.value)}
-                    placeholder="e.g. 20000"
+                    placeholder="Amount"
                     className="w-full text-xs font-medium px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
@@ -1881,7 +1878,7 @@ export default function PendingApplicantsPage() {
                     type="text"
                     value={manualRef}
                     onChange={(e) => setManualRef(e.target.value)}
-                    placeholder="e.g. GTB-TRX-98213"
+                    placeholder="Reference code"
                     className="w-full text-xs font-medium px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
@@ -1890,13 +1887,13 @@ export default function PendingApplicantsPage() {
               {/* Notes */}
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                  Admin Notes (Optional)
+                  Admin Notes
                 </label>
                 <textarea
                   rows={2}
                   value={manualNotes}
                   onChange={(e) => setManualNotes(e.target.value)}
-                  placeholder="e.g. Confirmed bank transfer via GTBank statement..."
+                  placeholder=""
                   className="w-full text-xs font-medium px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none"
                 />
               </div>

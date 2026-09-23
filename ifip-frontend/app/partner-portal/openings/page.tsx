@@ -386,7 +386,7 @@ export default function PartnerOpeningsPage() {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Junior Islamic Finance Analyst"
+                      placeholder="Role title"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666]"
@@ -399,7 +399,7 @@ export default function PartnerOpeningsPage() {
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. Shariah Advisory & Compliance"
+                      placeholder="Department"
                       value={department}
                       onChange={(e) => setDepartment(e.target.value)}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666]"
@@ -445,7 +445,7 @@ export default function PartnerOpeningsPage() {
                     </label>
                     <input
                       type="text"
-                      placeholder={workMode === "Remote" ? "Optional for remote" : "City, Country or Office address"}
+                      placeholder="Office location"
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
                       required={workMode !== "Remote"}
@@ -474,7 +474,7 @@ export default function PartnerOpeningsPage() {
                   </label>
                   <textarea
                     rows={3}
-                    placeholder="Describe the tasks, projects, and learning opportunities the intern will undertake..."
+                    placeholder="Role description"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666] leading-relaxed resize-none"
@@ -487,9 +487,6 @@ export default function PartnerOpeningsPage() {
                     <label className="font-bold text-slate-700 uppercase tracking-wider">
                       Specific Job Requirements
                     </label>
-                    <span className="text-[11px] text-slate-500">
-                      Candidates answer these when applying
-                    </span>
                   </div>
 
                   {requirements.length > 0 && (
@@ -516,7 +513,7 @@ export default function PartnerOpeningsPage() {
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="e.g. Strong knowledge of Sukuk structures..."
+                      placeholder="Add a requirement"
                       value={reqInput}
                       onChange={(e) => setReqInput(e.target.value)}
                       onKeyDown={(e) => {

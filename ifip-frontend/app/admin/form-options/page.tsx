@@ -229,9 +229,6 @@ export default function AdminFormOptionsPage() {
           <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight mb-1 flex items-center gap-2">
             <HiOutlineCog6Tooth className="w-8 h-8 text-[#FF9800]" /> Dynamic Form Options
           </h1>
-          <p className="text-slate-500 text-sm">
-            Configure dropdown menus and checkbox listings dynamically without rebuilding or redeploying code.
-          </p>
         </div>
       </div>
 
@@ -400,23 +397,20 @@ export default function AdminFormOptionsPage() {
                 required
                 value={newLabel}
                 onChange={e => setNewLabel(e.target.value)}
-                placeholder="e.g. Halal Advisory"
+                placeholder="Option label"
                 className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#000666]"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold uppercase text-slate-500 tracking-wide">Value Override (Optional)</label>
+              <label className="text-xs font-bold uppercase text-slate-500 tracking-wide">Value Override</label>
               <input
                 type="text"
                 value={newValue}
                 onChange={e => setNewValue(e.target.value)}
-                placeholder="e.g. halal_advisory"
+                placeholder="Option value"
                 className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#000666]"
               />
-              <span className="text-[10px] text-slate-400 leading-tight">
-                Used internally. If left blank, it is automatically derived from the label.
-              </span>
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -425,7 +419,7 @@ export default function AdminFormOptionsPage() {
                 type="number"
                 value={newOrder}
                 onChange={e => setNewOrder(e.target.value)}
-                placeholder={`Defaults to end of list (${options.length})`}
+                placeholder=""
                 className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#000666]"
               />
             </div>

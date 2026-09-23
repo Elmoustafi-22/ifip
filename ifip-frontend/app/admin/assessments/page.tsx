@@ -767,9 +767,6 @@ export default function AdminAssessmentsPage() {
                 </Link>
               </div>
               <h1 className="text-2xl font-bold font-display text-[#000666]">Course Assessments</h1>
-              <p className="text-xs text-slate-500 font-medium mt-1">
-                Configure module-gating assessments, view submissions, and grade participant coursework.
-              </p>
             </div>
             
             <button
@@ -1042,11 +1039,6 @@ export default function AdminAssessmentsPage() {
               <h2 className="text-xl font-bold font-display text-[#000666]">
                 {editingAssessmentId ? "Edit Assessment Draft" : "Create Gating Assessment"}
               </h2>
-              <p className="text-xs text-slate-500 font-medium mt-1">
-                {editingAssessmentId 
-                  ? "Modifying draft properties. Once published, configurations become read-only." 
-                  : "Set up evaluation parameters and construct the module questionnaire."}
-              </p>
             </div>
             <button
               type="button"
@@ -1084,7 +1076,7 @@ export default function AdminAssessmentsPage() {
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-2">Assessment Title</label>
                 <input
                   type="text"
-                  placeholder="e.g. Module 1 Assessment: Introduction to Shariah Gating"
+                  placeholder="Assessment title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full border border-slate-200 rounded px-4 py-3 text-xs focus:outline-none focus:border-[#000666] font-semibold text-[#000666]"
@@ -1156,10 +1148,10 @@ export default function AdminAssessmentsPage() {
 
             {/* Instructions */}
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-2">Instructions (Visible above questions)</label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-2">Instructions</label>
               <textarea
                 rows={3}
-                placeholder="Provide instructions regarding assessment duration, attempt counts, and expectations..."
+                placeholder=""
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
                 className="w-full border border-slate-200 rounded p-4 text-xs focus:outline-none focus:border-[#000666] font-semibold text-[#000666]"
@@ -1170,7 +1162,6 @@ export default function AdminAssessmentsPage() {
             <div className="border-t border-slate-100 pt-8 mt-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-base font-bold text-[#000666]">Questionnaire Builder</h3>
-                <p className="text-[10px] text-slate-500 font-medium mt-0.5">Construct items manually or paste entire curriculum documents in 1 click.</p>
               </div>
               <div className="flex items-center gap-2.5">
                 <button
@@ -1332,7 +1323,7 @@ export default function AdminAssessmentsPage() {
                               <span className="text-[10px] font-bold text-slate-400 w-4">{pIdx + 1}.</span>
                               <input
                                 type="text"
-                                placeholder="Concept / Term (e.g. Riba)"
+                                placeholder="Concept / Term"
                                 value={pair.left}
                                 onChange={(e) => updateMatchingPair(qIdx, pIdx, 'left', e.target.value)}
                                 className="w-1/3 border border-slate-200 rounded px-2.5 py-1.5 text-xs font-bold text-[#000666] focus:outline-none focus:border-[#000666]"
@@ -1340,7 +1331,7 @@ export default function AdminAssessmentsPage() {
                               <span className="text-slate-400 text-xs font-bold">&rarr;</span>
                               <input
                                 type="text"
-                                placeholder="Matching Definition / Meaning"
+                                placeholder="Definition"
                                 value={pair.right}
                                 onChange={(e) => updateMatchingPair(qIdx, pIdx, 'right', e.target.value)}
                                 className="flex-1 border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:border-[#000666]"
@@ -1366,17 +1357,16 @@ export default function AdminAssessmentsPage() {
                       <div className="border-t border-slate-50 pt-4 space-y-3 bg-amber-50/30 p-4 rounded-xl border border-amber-100/60">
                         <div className="flex items-center gap-2 mb-2">
                           <span className="text-[9px] font-bold uppercase tracking-wider text-amber-700">AI Automatic Grading</span>
-                          <span className="text-[9px] text-amber-600 font-medium">(AI automatically evaluates participant responses based on the module's lesson material and curriculum principles. Rubric fields below are purely optional.)</span>
                         </div>
 
                         <div className="space-y-2.5">
                           <div>
                             <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5">
-                              Model Answer / Notes <span className="normal-case text-slate-400 font-normal">(Optional)</span>
+                              Model Answer / Notes
                             </label>
                             <textarea
                               rows={3}
-                              placeholder="Optional — leave empty to let AI evaluate directly against the module lesson materials. You may add specific points or reference answers here if desired..."
+                              placeholder=""
                               value={q.explanation || ''}
                               onChange={(e) => updateQuestionField(qIdx, 'explanation', e.target.value)}
                               className="w-full border border-amber-200 rounded-lg p-3 text-xs focus:outline-none focus:border-amber-400 font-medium text-slate-700 bg-white leading-relaxed resize-none"
@@ -1385,11 +1375,11 @@ export default function AdminAssessmentsPage() {
 
                           <div>
                             <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                              Accepted Keywords <span className="normal-case text-slate-400 font-normal">(Optional, comma-separated — instantly awards full marks if matched)</span>
+                              Accepted Keywords
                             </label>
                             <input
                               type="text"
-                              placeholder="e.g. Riba, interest, prohibition, haram (Optional)"
+                              placeholder=""
                               value={(q.acceptedKeywords || []).join(', ')}
                               onChange={(e) => {
                                 const kw = e.target.value.split(',').map(s => s.trim()).filter(Boolean);

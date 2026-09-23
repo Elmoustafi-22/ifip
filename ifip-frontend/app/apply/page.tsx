@@ -2094,7 +2094,7 @@ export default function ApplyPage() {
                   <input
                     id="stateCity"
                     type="text"
-                    placeholder="e.g. Your City, Region"
+                    placeholder="City, State"
                     value={stateCity}
                     onChange={(e) => handleInputChange("stateCity", e.target.value, setStateCity)}
                     className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
@@ -2189,7 +2189,7 @@ export default function ApplyPage() {
                   <input
                     id="institution"
                     type="text"
-                    placeholder="e.g. Your University or College"
+                    placeholder="University or College name"
                     value={institution}
                     onChange={(e) => handleInputChange("institution", e.target.value, setInstitution)}
                     className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
@@ -2230,7 +2230,7 @@ export default function ApplyPage() {
                   <input
                     id="fieldOfStudy"
                     type="text"
-                    placeholder="e.g. Economics or Finance"
+                    placeholder="Economics, Finance, Law..."
                     value={fieldOfStudy}
                     onChange={(e) => handleInputChange("fieldOfStudy", e.target.value, setFieldOfStudy)}
                     className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
@@ -2404,10 +2404,10 @@ export default function ApplyPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="text-xs font-bold uppercase text-primary flex items-end mb-2 min-h-[32px]">Relevant Skills (e.g. Excel, Power BI, Figma, Research, Writing, etc.)</label>
+                  <label className="text-xs font-bold uppercase text-primary flex items-end mb-2 min-h-[32px]">Relevant Skills</label>
                   <input
                     type="text"
-                    placeholder="e.g. Financial Analysis, Shariah Audit, Excel"
+                    placeholder="Financial Analysis, Excel, Shariah Audit"
                     value={skillsText}
                     onChange={(e) => setSkillsText(e.target.value)}
                     className="w-full border border-outline-variant/40 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-primary bg-slate-50/50"
@@ -2419,7 +2419,7 @@ export default function ApplyPage() {
                   <label className="text-xs font-bold uppercase text-primary flex items-end mb-2 min-h-[32px]">Technical Tools You Can Use</label>
                   <input
                     type="text"
-                    placeholder="e.g. Excel, Power BI, Bloomberg Terminal, etc."
+                    placeholder="Excel, Power BI, Python..."
                     value={toolsText}
                     onChange={(e) => setToolsText(e.target.value)}
                     className="w-full border border-outline-variant/40 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-primary bg-slate-50/50"

@@ -531,7 +531,7 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
                   ) : (
                     <input
                       type="text"
-                      placeholder="e.g. Islamic Finance Analyst, Sukuk Structuring Intern..."
+                      placeholder="Target role or placement title"
                       value={customRole}
                       onChange={(e) => setCustomRole(e.target.value)}
                       required
@@ -604,7 +604,7 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
                   </label>
                   <textarea
                     rows={3}
-                    placeholder="e.g., Fits our Q3 Sukuk desk expansion or specific placement timing..."
+                    placeholder="Additional notes for admissions team..."
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] focus:bg-white resize-none"

@@ -341,7 +341,7 @@ export default function AdminSettingsPage() {
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Program Director"
+                placeholder="Job title"
                 className="w-full border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
               />
             </div>

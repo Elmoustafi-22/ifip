@@ -204,9 +204,7 @@ export default function AdminJobOpeningsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
         <div>
           <h1 className="text-2xl font-bold text-[#000666]">Job Openings Verification</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Review partner job submissions, add custom eligibility rules, and declare openings open to candidates.
-          </p>
+
         </div>
         <button
           onClick={fetchOpenings}
@@ -243,7 +241,7 @@ export default function AdminJobOpeningsPage() {
           <HiOutlineMagnifyingGlass className="w-5 h-5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search by role, partner, or location..."
+            placeholder="Search openings"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#000666] focus:bg-white transition"
@@ -452,14 +450,9 @@ export default function AdminJobOpeningsPage() {
 
                 {/* Admin Defined Requirements / Rules */}
                 <div className="space-y-2 pt-2 border-t border-slate-200">
-                  <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-0.5 sm:gap-2">
-                    <label className="text-xs font-bold text-[#000666] uppercase tracking-wider">
-                      Additional Admin Rules & Requirements <span className="font-normal text-slate-400">(Optional)</span>
-                    </label>
-                    <span className="text-[11px] text-slate-500">
-                      Candidates will respond to these when applying
-                    </span>
-                  </div>
+                  <label className="text-xs font-bold text-[#000666] uppercase tracking-wider block">
+                    Admin Rules & Requirements
+                  </label>
 
                   {adminRequirements.length > 0 && (
                     <ul className="space-y-1.5">
@@ -486,7 +479,7 @@ export default function AdminJobOpeningsPage() {
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="Add requirement (e.g. Min 80% on assessment)..."
+                      placeholder=""
                       value={newRuleInput}
                       onChange={(e) => setNewRuleInput(e.target.value)}
                       onKeyDown={(e) => {
@@ -511,11 +504,11 @@ export default function AdminJobOpeningsPage() {
                 {/* Admin Notes / Rejection Feedback */}
                 <div className="pt-2 border-t border-slate-200">
                   <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
-                    Administrator Notes & Feedback
+                    Notes & Feedback
                   </label>
                   <textarea
                     rows={3}
-                    placeholder="Enter notes or explanation for partner (required if rejecting)..."
+                    placeholder=""
                     value={adminNotes}
                     onChange={(e) => setAdminNotes(e.target.value)}
                     className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#000666]/10 focus:border-[#000666] leading-relaxed resize-none"

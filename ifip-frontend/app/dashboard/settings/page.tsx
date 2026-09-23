@@ -710,7 +710,7 @@ export default function SettingsPage() {
                 value={fieldOfStudy}
                 onChange={(e) => setFieldOfStudy(e.target.value)}
                 className="w-full border border-slate-200 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-[#0E1B5D] bg-slate-50/20"
-                placeholder="e.g. Finance & Economics"
+                placeholder="Finance & Economics"
               />
             </div>
 

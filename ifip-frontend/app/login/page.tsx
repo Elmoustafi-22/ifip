@@ -298,7 +298,7 @@ export default function LoginPage() {
                     type="text"
                     required
                     maxLength={6}
-                    placeholder="e.g. 123456"
+                    placeholder="123456"
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
                     aria-invalid={!!error}
@@ -389,7 +389,7 @@ export default function LoginPage() {
                       id="forgot-email"
                       type="email"
                       autoComplete="email"
-                      placeholder="e.g. your.email@example.com"
+                      placeholder="name@example.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       aria-invalid={!!error}
@@ -452,7 +452,7 @@ export default function LoginPage() {
                     id="login-email"
                     type="email"
                     autoComplete="email"
-                    placeholder="e.g. your.email@example.com"
+                    placeholder="name@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     aria-invalid={!!error}

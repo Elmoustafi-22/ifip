@@ -302,9 +302,7 @@ export default function AdminAnnouncementsPage() {
             <HiOutlineMegaphone className="w-7 h-7 text-[#00B0FF]" />
             Send Announcements
           </h1>
-          <p className="text-xs text-slate-400 mt-1 font-semibold">
-            Broadcast in-app notifications and corresponding emails to cohort applicants.
-          </p>
+
         </div>
       </div>
 
@@ -399,7 +397,7 @@ export default function AdminAnnouncementsPage() {
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Cohort Induction Session Delayed"
+                placeholder="Announcement title"
                 className="w-full text-xs px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#00B0FF]/25 focus:border-[#00B0FF] transition-all font-medium placeholder-slate-400"
               />
             </div>
@@ -414,7 +412,7 @@ export default function AdminAnnouncementsPage() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={4}
-                placeholder="Write your announcement details here..."
+                placeholder="Message content"
                 className="w-full text-xs px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#00B0FF]/25 focus:border-[#00B0FF] transition-all font-medium placeholder-slate-400 resize-y"
               />
             </div>
@@ -422,14 +420,14 @@ export default function AdminAnnouncementsPage() {
             {/* Link */}
             <div>
               <label htmlFor="announcement-link" className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                Redirect URL (Optional Link)
+                Link
               </label>
               <input
                 id="announcement-link"
                 type="text"
                 value={link}
                 onChange={(e) => setLink(e.target.value)}
-                placeholder="e.g. /dashboard/modules or https://zoom.us/..."
+                placeholder="URL (optional)"
                 className="w-full text-xs px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#00B0FF]/25 focus:border-[#00B0FF] transition-all font-medium placeholder-slate-400"
               />
             </div>
@@ -437,7 +435,7 @@ export default function AdminAnnouncementsPage() {
             {/* Notification Type */}
             <div>
               <span className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                Notification Type / Severity
+                Type
               </span>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {(["info", "success", "warning", "alert"] as const).map((type) => {
@@ -490,7 +488,6 @@ export default function AdminAnnouncementsPage() {
                   }`}
                 >
                   <span className="text-[11px] font-bold">Paid Applicants</span>
-                  <span className="text-[8px] text-slate-400 font-semibold uppercase">In-app + Email</span>
                 </button>
 
                 <button

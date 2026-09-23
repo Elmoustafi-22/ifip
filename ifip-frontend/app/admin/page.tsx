@@ -984,7 +984,7 @@ export default function AdminDashboardPage() {
                   type="text" 
                   value={newCohortName}
                   onChange={(e) => setNewCohortName(e.target.value)}
-                  placeholder="e.g. Batch 2026 Fall-A26"
+                  placeholder="Intake or cohort name"
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#00B0FF]"
                   required
                 />

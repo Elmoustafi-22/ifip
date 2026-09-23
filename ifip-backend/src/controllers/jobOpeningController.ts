@@ -9,41 +9,84 @@ import { User } from '../models/User.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 
 /**
- * Check whether a participant has completed all required module tasks.
- * Returns { eligible: true } or { eligible: false, incompleteTasks: [...] }.
+ * Check whether a participant has completed sufficient required module tasks to apply for job openings.
+ * Requirement: At most 1 required task uncompleted (e.g. 1/2, 2/3, 3/4, 4/5, all completed).
+ * If total required tasks is 1, participant must complete that 1 task (1/1).
  */
 const checkTaskEligibility = async (userId: string) => {
     // Find all published modules that have a required task
     const modules = await Module.find({
         status: 'published',
         'moduleTask.isRequired': true,
-    }).lean();
+    }).sort({ order: 1, weekNumber: 1 }).lean();
 
-    if (modules.length === 0) {
-        return { eligible: true, incompleteTasks: [] };
+    const totalRequired = modules.length;
+    if (totalRequired === 0) {
+        return {
+            eligible: true,
+            totalRequired: 0,
+            approvedCount: 0,
+            pendingCount: 0,
+            unsubmittedCount: 0,
+            maxAllowedIncomplete: 1,
+            incompleteTasks: [],
+        };
     }
 
-    const incompleteTasks: { moduleId: string; moduleTitle: string; weekNumber?: number }[] = [];
+    const incompleteTasks: {
+        moduleId: string;
+        moduleTitle: string;
+        moduleOrder?: number;
+        weekNumber?: number;
+        taskTitle?: string;
+        submissionStatus: string;
+    }[] = [];
+    let approvedCount = 0;
+    let pendingCount = 0;
+    let unsubmittedCount = 0;
 
     for (const mod of modules) {
-        // Check for an approved submission for this module's task
-        const approvedSubmission = await ModuleTaskSubmission.findOne({
+        // Find latest submission for this module's task
+        const latestSubmission = await ModuleTaskSubmission.findOne({
             userId: new Types.ObjectId(userId),
             moduleId: mod._id,
-            status: 'approved',
-        });
+        }).sort({ createdAt: -1 });
 
-        if (!approvedSubmission) {
+        if (latestSubmission && latestSubmission.status === 'approved') {
+            approvedCount++;
+        } else {
+            const subStatus = latestSubmission ? latestSubmission.status : 'unsubmitted';
+            if (subStatus === 'submitted' || subStatus === 'pending_review') {
+                pendingCount++;
+            } else {
+                unsubmittedCount++;
+            }
+
             incompleteTasks.push({
                 moduleId: (mod._id as Types.ObjectId).toString(),
                 moduleTitle: mod.title,
+                moduleOrder: mod.order,
                 weekNumber: mod.weekNumber,
+                taskTitle: mod.moduleTask?.title || 'Coursework Task',
+                submissionStatus: subStatus,
             });
         }
     }
 
+    // Eligibility rule:
+    // If totalRequired <= 1: must complete that 1 task (incompleteTasks.length === 0, i.e. 1/1)
+    // If totalRequired > 1: at most 1 task uncompleted (incompleteTasks.length <= 1)
+    const isEligible = totalRequired <= 1
+        ? incompleteTasks.length === 0
+        : incompleteTasks.length <= 1;
+
     return {
-        eligible: incompleteTasks.length === 0,
+        eligible: isEligible,
+        totalRequired,
+        approvedCount,
+        pendingCount,
+        unsubmittedCount,
+        maxAllowedIncomplete: 1,
         incompleteTasks,
     };
 };
@@ -226,7 +269,9 @@ export const applyToJobOpening = async (req: Request, res: Response) => {
                 .map(t => t.weekNumber ? `Week ${t.weekNumber}: ${t.moduleTitle}` : t.moduleTitle)
                 .join(', ');
             res.status(403).json({
-                message: 'You have unfinished tasks. Please complete all your pending coursework before applying to job openings.',
+                message: eligibility.totalRequired <= 1
+                    ? 'Please complete and get approval for your required coursework task before applying to job openings.'
+                    : `You have ${eligibility.incompleteTasks.length} uncompleted tasks. You must have at most 1 uncompleted task remaining to apply (e.g. at least ${eligibility.totalRequired - 1} of ${eligibility.totalRequired} completed).`,
                 incompleteTasks: eligibility.incompleteTasks,
                 detail: `Incomplete tasks: ${taskNames}`,
             });

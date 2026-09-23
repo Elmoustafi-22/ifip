@@ -287,9 +287,7 @@ export default function AdminResourcesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-black text-[#000666] tracking-tight">Resource Library</h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Manage and publish resources for participants — guidelines, templates, and supplements.
-          </p>
+
         </div>
         <button
           onClick={openCreate}
@@ -460,7 +458,7 @@ export default function AdminResourcesPage() {
                 <input
                   value={form.title}
                   onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  placeholder="e.g. AAOIFI Shari'ah Standards Guide"
+                  placeholder="Resource title"
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#000666]/20 text-slate-800"
                 />
               </div>
@@ -470,14 +468,14 @@ export default function AdminResourcesPage() {
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                   rows={3}
-                  placeholder="Brief description of what this resource contains…"
+                  placeholder=""
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#000666]/20 text-slate-800 resize-none"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1">
-                  Upload PDF or Document File <span className="text-slate-400 font-normal">(optional)</span>
+                  Upload File
                 </label>
                 <div className="relative border-2 border-dashed border-slate-200 hover:border-[#000666]/40 rounded-xl p-3.5 transition-all bg-slate-50/50 text-center">
                   <input

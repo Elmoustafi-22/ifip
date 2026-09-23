@@ -2026,6 +2026,7 @@ export interface TaskEligibilityStatus {
   approvedCount: number;
   pendingCount: number;
   unsubmittedCount: number;
+  maxAllowedIncomplete?: number;
   incompleteTasks: Array<{
     moduleId: string;
     moduleTitle: string;

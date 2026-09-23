@@ -206,7 +206,7 @@ export default function PartnerSettingsPage() {
               <label className="block text-xs font-semibold text-slate-700 mb-1">Organisation Description</label>
               <textarea
                 rows={4}
-                placeholder="Brief summary of your organisation's focus and internship program objectives..."
+                placeholder=""
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666]"

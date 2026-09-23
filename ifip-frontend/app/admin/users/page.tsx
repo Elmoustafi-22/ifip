@@ -266,9 +266,6 @@ export default function AdminUsersPage() {
               <HiOutlineUsers className="w-7 h-7 text-[#FF9800]" />
               Platform Users
             </h1>
-            <p className="text-slate-500 text-sm mt-0.5">
-              View all registered users, their roles, and application status.
-            </p>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto shrink-0">
@@ -886,7 +883,6 @@ export default function AdminUsersPage() {
             <div className="bg-[#000666] text-white py-4 px-6 flex items-center justify-between shrink-0">
               <div>
                 <h3 className="font-bold text-base">Invite Admin</h3>
-                <p className="text-xs text-sky-200 mt-0.5">Send a password setup link to a new admin</p>
               </div>
               <button 
                 onClick={() => setInviteModalOpen(false)}
@@ -947,19 +943,19 @@ export default function AdminUsersPage() {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Startup Position / Title</label>
+                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Job Title</label>
                 <input
                   type="text"
                   required
                   value={inviteTitle}
                   onChange={(e) => setInviteTitle(e.target.value)}
-                  placeholder="e.g. Director, Program Manager"
+                  placeholder="Director, Program Manager"
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00B0FF] bg-white text-slate-700"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">System Permissions / Role</label>
+                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Role</label>
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value as "admin" | "superadmin")}

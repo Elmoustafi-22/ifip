@@ -99,9 +99,6 @@ export default function AdminPartnerInterestsPage() {
             <HiOutlineArrowsRightLeft className="w-6 h-6 text-emerald-600" />
             <span>Partner Interest Requests Desk</span>
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Review candidate interest requests submitted by partner organisations. Click on a partner or candidate to view their complete profile.
-          </p>
         </div>
 
         {/* Filter Tabs */}
@@ -578,7 +575,7 @@ export default function AdminPartnerInterestsPage() {
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="e.g. Intern is already committed to another placement pipeline..."
+                  placeholder="Reason for declining..."
                   value={declineReason}
                   onChange={(e) => setDeclineReason(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none focus:border-rose-500"

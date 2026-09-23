@@ -80,7 +80,7 @@ export default function InternPoolPage() {
             <HiOutlineMagnifyingGlass className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
             <input
               type="text"
-              placeholder="Search candidate name, field, or keywords..."
+              placeholder="Search candidates"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#000666] focus:bg-white transition-colors"
