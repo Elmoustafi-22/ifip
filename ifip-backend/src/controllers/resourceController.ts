@@ -62,12 +62,17 @@ export const createResource = async (req: Request, res: Response) => {
             return;
         }
 
+        const validFileTypes = ['pdf', 'pptx', 'docx', 'xlsx', 'link', 'video', 'other'];
+        const normalizedFileType = fileType && validFileTypes.includes(String(fileType).toLowerCase())
+            ? (String(fileType).toLowerCase() as any)
+            : (fileType ? 'other' : 'link');
+
         const newResource = new Resource({
             title,
             description,
             category: category || 'guidelines',
             fileUrl: fileUrl || '',
-            fileType: fileType || 'link',
+            fileType: normalizedFileType,
             fileSize: fileSize || '',
             cohortId: cohortId ? new Types.ObjectId(cohortId as string) : undefined,
             uploadedBy: new Types.ObjectId(userId)
@@ -102,11 +107,17 @@ export const updateResource = async (req: Request, res: Response) => {
             return;
         }
 
+        const validFileTypes = ['pdf', 'pptx', 'docx', 'xlsx', 'link', 'video', 'other'];
+
         if (title) resource.title = title;
         if (description) resource.description = description;
         if (category) resource.category = category;
         if (fileUrl !== undefined) resource.fileUrl = fileUrl;
-        if (fileType) resource.fileType = fileType;
+        if (fileType) {
+            resource.fileType = validFileTypes.includes(String(fileType).toLowerCase())
+                ? (String(fileType).toLowerCase() as any)
+                : 'other';
+        }
         if (fileSize !== undefined) resource.fileSize = fileSize;
         resource.cohortId = cohortId ? new Types.ObjectId(cohortId as string) : undefined;
 
