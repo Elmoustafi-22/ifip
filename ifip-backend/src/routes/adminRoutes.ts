@@ -42,6 +42,8 @@ import {
     deleteAdminUser,
     getAdminJobOpenings,
     getAdminJobOpeningById,
+    getAdminJobOpeningApplications,
+    getAllAdminJobApplications,
     reviewJobOpening,
 } from '../controllers/adminController.js';
 import {
@@ -267,6 +269,8 @@ router.patch('/placement-opportunities/:id',    authorize('superadmin'), adminUp
 // ─── Job Openings Management (Admin + Superadmin) ───────────────────────────
 router.get('/job-openings', getAdminJobOpenings);
 router.get('/job-openings/:id', getAdminJobOpeningById);
+router.get('/job-openings/:id/applications', getAdminJobOpeningApplications);
+router.get('/job-applications', getAllAdminJobApplications);
 router.patch('/job-openings/:id/review', reviewJobOpening);
 
 export default router;

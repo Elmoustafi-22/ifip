@@ -2279,6 +2279,44 @@ export const getAdminJobOpenings = async (req: Request, res: Response) => {
     }
 };
 
+// Helper to enrich job applications with user and profile data for admins
+const enrichAdminJobApplications = async (applications: any[]) => {
+    if (!applications || applications.length === 0) return [];
+
+    const userIds = applications.map(a => a.userId);
+    const users = await User.find({ _id: { $in: userIds } })
+        .select('fullName avatarUrl email phone country')
+        .lean();
+    const userMap = new Map(users.map(u => [(u as any)._id.toString(), u]));
+
+    const appRecords = await Application.find({ userId: { $in: userIds } })
+        .select('userId programInterest skills motivation academicInfo cvUrl')
+        .lean();
+    const appRecordMap = new Map(appRecords.map(a => [a.userId.toString(), a]));
+
+    return applications.map(app => {
+        const user = userMap.get(app.userId.toString()) as any;
+        const appRecord = appRecordMap.get(app.userId.toString()) as any;
+        return {
+            ...app,
+            applicant: {
+                fullName: user?.fullName || 'Applicant',
+                avatarUrl: user?.avatarUrl,
+                country: user?.country,
+                email: user?.email,
+                phone: user?.phone,
+            },
+            programInterests: appRecord?.programInterest,
+            profile: {
+                programInterest: appRecord?.programInterest,
+                skills: appRecord?.skills,
+                academic: appRecord?.academicInfo,
+                programCvUrl: appRecord?.cvUrl,
+            },
+        };
+    });
+};
+
 // ─── GET /api/v1/admin/job-openings/:id ───────────────────────────────────────
 export const getAdminJobOpeningById = async (req: Request, res: Response) => {
     try {
@@ -2292,16 +2330,83 @@ export const getAdminJobOpeningById = async (req: Request, res: Response) => {
             .select('name logoUrl contactPerson contactEmail sectorTags')
             .lean();
 
-        const appCount = await JobApplication.countDocuments({ jobOpeningId: opening._id });
+        const applications = await JobApplication.find({ jobOpeningId: opening._id })
+            .sort({ submittedAt: -1 })
+            .lean();
+
+        const enrichedApplications = await enrichAdminJobApplications(applications);
 
         res.json({
             ...opening,
             partner: org,
-            applicationCount: appCount,
+            applicationCount: applications.length,
+            applications: enrichedApplications,
             isMigrated: !!opening.migratedFromOpeningId,
         });
     } catch (err: any) {
         res.status(500).json({ message: 'Error loading job opening.', error: err.message });
+    }
+};
+
+// ─── GET /api/v1/admin/job-openings/:id/applications ───────────────────────────
+export const getAdminJobOpeningApplications = async (req: Request, res: Response) => {
+    try {
+        const opening = await JobOpening.findById(req.params.id).lean();
+        if (!opening) {
+            res.status(404).json({ message: 'Job opening not found.' });
+            return;
+        }
+
+        const applications = await JobApplication.find({ jobOpeningId: opening._id })
+            .sort({ submittedAt: -1 })
+            .lean();
+
+        const enriched = await enrichAdminJobApplications(applications);
+
+        res.json({ applications: enriched, total: enriched.length });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error loading job opening applications.', error: err.message });
+    }
+};
+
+// ─── GET /api/v1/admin/job-applications ────────────────────────────────────────
+export const getAllAdminJobApplications = async (req: Request, res: Response) => {
+    try {
+        const applications = await JobApplication.find()
+            .sort({ submittedAt: -1 })
+            .lean();
+
+        const enriched = await enrichAdminJobApplications(applications);
+
+        // Fetch opening titles and partner names for global admin view
+        const openingIds = [...new Set(applications.map(a => a.jobOpeningId?.toString()).filter(Boolean))];
+        const openings = await JobOpening.find({ _id: { $in: openingIds } })
+            .select('title partnerOrgId workMode location')
+            .lean();
+        const openingMap = new Map(openings.map(o => [(o as any)._id.toString(), o]));
+
+        const partnerOrgIds = [...new Set(openings.map(o => (o as any).partnerOrgId?.toString()).filter(Boolean))];
+        const partnerOrgs = await PartnerOrganization.find({ _id: { $in: partnerOrgIds } })
+            .select('name logoUrl')
+            .lean();
+        const partnerMap = new Map(partnerOrgs.map(p => [(p as any)._id.toString(), p]));
+
+        const fullEnriched = enriched.map(app => {
+            const op = openingMap.get(app.jobOpeningId?.toString()) as any;
+            const pt = op ? partnerMap.get(op.partnerOrgId?.toString()) as any : null;
+            return {
+                ...app,
+                openingTitle: op?.title || 'Unknown Opening',
+                workMode: op?.workMode,
+                location: op?.location,
+                partnerName: pt?.name || 'Partner Organisation',
+                partnerLogoUrl: pt?.logoUrl,
+            };
+        });
+
+        res.json({ applications: fullEnriched, total: fullEnriched.length });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error loading all job applications.', error: err.message });
     }
 };
 

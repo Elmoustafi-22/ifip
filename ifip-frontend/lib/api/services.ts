@@ -1958,8 +1958,44 @@ export interface AdminJobOpeningItem {
     contactEmail?: string;
     sectorTags?: string[];
   };
+  applications?: AdminJobApplicationItem[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AdminJobApplicationItem {
+  _id: string;
+  jobOpeningId: string;
+  userId: string;
+  cvUrl: string;
+  coverNote?: string;
+  responses: Array<{ requirement: string; answer: string }>;
+  status: 'submitted' | 'under_review' | 'shortlisted' | 'interview_scheduled' | 'not_selected';
+  partnerNotes?: string;
+  interviewScheduledAt?: string;
+  interviewFormat?: 'Video' | 'Call' | 'In-person';
+  interviewLink?: string;
+  interviewLocation?: string;
+  submittedAt: string;
+  applicant?: {
+    fullName?: string;
+    avatarUrl?: string;
+    country?: string;
+    email?: string;
+    phone?: string;
+  };
+  programInterests?: any;
+  profile?: {
+    programInterest?: any;
+    skills?: any;
+    academic?: any;
+    programCvUrl?: string;
+  };
+  openingTitle?: string;
+  partnerName?: string;
+  partnerLogoUrl?: string;
+  workMode?: string;
+  location?: string;
 }
 
 export const getAdminJobOpenings = async (
@@ -1973,6 +2009,21 @@ export const getAdminJobOpenings = async (
 
 export const getAdminJobOpeningById = async (id: string): Promise<AdminJobOpeningItem> => {
   const { data } = await authClient.get(`/admin/job-openings/${id}`);
+  return data;
+};
+
+export const getAdminJobOpeningApplications = async (
+  id: string
+): Promise<{ applications: AdminJobApplicationItem[]; total: number }> => {
+  const { data } = await authClient.get(`/admin/job-openings/${id}/applications`);
+  return data;
+};
+
+export const getAllAdminJobApplications = async (): Promise<{
+  applications: AdminJobApplicationItem[];
+  total: number;
+}> => {
+  const { data } = await authClient.get('/admin/job-applications');
   return data;
 };
 
