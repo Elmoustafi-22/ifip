@@ -9,6 +9,16 @@ import { logAction } from '../utils/auditLogger.js';
 import { updateContentVersion } from './contentVersionController.js';
 
 
+export const formatResumePublicId = (name: string, id: string, ext = 'pdf'): string => {
+    const safeName = (name || 'Applicant')
+        .trim()
+        .replace(/[^a-zA-Z0-9_\-\s]/g, '')
+        .replace(/\s+/g, '_')
+        .substring(0, 40);
+    const suffix = (id || Date.now().toString()).slice(-6);
+    return `${safeName}_Resume_${suffix}.${ext}`;
+};
+
 export const uploadCv = async (req: Request, res: Response) => {
     if (!req.file) {
         res.status(400).json({ message: 'No file uploaded' });
@@ -26,13 +36,15 @@ export const uploadCv = async (req: Request, res: Response) => {
             return;
         }
 
+        const publicId = formatResumePublicId(applicant.fullName || '', applicant._id.toString(), 'pdf');
+
         const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
             const timer = setTimeout(() => {
                 reject(new Error('Cloud storage upload timed out. Please try again.'));
             }, 45000);
 
             const stream = cloudinary.uploader.upload_stream(
-                { resource_type: 'auto', folder: 'ifipp/cvs' },
+                { resource_type: 'raw', folder: 'ifipp/cvs', public_id: publicId },
                 (error, result) => {
                     clearTimeout(timer);
                     if (error || !result) {
@@ -75,13 +87,18 @@ export const uploadCvAuth = async (req: Request, res: Response) => {
             return;
         }
 
+        const user = await User.findById(req.user!.id);
+        const candidateName = application.fullName || user?.fullName || '';
+        const candidateId = user?._id.toString() || application._id.toString();
+        const publicId = formatResumePublicId(candidateName, candidateId, 'pdf');
+
         const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
             const timer = setTimeout(() => {
                 reject(new Error('Cloud storage upload timed out. Please try again.'));
             }, 45000);
 
             const stream = cloudinary.uploader.upload_stream(
-                { resource_type: 'auto', folder: 'ifipp/cvs' },
+                { resource_type: 'raw', folder: 'ifipp/cvs', public_id: publicId },
                 (error, result) => {
                     clearTimeout(timer);
                     if (error || !result) {
@@ -236,16 +253,38 @@ export const getUploadSignature = async (req: Request, res: Response) => {
         const folder = req.query.folder ? String(req.query.folder) : 'ifipp/cvs';
         const resource_type = req.query.resource_type ? String(req.query.resource_type) : 'raw';
 
-        // resource_type is a URL path segment on Cloudinary's API
-        // (e.g. /v1_1/<cloud>/raw/upload) — it must NOT be included in the
-        // signature params, only body-level parameters are signed.
-        // allowed_formats is omitted — file type validation is enforced at the
-        // application level (module task allowedFileTypes). Including it here
-        // causes 403s for non-PDF files and is unreliable for resource_type=raw.
-        const paramsToSign = {
+        let public_id: string | undefined;
+
+        // When uploading CVs/resumes, generate a clean filename incorporating the applicant's name
+        if (folder === 'ifipp/cvs' || folder === 'ifipp/job-cvs') {
+            let candidateName = '';
+            let candidateId = '';
+
+            if (req.applicant?.id) {
+                const applicant = await Applicant.findById(req.applicant.id).select('fullName');
+                candidateName = applicant?.fullName || '';
+                candidateId = req.applicant.id;
+            } else if (req.user?.id) {
+                const user = await User.findById(req.user.id).select('fullName');
+                candidateName = user?.fullName || '';
+                if (!candidateName) {
+                    const app = await Application.findOne({ userId: req.user.id }).select('fullName');
+                    candidateName = app?.fullName || '';
+                }
+                candidateId = req.user.id;
+            }
+
+            public_id = formatResumePublicId(candidateName, candidateId, 'pdf');
+        }
+
+        const paramsToSign: Record<string, any> = {
             folder,
             timestamp,
         };
+
+        if (public_id) {
+            paramsToSign.public_id = public_id;
+        }
 
         const signature = cloudinary.utils.api_sign_request(paramsToSign, env.CLOUDINARY_API_SECRET);
 
@@ -256,6 +295,7 @@ export const getUploadSignature = async (req: Request, res: Response) => {
             cloudName: env.CLOUDINARY_CLOUD_NAME,
             folder,
             resource_type,
+            ...(public_id && { public_id }),
         });
     } catch (err: any) {
         console.error('Error generating upload signature:', err);
@@ -548,7 +588,7 @@ export const uploadJobApplicationCv = async (req: Request, res: Response) => {
     }
 
     const originalName = req.file.originalname || '';
-    const ext = originalName.split('.').pop()?.toLowerCase() || '';
+    const ext = originalName.split('.').pop()?.toLowerCase() || 'pdf';
     const mime = req.file.mimetype || '';
 
     const isPdfOrDoc =
@@ -563,13 +603,26 @@ export const uploadJobApplicationCv = async (req: Request, res: Response) => {
     }
 
     try {
+        const user = await User.findById(req.user!.id);
+        let candidateName = user?.fullName || '';
+        if (!candidateName) {
+            const app = await Application.findOne({ userId: req.user!.id });
+            candidateName = app?.fullName || '';
+        }
+        const candidateId = user?._id.toString() || Date.now().toString();
+        const safeName = (candidateName.trim() || 'Applicant')
+            .replace(/[^a-zA-Z0-9_\-\s]/g, '')
+            .replace(/\s+/g, '_')
+            .substring(0, 40);
+        const publicId = `${safeName}_Job_Resume_${candidateId.slice(-6)}.${ext}`;
+
         const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
             const timer = setTimeout(() => {
                 reject(new Error('Cloud storage upload timed out. Please try again.'));
             }, 60000);
 
             const stream = cloudinary.uploader.upload_stream(
-                { resource_type: 'auto', folder: 'ifipp/job-cvs' },
+                { resource_type: 'raw', folder: 'ifipp/job-cvs', public_id: publicId },
                 (error, result) => {
                     clearTimeout(timer);
                     if (error || !result) {

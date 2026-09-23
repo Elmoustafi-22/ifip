@@ -44,6 +44,7 @@ interface CloudinarySignatureResponse {
   /** 'raw' for PDFs; 'image' for images; 'auto' for generic uploads */
   resource_type: string;
   allowed_formats?: string;
+  public_id?: string;
 }
 
 /** Helper — returns true for errors that will never succeed on a retry (auth/client errors). */
@@ -68,6 +69,9 @@ export const uploadCv = async (file: File): Promise<{ cvUrl: string }> => {
     fd.append("folder", sig.folder);
     fd.append("resource_type", sig.resource_type);
     fd.append("allowed_formats", "pdf");
+    if (sig.public_id) {
+      fd.append("public_id", sig.public_id);
+    }
     return fd;
   };
 
@@ -213,6 +217,9 @@ export const uploadCvAuth = async (file: File): Promise<{ cvUrl: string }> => {
     fd.append("folder", sig.folder);
     fd.append("resource_type", sig.resource_type);
     fd.append("allowed_formats", "pdf");
+    if (sig.public_id) {
+      fd.append("public_id", sig.public_id);
+    }
     return fd;
   };
 
