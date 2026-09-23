@@ -5,7 +5,7 @@ export interface IResource extends Document {
     description: string;
     category: 'guidelines' | 'templates' | 'supplements';
     fileUrl: string;
-    fileType: 'pdf' | 'docx' | 'xlsx' | 'link' | 'video' | 'other';
+    fileType: 'pdf' | 'pptx' | 'docx' | 'xlsx' | 'link' | 'video' | 'other';
     fileSize?: string;
     cohortId?: Types.ObjectId;
     uploadedBy: Types.ObjectId;
@@ -26,7 +26,7 @@ const resourceSchema = new Schema<IResource>(
         fileUrl: { type: String, default: '', trim: true },
         fileType: {
             type: String,
-            enum: ['pdf', 'docx', 'xlsx', 'link', 'video', 'other'],
+            enum: ['pdf', 'pptx', 'docx', 'xlsx', 'link', 'video', 'other'],
             default: 'pdf',
         },
         fileSize: { type: String, default: '' },
