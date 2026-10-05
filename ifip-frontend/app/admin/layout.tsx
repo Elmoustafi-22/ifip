@@ -40,6 +40,8 @@ export interface AdminCohortContextType {
   setSelectedCohortId: (id: string) => void;
   cohorts: Cohort[];
   adminRole: string;
+  /** Replace a cohort in the shared list after it has been updated on the server */
+  upsertCohort: (cohort: Cohort) => void;
 }
 
 export const AdminCohortContext = createContext<AdminCohortContextType>({
@@ -47,6 +49,7 @@ export const AdminCohortContext = createContext<AdminCohortContextType>({
   setSelectedCohortId: () => {},
   cohorts: [],
   adminRole: "admin",
+  upsertCohort: () => {},
 });
 
 const NAV_GROUPS = [
@@ -187,6 +190,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     localStorage.setItem("adminSelectedCohortId", id);
   };
 
+  const upsertCohort = (updated: Cohort) => {
+    setCohorts(prev => {
+      const exists = prev.some(c => c._id === updated._id);
+      return exists ? prev.map(c => (c._id === updated._id ? { ...c, ...updated } : c)) : [...prev, updated];
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-[#FDFBF7] font-sans">
@@ -250,7 +260,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <AdminCohortContext.Provider
-      value={{ selectedCohortId, setSelectedCohortId: handleSetCohort, cohorts, adminRole }}
+      value={{ selectedCohortId, setSelectedCohortId: handleSetCohort, cohorts, adminRole, upsertCohort }}
     >
       <div className="min-h-screen bg-[#F4F6FB] font-sans flex">
 

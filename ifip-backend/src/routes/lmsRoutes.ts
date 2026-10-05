@@ -10,7 +10,8 @@ import {
 } from '../controllers/lmsAssessmentController.js';
 import {
     getParticipantSchedule,
-    getUpcomingSessions
+    getUpcomingSessions,
+    getParticipantScheduleMeta
 } from '../controllers/programmeSessionController.js';
 import {
     getModuleTaskStatus,
@@ -36,6 +37,7 @@ router.post('/modules/complete', completeModule);
 // Schedule / Timetable endpoints
 router.get('/schedule', getParticipantSchedule);
 router.get('/schedule/upcoming', getUpcomingSessions);
+router.get('/schedule/meta', getParticipantScheduleMeta);
 
 // Assessment-specific endpoints
 router.get('/modules/:id/assessment', getAssessmentForParticipant);

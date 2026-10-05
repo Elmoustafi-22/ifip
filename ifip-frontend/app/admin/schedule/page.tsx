@@ -25,10 +25,12 @@ import {
   togglePublishSession,
   bulkPublishScheduleWeek,
   getLMSModules,
+  updateCohort,
   ProgrammeSession,
   LMSModule
 } from "@/lib/api/services";
 import { AdminCohortContext } from "../layout";
+import { buildWeekList, DEFAULT_TOTAL_WEEKS, MAX_TOTAL_WEEKS } from "@/lib/weeks";
 
 const SESSION_TYPE_CONFIG: Record<string, { label: string; bg: string; text: string; border: string }> = {
   orientation: { label: "Orientation", bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
@@ -40,10 +42,11 @@ const SESSION_TYPE_CONFIG: Record<string, { label: string; bg: string; text: str
 };
 
 export default function AdminSchedulePage() {
-  const { selectedCohortId, cohorts } = useContext(AdminCohortContext);
+  const { selectedCohortId, cohorts, upsertCohort } = useContext(AdminCohortContext);
   const [sessions, setSessions] = useState<ProgrammeSession[]>([]);
   const [modules, setModules] = useState<LMSModule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [weekUpdating, setWeekUpdating] = useState(false);
 
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
@@ -202,22 +205,66 @@ export default function AdminSchedulePage() {
     }
   };
 
-  // Group sessions by weekNumber (e.g. Week 1, Week 2, Week 3, Week 4)
-  const weeks = [1, 2, 3, 4];
-  const sessionsByWeek: Record<number, ProgrammeSession[]> = { 1: [], 2: [], 3: [], 4: [] };
-  
+  // Programme length is cohort-specific. Week controls are only available when a cohort is selected.
+  const selectedCohort = selectedCohortId && selectedCohortId !== "unassigned"
+    ? cohorts.find(c => c._id === selectedCohortId)
+    : undefined;
+  const cohortTotalWeeks = selectedCohort?.totalWeeks || DEFAULT_TOTAL_WEEKS;
+
+  // Group sessions by weekNumber; always show 1..totalWeeks plus any week that already has sessions
+  const weeks = buildWeekList(cohortTotalWeeks, sessions.map(s => s.weekNumber));
+  const sessionsByWeek: Record<number, ProgrammeSession[]> = {};
+  weeks.forEach(w => { sessionsByWeek[w] = []; });
   sessions.forEach(sess => {
     const w = sess.weekNumber || 1;
     if (!sessionsByWeek[w]) sessionsByWeek[w] = [];
     sessionsByWeek[w].push(sess);
   });
+  const lastWeek = weeks[weeks.length - 1];
 
-  // Also catch any weeks beyond 4 if present
-  Object.keys(sessionsByWeek).forEach(k => {
-    const num = Number(k);
-    if (!weeks.includes(num)) weeks.push(num);
-  });
-  weeks.sort((a, b) => a - b);
+  // Week options for the modal follow the cohort chosen in the form
+  const modalCohort = sessionCohortId ? cohorts.find(c => c._id === sessionCohortId) : undefined;
+  const modalWeekOptions = modalCohort
+    ? buildWeekList(modalCohort.totalWeeks, [weekNumber])
+    : buildWeekList(Math.max(DEFAULT_TOTAL_WEEKS, ...weeks), [weekNumber]);
+
+  const handleAddWeek = async () => {
+    if (!selectedCohort || weekUpdating) return;
+    const next = Math.max(cohortTotalWeeks, lastWeek) + 1;
+    if (next > MAX_TOTAL_WEEKS) {
+      alert(`A programme cannot exceed ${MAX_TOTAL_WEEKS} weeks.`);
+      return;
+    }
+    setWeekUpdating(true);
+    try {
+      const res = await updateCohort(selectedCohort._id, { totalWeeks: next });
+      upsertCohort(res.cohort ?? { ...selectedCohort, totalWeeks: next });
+    } catch (err: any) {
+      console.error("Failed to add week:", err);
+      alert(err?.response?.data?.message || "Failed to add week.");
+    } finally {
+      setWeekUpdating(false);
+    }
+  };
+
+  const handleRemoveWeek = async (weekNum: number) => {
+    if (!selectedCohort || weekUpdating) return;
+    if ((sessionsByWeek[weekNum] || []).length > 0) {
+      alert(`Week ${weekNum} still has sessions. Move or delete them before removing the week.`);
+      return;
+    }
+    if (!confirm(`Remove Week ${weekNum} from ${selectedCohort.name}?`)) return;
+    setWeekUpdating(true);
+    try {
+      const res = await updateCohort(selectedCohort._id, { totalWeeks: weekNum - 1 });
+      upsertCohort(res.cohort ?? { ...selectedCohort, totalWeeks: weekNum - 1 });
+    } catch (err: any) {
+      console.error("Failed to remove week:", err);
+      alert(err?.response?.data?.message || "Failed to remove week.");
+    } finally {
+      setWeekUpdating(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -313,6 +360,17 @@ export default function AdminSchedulePage() {
                   >
                     <HiOutlinePlus className="w-3.5 h-3.5 text-[#FF9800]" /> Add Event
                   </button>
+                  {selectedCohort && weekNum === lastWeek && weeks.length > 1 && weekSessions.length === 0 && (
+                    <button
+                      id={`remove-week-${weekNum}`}
+                      onClick={() => handleRemoveWeek(weekNum)}
+                      disabled={weekUpdating}
+                      title="Remove this empty week from the cohort"
+                      className="text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-lg flex items-center gap-1 disabled:opacity-50"
+                    >
+                      <HiOutlineTrash className="w-3.5 h-3.5" /> Remove Week
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -467,6 +525,23 @@ export default function AdminSchedulePage() {
             </div>
           );
         })}
+
+        {/* Add Week */}
+        {selectedCohort ? (
+          <button
+            id="add-week-button"
+            onClick={handleAddWeek}
+            disabled={weekUpdating || lastWeek >= MAX_TOTAL_WEEKS}
+            className="w-full border-2 border-dashed border-[#000666]/20 hover:border-[#FF9800]/60 hover:bg-[#FF9800]/5 rounded-2xl py-6 flex items-center justify-center gap-2 text-sm font-bold text-[#000666] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <HiOutlinePlus className="w-4 h-4 text-[#FF9800]" />
+            {weekUpdating ? "Updating..." : `Add Week ${lastWeek + 1}`}
+          </button>
+        ) : (
+          <p className="text-center text-xs text-slate-400 py-4">
+            Select a specific cohort to add or remove programme weeks.
+          </p>
+        )}
       </div>
 
       {/* Session Create / Edit Modal */}
@@ -510,10 +585,9 @@ export default function AdminSchedulePage() {
                     onChange={(e) => setWeekNumber(Number(e.target.value))}
                     className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none bg-white text-xs font-bold"
                   >
-                    <option value={1}>Week 1</option>
-                    <option value={2}>Week 2</option>
-                    <option value={3}>Week 3</option>
-                    <option value={4}>Week 4</option>
+                    {modalWeekOptions.map(w => (
+                      <option key={w} value={w}>Week {w}</option>
+                    ))}
                   </select>
                 </div>
               </div>

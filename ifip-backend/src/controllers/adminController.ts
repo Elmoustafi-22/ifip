@@ -26,6 +26,7 @@ import { generateResumeToken } from '../services/tokenService.js';
 import { sendAdminInvitationEmail, sendSetPasswordEmail, sendPendingReminderEmail } from '../services/emailService.js';
 import { logAction, logRawAction } from '../utils/auditLogger.js';
 import { executeApplicationSubmission } from './applicantController.js';
+import { validateWeekForCohort, countContentBeyondWeek, MAX_TOTAL_WEEKS } from '../utils/cohortWeeks.js';
 
 // Step labels for the registration funnel
 const REGISTRATION_STEP_LABELS: Record<number, string> = {
@@ -377,10 +378,18 @@ export const getCohorts = async (req: Request, res: Response) => {
 
 export const createCohort = async (req: Request, res: Response) => {
     try {
-        const { name, startDate, endDate, status, registrationStartDate, registrationEndDate, cohortCap } = req.body;
+        const { name, startDate, endDate, status, registrationStartDate, registrationEndDate, cohortCap, totalWeeks } = req.body;
         if (!name || !startDate || !endDate) {
             res.status(400).json({ message: 'name, startDate, and endDate are required.' });
             return;
+        }
+
+        if (totalWeeks !== undefined) {
+            const tw = Number(totalWeeks);
+            if (!Number.isInteger(tw) || tw < 1 || tw > MAX_TOTAL_WEEKS) {
+                res.status(400).json({ message: `totalWeeks must be a whole number between 1 and ${MAX_TOTAL_WEEKS}.` });
+                return;
+            }
         }
         
         const newCohort = new Cohort({ 
@@ -390,7 +399,8 @@ export const createCohort = async (req: Request, res: Response) => {
             status,
             registrationStartDate: registrationStartDate ? new Date(registrationStartDate) : undefined,
             registrationEndDate: registrationEndDate ? new Date(registrationEndDate) : undefined,
-            cohortCap: cohortCap !== undefined ? Number(cohortCap) : undefined
+            cohortCap: cohortCap !== undefined ? Number(cohortCap) : undefined,
+            totalWeeks: totalWeeks !== undefined ? Number(totalWeeks) : undefined
         });
         await newCohort.save();
         
@@ -405,12 +415,31 @@ export const createCohort = async (req: Request, res: Response) => {
 export const updateCohort = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { name, startDate, endDate, status, registrationStartDate, registrationEndDate, cohortCap } = req.body;
+        const { name, startDate, endDate, status, registrationStartDate, registrationEndDate, cohortCap, totalWeeks } = req.body;
         
         const cohort = await Cohort.findById(id);
         if (!cohort) {
             res.status(404).json({ message: 'Cohort not found.' });
             return;
+        }
+
+        if (totalWeeks !== undefined) {
+            const tw = Number(totalWeeks);
+            if (!Number.isInteger(tw) || tw < 1 || tw > MAX_TOTAL_WEEKS) {
+                res.status(400).json({ message: `totalWeeks must be a whole number between 1 and ${MAX_TOTAL_WEEKS}.` });
+                return;
+            }
+            // Never allow removing weeks that still contain sessions or modules
+            if (tw < (cohort.totalWeeks || 4)) {
+                const { sessions, modules } = await countContentBeyondWeek(cohort._id as Types.ObjectId, tw);
+                if (sessions > 0 || modules > 0) {
+                    res.status(409).json({
+                        message: `Cannot reduce programme to ${tw} weeks: ${sessions} session(s) and ${modules} module(s) are scheduled in later weeks. Move or delete them first.`
+                    });
+                    return;
+                }
+            }
+            cohort.totalWeeks = tw;
         }
         
         if (name) cohort.name = name;
@@ -464,6 +493,14 @@ export const createModule = async (req: Request, res: Response) => {
         }
         
         const initialStatus = status && ['draft', 'published', 'archived'].includes(status) ? status : 'draft';
+
+        if (weekNumber !== undefined) {
+            const weekError = await validateWeekForCohort(cohortId, Number(weekNumber));
+            if (weekError) {
+                res.status(400).json({ message: weekError });
+                return;
+            }
+        }
 
         const task = moduleTask ? { ...moduleTask } : {};
         if (task.dueDate && typeof task.dueDate === 'string' && !task.dueDate.endsWith('Z') && !task.dueDate.includes('+')) {
@@ -549,6 +586,14 @@ export const updateModule = async (req: Request, res: Response) => {
         }
         if (status !== undefined && ['draft', 'published', 'archived'].includes(status)) {
             mod.status = status;
+        }
+
+        if (weekNumber !== undefined || cohortId !== undefined) {
+            const weekError = await validateWeekForCohort(mod.cohortId, mod.weekNumber);
+            if (weekError) {
+                res.status(400).json({ message: weekError });
+                return;
+            }
         }
         
         await mod.save();

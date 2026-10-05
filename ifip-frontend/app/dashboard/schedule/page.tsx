@@ -11,7 +11,8 @@ import {
   HiOutlineSquares2X2,
   HiOutlineArrowRight
 } from "react-icons/hi2";
-import { getParticipantSchedule, ProgrammeSession } from "@/lib/api/services";
+import { getParticipantSchedule, getParticipantScheduleMeta, ProgrammeSession } from "@/lib/api/services";
+import { buildWeekList, DEFAULT_TOTAL_WEEKS } from "@/lib/weeks";
 
 const SESSION_TYPE_CONFIG: Record<string, { label: string; bg: string; text: string; border: string }> = {
   orientation: { label: "Orientation", bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
@@ -28,11 +29,19 @@ export default function ParticipantSchedulePage() {
   const [viewMode, setViewMode] = useState<"timeline" | "list">("timeline");
   const [selectedWeek, setSelectedWeek] = useState<number | "all">("all");
 
+  const [totalWeeks, setTotalWeeks] = useState(DEFAULT_TOTAL_WEEKS);
+
   useEffect(() => {
     const fetchSchedule = async () => {
       try {
-        const data = await getParticipantSchedule();
-        setSessions(data);
+        const [sessionsData, metaData] = await Promise.all([
+          getParticipantSchedule(),
+          getParticipantScheduleMeta().catch(() => ({ totalWeeks: DEFAULT_TOTAL_WEEKS }))
+        ]);
+        setSessions(sessionsData);
+        if (metaData?.totalWeeks) {
+          setTotalWeeks(metaData.totalWeeks);
+        }
       } catch (err) {
         console.error("Failed to load participant schedule:", err);
       } finally {
@@ -81,9 +90,10 @@ export default function ParticipantSchedulePage() {
 
   const now = new Date();
 
-  // Group by week
-  const weeks = [1, 2, 3, 4];
-  const sessionsByWeek: Record<number, ProgrammeSession[]> = { 1: [], 2: [], 3: [], 4: [] };
+  // Group by week dynamically based on cohort programme length and any scheduled sessions
+  const weeks = buildWeekList(totalWeeks, sessions.map(s => s.weekNumber));
+  const sessionsByWeek: Record<number, ProgrammeSession[]> = {};
+  weeks.forEach(w => { sessionsByWeek[w] = []; });
   sessions.forEach(sess => {
     const w = sess.weekNumber || 1;
     if (!sessionsByWeek[w]) sessionsByWeek[w] = [];
@@ -118,7 +128,7 @@ export default function ParticipantSchedulePage() {
             Programme Schedule
           </h1>
           <p className="text-slate-500 text-xs sm:text-sm mt-1">
-            Weekly live lectures, break-out labs, async units, and deadlines across the 4-week fellowship.
+            Weekly live lectures, break-out labs, async units, and deadlines across the {weeks.length}-week fellowship.
           </p>
         </div>
 
@@ -159,7 +169,7 @@ export default function ParticipantSchedulePage() {
               : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
           }`}
         >
-          All 4 Weeks
+          All {weeks.length} Weeks
         </button>
         {weeks.map(w => (
           <button

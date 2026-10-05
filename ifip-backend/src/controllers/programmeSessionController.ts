@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import { ProgrammeSession } from '../models/ProgrammeSession.js';
 import { Application } from '../models/Application.js';
+import { validateWeekForCohort, DEFAULT_TOTAL_WEEKS } from '../utils/cohortWeeks.js';
+import { Cohort } from '../models/Cohort.js';
 
 // ─── ADMIN: Get all sessions ──────────────────────────────────────────────────
 export const getAdminSessions = async (req: Request, res: Response) => {
@@ -58,6 +60,12 @@ export const createAdminSession = async (req: Request, res: Response) => {
 
         if (!sessionDate || !title) {
             res.status(400).json({ message: 'sessionDate and title are required.' });
+            return;
+        }
+
+        const weekError = await validateWeekForCohort(cohortId, weekNumber !== undefined ? Number(weekNumber) : 1);
+        if (weekError) {
+            res.status(400).json({ message: weekError });
             return;
         }
 
@@ -130,6 +138,14 @@ export const updateAdminSession = async (req: Request, res: Response) => {
         if (isPublished !== undefined) session.isPublished = Boolean(isPublished);
         if (order !== undefined) session.order = Number(order);
 
+        if (weekNumber !== undefined || cohortId !== undefined) {
+            const weekError = await validateWeekForCohort(session.cohortId, session.weekNumber);
+            if (weekError) {
+                res.status(400).json({ message: weekError });
+                return;
+            }
+        }
+
         await session.save();
 
         const populated = await ProgrammeSession.findById(session._id)
@@ -190,6 +206,22 @@ export const bulkPublishWeek = async (req: Request, res: Response) => {
         res.json({ message: `All sessions for week ${weekNumber} updated.` });
     } catch (e: any) {
         res.status(500).json({ message: 'Error updating week publish status.', error: e.message });
+    }
+};
+
+// ─── PARTICIPANT: Schedule metadata (programme length) ──────────────────────
+export const getParticipantScheduleMeta = async (req: Request, res: Response) => {
+    try {
+        const userId = req.user!.id;
+        const app = await Application.findOne({ userId: new Types.ObjectId(userId) }).select('cohortId');
+        let totalWeeks = DEFAULT_TOTAL_WEEKS;
+        if (app?.cohortId) {
+            const cohort = await Cohort.findById(app.cohortId).select('totalWeeks');
+            if (cohort?.totalWeeks) totalWeeks = cohort.totalWeeks;
+        }
+        res.json({ totalWeeks });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error retrieving schedule metadata.', error: e.message });
     }
 };
 

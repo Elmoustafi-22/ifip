@@ -30,7 +30,7 @@ export interface IModule extends Document {
     title: string;
     description: string;
     order: number;
-    weekNumber?: number; // Maps 1-to-1 to cohort week (Week 1, Week 2, Week 3, Week 4)
+    weekNumber?: number; // Maps to a cohort week (1..cohort.totalWeeks)
     contentType: 'video' | 'text' | 'quiz' | 'assignment';
     contentUrl?: string;
     recordingUrl?: string; // Post-session recording link (set by admin after live class)

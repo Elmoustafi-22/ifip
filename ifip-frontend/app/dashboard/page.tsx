@@ -319,7 +319,7 @@ export default function DashboardHome() {
             href="/dashboard/schedule"
             className="text-xs font-bold text-[#000666] hover:text-[#FF9800] inline-flex items-center gap-1 shrink-0"
           >
-            <span>View Full 4-Week Timetable</span>
+            <span>View Full Timetable</span>
             <HiOutlineArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
@@ -331,7 +331,7 @@ export default function DashboardHome() {
               href="/dashboard/schedule"
               className="mt-2 inline-block text-xs font-bold text-sky-600 hover:underline"
             >
-              Check the full 4-week timetable &rarr;
+              Check the full timetable &rarr;
             </Link>
           </div>
         ) : (

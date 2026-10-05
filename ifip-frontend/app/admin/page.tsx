@@ -38,7 +38,7 @@ import {
 } from "@/lib/api/services";
 
 export default function AdminDashboardPage() {
-  const { selectedCohortId, cohorts } = useContext(AdminCohortContext);
+  const { selectedCohortId, cohorts, upsertCohort } = useContext(AdminCohortContext);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [rewardSummary, setRewardSummary] = useState<TaskRewardSummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,6 +80,7 @@ export default function AdminDashboardPage() {
   const [newCohortRegStart, setNewCohortRegStart] = useState("");
   const [newCohortRegEnd, setNewCohortRegEnd] = useState("");
   const [newCohortCap, setNewCohortCap] = useState(100);
+  const [newCohortTotalWeeks, setNewCohortTotalWeeks] = useState(4);
   const [newCohortStatus, setNewCohortStatus] = useState("upcoming");
   const [creatingCohort, setCreatingCohort] = useState(false);
   const [editingCohortItem, setEditingCohortItem] = useState<Cohort | null>(null);
@@ -176,6 +177,7 @@ export default function AdminDashboardPage() {
     setNewCohortRegStart("");
     setNewCohortRegEnd("");
     setNewCohortCap(100);
+    setNewCohortTotalWeeks(4);
     setNewCohortStatus("upcoming");
     setModalOpen(true);
   };
@@ -188,6 +190,7 @@ export default function AdminDashboardPage() {
     setNewCohortRegStart(cohort.registrationStartDate ? cohort.registrationStartDate.split("T")[0] : "");
     setNewCohortRegEnd(cohort.registrationEndDate ? cohort.registrationEndDate.split("T")[0] : "");
     setNewCohortCap(cohort.cohortCap || 100);
+    setNewCohortTotalWeeks(cohort.totalWeeks || 4);
     setNewCohortStatus(cohort.status);
     setModalOpen(true);
   };
@@ -205,14 +208,17 @@ export default function AdminDashboardPage() {
         registrationStartDate: new Date(newCohortRegStart).toISOString(),
         registrationEndDate: new Date(newCohortRegEnd).toISOString(),
         cohortCap: Number(newCohortCap),
+        totalWeeks: Number(newCohortTotalWeeks),
         status: newCohortStatus as any
       };
 
       if (editingCohortItem) {
-        await updateCohort(editingCohortItem._id, payload);
+        const res = await updateCohort(editingCohortItem._id, payload);
+        if (res?.cohort) upsertCohort(res.cohort);
         alert("Cohort details updated successfully!");
       } else {
-        await createCohort(payload);
+        const res = await createCohort(payload);
+        if (res?.cohort) upsertCohort(res.cohort);
         alert("New program cohort created successfully!");
       }
       
@@ -223,14 +229,15 @@ export default function AdminDashboardPage() {
       setNewCohortRegStart("");
       setNewCohortRegEnd("");
       setNewCohortCap(100);
+      setNewCohortTotalWeeks(4);
       setNewCohortStatus("upcoming");
       setEditingCohortItem(null);
       setModalOpen(false);
       
       fetchAdminDashboard();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to save cohort:", err);
-      alert("Failed to save cohort. Please check parameters.");
+      alert(err?.response?.data?.message || "Failed to save cohort. Please check parameters.");
     } finally {
       setCreatingCohort(false);
     }
@@ -599,6 +606,7 @@ export default function AdminDashboardPage() {
                     <th className="px-4 py-3">Cohort Title</th>
                     <th className="px-4 py-3">Registration Window</th>
                     <th className="px-4 py-3">Training Window</th>
+                    <th className="px-4 py-3">Weeks</th>
                     <th className="px-4 py-3">Cap</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3 text-right">Actions</th>
@@ -607,7 +615,7 @@ export default function AdminDashboardPage() {
                 <tbody className="divide-y divide-slate-100 text-xs">
                   {cohorts.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-slate-400 italic">
+                      <td colSpan={7} className="px-4 py-8 text-center text-slate-400 italic">
                         No intake cohorts registered.
                       </td>
                     </tr>
@@ -620,6 +628,9 @@ export default function AdminDashboardPage() {
                         </td>
                         <td className="px-4 py-3 text-slate-500">
                           {formatDate(cohort.startDate)} &mdash; {formatDate(cohort.endDate)}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700 font-semibold">
+                          {cohort.totalWeeks || 4} wks
                         </td>
                         <td className="px-4 py-3 text-slate-500 font-mono font-bold">
                           {cohort.cohortCap || 100} slots
@@ -678,7 +689,7 @@ export default function AdminDashboardPage() {
                       </div>
                       <div>
                         <span className="text-slate-400 font-medium">Training:</span>{" "}
-                        {formatDate(cohort.startDate)} &mdash; {formatDate(cohort.endDate)}
+                        {formatDate(cohort.startDate)} &mdash; {formatDate(cohort.endDate)} ({cohort.totalWeeks || 4} weeks)
                       </div>
                       <div>
                         <span className="text-slate-400 font-medium">Capacity:</span>{" "}
@@ -1044,16 +1055,30 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">
-                    Participant Capacity Cap
+                    Duration (Weeks)
+                  </label>
+                  <input 
+                    type="number"
+                    value={newCohortTotalWeeks}
+                    onChange={(e) => setNewCohortTotalWeeks(Number(e.target.value))}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#00B0FF] bg-white font-mono"
+                    min={1}
+                    max={52}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">
+                    Capacity Cap
                   </label>
                   <input 
                     type="number"
                     value={newCohortCap}
                     onChange={(e) => setNewCohortCap(Number(e.target.value))}
-                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#00B0FF] bg-white"
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#00B0FF] bg-white font-mono"
                     min={1}
                     required
                   />

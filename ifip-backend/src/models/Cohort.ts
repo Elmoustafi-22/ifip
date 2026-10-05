@@ -8,6 +8,7 @@ export interface ICohort extends Document {
     registrationStartDate: Date;
     registrationEndDate: Date;
     cohortCap: number;
+    totalWeeks: number; // Programme length in weeks (extendable beyond the default 4)
     createdAt: Date;
 }
 
@@ -19,6 +20,7 @@ const cohortSchema = new Schema<ICohort>({
     registrationStartDate: { type: Date, required: true, default: Date.now },
     registrationEndDate: { type: Date, required: true, default: function(this: any) { return this.startDate || Date.now(); } },
     cohortCap: { type: Number, required: true, default: 100 },
+    totalWeeks: { type: Number, min: 1, max: 52, default: 4 },
     createdAt: { type: Date, default: Date.now }
 });
 

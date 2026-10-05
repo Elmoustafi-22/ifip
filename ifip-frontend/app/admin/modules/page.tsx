@@ -48,6 +48,7 @@ import {
 } from "@/lib/api/services";
 import { AdminCohortContext } from "../layout";
 import RichTextEditor from "@/components/RichTextEditor";
+import { buildWeekList, DEFAULT_TOTAL_WEEKS } from "@/lib/weeks";
 
 export default function AdminModulesPage() {
   const { selectedCohortId, cohorts } = useContext(AdminCohortContext);
@@ -406,6 +407,15 @@ export default function AdminModulesPage() {
     }
   };
 
+  // Programme length for a module's cohort. Global modules apply to every cohort,
+  // so they may use any week up to the longest cohort.
+  const getCohortTotalWeeks = (cohortId: string) => {
+    if (cohortId) {
+      return cohorts.find(c => c._id === cohortId)?.totalWeeks || DEFAULT_TOTAL_WEEKS;
+    }
+    return Math.max(DEFAULT_TOTAL_WEEKS, ...cohorts.map(c => c.totalWeeks || DEFAULT_TOTAL_WEEKS));
+  };
+
   const handleOpenCreate = () => {
     setEditingModule(null);
     setActiveTab("outline");
@@ -413,7 +423,9 @@ export default function AdminModulesPage() {
     setDescription("");
     const nextOrder = modules.length > 0 ? modules[modules.length - 1].order + 1 : 1;
     setOrder(nextOrder);
-    setWeekNumber(nextOrder <= 4 ? nextOrder : 1);
+    const targetCohortId = (selectedCohortId === "unassigned") ? "" : selectedCohortId;
+    const targetTotalWeeks = getCohortTotalWeeks(targetCohortId);
+    setWeekNumber(nextOrder <= targetTotalWeeks ? nextOrder : targetTotalWeeks);
     setContentType("text");
     setContentUrl("");
     setBody("");
@@ -1136,10 +1148,9 @@ export default function AdminModulesPage() {
                       onChange={(e) => setWeekNumber(Number(e.target.value))}
                       className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500 text-xs bg-white font-medium text-slate-800"
                     >
-                      <option value={1}>Week 1 </option>
-                      <option value={2}>Week 2 </option>
-                      <option value={3}>Week 3 </option>
-                      <option value={4}>Week 4 </option>
+                      {buildWeekList(getCohortTotalWeeks(moduleCohortId), [weekNumber]).map(w => (
+                        <option key={w} value={w}>Week {w} </option>
+                      ))}
                     </select>
                   </div>
                   <div>

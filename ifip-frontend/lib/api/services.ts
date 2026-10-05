@@ -602,6 +602,11 @@ export const getUpcomingSessions = async (): Promise<ProgrammeSession[]> => {
   return data;
 };
 
+export const getParticipantScheduleMeta = async (): Promise<{ totalWeeks: number }> => {
+  const { data } = await authClient.get<{ totalWeeks: number }>("/lms/schedule/meta");
+  return data;
+};
+
 export interface RegistrationFunnelStep {
   step: number;
   label: string;
@@ -637,6 +642,7 @@ export interface Cohort {
   registrationStartDate: string;
   registrationEndDate: string;
   cohortCap: number;
+  totalWeeks?: number;
 }
 
 export const getAdminStats = async (cohortId?: string): Promise<AdminStats> => {
@@ -995,6 +1001,7 @@ export const createCohort = async (payload: {
   registrationStartDate: string; 
   registrationEndDate: string; 
   cohortCap: number; 
+  totalWeeks?: number;
   status?: string 
 }): Promise<any> => {
   const { data } = await authClient.post("/admin/cohorts", payload);
@@ -1008,6 +1015,7 @@ export const updateCohort = async (id: string, payload: {
   registrationStartDate?: string; 
   registrationEndDate?: string; 
   cohortCap?: number; 
+  totalWeeks?: number;
   status?: string 
 }): Promise<any> => {
   const { data } = await authClient.patch(`/admin/cohorts/${id}`, payload);
