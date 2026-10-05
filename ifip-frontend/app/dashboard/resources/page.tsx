@@ -155,7 +155,7 @@ export default function ResourcesPage() {
             placeholder="Search resources..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-[#E7E2D8] bg-white rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#000666]/30 text-slate-800 shadow-sm"
+            className="w-full pl-9 pr-4 py-2.5 border border-slate-200 bg-white rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#000666]/30 text-slate-800 shadow-2xs"
           />
           <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         </div>
@@ -180,13 +180,18 @@ export default function ResourcesPage() {
             filteredResources.map((res) => (
               <div
                 key={res._id}
-                className="bg-white border border-[#E7E2D8] rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between hover:border-slate-300 hover:shadow-md transition-all duration-300 hover:translate-y-[-1px]"
+                className="bg-white border border-slate-200/80 rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between hover:border-slate-300 hover:shadow-md transition-all duration-300 hover:translate-y-[-1px]"
               >
                 {/* Accent bar */}
                 <div className="absolute top-0 left-0 right-0 h-1 bg-[#000666]" />
 
                 <div>
-                  <div className="flex justify-end items-center mb-3">
+                  <div className="flex justify-between items-center mb-3">
+                    {res.category && res.category !== "general" ? (
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                        {res.category}
+                      </span>
+                    ) : <span />}
                     <div className="flex items-center gap-1.5">
                       {getFileTypeBadge(res.fileType)}
                       {res.fileSize && <span className="text-[10px] text-slate-400 font-bold">{res.fileSize}</span>}

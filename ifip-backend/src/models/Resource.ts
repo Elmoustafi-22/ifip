@@ -3,7 +3,7 @@ import { Schema, model, Document, Types } from 'mongoose';
 export interface IResource extends Document {
     title: string;
     description: string;
-    category: 'guidelines' | 'templates' | 'supplements';
+    category: string;
     fileUrl: string;
     fileType: 'pdf' | 'pptx' | 'docx' | 'xlsx' | 'link' | 'video' | 'other';
     fileSize?: string;
@@ -19,9 +19,8 @@ const resourceSchema = new Schema<IResource>(
         description: { type: String, required: true, trim: true },
         category: {
             type: String,
-            enum: ['guidelines', 'templates', 'supplements'],
-            required: true,
-            default: 'guidelines',
+            trim: true,
+            default: 'general',
         },
         fileUrl: { type: String, default: '', trim: true },
         fileType: {

@@ -184,7 +184,7 @@ export default function AdminPaymentsPage() {
   // ── Render guards ───────────────────────────────────────────────────────────
   if (authLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-[#FDFBF7] font-sans">
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4  font-sans">
         <svg className="animate-spin w-8 h-8 text-[#000666]" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -199,14 +199,14 @@ export default function AdminPaymentsPage() {
   const summary = data?.summary;
 
   return (
-    <div className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8 font-sans bg-[#FDFBF7] min-h-screen">
+    <div className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8 font-sans  min-h-screen">
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link
             href="/admin"
-            className="p-2 rounded-xl border border-[#E7E2D8] bg-white hover:bg-slate-50 text-slate-500 transition-colors"
+            className="p-2 rounded-xl border border-slate-200/80 bg-white hover:bg-slate-50 text-slate-500 transition-colors"
           >
             <Hi2.HiOutlineArrowLeft className="w-4 h-4" />
           </Link>
@@ -220,7 +220,7 @@ export default function AdminPaymentsPage() {
         <button
           onClick={fetchPayments}
           disabled={loading}
-          className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-[#000666] border border-[#E7E2D8] bg-white px-4 py-2.5 rounded-xl transition-all shadow-xs"
+          className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-[#000666] border border-slate-200/80 bg-white px-4 py-2.5 rounded-xl transition-all shadow-xs"
         >
           <Hi2.HiOutlineArrowPath className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           Refresh
@@ -257,7 +257,7 @@ export default function AdminPaymentsPage() {
         ].map((stat) => (
           <div
             key={stat.label}
-            className="bg-white border border-[#E7E2D8] rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all"
+            className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all"
           >
             <div className="flex items-center justify-between mb-2 text-slate-400">
               <span className="text-[10px] font-bold uppercase tracking-wider">{stat.label}</span>
@@ -269,7 +269,7 @@ export default function AdminPaymentsPage() {
       </div>
 
       {/* ── Filters + Table ─────────────────────────────────────────────────── */}
-      <div className="bg-white border border-[#E7E2D8] rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
         {/* Filters toolbar */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2.5 flex-wrap">

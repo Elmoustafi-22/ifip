@@ -254,7 +254,7 @@ export default function AdminDashboardPage() {
 
   if (loading && !stats) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-center bg-[#FDFBF7] font-sans">
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-center  font-sans">
         <svg className="animate-spin w-8 h-8 text-[#000666]" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -279,7 +279,7 @@ export default function AdminDashboardPage() {
 
         <button
           onClick={() => setExportModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800 text-white text-xs font-bold transition shadow-sm hover:shadow-md cursor-pointer self-start sm:self-auto"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#000666] hover:bg-[#000666]/90 text-white text-xs font-semibold px-4 py-2 rounded-xl transition shadow-xs cursor-pointer self-start sm:self-auto"
           title="Configure filters and download applicants insights in CSV format (Paid or Unpaid)"
         >
           <HiOutlineArrowDownTray className="w-4 h-4" />
@@ -290,7 +290,7 @@ export default function AdminDashboardPage() {
       {/* KPI Stats widgets */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
+          <div className="bg-white border border-slate-200/80 rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-[10px] font-bold uppercase tracking-wider">Total Paid</span>
               <HiOutlineClipboardDocumentCheck className="w-5 h-5 text-[#00B0FF]" />
@@ -298,7 +298,7 @@ export default function AdminDashboardPage() {
             <div className="text-2xl font-black text-[#000666]">{stats.totalPaid}</div>
           </div>
 
-          <div className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
+          <div className="bg-white border border-slate-200/80 rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-[10px] font-bold uppercase tracking-wider">Active Learning</span>
               <HiOutlineUsers className="w-5 h-5 text-indigo-500" />
@@ -306,7 +306,7 @@ export default function AdminDashboardPage() {
             <div className="text-2xl font-black text-[#000666]">{stats.activeParticipants}</div>
           </div>
 
-          <div className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
+          <div className="bg-white border border-slate-200/80 rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-[10px] font-bold uppercase tracking-wider">Completed</span>
               <HiOutlineCheckCircle className="w-5 h-5 text-emerald-500" />
@@ -316,7 +316,7 @@ export default function AdminDashboardPage() {
 
           <Link
             href="/admin/waitlist"
-            className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-amber-300 transition-all cursor-pointer group"
+            className="bg-white border border-slate-200/80 rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-amber-300 transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-[10px] font-bold uppercase tracking-wider group-hover:text-amber-600 transition-colors">Waitlisted Users</span>
@@ -327,7 +327,7 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      <div className="mb-8 bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-sm">
+      <div className="mb-8 bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 pb-4 border-b border-slate-100">
           <div>
             <h2 className="text-base font-bold text-[#000666]">Programme Task Rewards & Pass-through</h2>
@@ -366,7 +366,8 @@ export default function AdminDashboardPage() {
                     <td className="px-3 py-3 font-semibold text-slate-700">{row.passedModules}</td>
                     <td className="px-3 py-3 font-mono font-bold text-slate-700">{row.totalAwardedPoints}</td>
                     <td className="px-3 py-3">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${row.status === "qualified" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${row.status === "qualified" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${row.status === "qualified" ? "bg-emerald-500" : "bg-amber-400"}`} />
                         {row.status === "qualified" ? "Qualified" : "In progress"}
                       </span>
                     </td>
@@ -419,7 +420,7 @@ export default function AdminDashboardPage() {
         {/* 1. Sidebar Configurations */}
         <div className={`${activeTab === "system" ? "block" : "hidden"} lg:block`}>
           {/* Global System Settings Panel */}
-          <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 shadow-sm">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
             <h2 className="text-base font-bold text-[#000666] mb-4 pb-2 border-b border-slate-100">
               System Launch Configurations
             </h2>
@@ -510,7 +511,7 @@ export default function AdminDashboardPage() {
         <div className={`${activeTab === "acquisition" ? "block" : "hidden"} lg:block lg:col-span-1 space-y-6`}>
           {/* Visual KPI Cards */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white border border-[#E7E2D8] rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
               <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Total Finalized</span>
               <div className="mt-2">
                 <span className="text-xl font-display font-black text-[#000666]">{stats?.totalPaid || 0}</span>
@@ -520,7 +521,7 @@ export default function AdminDashboardPage() {
 
             <Link
               href="/admin/waitlist"
-              className="bg-white border border-[#E7E2D8] rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-amber-300 transition-all flex flex-col justify-between cursor-pointer group"
+              className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-amber-300 transition-all flex flex-col justify-between cursor-pointer group"
             >
               <span className="text-[9px] uppercase font-bold text-slate-400 group-hover:text-amber-600 transition-colors tracking-wider">Waitlist Volume</span>
               <div className="mt-2">
@@ -529,7 +530,7 @@ export default function AdminDashboardPage() {
               </div>
             </Link>
 
-            <div className="col-span-2 bg-white border border-[#E7E2D8] rounded-2xl p-4 shadow-sm flex items-center justify-between">
+            <div className="col-span-2 bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between">
               <div>
                 <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Top Source</span>
                 <span className="text-sm font-bold text-[#000666] block mt-1">{topChannel.source}</span>
@@ -541,7 +542,7 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* Lead Acquisition Channels Panel */}
-          <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 shadow-sm">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
             <h2 className="text-base font-bold text-[#000666] mb-4 pb-2 border-b border-slate-100">
               Registration Channel Ratios
             </h2>
@@ -584,7 +585,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* 3. Cohort/Intake Intake Manager Table (Col-span 2 on Desktop, controlled by activeTab on mobile) */}
-        <div className={`${activeTab === "cohorts" ? "block" : "hidden"} lg:block bg-white border border-[#E7E2D8] rounded-2xl p-6 shadow-sm lg:col-span-2 flex flex-col justify-between`}>
+        <div className={`${activeTab === "cohorts" ? "block" : "hidden"} lg:block bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm lg:col-span-2 flex flex-col justify-between`}>
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-2 border-b border-slate-100">
               <h2 className="text-base font-bold text-[#000666]">
@@ -636,14 +637,21 @@ export default function AdminDashboardPage() {
                           {cohort.cohortCap || 100} slots
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`inline-block font-bold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded ${
+                          <span className={`inline-flex items-center gap-1.5 font-medium text-xs px-2.5 py-0.5 rounded-full ${
                             cohort.status === "active"
                               ? "bg-indigo-50 text-indigo-700"
                               : cohort.status === "completed"
                                 ? "bg-emerald-50 text-emerald-700"
                                 : "bg-amber-50 text-amber-700"
                           }`}>
-                            {cohort.status}
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              cohort.status === "active"
+                                ? "bg-indigo-500"
+                                : cohort.status === "completed"
+                                  ? "bg-emerald-500"
+                                  : "bg-amber-400"
+                            }`} />
+                            {cohort.status.charAt(0).toUpperCase() + cohort.status.slice(1)}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
@@ -724,7 +732,7 @@ export default function AdminDashboardPage() {
 
         return (
           <div className={`mt-8 ${activeTab === "funnel" ? "block" : "hidden"} lg:block`}>
-            <div className="bg-white border border-[#E7E2D8] rounded-2xl shadow-sm overflow-hidden">
+            <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
               {/* Panel header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-6 border-b border-slate-100">
                 <div className="flex items-center gap-2.5">
@@ -973,7 +981,7 @@ export default function AdminDashboardPage() {
       {/* Cohort Modal Overlay */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white border border-[#E7E2D8] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-h-none flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+          <div className="bg-white border border-slate-200/80 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-h-none flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
             <div className="bg-[#000666] text-white py-4 px-6 flex items-center justify-between shrink-0">
               <h3 className="font-bold text-base flex items-center gap-1.5">
                 <HiOutlineCalendarDays className="w-5 h-5" /> {editingCohortItem ? "Edit Intake Cohort" : "Add Intake Cohort"}

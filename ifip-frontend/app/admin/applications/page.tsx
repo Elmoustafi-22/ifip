@@ -101,7 +101,7 @@ export default function AdminApplicationsPage() {
 
   if (loading && !stats) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-center bg-[#FDFBF7] font-sans">
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-center  font-sans">
         <svg className="animate-spin w-8 h-8 text-[#000666]" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -112,56 +112,45 @@ export default function AdminApplicationsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-10 px-4 sm:px-6 lg:px-8 font-sans bg-[#FDFBF7]">
-      {/* Back to standard admin dashboard links */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          <Link 
-            href="/admin"
-            className="text-xs font-bold text-[#000666] hover:underline whitespace-nowrap"
-          >
-            &larr; Back to Admin Dashboard
-          </Link>
-          <span className="text-slate-300 text-xs hidden xs:inline">|</span>
-          <Link 
-            href="/dashboard"
-            className="text-xs font-bold text-slate-400 hover:underline whitespace-nowrap"
-          >
-            Go to Participant Workspace
-          </Link>
+    <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8 font-sans">
+      {/* Top Header */}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <div className="mb-2">
+            <Link 
+              href="/admin" 
+              className="text-xs font-semibold text-slate-400 hover:text-[#000666] inline-flex items-center gap-1 transition-colors"
+            >
+              &larr; Back to Admin Dashboard
+            </Link>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#000666] tracking-tight mb-1">Applications & Cohort Queue</h1>
+          <p className="text-slate-500 text-xs sm:text-sm">Review paid participants, manage cohort assignments, and track progression.</p>
         </div>
-        <span className="bg-orange-100 text-[#FF9800] text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full border border-orange-200 self-start sm:self-auto">
-          Admin Panel
-        </span>
-      </div>
-
-      <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight mb-2">Cohort Review & Applications Queue</h1>
-        <p className="text-slate-500 text-sm">Review committed applicants, manage assignments, and track registrations.</p>
       </div>
 
       {/* Stats Grid */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-3 text-slate-400">
-              <span className="text-xs font-bold uppercase tracking-wider">Total Paid</span>
-              <HiOutlineClipboardDocumentCheck className="w-5 h-5 text-[#00B0FF]" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white border border-slate-200/80 rounded-xl p-4 sm:p-5 shadow-xs">
+            <div className="flex items-center justify-between mb-2 text-slate-400">
+              <span className="text-xs font-semibold text-slate-400">Total Paid</span>
+              <HiOutlineClipboardDocumentCheck className="w-5 h-5 text-sky-500" />
             </div>
             <div className="text-2xl font-black text-[#000666]">{stats.totalPaid}</div>
           </div>
 
-          <div className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-3 text-slate-400">
-              <span className="text-xs font-bold uppercase tracking-wider">Active</span>
+          <div className="bg-white border border-slate-200/80 rounded-xl p-4 sm:p-5 shadow-xs">
+            <div className="flex items-center justify-between mb-2 text-slate-400">
+              <span className="text-xs font-semibold text-slate-400">Active</span>
               <HiOutlineUsers className="w-5 h-5 text-indigo-500" />
             </div>
             <div className="text-2xl font-black text-[#000666]">{stats.activeParticipants}</div>
           </div>
 
-          <div className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-3 text-slate-400">
-              <span className="text-xs font-bold uppercase tracking-wider">Completed</span>
+          <div className="bg-white border border-slate-200/80 rounded-xl p-4 sm:p-5 shadow-xs">
+            <div className="flex items-center justify-between mb-2 text-slate-400">
+              <span className="text-xs font-semibold text-slate-400">Completed</span>
               <HiOutlineCheckCircle className="w-5 h-5 text-emerald-500" />
             </div>
             <div className="text-2xl font-black text-[#000666]">{stats.completedCount}</div>
@@ -169,11 +158,11 @@ export default function AdminApplicationsPage() {
 
           <Link
             href="/admin/waitlist"
-            className="bg-white border border-[#E7E2D8] rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-amber-300 transition-all cursor-pointer group"
+            className="bg-white border border-slate-200/80 rounded-xl p-4 sm:p-5 shadow-xs hover:border-slate-300 transition-all cursor-pointer group"
           >
-            <div className="flex items-center justify-between mb-3 text-slate-400">
-              <span className="text-xs font-bold uppercase tracking-wider group-hover:text-amber-600 transition-colors">Waitlist</span>
-              <HiOutlineInboxStack className="w-5 h-5 text-rose-500 group-hover:scale-110 transition-transform" />
+            <div className="flex items-center justify-between mb-2 text-slate-400">
+              <span className="text-xs font-semibold text-slate-400 group-hover:text-amber-600 transition-colors">Waitlist</span>
+              <HiOutlineInboxStack className="w-5 h-5 text-rose-500 group-hover:scale-105 transition-transform" />
             </div>
             <div className="text-2xl font-black text-[#000666]">{stats.waitlistCount}</div>
           </Link>
@@ -181,7 +170,7 @@ export default function AdminApplicationsPage() {
       )}
 
       {/* Filter and Search Bar */}
-      <div className="bg-white border border-[#E7E2D8] rounded-2xl p-4 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:max-w-md">
           <HiOutlineMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input 
@@ -189,7 +178,7 @@ export default function AdminApplicationsPage() {
             placeholder="Search by name or email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#00B0FF]"
+            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-[#00B0FF]"
           />
         </div>
 
@@ -197,7 +186,7 @@ export default function AdminApplicationsPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full md:w-48 px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none bg-white"
+            className="w-full md:w-48 px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none bg-white font-medium"
           >
             <option value="">All Statuses</option>
             <option value="payment_confirmed">Paid, Unassigned</option>
@@ -208,17 +197,17 @@ export default function AdminApplicationsPage() {
           <button
             type="button"
             onClick={() => setExportModalOpen(true)}
-            className="px-4 py-2.5 bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
+            className="px-4 py-2 bg-[#000666] hover:bg-[#000666]/90 text-white rounded-xl text-xs font-semibold transition shadow-xs flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
             title="Configure filters and download applicants insights in CSV format"
           >
-            <HiOutlineArrowDownTray className="w-4 h-4" />
-            <span>Export Insights CSV</span>
+            <HiOutlineArrowDownTray className="w-4 h-4 text-[#FF9800]" />
+            <span>Export CSV</span>
           </button>
         </div>
       </div>
 
       {/* Applications Table */}
-      <div className="bg-white border border-[#E7E2D8] rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs">
         
         {/* Desktop View */}
         <div className="hidden md:block overflow-x-auto">
@@ -256,18 +245,21 @@ export default function AdminApplicationsPage() {
                     </td>
                     <td className="px-6 py-4">
                       {app.status === "payment_confirmed" && (
-                        <span className="bg-amber-50 border border-amber-100 text-amber-700 text-[10px] font-bold px-2.5 py-1 rounded-md">
-                          Paid, Awaiting Intake
+                        <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 text-xs font-medium px-2.5 py-0.5 rounded-md">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          Awaiting Intake
                         </span>
                       )}
                       {app.status === "active" && (
-                        <span className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] font-bold px-2.5 py-1 rounded-md">
+                        <span className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 text-xs font-medium px-2.5 py-0.5 rounded-md">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                           Active Training
                         </span>
                       )}
                       {app.status === "completed" && (
-                        <span className="bg-emerald-50 border border-emerald-100 text-emerald-700 text-[10px] font-bold px-2.5 py-1 rounded-md">
-                          Course Completed
+                        <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-xs font-medium px-2.5 py-0.5 rounded-md">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Completed
                         </span>
                       )}
                     </td>
@@ -277,9 +269,9 @@ export default function AdminApplicationsPage() {
                           setSelectedApp(app);
                           setAssigningCohortId(app.cohortId || "");
                         }}
-                        className="bg-[#000666] hover:bg-[#000666]/90 text-white font-bold text-xs px-4.5 py-2 rounded-xl transition-all shadow-sm"
+                        className="bg-[#000666] hover:bg-[#000666]/90 text-white font-semibold text-xs px-3.5 py-1.5 rounded-lg transition-all shadow-xs"
                       >
-                        Review Profile
+                        Review
                       </button>
                     </td>
                   </tr>
@@ -353,7 +345,7 @@ export default function AdminApplicationsPage() {
       {/* Selected Applicant Profile Overlay Modal */}
       {selectedApp && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white border border-[#E7E2D8] w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-h-[85vh] flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+          <div className="bg-white border border-slate-200/80 w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-h-[85vh] flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="bg-[#000666] text-white py-4 px-6 flex items-center justify-between shrink-0">
               <div>
@@ -371,7 +363,7 @@ export default function AdminApplicationsPage() {
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto space-y-6 text-sm">
               {/* Status Header info */}
-              <div className="bg-[#FDFBF7] border border-[#E7E2D8] rounded-xl p-4 flex justify-between items-center">
+              <div className=" border border-slate-200/80 rounded-xl p-4 flex justify-between items-center">
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Verification Reference</span>
                   <div className="font-mono text-xs text-[#000666] mt-0.5">{selectedApp._id}</div>
@@ -576,7 +568,7 @@ export default function AdminApplicationsPage() {
               )}
 
               {/* Action Controls Section */}
-              <div className="border-t border-[#E7E2D8] pt-6 flex flex-col gap-4">
+              <div className="border-t border-slate-200/80 pt-6 flex flex-col gap-4">
                 <form onSubmit={handleAssignCohort} className="flex flex-col sm:flex-row gap-3 items-end">
                   <div className="flex-1 w-full">
                     <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">

@@ -239,8 +239,8 @@ export default function AdminOpportunitiesPage() {
       )}
 
       {/* Main categories listing card */}
-      <div className="bg-white border border-[#E7E2D8] rounded-2xl shadow-level1 overflow-hidden">
-        <div className="border-b border-[#E7E2D8] px-6 py-4 bg-[#FDFBF7] flex justify-between items-center">
+      <div className="bg-white border border-[slate-200/70] rounded-2xl shadow-level1 overflow-hidden">
+        <div className="border-b border-[slate-200/70] px-6 py-4 bg-[#FDFBF7] flex justify-between items-center">
           <h3 className="font-bold text-[#000666] text-sm uppercase tracking-wider">
             Opportunities Grid
           </h3>
@@ -262,12 +262,12 @@ export default function AdminOpportunitiesPage() {
             No opportunities configured. Click "Add Category" to get started.
           </div>
         ) : (
-          <div className="bg-white border border-[#E7E2D8] rounded-2xl shadow-level1 overflow-hidden">
+          <div className="bg-white border border-[slate-200/70] rounded-2xl shadow-level1 overflow-hidden">
             {/* Desktop View Table */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-[#E7E2D8] text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                  <tr className="bg-slate-50 border-b border-[slate-200/70] text-[10px] uppercase font-bold text-slate-400 tracking-wider">
                     <th className="py-3.5 px-6 w-16">Sort</th>
                     <th className="py-3.5 px-6 w-16">Icon</th>
                     <th className="py-3.5 px-6">Category</th>
@@ -276,7 +276,7 @@ export default function AdminOpportunitiesPage() {
                     <th className="py-3.5 px-6 w-24 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E7E2D8] text-sm">
+                <tbody className="divide-y divide-[slate-200/70] text-sm">
                   {opportunities.map((opp, index) => (
                     <tr
                       key={opp._id}
@@ -472,7 +472,7 @@ export default function AdminOpportunitiesPage() {
       {/* Add / Edit Category Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white border border-[#E7E2D8] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl p-6 flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] sm:max-h-none overflow-y-auto">
+          <div className="bg-white border border-[slate-200/70] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl p-6 flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] sm:max-h-none overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <h3 className="font-bold text-[#000666] text-lg font-display">
                 {editingOpportunity ? "Edit Category" : "Add Opportunity Category"}
@@ -565,7 +565,7 @@ export default function AdminOpportunitiesPage() {
       {/* Delete confirmation modal */}
       {deletingOpportunity && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white border border-[#E7E2D8] w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-2xl p-6 flex flex-col gap-4 text-center animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white border border-[slate-200/70] w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-2xl p-6 flex flex-col gap-4 text-center animate-in fade-in zoom-in-95 duration-150">
             <div className="w-12 h-12 bg-red-50 border border-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
               <HiOutlineExclamationTriangle className="w-6 h-6" />
             </div>

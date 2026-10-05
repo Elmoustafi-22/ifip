@@ -224,7 +224,7 @@ export default function AdminWaitlistPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-xs flex items-center justify-between">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs flex items-center justify-between">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
               Total Waitlisted
@@ -236,7 +236,7 @@ export default function AdminWaitlistPage() {
           </div>
         </div>
 
-        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-xs flex items-center justify-between">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs flex items-center justify-between">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
               Current Page Entries
@@ -248,7 +248,7 @@ export default function AdminWaitlistPage() {
           </div>
         </div>
 
-        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-xs flex items-center justify-between">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs flex items-center justify-between">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
               Pagination Pages
@@ -264,7 +264,7 @@ export default function AdminWaitlistPage() {
       </div>
 
       {/* Main Table Card */}
-      <div className="bg-white border border-[#E7E2D8] rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
         {/* Controls Bar */}
         <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-50/50">
           {/* Search Form */}

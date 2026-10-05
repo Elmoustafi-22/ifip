@@ -233,7 +233,7 @@ export default function AdminFormOptionsPage() {
       </div>
 
       {/* Tabs list */}
-      <div className="flex border-b border-[#E7E2D8] mb-6 gap-2 sm:gap-4 overflow-x-auto select-none">
+      <div className="flex border-b border-[slate-200/70] mb-6 gap-2 sm:gap-4 overflow-x-auto select-none">
         {TABS.map(t => {
           const active = activeTab === t.key;
           return (
@@ -266,14 +266,14 @@ export default function AdminFormOptionsPage() {
       )}
 
       {/* Tab description panel */}
-      <div className="bg-white border border-[#E7E2D8] rounded-xl px-5 py-4 mb-6 text-xs text-slate-500 leading-relaxed shadow-sm">
+      <div className="bg-white border border-[slate-200/70] rounded-xl px-5 py-4 mb-6 text-xs text-slate-500 leading-relaxed shadow-sm">
         {TABS.find(t => t.key === activeTab)?.desc}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Main List Column */}
-        <div className="lg:col-span-2 bg-white border border-[#E7E2D8] rounded-2xl shadow-level1 overflow-hidden">
-          <div className="border-b border-[#E7E2D8] px-6 py-4 bg-[#FDFBF7] flex justify-between items-center">
+        <div className="lg:col-span-2 bg-white border border-[slate-200/70] rounded-2xl shadow-level1 overflow-hidden">
+          <div className="border-b border-[slate-200/70] px-6 py-4 bg-[#FDFBF7] flex justify-between items-center">
             <h3 className="font-bold text-[#000666] text-sm uppercase tracking-wider">
               {TABS.find(t => t.key === activeTab)?.label} List
             </h3>
@@ -295,7 +295,7 @@ export default function AdminFormOptionsPage() {
               No options configured in this group yet.
             </div>
           ) : (
-            <div className="divide-y divide-[#E7E2D8]">
+            <div className="divide-y divide-[slate-200/70]">
               {options.map((opt, index) => (
                 <div
                   key={opt._id}
@@ -381,7 +381,7 @@ export default function AdminFormOptionsPage() {
         </div>
 
         {/* Sidebar Creation Panel */}
-        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-6 shadow-level1 flex flex-col gap-5 lg:sticky lg:top-24">
+        <div className="bg-white border border-[slate-200/70] rounded-2xl p-6 shadow-level1 flex flex-col gap-5 lg:sticky lg:top-24">
           <div>
             <h3 className="font-bold text-[#000666] text-base mb-1 font-display">Add Option</h3>
             <p className="text-slate-400 text-xs leading-relaxed">
@@ -438,7 +438,7 @@ export default function AdminFormOptionsPage() {
       {/* Edit modal drawer */}
       {editingOption && (
         <div className="fixed inset-0 z-50 bg-[#000666]/30 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E7E2D8] w-full max-w-md rounded-2xl shadow-2xl p-6 flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white border border-[slate-200/70] w-full max-w-md rounded-2xl shadow-2xl p-6 flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <h3 className="font-bold text-[#000666] text-lg font-display">Edit Option</h3>
               <button
@@ -521,7 +521,7 @@ export default function AdminFormOptionsPage() {
       {/* Delete confirmation modal */}
       {deletingOption && (
         <div className="fixed inset-0 z-50 bg-[#000666]/30 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E7E2D8] w-full max-w-sm rounded-2xl shadow-2xl p-6 flex flex-col gap-4 text-center animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white border border-[slate-200/70] w-full max-w-sm rounded-2xl shadow-2xl p-6 flex flex-col gap-4 text-center animate-in fade-in zoom-in-95 duration-150">
             <div className="w-12 h-12 bg-red-50 border border-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
               <HiOutlineExclamationTriangle className="w-6 h-6" />
             </div>

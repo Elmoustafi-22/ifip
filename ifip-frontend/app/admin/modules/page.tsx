@@ -661,7 +661,7 @@ export default function AdminModulesPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-center bg-[#FDFBF7] font-sans">
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-center  font-sans">
         <svg className="animate-spin w-8 h-8 text-[#000666]" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -672,7 +672,7 @@ export default function AdminModulesPage() {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto py-6 sm:py-10 px-4 sm:px-6 lg:px-8 font-sans bg-[#FDFBF7] overflow-x-hidden">
+    <div className="w-full max-w-6xl mx-auto py-6 sm:py-10 px-4 sm:px-6 lg:px-8 font-sans  overflow-x-hidden">
       {/* Top Header */}
       <div className="mb-6 sm:mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="min-w-0 flex-1">
@@ -764,7 +764,7 @@ export default function AdminModulesPage() {
       </div>
 
       {/* Modules Table List */}
-      <div className="bg-white border border-[#E7E2D8] rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
         {/* Desktop View Table */}
         <div className="hidden md:block overflow-x-auto">
           <table className="min-w-[1080px] w-full divide-y divide-slate-100 text-sm text-left">
@@ -1057,7 +1057,7 @@ export default function AdminModulesPage() {
       {/* Coursework & Outline Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white border border-[#E7E2D8] w-full sm:max-w-4xl rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white border border-slate-200/80 w-full sm:max-w-4xl rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="bg-[#000666] text-white py-3.5 sm:py-4 px-4 sm:px-6 flex items-center justify-between shrink-0">
               <h3 className="font-bold text-sm sm:text-base flex items-center gap-2 truncate">
@@ -1959,7 +1959,7 @@ export default function AdminModulesPage() {
       {/* Bulk Paste Quick Modal */}
       {bulkPasteConfig && (
         <div className="fixed inset-0 z-60 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E7E2D8] w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150 max-h-[90vh]">
+          <div className="bg-white border border-slate-200/80 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150 max-h-[90vh]">
             <div className="bg-[#000666] text-white py-3.5 px-5 flex items-center justify-between shrink-0">
               <h4 className="font-bold text-sm flex items-center gap-2">
                 <HiOutlineClipboardDocumentList className="w-4 h-4 text-[#FF9800]" /> {bulkPasteConfig.title}
@@ -2130,7 +2130,7 @@ export default function AdminModulesPage() {
       {/* Module Review Modal */}
       {reviewModule && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-[#E7E2D8] w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+          <div className="bg-white border border-slate-200/80 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
             {/* Review Header */}
             <div className="bg-[#000666] text-white py-4 px-6 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">

@@ -1878,11 +1878,11 @@ export interface Resource {
   _id: string;
   title: string;
   description?: string;
-  category: 'guidelines' | 'templates' | 'supplements';
+  category: string;
   fileUrl: string;
   fileType: 'pdf' | 'pptx' | 'docx' | 'xlsx' | 'link' | 'video' | 'other';
   fileSize?: string;
-  cohortId?: string;
+  cohortId?: string | { _id: string; name?: string; year?: number };
   uploadedBy?: { fullName: string; email: string };
   isPublished?: boolean;
   tags?: string[];
@@ -1900,7 +1900,7 @@ export const getResources = async (params?: {
 export interface CreateResourcePayload {
   title: string;
   description: string;
-  category: 'guidelines' | 'templates' | 'supplements';
+  category?: string;
   fileUrl: string;
   fileType: 'pdf' | 'pptx' | 'docx' | 'xlsx' | 'link' | 'video' | 'other';
   fileSize?: string;

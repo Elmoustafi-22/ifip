@@ -235,7 +235,7 @@ export default function AdminUsersPage() {
 
   if (authLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-[#FDFBF7] font-sans">
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4  font-sans">
         <svg className="animate-spin w-8 h-8 text-[#000666]" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -250,19 +250,19 @@ export default function AdminUsersPage() {
   const breakdown = data?.roleBreakdown ?? {};
 
   return (
-    <div className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8 font-sans bg-[#FDFBF7] min-h-screen">
+    <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 font-sans min-h-screen">
 
       {/* Header */}
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link
             href="/admin"
-            className="p-2 rounded-xl border border-[#E7E2D8] bg-white hover:bg-slate-50 text-slate-500 transition-colors"
+            className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-400 hover:text-slate-700 transition-colors"
           >
             <HiOutlineArrowLeft className="w-4 h-4" />
           </Link>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#000666] tracking-tight flex items-center gap-2">
               <HiOutlineUsers className="w-7 h-7 text-[#FF9800]" />
               Platform Users
             </h1>
@@ -274,14 +274,14 @@ export default function AdminUsersPage() {
               onClick={() => setInviteModalOpen(true)}
               className="inline-flex items-center justify-center gap-2 text-xs font-bold text-white bg-[#000666] hover:bg-[#000666]/90 px-4 py-2.5 rounded-xl transition-all shadow-xs"
             >
-              <HiOutlinePlus className="w-4 h-4" />
+              <HiOutlinePlus className="w-4 h-4 text-[#FF9800]" />
               Invite Admin
             </button>
           )}
           <button
             onClick={fetchUsers}
             disabled={loading}
-            className="inline-flex items-center justify-center gap-2 text-xs font-bold text-slate-500 hover:text-[#000666] border border-[#E7E2D8] bg-white px-4 py-2.5 rounded-xl transition-all"
+            className="inline-flex items-center justify-center gap-2 text-xs font-semibold text-slate-600 hover:text-[#000666] border border-slate-200 hover:border-slate-300 bg-white px-4 py-2.5 rounded-xl transition-all"
           >
             <HiOutlineArrowPath className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
@@ -290,9 +290,9 @@ export default function AdminUsersPage() {
       </div>
 
       {/* KPI Role Count Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {[
-          { key: "applicant",  label: "Applicants",  color: "text-slate-700" },
+          { key: "applicant",  label: "Applicants",  color: "text-slate-800" },
           { key: "participant",label: "Participants", color: "text-indigo-700" },
           { key: "admin",      label: "Admins",       color: "text-amber-700" },
           { key: "superadmin", label: "Super Admins", color: "text-rose-700" },
@@ -300,18 +300,18 @@ export default function AdminUsersPage() {
           <button
             key={key}
             onClick={() => setActiveRole(key)}
-            className={`flex flex-col bg-white border rounded-xl p-5 shadow-sm text-left hover:shadow-md transition-all ${
-              activeRole === key ? "border-[#000666] ring-1 ring-[#000666]/20" : "border-[#E7E2D8]"
+            className={`flex flex-col bg-white border rounded-xl p-4 sm:p-5 shadow-xs text-left hover:border-slate-300 transition-all ${
+              activeRole === key ? "border-[#000666] ring-1 ring-[#000666]" : "border-slate-200/80"
             }`}
           >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">{label}</div>
+            <div className="text-[11px] font-semibold text-slate-400 mb-1.5">{label}</div>
             <div className={`text-2xl font-black ${color}`}>{breakdown[key] ?? 0}</div>
           </button>
         ))}
       </div>
 
       {/* Filter Bar + Table Card */}
-      <div className="bg-white border border-[#E7E2D8] rounded-2xl shadow-sm overflow-hidden mb-4">
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden mb-4">
 
         {/* Tabs + Search */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
@@ -424,28 +424,30 @@ export default function AdminUsersPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3.5">
-                        <span className={`inline-block text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${roleMeta.className}`}>
+                        <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-0.5 rounded-md ${roleMeta.className}`}>
                           {roleMeta.label}
                         </span>
                       </td>
                       <td className="px-4 py-3.5">
                         {user.isConfigured ? (
-                          <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#E8F5E9] text-[#2E7D32]">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                             Configured
                           </span>
                         ) : (
-                          <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#FFF3E0] text-[#E65100]">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                             Pending Setup
                           </span>
                         )}
                       </td>
                       <td className="px-4 py-3.5">
                         {statusMeta ? (
-                          <span className={`inline-block text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${statusMeta.className}`}>
+                          <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-md ${statusMeta.className}`}>
                             {statusMeta.label}
                           </span>
                         ) : (
-                          <span className="text-slate-300 text-[11px] italic">No application</span>
+                          <span className="text-slate-300 text-xs">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3.5 text-xs text-slate-500">
@@ -670,7 +672,7 @@ export default function AdminUsersPage() {
       {/* Selected User Details Inspector Modal */}
       {selectedUser && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-[#E7E2D8] w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-h-[85vh] flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+          <div className="bg-white border border-slate-200/80 w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-h-[85vh] flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="bg-[#000666] text-white py-4 px-6 flex items-center justify-between shrink-0">
               <div>
@@ -688,7 +690,7 @@ export default function AdminUsersPage() {
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto space-y-6 text-sm">
               {/* Account Reference / Role info */}
-              <div className="bg-[#FDFBF7] border border-[#E7E2D8] rounded-xl p-4 flex justify-between items-center flex-wrap gap-2">
+              <div className=" border border-slate-200/80 rounded-xl p-4 flex justify-between items-center flex-wrap gap-2">
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Account ID</span>
                   <div className="font-mono text-xs text-[#000666] mt-0.5">{selectedUser._id}</div>
@@ -878,7 +880,7 @@ export default function AdminUsersPage() {
       {/* Invite Admin Modal */}
       {inviteModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-[#E7E2D8] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+          <div className="bg-white border border-slate-200/80 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="bg-[#000666] text-white py-4 px-6 flex items-center justify-between shrink-0">
               <div>
@@ -971,7 +973,7 @@ export default function AdminUsersPage() {
                 <button
                   type="button"
                   onClick={() => setInviteModalOpen(false)}
-                  className="px-4 py-2 rounded-lg border border-[#E7E2D8] hover:bg-slate-50 text-slate-500 font-bold transition-all"
+                  className="px-4 py-2 rounded-lg border border-slate-200/80 hover:bg-slate-50 text-slate-500 font-bold transition-all"
                 >
                   Cancel
                 </button>

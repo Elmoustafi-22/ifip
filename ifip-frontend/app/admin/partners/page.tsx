@@ -67,25 +67,25 @@ interface CohortOption {
 }
 
 const COHORT_STATUS_COLORS: Record<string, string> = {
-  active: "bg-emerald-100 text-emerald-700",
-  upcoming: "bg-blue-100 text-blue-700",
+  active: "bg-emerald-50 text-emerald-700",
+  upcoming: "bg-blue-50 text-blue-700",
   completed: "bg-slate-100 text-slate-500",
 };
 
-const APPLICATION_STATUS_STYLES: Record<string, { badge: string; icon: React.ReactNode; label: string }> = {
+const APPLICATION_STATUS_STYLES: Record<string, { badge: string; dot: string; label: string }> = {
   pending: {
-    badge: "bg-amber-100 text-amber-700 border border-amber-200",
-    icon: <HiOutlineClock className="w-3.5 h-3.5" />,
+    badge: "bg-amber-50 text-amber-700",
+    dot: "bg-amber-500",
     label: "Pending Review",
   },
   approved: {
-    badge: "bg-emerald-100 text-emerald-700 border border-emerald-200",
-    icon: <HiOutlineCheckCircle className="w-3.5 h-3.5" />,
+    badge: "bg-emerald-50 text-emerald-700",
+    dot: "bg-emerald-500",
     label: "Approved",
   },
   declined: {
-    badge: "bg-red-100 text-red-600 border border-red-200",
-    icon: <HiOutlineXCircle className="w-3.5 h-3.5" />,
+    badge: "bg-rose-50 text-rose-700",
+    dot: "bg-rose-500",
     label: "Declined",
   },
 };
@@ -512,7 +512,7 @@ export default function AdminPartnersPage() {
       </div>
 
       {/* Partner Talent Pool Visibility Card */}
-      <div className="mb-6 bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-sm">
+      <div className="mb-6 bg-white border border-[slate-200/70] rounded-2xl p-5 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
             <div className={`p-2.5 rounded-xl shrink-0 transition-colors ${showAllApplicants ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : "bg-slate-100 text-slate-600 border border-slate-200"}`}>
@@ -564,7 +564,7 @@ export default function AdminPartnersPage() {
       </div>
 
       {/* Tab Bar */}
-      <div className="flex gap-1 mb-8 bg-white border border-[#E7E2D8] rounded-xl p-1 w-fit">
+      <div className="flex gap-1 mb-8 bg-white border border-[slate-200/70] rounded-xl p-1 w-fit">
         <button
           onClick={() => setActiveTab("organizations")}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer ${
@@ -598,7 +598,7 @@ export default function AdminPartnersPage() {
       {activeTab === "organizations" && (
         <>
           {partners.length === 0 ? (
-            <div className="bg-white border border-[#E7E2D8] rounded-2xl p-12 text-center shadow-sm">
+            <div className="bg-white border border-[slate-200/70] rounded-2xl p-12 text-center shadow-sm">
               <p className="text-slate-400 font-medium mb-2">No partner organizations registered in the database.</p>
               <p className="text-xs text-slate-400">Click &quot;Add Partner Org&quot; to begin building your ecosystem.</p>
             </div>
@@ -607,7 +607,7 @@ export default function AdminPartnersPage() {
               {partners.map((partner) => (
                 <div
                   key={partner._id}
-                  className="bg-white border border-[#E7E2D8] rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+                  className="bg-white border border-[slate-200/70] rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-start gap-4 mb-4">
@@ -752,7 +752,7 @@ export default function AdminPartnersPage() {
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer capitalize border ${
                   appFilter === f
                     ? "bg-[#000666] text-white border-[#000666]"
-                    : "bg-white text-slate-500 border-[#E7E2D8] hover:border-[#000666]/30 hover:text-[#000666]"
+                    : "bg-white text-slate-500 border-[slate-200/70] hover:border-[#000666]/30 hover:text-[#000666]"
                 }`}
               >
                 {f === "all" ? "All Applications" : f}
@@ -773,7 +773,7 @@ export default function AdminPartnersPage() {
               </svg>
             </div>
           ) : applications.length === 0 ? (
-            <div className="bg-white border border-[#E7E2D8] rounded-2xl p-12 text-center shadow-sm">
+            <div className="bg-white border border-[slate-200/70] rounded-2xl p-12 text-center shadow-sm">
               <HiOutlineClipboardDocumentList className="w-10 h-10 text-slate-300 mx-auto mb-3" />
               <p className="text-slate-400 font-medium mb-1">No partner applications found.</p>
               <p className="text-xs text-slate-400">Applications submitted via the public form will appear here.</p>
@@ -785,7 +785,7 @@ export default function AdminPartnersPage() {
                 return (
                   <div
                     key={app._id}
-                    className="bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-sm hover:shadow-md transition-all"
+                    className="bg-white border border-[slate-200/70] rounded-2xl p-5 shadow-sm hover:shadow-md transition-all"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       {/* Left: Logo + Info */}
@@ -800,8 +800,8 @@ export default function AdminPartnersPage() {
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="font-bold text-[#000666] text-base">{app.companyName}</h3>
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${styles.badge}`}>
-                              {styles.icon}
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${styles.badge}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${styles.dot}`} />
                               {styles.label}
                             </span>
                           </div>
@@ -880,13 +880,13 @@ export default function AdminPartnersPage() {
               <div className="flex flex-col gap-1.5">
                 <label className="font-bold text-slate-700">Description</label>
                 <textarea value={description} onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600 min-h-[72px]"
+                  className="w-full px-3.5 py-2.5 border border-[slate-200/70] rounded-xl focus:outline-none focus:border-emerald-600 min-h-[72px]"
                   placeholder="" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="font-bold text-slate-700">Website URL</label>
                 <input type="url" value={website} onChange={(e) => setWebsite(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600"
+                  className="w-full px-3.5 py-2.5 border border-[slate-200/70] rounded-xl focus:outline-none focus:border-emerald-600"
                   placeholder="https://..." />
               </div>
               {/* Contact Details */}
@@ -899,19 +899,19 @@ export default function AdminPartnersPage() {
                 <div className="flex flex-col gap-1.5">
                   <label className="font-bold text-slate-700 text-xs">Contact Person Name</label>
                   <input type="text" value={contactPerson} onChange={(e) => setContactPerson(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-500 text-sm"
+                    className="w-full px-3.5 py-2.5 border border-[slate-200/70] rounded-xl focus:outline-none focus:border-emerald-500 text-sm"
                     placeholder="John Smith" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="font-bold text-slate-700 text-xs">Contact Email <span className="text-emerald-600">*</span></label>
                   <input type="email" required value={contactEmail} onChange={(e) => setContactEmail(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-500 text-sm"
+                    className="w-full px-3.5 py-2.5 border border-[slate-200/70] rounded-xl focus:outline-none focus:border-emerald-500 text-sm"
                     placeholder="partner@company.com" />
                 </div>
                 <div className="flex flex-col gap-1.5 sm:col-span-2">
                   <label className="font-bold text-slate-700 text-xs">Contact Phone Number</label>
                   <input type="text" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600 text-sm"
+                    className="w-full px-3.5 py-2.5 border border-[slate-200/70] rounded-xl focus:outline-none focus:border-emerald-600 text-sm"
                     placeholder="+234 800 000 0000" />
                 </div>
               </div>
@@ -919,13 +919,13 @@ export default function AdminPartnersPage() {
                 <div className="flex flex-col gap-1.5">
                   <label className="font-bold text-slate-700">Placement Slots *</label>
                   <input type="number" required min={0} value={activeSlots} onChange={(e) => setActiveSlots(Number(e.target.value))}
-                    className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600"
+                    className="w-full px-3.5 py-2.5 border border-[slate-200/70] rounded-xl focus:outline-none focus:border-emerald-600"
                     disabled={hasOpenings} />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="font-bold text-slate-700">Sector Tags <span className="font-normal text-slate-400">(comma-separated)</span></label>
                   <input type="text" value={sectorTagsInput} onChange={(e) => setSectorTagsInput(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600"
+                    className="w-full px-3.5 py-2.5 border border-[slate-200/70] rounded-xl focus:outline-none focus:border-emerald-600"
                     placeholder="Finance, Advisory" />
                 </div>
               </div>
@@ -1059,14 +1059,14 @@ export default function AdminPartnersPage() {
                   <div className="flex flex-col gap-1">
                     <span className="text-xs text-slate-400 font-medium">Or enter image URL manually:</span>
                     <input type="text" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)}
-                      className="w-full px-3.5 py-2.5 border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-emerald-600 text-xs disabled:bg-slate-50 disabled:text-slate-400"
+                      className="w-full px-3.5 py-2.5 border border-[slate-200/70] rounded-xl focus:outline-none focus:border-emerald-600 text-xs disabled:bg-slate-50 disabled:text-slate-400"
                       placeholder="https://..." disabled={!!logoFile} />
                   </div>
                 </div>
               </div>
               <div className="flex justify-end gap-3 mt-2 border-t border-slate-100 pt-4">
                 <button type="button" onClick={() => setModalOpen(false)}
-                  className="px-5 py-2.5 border border-[#E7E2D8] rounded-xl text-slate-600 font-bold hover:bg-slate-50 cursor-pointer">
+                  className="px-5 py-2.5 border border-[slate-200/70] rounded-xl text-slate-600 font-bold hover:bg-slate-50 cursor-pointer">
                   Cancel
                 </button>
                 <button type="submit" disabled={submitting}
@@ -1120,8 +1120,8 @@ export default function AdminPartnersPage() {
                       {reviewingApp.website.replace(/https?:\/\//, "")}
                     </a>
                   )}
-                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${APPLICATION_STATUS_STYLES[reviewingApp.status].badge}`}>
-                    {APPLICATION_STATUS_STYLES[reviewingApp.status].icon}
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${APPLICATION_STATUS_STYLES[reviewingApp.status].badge}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${APPLICATION_STATUS_STYLES[reviewingApp.status].dot}`} />
                     {APPLICATION_STATUS_STYLES[reviewingApp.status].label}
                   </span>
                 </div>
@@ -1226,7 +1226,7 @@ export default function AdminPartnersPage() {
                       onChange={(e) => setAdminNotes(e.target.value)}
                       rows={3}
                       placeholder=""
-                      className="w-full px-4 py-3 border border-[#E7E2D8] rounded-xl text-sm focus:outline-none focus:border-[#000666] resize-none transition-colors"
+                      className="w-full px-4 py-3 border border-[slate-200/70] rounded-xl text-sm focus:outline-none focus:border-[#000666] resize-none transition-colors"
                     />
                   </div>
                   <div className="flex gap-3">

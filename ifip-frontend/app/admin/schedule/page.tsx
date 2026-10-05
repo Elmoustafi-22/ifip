@@ -32,13 +32,13 @@ import {
 import { AdminCohortContext } from "../layout";
 import { buildWeekList, DEFAULT_TOTAL_WEEKS, MAX_TOTAL_WEEKS } from "@/lib/weeks";
 
-const SESSION_TYPE_CONFIG: Record<string, { label: string; bg: string; text: string; border: string }> = {
-  orientation: { label: "Orientation", bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
-  live_class: { label: "Live Class", bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
-  async_module: { label: "Async Module", bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
-  breakout: { label: "Breakout Session", bg: "bg-teal-50", text: "text-teal-700", border: "border-teal-200" },
-  assessment: { label: "Assessment", bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200" },
-  other: { label: "Other Session", bg: "bg-slate-50", text: "text-slate-700", border: "border-slate-200" }
+const SESSION_TYPE_CONFIG: Record<string, { label: string; bg: string; dot: string }> = {
+  orientation: { label: "Orientation", bg: "bg-purple-50 text-purple-700", dot: "bg-purple-500" },
+  live_class: { label: "Live Class", bg: "bg-emerald-50 text-emerald-700", dot: "bg-emerald-500" },
+  async_module: { label: "Async Study", bg: "bg-amber-50 text-amber-700", dot: "bg-amber-500" },
+  breakout: { label: "Breakout", bg: "bg-teal-50 text-teal-700", dot: "bg-teal-500" },
+  assessment: { label: "Assessment", bg: "bg-rose-50 text-rose-700", dot: "bg-rose-500" },
+  other: { label: "Session", bg: "bg-slate-100 text-slate-700", dot: "bg-slate-400" }
 };
 
 export default function AdminSchedulePage() {
@@ -268,7 +268,7 @@ export default function AdminSchedulePage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-center bg-[#FDFBF7] font-sans">
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-center  font-sans">
         <svg className="animate-spin w-8 h-8 text-[#000666]" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -279,34 +279,57 @@ export default function AdminSchedulePage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-10 px-4 sm:px-6 lg:px-8 font-sans bg-[#FDFBF7]">
+    <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8 font-sans">
       {/* Top Header */}
-      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="min-w-0 flex-1">
           <div className="mb-2">
-            <Link href="/admin" className="text-xs font-bold text-[#000666] hover:underline">
+            <Link href="/admin" className="text-xs font-semibold text-slate-400 hover:text-[#000666] inline-flex items-center gap-1 transition-colors">
               &larr; Back to Admin Dashboard
             </Link>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight mb-1 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-2">
-            <HiOutlineCalendar className="w-8 h-8 text-[#FF9800] shrink-0" />
-            <span>Programme Timetable & Calendar Manager</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#000666] tracking-tight mb-1 flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#000666]/5 flex items-center justify-center text-[#FF9800] shrink-0">
+              <HiOutlineCalendar className="w-5 h-5 text-[#FF9800]" />
+            </div>
+            <span>Programme Timetable</span>
           </h1>
-
+          <p className="text-xs text-slate-500">
+            {selectedCohort ? (
+              <span>Managing timetable for <strong className="text-slate-700 font-semibold">{selectedCohort.name}</strong> &bull; {weeks.length} weeks total</span>
+            ) : (
+              <span>Managing schedule across all cohorts</span>
+            )}
+          </p>
         </div>
-        <div className="w-full md:w-auto shrink-0 mt-2 md:mt-0 flex gap-3">
+
+        {/* Action Buttons: Add Week & Add Session directly visible at top */}
+        <div className="w-full md:w-auto shrink-0 flex items-center gap-2.5">
+          {selectedCohort && (
+            <button
+              id="top-add-week-button"
+              onClick={handleAddWeek}
+              disabled={weekUpdating || lastWeek >= MAX_TOTAL_WEEKS}
+              title={`Extend programme by adding Week ${lastWeek + 1}`}
+              className="flex-1 md:flex-initial bg-white hover:bg-slate-50 text-[#000666] border border-slate-200 hover:border-slate-300 font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <HiOutlinePlus className="w-3.5 h-3.5 text-[#FF9800]" />
+              <span>{weekUpdating ? "Adding..." : `Add Week ${lastWeek + 1}`}</span>
+            </button>
+          )}
+
           <button
             onClick={() => handleOpenCreate()}
-            className="w-full md:w-auto bg-[#000666] hover:bg-[#000666]/90 text-white font-bold text-xs tracking-wider uppercase px-6 py-3.5 rounded-xl shadow-sm transition-all text-center flex items-center justify-center gap-2"
+            className="flex-1 md:flex-initial bg-[#000666] hover:bg-[#000666]/90 text-white font-bold text-xs tracking-wider uppercase px-5 py-2.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-2"
           >
-            <HiOutlinePlus className="w-4 h-4 text-[#FF9800]" />
-            Add Session
+            <HiOutlinePlus className="w-3.5 h-3.5 text-[#FF9800]" />
+            <span>Add Session</span>
           </button>
         </div>
       </div>
 
       {/* Weekly Schedule View */}
-      <div className="space-y-8">
+      <div className="space-y-6">
         {weeks.map((weekNum) => {
           const weekSessions = sessionsByWeek[weekNum] || [];
           const publishedCount = weekSessions.filter(s => s.isPublished).length;
@@ -314,32 +337,33 @@ export default function AdminSchedulePage() {
           return (
             <div 
               key={weekNum}
-              className="bg-white border border-[#E7E2D8] rounded-2xl overflow-hidden shadow-sm"
+              className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs"
             >
               {/* Week Header */}
-              <div className="bg-slate-50 border-b border-[#E7E2D8] px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div className="bg-slate-50/70 border-b border-slate-100 px-5 sm:px-6 py-3.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-lg bg-[#000666] text-white flex items-center justify-center font-black text-sm">
+                  <span className="w-7 h-7 rounded-lg bg-[#000666] text-white flex items-center justify-center font-bold text-xs shadow-xs">
                     {weekNum}
                   </span>
                   <div>
-                    <h3 className="font-bold text-[#000666] text-base">
-                      Week {weekNum} Schedule
+                    <h3 className="font-bold text-[#000666] text-sm sm:text-base leading-snug">
+                      Week {weekNum}
                     </h3>
-                    <p className="text-xs text-slate-500">
-                      {weekSessions.length} total events • {publishedCount} published to participants
+                    <p className="text-[11px] text-slate-400">
+                      {weekSessions.length} {weekSessions.length === 1 ? "session" : "sessions"}
+                      {publishedCount > 0 && ` &bull; ${publishedCount} published`}
                     </p>
                   </div>
                 </div>
 
                 {/* Week Actions */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 self-end sm:self-center">
                   {weekSessions.length > 0 && (
                     <>
                       {publishedCount < weekSessions.length && (
                         <button
                           onClick={() => handleBulkPublish(weekNum, true)}
-                          className="text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg flex items-center gap-1"
+                          className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1"
                         >
                           <HiOutlineEye className="w-3.5 h-3.5" /> Publish All
                         </button>
@@ -347,7 +371,7 @@ export default function AdminSchedulePage() {
                       {publishedCount > 0 && (
                         <button
                           onClick={() => handleBulkPublish(weekNum, false)}
-                          className="text-xs font-bold text-slate-600 hover:text-slate-800 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1"
+                          className="text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1"
                         >
                           <HiOutlineEyeSlash className="w-3.5 h-3.5" /> Unpublish All
                         </button>
@@ -356,7 +380,7 @@ export default function AdminSchedulePage() {
                   )}
                   <button
                     onClick={() => handleOpenCreate(weekNum)}
-                    className="text-xs font-bold text-[#000666] hover:bg-[#000666]/5 border border-[#000666]/20 px-3 py-1.5 rounded-lg flex items-center gap-1"
+                    className="text-xs font-semibold text-[#000666] hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
                   >
                     <HiOutlinePlus className="w-3.5 h-3.5 text-[#FF9800]" /> Add Event
                   </button>
@@ -366,7 +390,7 @@ export default function AdminSchedulePage() {
                       onClick={() => handleRemoveWeek(weekNum)}
                       disabled={weekUpdating}
                       title="Remove this empty week from the cohort"
-                      className="text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-lg flex items-center gap-1 disabled:opacity-50"
+                      className="text-xs font-semibold text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-colors disabled:opacity-50"
                     >
                       <HiOutlineTrash className="w-3.5 h-3.5" /> Remove Week
                     </button>
@@ -390,12 +414,6 @@ export default function AdminSchedulePage() {
                   weekSessions.map((sess) => {
                     const cfg = SESSION_TYPE_CONFIG[sess.sessionType] || SESSION_TYPE_CONFIG.other;
                     const dateObj = new Date(sess.sessionDate);
-                    const formattedDate = dateObj.toLocaleDateString("en-GB", {
-                      weekday: "short",
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric"
-                    });
                     const formattedTime = dateObj.toLocaleTimeString("en-GB", {
                       hour: "2-digit",
                       minute: "2-digit"
@@ -404,46 +422,43 @@ export default function AdminSchedulePage() {
                     return (
                       <div 
                         key={sess._id} 
-                        className={`p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-colors ${
-                          !sess.isPublished ? "bg-slate-50/70 opacity-75" : "hover:bg-slate-50/50"
+                        className={`p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-colors ${
+                          !sess.isPublished ? "bg-slate-50/40 opacity-75" : "hover:bg-slate-50/40"
                         }`}
                       >
                         {/* Date & Title */}
-                        <div className="flex items-start gap-4 min-w-0 flex-1">
-                          <div className="w-24 shrink-0 text-center bg-slate-100 rounded-xl p-2.5 border border-slate-200">
-                            <span className="block text-[11px] font-bold uppercase text-slate-400">
+                        <div className="flex items-start gap-3.5 sm:gap-4 min-w-0 flex-1">
+                          <div className="w-20 shrink-0 text-center py-2 px-1 rounded-xl bg-slate-50 border border-slate-200/70">
+                            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
                               {dateObj.toLocaleDateString("en-GB", { weekday: "short" })}
                             </span>
-                            <span className="block text-base font-black text-[#000666]">
+                            <span className="block text-base font-extrabold text-[#000666] leading-tight">
                               {dateObj.getDate()} {dateObj.toLocaleDateString("en-GB", { month: "short" })}
                             </span>
-                            <span className="block text-[11px] font-mono text-slate-500 mt-0.5">
+                            <span className="block text-[11px] font-mono font-medium text-slate-500 mt-0.5">
                               {formattedTime}
                             </span>
                           </div>
 
                           <div className="min-w-0 flex-1 space-y-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+                              <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-md ${cfg.bg}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                                 {cfg.label}
                               </span>
-                              {!sess.isPublished && (
-                                <span className="text-[10px] font-bold uppercase bg-slate-200 text-slate-600 px-2 py-0.5 rounded">
-                                  Draft / Hidden
-                                </span>
-                              )}
-                              {sess.cohortId ? (
-                                <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                              {(!selectedCohortId || selectedCohortId === "unassigned") && sess.cohortId && (
+                                <span className="text-[11px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
                                   {sess.cohortId.name || "Cohort"}
                                 </span>
-                              ) : (
-                                <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-                                  All Cohorts
+                              )}
+                              {!sess.cohortId && selectedCohortId && (
+                                <span className="text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
+                                  Global
                                 </span>
                               )}
                             </div>
 
-                            <h4 className="font-bold text-[#000666] text-sm">
+                            <h4 className="font-bold text-slate-900 text-sm leading-snug">
                               {sess.title}
                             </h4>
 
@@ -453,66 +468,67 @@ export default function AdminSchedulePage() {
                               </p>
                             )}
 
-                            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 pt-1">
-                              <span className="flex items-center gap-1">
-                                <HiOutlineClock className="w-3.5 h-3.5" />
-                                {sess.durationMinutes || 60} mins
+                            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 pt-0.5">
+                              <span className="flex items-center gap-1 text-slate-500 font-medium">
+                                <HiOutlineClock className="w-3.5 h-3.5 text-slate-400" />
+                                {sess.durationMinutes || 60}m
                               </span>
 
                               {sess.meetingUrl && (
-                                <a 
-                                  href={sess.meetingUrl} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-sky-600 hover:underline flex items-center gap-1 font-semibold"
-                                >
-                                  <HiOutlineVideoCamera className="w-3.5 h-3.5" />
-                                  {sess.meetingPlatform?.toUpperCase() || "MEETING"} LINK &rarr;
-                                </a>
+                                <>
+                                  <span className="text-slate-200">&bull;</span>
+                                  <a 
+                                    href={sess.meetingUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-sky-600 hover:text-sky-700 hover:underline flex items-center gap-1 font-semibold transition-colors"
+                                  >
+                                    <HiOutlineVideoCamera className="w-3.5 h-3.5" />
+                                    Meeting link &rarr;
+                                  </a>
+                                </>
                               )}
 
                               {sess.moduleId && (
-                                <span className="flex items-center gap-1 text-slate-600">
-                                  <HiOutlineBookOpen className="w-3.5 h-3.5" />
-                                  Linked: {(sess.moduleId as any).title || "Module"}
-                                </span>
+                                <>
+                                  <span className="text-slate-200">&bull;</span>
+                                  <span className="flex items-center gap-1 text-slate-500">
+                                    <HiOutlineBookOpen className="w-3.5 h-3.5 text-slate-400" />
+                                    {(sess.moduleId as any).title || "Module"}
+                                  </span>
+                                </>
                               )}
                             </div>
                           </div>
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex items-center gap-3 self-end md:self-center shrink-0">
+                        <div className="flex items-center gap-2 self-end md:self-center shrink-0">
                           <button
                             onClick={() => handleTogglePublish(sess._id)}
                             title={sess.isPublished ? "Unpublish from participant view" : "Publish to participant view"}
-                            className={`p-2 rounded-lg border text-xs font-bold flex items-center gap-1.5 transition-all ${
+                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
                               sess.isPublished 
-                                ? "border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100" 
-                                : "border-slate-200 text-slate-600 bg-slate-100 hover:bg-slate-200"
+                                ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" 
+                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                             }`}
                           >
-                            {sess.isPublished ? (
-                              <>
-                                <HiOutlineEye className="w-4 h-4" /> Published
-                              </>
-                            ) : (
-                              <>
-                                <HiOutlineEyeSlash className="w-4 h-4" /> Draft
-                              </>
-                            )}
+                            <span className={`w-1.5 h-1.5 rounded-full ${sess.isPublished ? "bg-emerald-500" : "bg-slate-400"}`} />
+                            {sess.isPublished ? "Published" : "Draft"}
                           </button>
 
                           <button
                             onClick={() => handleOpenEdit(sess)}
-                            className="p-2 text-sky-600 hover:bg-sky-50 rounded-lg border border-sky-200 text-xs font-bold"
+                            title="Edit session"
+                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
                           >
                             <HiOutlinePencilSquare className="w-4 h-4" />
                           </button>
 
                           <button
                             onClick={() => handleDelete(sess._id)}
-                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg border border-rose-200 text-xs font-bold"
+                            title="Delete session"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                           >
                             <HiOutlineTrash className="w-4 h-4" />
                           </button>
@@ -526,28 +542,24 @@ export default function AdminSchedulePage() {
           );
         })}
 
-        {/* Add Week */}
-        {selectedCohort ? (
+        {/* Bottom Add Week */}
+        {selectedCohort && (
           <button
             id="add-week-button"
             onClick={handleAddWeek}
             disabled={weekUpdating || lastWeek >= MAX_TOTAL_WEEKS}
-            className="w-full border-2 border-dashed border-[#000666]/20 hover:border-[#FF9800]/60 hover:bg-[#FF9800]/5 rounded-2xl py-6 flex items-center justify-center gap-2 text-sm font-bold text-[#000666] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full border-2 border-dashed border-slate-200 hover:border-[#FF9800]/50 hover:bg-amber-50/20 rounded-2xl py-4 flex items-center justify-center gap-2 text-xs font-bold text-slate-500 hover:text-[#000666] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <HiOutlinePlus className="w-4 h-4 text-[#FF9800]" />
-            {weekUpdating ? "Updating..." : `Add Week ${lastWeek + 1}`}
+            {weekUpdating ? "Adding..." : `Add Week ${lastWeek + 1}`}
           </button>
-        ) : (
-          <p className="text-center text-xs text-slate-400 py-4">
-            Select a specific cohort to add or remove programme weeks.
-          </p>
         )}
       </div>
 
       {/* Session Create / Edit Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white border border-[#E7E2D8] w-full sm:max-w-xl rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white border border-slate-200/80 w-full sm:max-w-xl rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
             <div className="bg-[#000666] text-white py-4 px-6 flex items-center justify-between shrink-0">
               <h3 className="font-bold text-base flex items-center gap-2">
                 <HiOutlineCalendar className="w-5 h-5 text-[#FF9800]" /> 

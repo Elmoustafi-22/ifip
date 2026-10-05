@@ -623,7 +623,7 @@ export default function AdminAnnouncementsPage() {
             </p>
 
             {/* Notification Dropdown Box */}
-            <div className="bg-white border border-[#E7E2D8] rounded-2xl shadow-lg overflow-hidden max-w-sm mx-auto font-sans">
+            <div className="bg-white border border-slate-200/80 rounded-2xl shadow-lg overflow-hidden max-w-sm mx-auto font-sans">
               <div className="flex items-center justify-between px-4 py-3 bg-[#000666]/5 border-b border-slate-100">
                 <span className="font-bold text-[#000666] text-xs">Notifications</span>
                 <span className="text-[9px] uppercase font-bold text-[#00B0FF] hover:underline cursor-default">

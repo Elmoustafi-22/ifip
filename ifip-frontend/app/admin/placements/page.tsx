@@ -304,7 +304,7 @@ export default function AdminPlacementsPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4 text-center bg-[#FDFBF7] font-sans">
+      <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4 text-center  font-sans">
         <svg className="animate-spin w-8 h-8 text-[#000666]" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -315,9 +315,9 @@ export default function AdminPlacementsPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 font-sans bg-[#FDFBF7] space-y-6">
+    <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 font-sans  space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-[#E7E2D8] pb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200/80 pb-6">
         <div>
           <div className="mb-2">
             <Link href="/admin" className="text-xs font-bold text-[#000666] hover:underline flex items-center gap-1">
@@ -356,7 +356,7 @@ export default function AdminPlacementsPage() {
           className={`p-4 rounded-2xl border text-left transition-all ${
             activeFilterTab === "all"
               ? "bg-white border-[#000666] shadow-sm ring-2 ring-[#000666]/10"
-              : "bg-white/70 border-[#E7E2D8] hover:bg-white"
+              : "bg-white/70 border-slate-200/80 hover:bg-white"
           }`}
         >
           <div className="flex items-center justify-between text-slate-400 mb-1">
@@ -372,7 +372,7 @@ export default function AdminPlacementsPage() {
           className={`p-4 rounded-2xl border text-left transition-all ${
             activeFilterTab === "matched"
               ? "bg-white border-indigo-600 shadow-sm ring-2 ring-indigo-500/10"
-              : "bg-white/70 border-[#E7E2D8] hover:bg-white"
+              : "bg-white/70 border-slate-200/80 hover:bg-white"
           }`}
         >
           <div className="flex items-center justify-between text-indigo-600 mb-1">
@@ -388,7 +388,7 @@ export default function AdminPlacementsPage() {
           className={`p-4 rounded-2xl border text-left transition-all ${
             activeFilterTab === "interviewing"
               ? "bg-white border-amber-500 shadow-sm ring-2 ring-amber-500/10"
-              : "bg-white/70 border-[#E7E2D8] hover:bg-white"
+              : "bg-white/70 border-slate-200/80 hover:bg-white"
           }`}
         >
           <div className="flex items-center justify-between text-amber-600 mb-1">
@@ -404,7 +404,7 @@ export default function AdminPlacementsPage() {
           className={`p-4 rounded-2xl border text-left transition-all ${
             activeFilterTab === "placed"
               ? "bg-white border-emerald-600 shadow-sm ring-2 ring-emerald-500/10"
-              : "bg-white/70 border-[#E7E2D8] hover:bg-white"
+              : "bg-white/70 border-slate-200/80 hover:bg-white"
           }`}
         >
           <div className="flex items-center justify-between text-emerald-600 mb-1">
@@ -420,7 +420,7 @@ export default function AdminPlacementsPage() {
           className={`p-4 rounded-2xl border text-left transition-all col-span-2 sm:col-span-1 ${
             activeFilterTab === "unmatched"
               ? "bg-white border-slate-600 shadow-sm ring-2 ring-slate-500/10"
-              : "bg-white/70 border-[#E7E2D8] hover:bg-white"
+              : "bg-white/70 border-slate-200/80 hover:bg-white"
           }`}
         >
           <div className="flex items-center justify-between text-slate-500 mb-1">
@@ -435,7 +435,7 @@ export default function AdminPlacementsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
         {/* Main Content Area (Col-span 3) */}
         <div className="lg:col-span-3 space-y-4">
-          <div className="bg-white border border-[#E7E2D8] rounded-2xl shadow-xs overflow-hidden">
+          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
             {/* Filter Tabs Navigation */}
             <div className="px-6 pt-5 pb-3 border-b border-slate-100 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
               <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
@@ -772,7 +772,7 @@ export default function AdminPlacementsPage() {
 
         {/* Partners Capacities Sidebar (Col-span 1) */}
         <div className="space-y-4">
-          <div className="bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-xs">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
               <h2 className="font-bold text-[#000666] text-sm flex items-center gap-1.5">
                 <HiOutlineBuildingOffice className="w-4 h-4 text-sky-600" />
@@ -842,7 +842,7 @@ export default function AdminPlacementsPage() {
       {/* Matchmaking Modal Overlay */}
       {matchModalOpen && selectedApp && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white border border-[#E7E2D8] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-h-none flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+          <div className="bg-white border border-slate-200/80 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-h-none flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
             <div className="bg-[#000666] text-white py-4 px-6 flex items-center justify-between shrink-0">
               <h3 className="font-bold text-base flex items-center gap-1.5">
                 <HiOutlineSparkles className="w-5 h-5 text-[#FF9800]" /> Match Candidate
