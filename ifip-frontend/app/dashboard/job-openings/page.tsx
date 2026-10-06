@@ -113,6 +113,16 @@ export default function ParticipantJobOpeningsPage() {
       return;
     }
 
+    // Guard: verify active session before uploading
+    const accessToken =
+      typeof window !== "undefined"
+        ? sessionStorage.getItem("accessToken") ?? localStorage.getItem("accessToken")
+        : null;
+    if (!accessToken) {
+      setApplyError("Your session has expired. Please log in again.");
+      return;
+    }
+
     setCvFile(file);
     setCvUploading(true);
     setApplyError("");
@@ -122,10 +132,18 @@ export default function ParticipantJobOpeningsPage() {
       setUploadedCvUrl(res.cvUrl);
       setUploadedFileName(res.fileName || file.name);
     } catch (err: any) {
-      setApplyError(err?.response?.data?.message || "Failed to upload resume. Please try again.");
+      const isSessionError = (err as any)?.status === 401 || (err as any)?.status === 403;
+      const errorMsg = isSessionError
+        ? "Your session has expired. Please log in again."
+        : err?.message || err?.response?.data?.message || "Failed to upload resume. Please try again.";
+      setApplyError(errorMsg);
       setCvFile(null);
     } finally {
       setCvUploading(false);
+      // Reset input value so selecting the same file again triggers onChange
+      if (e.target) {
+        e.target.value = "";
+      }
     }
   };
 
@@ -167,7 +185,7 @@ export default function ParticipantJobOpeningsPage() {
       // Refresh list to update hasApplied status
       fetchData();
     } catch (err: any) {
-      setApplyError(err?.response?.data?.message || "Failed to submit application.");
+      setApplyError(err?.message || err?.response?.data?.message || "Failed to submit application.");
     } finally {
       setSubmittingApp(false);
     }
@@ -573,11 +591,14 @@ export default function ParticipantJobOpeningsPage() {
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 pt-1">
                       <label className="cursor-pointer inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white border border-slate-300 rounded-xl sm:rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-100 transition shadow-2xs">
                         <HiOutlineArrowUpTray className="w-4 h-4 text-slate-500" />
-                        <span>{cvUploading ? "Uploading..." : "Choose File"}</span>
+                        <span>{cvUploading ? "Uploading..." : uploadedFileName ? "Replace Resume" : "Choose File"}</span>
                         <input
                           type="file"
                           accept=".pdf,.doc,.docx"
                           onChange={handleFileChange}
+                          onClick={(e) => {
+                            (e.currentTarget as HTMLInputElement).value = "";
+                          }}
                           disabled={cvUploading}
                           className="hidden"
                         />

@@ -44,7 +44,7 @@ export const uploadCv = async (req: Request, res: Response) => {
             }, 45000);
 
             const stream = cloudinary.uploader.upload_stream(
-                { resource_type: 'raw', folder: 'ifipp/cvs', public_id: publicId },
+                { resource_type: 'raw', folder: 'ifipp/cvs', public_id: publicId, overwrite: true, invalidate: true },
                 (error, result) => {
                     clearTimeout(timer);
                     if (error || !result) {
@@ -98,7 +98,7 @@ export const uploadCvAuth = async (req: Request, res: Response) => {
             }, 45000);
 
             const stream = cloudinary.uploader.upload_stream(
-                { resource_type: 'raw', folder: 'ifipp/cvs', public_id: publicId },
+                { resource_type: 'raw', folder: 'ifipp/cvs', public_id: publicId, overwrite: true, invalidate: true },
                 (error, result) => {
                     clearTimeout(timer);
                     if (error || !result) {
@@ -614,7 +614,8 @@ export const uploadJobApplicationCv = async (req: Request, res: Response) => {
             .replace(/[^a-zA-Z0-9_\-\s]/g, '')
             .replace(/\s+/g, '_')
             .substring(0, 40);
-        const publicId = `${safeName}_Job_Resume_${candidateId.slice(-6)}.${ext}`;
+        const timestamp = Date.now();
+        const publicId = `${safeName}_Job_Resume_${candidateId.slice(-6)}_${timestamp}.${ext}`;
 
         const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
             const timer = setTimeout(() => {
@@ -622,7 +623,13 @@ export const uploadJobApplicationCv = async (req: Request, res: Response) => {
             }, 60000);
 
             const stream = cloudinary.uploader.upload_stream(
-                { resource_type: 'raw', folder: 'ifipp/job-cvs', public_id: publicId },
+                {
+                    resource_type: 'raw',
+                    folder: 'ifipp/job-cvs',
+                    public_id: publicId,
+                    overwrite: true,
+                    invalidate: true,
+                },
                 (error, result) => {
                     clearTimeout(timer);
                     if (error || !result) {
