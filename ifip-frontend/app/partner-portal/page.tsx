@@ -54,9 +54,12 @@ export default function PartnerOverviewPage() {
     loadDashboard();
   }, []);
 
-  const handleOpenOutcomeModal = (task: PartnerInterviewTask) => {
+  const handleOpenOutcomeModal = (
+    task: PartnerInterviewTask,
+    defaultOutcome: "offer_extended" | "not_selected" | "completed" = "offer_extended"
+  ) => {
     setActiveTask(task);
-    setSelectedOutcome("offer_extended");
+    setSelectedOutcome(defaultOutcome);
     setOutcomeNotes(task.partnerNotes || "");
     setOutcomeError("");
   };
@@ -166,7 +169,7 @@ export default function PartnerOverviewPage() {
               <HiOutlineCalendar className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-[#000666] mt-2">{tasks.length}</p>
+          <p className="text-2xl font-bold text-[#000666] mt-2">{stats?.scheduledInterviews ?? tasks.length}</p>
           <p className="text-[11px] text-slate-400 mt-0.5">Pending completion / outcome</p>
         </div>
 
@@ -198,13 +201,13 @@ export default function PartnerOverviewPage() {
         <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center space-x-2">
-              <h2 className="text-base font-bold text-[#000666]">Action Items &amp; Scheduled Interviews</h2>
+              <h2 className="text-base font-bold text-[#000666]">Pending Interviews &amp; Action Items</h2>
               <span className="text-xs font-semibold px-2 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200">
                 {tasks.length}
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Conduct interviews and mark final decisions to conclude the hiring process.
+              Review scheduled meetings, conduct interviews, and record hiring decisions.
             </p>
           </div>
 
@@ -235,8 +238,9 @@ export default function PartnerOverviewPage() {
                 weekday: "short",
                 day: "numeric",
                 month: "short",
-                hour: "2-digit",
+                hour: "numeric",
                 minute: "2-digit",
+                hour12: true,
               });
 
               return (
@@ -275,16 +279,17 @@ export default function PartnerOverviewPage() {
                         <HiOutlineCalendar className="w-3.5 h-3.5 text-slate-400" />
                         <span>{formattedDate}</span>
                       </div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">
-                        {task.interviewFormat}
-                        {task.isOverdue && (
-                          <span className="ml-1.5 text-amber-700 font-medium">• Awaiting outcome</span>
+                      <div className="text-[11px] mt-0.5">
+                        {task.isOverdue ? (
+                          <span className="text-amber-800 font-medium">Interview Concluded &bull; Decision Required</span>
+                        ) : (
+                          <span className="text-slate-400">Scheduled</span>
                         )}
                       </div>
                     </div>
 
                     <div className="flex items-center space-x-2">
-                      {task.interviewLink && (
+                      {!task.isOverdue && task.interviewLink && (
                         <a
                           href={task.interviewLink}
                           target="_blank"
@@ -297,13 +302,31 @@ export default function PartnerOverviewPage() {
                         </a>
                       )}
 
-                      <button
-                        onClick={() => handleOpenOutcomeModal(task)}
-                        className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#000666] hover:bg-[#000666]/90 text-white text-xs font-medium transition cursor-pointer"
-                      >
-                        <HiOutlineCheck className="w-3.5 h-3.5" />
-                        <span>Mark Done</span>
-                      </button>
+                      {task.isOverdue ? (
+                        <>
+                          <button
+                            onClick={() => handleOpenOutcomeModal(task, "offer_extended")}
+                            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#000666] hover:bg-[#000666]/90 text-white text-xs font-medium transition cursor-pointer shadow-xs"
+                          >
+                            <HiOutlineCheck className="w-3.5 h-3.5" />
+                            <span>Extend Offer</span>
+                          </button>
+                          <button
+                            onClick={() => handleOpenOutcomeModal(task, "not_selected")}
+                            className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-600 text-xs font-medium transition cursor-pointer"
+                          >
+                            <span>Decline</span>
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => handleOpenOutcomeModal(task, "offer_extended")}
+                          className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#000666] hover:bg-[#000666]/90 text-white text-xs font-medium transition cursor-pointer"
+                        >
+                          <HiOutlineCheck className="w-3.5 h-3.5" />
+                          <span>Mark Done</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -421,7 +444,7 @@ export default function PartnerOverviewPage() {
                   disabled={submittingOutcome}
                   className="px-4 py-2 rounded-lg bg-[#000666] hover:bg-[#000666]/90 text-white font-medium transition disabled:opacity-50"
                 >
-                  {submittingOutcome ? "Saving..." : "Save Outcome"}
+                  {submittingOutcome ? "Saving..." : selectedOutcome === "offer_extended" ? "Confirm & Extend Offer" : "Confirm Decision"}
                 </button>
               </div>
             </form>

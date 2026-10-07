@@ -152,6 +152,7 @@ app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/placements', placementRoutes);
 app.use('/api/v1/partners', partnerRoutes);
+app.use('/api/v1/partner', partnerRoutes);
 app.use('/api/v1/form-options', formOptionRoutes);
 app.use('/api/v1/active-openings', activeOpeningRoutes);
 app.use('/api/v1/placement-opportunities', placementOpportunityRoutes);

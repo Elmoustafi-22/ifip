@@ -20,6 +20,7 @@ export interface PartnerStats {
   pendingRequests: number;
   confirmedPlacements: number;
   slotsRemaining: number;
+  scheduledInterviews?: number;
 }
 
 export interface PartnerMeResponse {
@@ -589,7 +590,7 @@ export interface PartnerTasksResponse {
 }
 
 export const getPartnerTasks = async (): Promise<PartnerTasksResponse> => {
-  const { data } = await authClient.get('/partner/tasks');
+  const { data } = await authClient.get('/partners/tasks');
   return data;
 };
 

@@ -53,14 +53,29 @@ export const getPartnerMe = async (req: Request, res: Response) => {
         if (!org) return;
 
         const allowedStatuses = await getAllowedPoolStatuses();
-        const [availableInterns, pendingRequests, confirmedPlacements] = await Promise.all([
+        const openings = await JobOpening.find({ partnerOrgId: org._id }).select('_id');
+        const openingIds = openings.map((o) => o._id);
+
+        const [availableInterns, pendingRequests, confirmedPlacements, scheduledJobInterviews, scheduledPlacementInterviews] = await Promise.all([
             Application.countDocuments({ status: { $in: allowedStatuses } }),
             PartnerInterest.countDocuments({ partnerOrgId: org._id, status: 'pending' }),
             Placement.countDocuments({ partnerOrgId: org._id, status: { $in: ['matched', 'interviewing', 'placed'] } }),
+            JobApplication.countDocuments({
+                jobOpeningId: { $in: openingIds },
+                status: 'interview_scheduled',
+                interviewScheduledAt: { $exists: true, $ne: null },
+            }),
+            Placement.countDocuments({
+                partnerOrgId: org._id,
+                status: 'interviewing',
+                interviewScheduledAt: { $exists: true, $ne: null },
+                partnerOutcome: { $exists: false },
+            }),
         ]);
 
         const totalSlots = org.activeSlots;
         const usedSlots = await Placement.countDocuments({ partnerOrgId: org._id, status: { $in: ['matched', 'interviewing', 'placed'] } });
+        const scheduledInterviews = scheduledJobInterviews + scheduledPlacementInterviews;
 
         res.json({
             org: {
@@ -82,6 +97,7 @@ export const getPartnerMe = async (req: Request, res: Response) => {
                 pendingRequests,
                 confirmedPlacements,
                 slotsRemaining: Math.max(0, totalSlots - usedSlots),
+                scheduledInterviews,
             },
         });
     } catch (err: any) {
@@ -1408,6 +1424,7 @@ export const getPartnerTasks = async (req: Request, res: Response) => {
                 const op = openingMap.get(app.jobOpeningId?.toString()) || {};
                 const u = app.userId || {};
                 const scheduledTime = new Date(app.interviewScheduledAt);
+                const estimatedEndTime = new Date(scheduledTime.getTime() + 45 * 60 * 1000);
                 return {
                     id: app._id.toString(),
                     type: 'job_application' as const,
@@ -1423,12 +1440,13 @@ export const getPartnerTasks = async (req: Request, res: Response) => {
                     interviewLink: app.interviewLink || '',
                     interviewLocation: app.interviewLocation || '',
                     partnerNotes: app.partnerNotes || '',
-                    isOverdue: scheduledTime < now,
+                    isOverdue: estimatedEndTime < now,
                 };
             }),
             ...placements.map((p: any) => {
                 const u = p.userId || {};
                 const scheduledTime = new Date(p.interviewScheduledAt);
+                const estimatedEndTime = new Date(scheduledTime.getTime() + 45 * 60 * 1000);
                 return {
                     id: p._id.toString(),
                     type: 'placement' as const,
@@ -1444,7 +1462,7 @@ export const getPartnerTasks = async (req: Request, res: Response) => {
                     interviewLink: p.interviewLink || '',
                     interviewLocation: p.interviewLocation || '',
                     partnerNotes: p.partnerNotes || '',
-                    isOverdue: scheduledTime < now,
+                    isOverdue: estimatedEndTime < now,
                 };
             }),
         ].sort((a, b) => new Date(a.interviewDate).getTime() - new Date(b.interviewDate).getTime());

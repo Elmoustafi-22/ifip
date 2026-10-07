@@ -402,23 +402,22 @@ export default function JobOpeningApplicationsReviewPage() {
                   </div>
                 </div>
 
-                {/* Contact info (unlocked when shortlisted or interview scheduled) */}
+                {/* Candidate Contact Details */}
                 {isContactVisible && (app.applicant?.email || app.applicant?.phone) && (
-                  <div className="p-3 bg-emerald-50/50 border border-emerald-200 rounded-lg text-xs flex flex-wrap gap-4 text-emerald-950">
-                    <span className="font-bold text-emerald-800">Candidate Contacts (Unlocked):</span>
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 pt-0.5">
                     {app.applicant?.email && (
                       <a
                         href={`mailto:${app.applicant.email}`}
-                        className="flex items-center gap-1 text-emerald-800 hover:underline"
+                        className="inline-flex items-center gap-1.5 text-slate-700 hover:text-[#000666] hover:underline"
                       >
-                        <HiOutlineEnvelope className="w-3.5 h-3.5" />
-                        {app.applicant.email}
+                        <HiOutlineEnvelope className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{app.applicant.email}</span>
                       </a>
                     )}
                     {app.applicant?.phone && (
-                      <span className="flex items-center gap-1 text-emerald-800">
-                        <HiOutlinePhone className="w-3.5 h-3.5" />
-                        {app.applicant.phone}
+                      <span className="inline-flex items-center gap-1.5 text-slate-700">
+                        <HiOutlinePhone className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{app.applicant.phone}</span>
                       </span>
                     )}
                   </div>
@@ -439,14 +438,13 @@ export default function JobOpeningApplicationsReviewPage() {
                             day: "numeric",
                             month: "short",
                             year: "numeric",
-                            hour: "2-digit",
+                            hour: "numeric",
                             minute: "2-digit",
+                            hour12: true,
                           })}
                         </strong>
                       </div>
-                      <div>
-                        Format: <strong className="text-purple-900">{app.interviewFormat}</strong>
-                      </div>
+
                       {app.interviewLink && (
                         <div className="sm:col-span-2">
                           Link:{" "}
@@ -640,25 +638,22 @@ export default function JobOpeningApplicationsReviewPage() {
 
               {/* Contact Information */}
               {["shortlisted", "interview_scheduled"].includes(selectedApplicant.status) ? (
-                <div className="p-3.5 bg-emerald-50/50 border border-emerald-200 rounded-xl space-y-1.5">
-                  <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider block">
-                    Contact Information (Unlocked)
-                  </span>
-                  <div className="flex flex-wrap gap-4 text-xs font-medium text-emerald-950">
+                (selectedApplicant.applicant?.email || selectedApplicant.applicant?.phone) && (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-wrap gap-4 text-xs font-medium text-slate-700">
                     {selectedApplicant.applicant?.email && (
-                      <a href={`mailto:${selectedApplicant.applicant.email}`} className="flex items-center gap-1.5 hover:underline">
-                        <HiOutlineEnvelope className="w-4 h-4 text-emerald-700" />
+                      <a href={`mailto:${selectedApplicant.applicant.email}`} className="flex items-center gap-1.5 text-slate-700 hover:text-[#000666] hover:underline">
+                        <HiOutlineEnvelope className="w-4 h-4 text-slate-400" />
                         <span>{selectedApplicant.applicant.email}</span>
                       </a>
                     )}
                     {selectedApplicant.applicant?.phone && (
-                      <a href={`tel:${selectedApplicant.applicant.phone}`} className="flex items-center gap-1.5 hover:underline">
-                        <HiOutlinePhone className="w-4 h-4 text-emerald-700" />
+                      <a href={`tel:${selectedApplicant.applicant.phone}`} className="flex items-center gap-1.5 text-slate-700 hover:text-[#000666] hover:underline">
+                        <HiOutlinePhone className="w-4 h-4 text-slate-400" />
                         <span>{selectedApplicant.applicant.phone}</span>
                       </a>
                     )}
                   </div>
-                </div>
+                )
               ) : (
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-[11px] leading-relaxed">
                   <strong className="text-slate-700">Contact Policy:</strong> Direct candidate phone and email will be made accessible once you shortlist the candidate or schedule an interview.
@@ -901,6 +896,7 @@ export default function JobOpeningApplicationsReviewPage() {
               <div className="space-y-1">
                 <label className="font-bold text-slate-700 uppercase tracking-wider block">
                   Date and Time <span className="text-rose-500">*</span>
+                  <span className="text-[11px] text-slate-400 font-normal ml-1.5 lowercase tracking-normal">(ensure am/pm is set correctly)</span>
                 </label>
                 <input
                   type="datetime-local"
