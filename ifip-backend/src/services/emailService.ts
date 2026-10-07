@@ -37,8 +37,9 @@ const send = async (to: string, subject: string, html: string, senderName: strin
             subject,
             htmlContent: html,
         });
+        console.log(`[EmailService] Sent email "${subject}" to ${to} (${senderName})`);
     } catch (err: any) {
-        console.error(`Failed to send email to ${to}:`, err?.response?.data ?? err.message);
+        console.error(`[EmailService] Failed to send email "${subject}" to ${to}:`, err?.response?.data ?? err.message);
     }
 };
 
@@ -2307,4 +2308,172 @@ export const sendJobApplicationInterviewScheduledEmail = async (
     </div>`;
 
     await send(applicantEmail, `Interview Scheduled: ${openingTitle} at ${orgName}`, html, EMAIL_SENDERS.PLACEMENT);
+};
+
+/**
+ * Admin Alert: Partner scheduled an interview for a job opening application.
+ */
+export const sendAdminJobApplicationInterviewScheduledAlert = async (
+    adminEmail: string,
+    orgName: string,
+    candidateName: string,
+    jobTitle: string,
+    interviewDate: string,
+    format: string,
+    interviewLink?: string,
+    interviewLocation?: string
+) => {
+    const adminUrl = `${env.CLIENT_URL}/admin/job-openings`;
+    const html = `
+    <div style="font-family: Arial, sans-serif; background-color: #F8F9FA; padding: 40px 10px; margin: 0;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #E7E2D8;">
+            <div style="background-color: #000666; padding: 28px 24px; text-align: center;">
+                <h1 style="color: #ffffff; font-family: Georgia, serif; font-size: 20px; margin: 0;">Job Interview Scheduled</h1>
+            </div>
+            <div style="padding: 32px 24px; color: #1E293B;">
+                <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
+                    <strong>${orgName}</strong> has scheduled an interview with applicant <strong>${candidateName}</strong> for <strong>${jobTitle}</strong>.
+                </p>
+                <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-left: 4px solid #000666; border-radius: 6px; padding: 18px; margin-bottom: 24px;">
+                    <div style="font-size: 14px; line-height: 1.8;">
+                        <div><strong>Organisation:</strong> ${orgName}</div>
+                        <div><strong>Role:</strong> ${jobTitle}</div>
+                        <div><strong>Candidate:</strong> ${candidateName}</div>
+                        <div><strong>Date &amp; Time:</strong> ${interviewDate}</div>
+                        <div><strong>Format:</strong> ${format}</div>
+                        ${interviewLink ? `<div><strong>Meeting Link:</strong> <a href="${interviewLink}" style="color: #000666; word-break: break-all;">${interviewLink}</a></div>` : ''}
+                        ${interviewLocation ? `<div><strong>Location / Notes:</strong> ${interviewLocation}</div>` : ''}
+                    </div>
+                </div>
+                <div style="text-align: center; margin: 28px 0;">
+                    <a href="${adminUrl}" style="display: inline-block; background-color: #000666; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-size: 14px; font-weight: bold;">
+                        View Job Openings on Dashboard
+                    </a>
+                </div>
+            </div>
+            <div style="background-color: #FDFBF7; padding: 20px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <p style="font-size: 12px; color: #64748B; margin: 0;">Islamic Finance Internship Program &bull; Administrative Operations</p>
+            </div>
+        </div>
+    </div>`;
+
+    await send(adminEmail, `Job Interview Scheduled: ${orgName} with ${candidateName} (${jobTitle})`, html, EMAIL_SENDERS.PLACEMENT);
+};
+
+/**
+ * Candidate Interview Reminder
+ */
+export const sendInterviewReminderToCandidate = async (
+    candidateEmail: string,
+    candidateName: string,
+    orgName: string,
+    roleTitle: string,
+    interviewDate: string,
+    format: string,
+    timeframeLabel: string,
+    interviewLink?: string,
+    interviewLocation?: string
+) => {
+    const dashboardUrl = `${env.CLIENT_URL}/dashboard`;
+    const nameStr = candidateName ? candidateName.trim() : 'Participant';
+    const html = `
+    <div style="font-family: Arial, sans-serif; background-color: #F8F9FA; padding: 40px 10px; margin: 0;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #E7E2D8;">
+            <div style="background-color: #000666; padding: 28px 24px; text-align: center;">
+                <h1 style="color: #ffffff; font-family: Georgia, serif; font-size: 20px; margin: 0;">Interview Reminder</h1>
+            </div>
+            <div style="padding: 32px 24px; color: #1E293B;">
+                <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
+                    Dear <strong>${nameStr}</strong>,
+                </p>
+                <p style="font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">
+                    This is a reminder that your interview with <strong>${orgName}</strong> for <strong>${roleTitle}</strong> is scheduled ${timeframeLabel}.
+                </p>
+                <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-left: 4px solid #000666; border-radius: 6px; padding: 18px; margin-bottom: 24px;">
+                    <div style="font-size: 14px; line-height: 1.8;">
+                        <div><strong>Role:</strong> ${roleTitle}</div>
+                        <div><strong>Organisation:</strong> ${orgName}</div>
+                        <div><strong>Date &amp; Time:</strong> ${interviewDate}</div>
+                        <div><strong>Format:</strong> ${format}</div>
+                        ${interviewLink ? `<div><strong>Meeting Link:</strong> <a href="${interviewLink}" style="color: #000666; word-break: break-all;">${interviewLink}</a></div>` : ''}
+                        ${interviewLocation ? `<div><strong>Location / Notes:</strong> ${interviewLocation}</div>` : ''}
+                    </div>
+                </div>
+                <div style="text-align: center; margin: 28px 0;">
+                    ${interviewLink ? `
+                    <a href="${interviewLink}" target="_blank" style="display: inline-block; background-color: #000666; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-size: 14px; font-weight: bold; margin-bottom: 12px;">
+                        Join Interview Meeting
+                    </a><br>
+                    ` : ''}
+                    <a href="${dashboardUrl}" style="font-size: 13px; color: #0284c7; text-decoration: underline;">
+                        View on Dashboard
+                    </a>
+                </div>
+            </div>
+            <div style="background-color: #FDFBF7; padding: 20px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <p style="font-size: 12px; color: #64748B; margin: 0;">Islamic Finance Internship Program</p>
+            </div>
+        </div>
+    </div>`;
+
+    await send(candidateEmail, `Reminder: Interview with ${orgName} (${timeframeLabel})`, html, EMAIL_SENDERS.PLACEMENT);
+};
+
+/**
+ * Partner Interview Reminder
+ */
+export const sendInterviewReminderToPartner = async (
+    partnerEmail: string,
+    partnerContactName: string,
+    candidateName: string,
+    roleTitle: string,
+    interviewDate: string,
+    format: string,
+    timeframeLabel: string,
+    interviewLink?: string,
+    interviewLocation?: string
+) => {
+    const portalUrl = `${env.CLIENT_URL}/partner-portal`;
+    const nameStr = partnerContactName ? partnerContactName.trim() : 'Partner';
+    const html = `
+    <div style="font-family: Arial, sans-serif; background-color: #F8F9FA; padding: 40px 10px; margin: 0;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #E7E2D8;">
+            <div style="background-color: #000666; padding: 28px 24px; text-align: center;">
+                <h1 style="color: #ffffff; font-family: Georgia, serif; font-size: 20px; margin: 0;">Interview Reminder</h1>
+            </div>
+            <div style="padding: 32px 24px; color: #1E293B;">
+                <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
+                    Dear <strong>${nameStr}</strong>,
+                </p>
+                <p style="font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">
+                    This is a reminder that your scheduled interview with candidate <strong>${candidateName}</strong> for <strong>${roleTitle}</strong> is ${timeframeLabel}.
+                </p>
+                <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-left: 4px solid #000666; border-radius: 6px; padding: 18px; margin-bottom: 24px;">
+                    <div style="font-size: 14px; line-height: 1.8;">
+                        <div><strong>Candidate:</strong> ${candidateName}</div>
+                        <div><strong>Role:</strong> ${roleTitle}</div>
+                        <div><strong>Date &amp; Time:</strong> ${interviewDate}</div>
+                        <div><strong>Format:</strong> ${format}</div>
+                        ${interviewLink ? `<div><strong>Meeting Link:</strong> <a href="${interviewLink}" style="color: #000666; word-break: break-all;">${interviewLink}</a></div>` : ''}
+                        ${interviewLocation ? `<div><strong>Location / Notes:</strong> ${interviewLocation}</div>` : ''}
+                    </div>
+                </div>
+                <div style="text-align: center; margin: 28px 0;">
+                    ${interviewLink ? `
+                    <a href="${interviewLink}" target="_blank" style="display: inline-block; background-color: #000666; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-size: 14px; font-weight: bold; margin-bottom: 12px;">
+                        Open Meeting Link
+                    </a><br>
+                    ` : ''}
+                    <a href="${portalUrl}" style="font-size: 13px; color: #0284c7; text-decoration: underline;">
+                        Go to Partner Portal
+                    </a>
+                </div>
+            </div>
+            <div style="background-color: #FDFBF7; padding: 20px; text-align: center; border-top: 1px solid #E7E2D8;">
+                <p style="font-size: 12px; color: #64748B; margin: 0;">Islamic Finance Internship Program &bull; Partner Network</p>
+            </div>
+        </div>
+    </div>`;
+
+    await send(partnerEmail, `Reminder: Interview with ${candidateName} (${timeframeLabel})`, html, EMAIL_SENDERS.PLACEMENT);
 };

@@ -3,6 +3,7 @@ import { connectDB } from './config/db.js';
 import { env } from './config/env.js';
 import { connectRedis } from './services/redisService.js';
 import { PartnerOrganization } from './models/PartnerOrganization.js';
+import { startInterviewReminderCron } from './services/interviewReminderCron.js';
 
 const PORT = Number(env.PORT);
 
@@ -20,6 +21,9 @@ Promise.all([connectDB(), connectRedis()]).then(async () => {
     } catch (migErr: any) {
         console.error('Database migration error:', migErr.message);
     }
+
+    // Initialize interview reminder cron (runs every 5 minutes)
+    startInterviewReminderCron();
 
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 });

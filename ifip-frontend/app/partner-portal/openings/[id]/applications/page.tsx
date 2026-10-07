@@ -27,6 +27,7 @@ import {
   getJobOpeningApplications,
   reviewJobApplication,
   scheduleJobInterview,
+  logJobInterviewOutcome,
   JobOpeningItem,
   JobApplicantRecord,
 } from "@/lib/api/partner";
@@ -51,6 +52,13 @@ export default function JobOpeningApplicationsReviewPage() {
   const [interviewLocation, setInterviewLocation] = useState("");
   const [schedulingSubmitting, setSchedulingSubmitting] = useState(false);
   const [scheduleError, setScheduleError] = useState("");
+
+  // Outcome Modal State
+  const [outcomeModalOpen, setOutcomeModalOpen] = useState(false);
+  const [outcomeApp, setOutcomeApp] = useState<JobApplicantRecord | null>(null);
+  const [selectedOutcome, setSelectedOutcome] = useState<"offer_extended" | "not_selected" | "completed">("offer_extended");
+  const [outcomeNotes, setOutcomeNotes] = useState("");
+  const [submittingOutcome, setSubmittingOutcome] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -164,6 +172,32 @@ export default function JobOpeningApplicationsReviewPage() {
     }
   };
 
+  const handleOpenOutcome = (app: JobApplicantRecord) => {
+    setOutcomeApp(app);
+    setSelectedOutcome("offer_extended");
+    setOutcomeNotes(app.partnerNotes || "");
+    setOutcomeModalOpen(true);
+  };
+
+  const handleSaveOutcome = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!outcomeApp) return;
+    setSubmittingOutcome(true);
+    try {
+      await logJobInterviewOutcome(openingId, outcomeApp._id, selectedOutcome, outcomeNotes.trim() || undefined);
+      setOutcomeModalOpen(false);
+      setOutcomeApp(null);
+      await fetchData();
+      if (selectedApplicant?._id === outcomeApp._id) {
+        setSelectedApplicant(null);
+      }
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Failed to record interview outcome.");
+    } finally {
+      setSubmittingOutcome(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "submitted":
@@ -186,6 +220,20 @@ export default function JobOpeningApplicationsReviewPage() {
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-purple-700">
             <span className="w-1.5 h-1.5 rounded-full bg-purple-600" />
             Interview Scheduled
+          </span>
+        );
+      case "interview_completed":
+        return (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+            Interview Conducted
+          </span>
+        );
+      case "offered":
+        return (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+            Offer Extended
           </span>
         );
       case "not_selected":
@@ -497,6 +545,16 @@ export default function JobOpeningApplicationsReviewPage() {
                       <span>{app.status === "interview_scheduled" ? "Reschedule Interview" : "Schedule Interview"}</span>
                     </button>
 
+                    {app.status === "interview_scheduled" && (
+                      <button
+                        onClick={() => handleOpenOutcome(app)}
+                        className="w-full sm:w-auto px-3 py-1.5 text-xs font-semibold text-slate-800 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition cursor-pointer text-center flex items-center justify-center gap-1.5"
+                      >
+                        <HiOutlineCheckCircle className="w-3.5 h-3.5" />
+                        <span>Record Outcome</span>
+                      </button>
+                    )}
+
                     {app.status !== "not_selected" && (
                       <button
                         onClick={() => handleReviewAction(app._id, "not_selected")}
@@ -783,6 +841,17 @@ export default function JobOpeningApplicationsReviewPage() {
                   <span>{selectedApplicant.status === "interview_scheduled" ? "Reschedule Interview" : "Schedule Interview"}</span>
                 </button>
 
+                {selectedApplicant.status === "interview_scheduled" && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenOutcome(selectedApplicant)}
+                    className="px-3.5 py-2 text-xs font-semibold text-slate-800 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition cursor-pointer text-center flex items-center gap-1.5"
+                  >
+                    <HiOutlineCheckCircle className="w-3.5 h-3.5" />
+                    <span>Record Outcome</span>
+                  </button>
+                )}
+
                 {selectedApplicant.status !== "not_selected" && (
                   <button
                     type="button"
@@ -914,6 +983,114 @@ export default function JobOpeningApplicationsReviewPage() {
                   ) : (
                     "Confirm & Send Notice"
                   )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Record Outcome Modal */}
+      {outcomeModalOpen && outcomeApp && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-xl max-w-md w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95 duration-100">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Record Interview Outcome</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Candidate: <strong className="text-slate-800">{outcomeApp.applicant?.fullName || "Candidate"}</strong>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOutcomeModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded transition"
+              >
+                <HiOutlineXMark className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveOutcome} className="space-y-4 text-xs">
+              <div className="space-y-2">
+                <label className="font-semibold text-slate-700 block">Select Final Outcome</label>
+
+                <label className={`flex items-start space-x-3 p-3 rounded-lg border cursor-pointer transition ${
+                  selectedOutcome === "offer_extended" ? "border-[#000666] bg-slate-50/70" : "border-slate-200 hover:bg-slate-50/40"
+                }`}>
+                  <input
+                    type="radio"
+                    name="outcome"
+                    value="offer_extended"
+                    checked={selectedOutcome === "offer_extended"}
+                    onChange={() => setSelectedOutcome("offer_extended")}
+                    className="mt-0.5 text-[#000666] focus:ring-[#000666]"
+                  />
+                  <div>
+                    <span className="font-semibold text-slate-900 block">Offer Extended</span>
+                    <span className="text-[11px] text-slate-500">Candidate selected; official offer notice will be sent.</span>
+                  </div>
+                </label>
+
+                <label className={`flex items-start space-x-3 p-3 rounded-lg border cursor-pointer transition ${
+                  selectedOutcome === "not_selected" ? "border-slate-800 bg-slate-50/70" : "border-slate-200 hover:bg-slate-50/40"
+                }`}>
+                  <input
+                    type="radio"
+                    name="outcome"
+                    value="not_selected"
+                    checked={selectedOutcome === "not_selected"}
+                    onChange={() => setSelectedOutcome("not_selected")}
+                    className="mt-0.5 text-slate-800 focus:ring-slate-800"
+                  />
+                  <div>
+                    <span className="font-semibold text-slate-900 block">Not Selected</span>
+                    <span className="text-[11px] text-slate-500">Conclude application without extending an offer.</span>
+                  </div>
+                </label>
+
+                <label className={`flex items-start space-x-3 p-3 rounded-lg border cursor-pointer transition ${
+                  selectedOutcome === "completed" ? "border-slate-800 bg-slate-50/70" : "border-slate-200 hover:bg-slate-50/40"
+                }`}>
+                  <input
+                    type="radio"
+                    name="outcome"
+                    value="completed"
+                    checked={selectedOutcome === "completed"}
+                    onChange={() => setSelectedOutcome("completed")}
+                    className="mt-0.5 text-slate-800 focus:ring-slate-800"
+                  />
+                  <div>
+                    <span className="font-semibold text-slate-900 block">Interview Conducted (Decision Pending)</span>
+                    <span className="text-[11px] text-slate-500">Mark interview as completed while finalizing review.</span>
+                  </div>
+                </label>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 block">Evaluation / Private Notes (Optional)</label>
+                <textarea
+                  rows={3}
+                  value={outcomeNotes}
+                  onChange={(e) => setOutcomeNotes(e.target.value)}
+                  placeholder="Internal notes on interview performance..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#000666] focus:border-[#000666]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setOutcomeModalOpen(false)}
+                  className="px-3.5 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingOutcome}
+                  className="px-4 py-2 rounded-lg bg-[#000666] hover:bg-[#000666]/90 text-white font-medium transition disabled:opacity-50"
+                >
+                  {submittingOutcome ? "Saving..." : "Save Outcome"}
                 </button>
               </div>
             </form>

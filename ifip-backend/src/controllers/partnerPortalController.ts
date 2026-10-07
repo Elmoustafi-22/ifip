@@ -601,6 +601,8 @@ export const logInterview = async (req: Request, res: Response) => {
         placement.interviewLink = interviewLink ? String(interviewLink).trim() : undefined;
         placement.interviewLocation = interviewLocation ? String(interviewLocation).trim() : undefined;
         placement.status = 'interviewing';
+        placement.reminder24hSent = false;
+        placement.reminder1hSent = false;
         await placement.save();
 
         const intern = await User.findById(placement.userId).select('fullName email');
@@ -1322,6 +1324,8 @@ export const scheduleJobInterview = async (req: Request, res: Response) => {
         application.interviewLink = interviewLink ? String(interviewLink).trim() : undefined;
         application.interviewLocation = interviewLocation ? String(interviewLocation).trim() : undefined;
         application.status = 'interview_scheduled';
+        application.reminder24hSent = false;
+        application.reminder1hSent = false;
         await application.save();
 
         const user = await User.findById(application.userId).select('fullName email').lean();
@@ -1334,6 +1338,7 @@ export const scheduleJobInterview = async (req: Request, res: Response) => {
         });
 
         notificationEmitter.emit('jobApplication.interview_scheduled', {
+            opsEmail: env.OPS_EMAIL || env.EMAIL_REPLY_TO,
             userId: application.userId.toString(),
             userEmail: (user as any)?.email,
             userName: (user as any)?.fullName || 'Participant',
@@ -1357,3 +1362,167 @@ export const scheduleJobInterview = async (req: Request, res: Response) => {
         res.status(500).json({ message: 'Error scheduling interview.', error: err.message });
     }
 };
+
+// ─── GET /api/v1/partner/tasks ─────────────────────────────────────────────
+export const getPartnerTasks = async (req: Request, res: Response) => {
+    try {
+        const org = await getPartnerOrg(req, res);
+        if (!org) return;
+
+        // 1. Fetch partner's openings
+        const openings = await JobOpening.find({ partnerOrgId: org._id }).select('_id title department').lean();
+        const openingIds = openings.map((o) => o._id);
+        const openingMap = new Map<string, any>(openings.map((o) => [o._id.toString(), o]));
+
+        // 2. Fetch Job Applications with scheduled interviews pending outcome
+        const jobApps = await JobApplication.find({
+            jobOpeningId: { $in: openingIds },
+            status: 'interview_scheduled',
+            interviewScheduledAt: { $exists: true, $ne: null },
+        })
+            .populate('userId', 'fullName email phone avatarUrl')
+            .sort({ interviewScheduledAt: 1 })
+            .lean();
+
+        // 3. Fetch Placements in 'interviewing' status pending outcome
+        const placements = await Placement.find({
+            partnerOrgId: org._id,
+            status: 'interviewing',
+            interviewScheduledAt: { $exists: true, $ne: null },
+            partnerOutcome: { $exists: false },
+        })
+            .populate('userId', 'fullName email phone avatarUrl')
+            .sort({ interviewScheduledAt: 1 })
+            .lean();
+
+        // 4. Fetch count of new job applications awaiting review
+        const pendingReviewCount = await JobApplication.countDocuments({
+            jobOpeningId: { $in: openingIds },
+            status: 'submitted',
+        });
+
+        // 5. Normalize interviews list
+        const now = new Date();
+        const interviews = [
+            ...jobApps.map((app: any) => {
+                const op = openingMap.get(app.jobOpeningId?.toString()) || {};
+                const u = app.userId || {};
+                const scheduledTime = new Date(app.interviewScheduledAt);
+                return {
+                    id: app._id.toString(),
+                    type: 'job_application' as const,
+                    sourceId: app.jobOpeningId?.toString() || '',
+                    candidateName: u.fullName || 'Candidate',
+                    candidateEmail: u.email || '',
+                    candidatePhone: u.phone || '',
+                    candidateAvatar: u.avatarUrl || null,
+                    role: op.title || 'Job Opening',
+                    department: op.department || '',
+                    interviewDate: scheduledTime.toISOString(),
+                    interviewFormat: app.interviewFormat || 'Video',
+                    interviewLink: app.interviewLink || '',
+                    interviewLocation: app.interviewLocation || '',
+                    partnerNotes: app.partnerNotes || '',
+                    isOverdue: scheduledTime < now,
+                };
+            }),
+            ...placements.map((p: any) => {
+                const u = p.userId || {};
+                const scheduledTime = new Date(p.interviewScheduledAt);
+                return {
+                    id: p._id.toString(),
+                    type: 'placement' as const,
+                    sourceId: p._id.toString(),
+                    candidateName: u.fullName || 'Candidate',
+                    candidateEmail: u.email || '',
+                    candidatePhone: u.phone || '',
+                    candidateAvatar: u.avatarUrl || null,
+                    role: p.role || 'Placement Candidate',
+                    department: p.workType || '',
+                    interviewDate: scheduledTime.toISOString(),
+                    interviewFormat: p.interviewFormat || 'Video',
+                    interviewLink: p.interviewLink || '',
+                    interviewLocation: p.interviewLocation || '',
+                    partnerNotes: p.partnerNotes || '',
+                    isOverdue: scheduledTime < now,
+                };
+            }),
+        ].sort((a, b) => new Date(a.interviewDate).getTime() - new Date(b.interviewDate).getTime());
+
+        res.json({
+            tasks: {
+                interviews,
+                pendingInterviewsCount: interviews.length,
+                pendingReviewCount,
+            },
+        });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error retrieving partner tasks.', error: err.message });
+    }
+};
+
+// ─── PATCH /api/v1/partners/job-openings/:id/applications/:appId/outcome ─────
+export const logJobInterviewOutcome = async (req: Request, res: Response) => {
+    try {
+        const org = await getPartnerOrg(req, res);
+        if (!org) return;
+
+        const { outcome, partnerNotes } = req.body;
+        // outcome: 'offer_extended' | 'not_selected' | 'completed'
+        if (!outcome || !['offer_extended', 'not_selected', 'completed'].includes(outcome)) {
+            res.status(400).json({ message: 'Valid outcome is required: offer_extended, not_selected, or completed.' });
+            return;
+        }
+
+        const opening = await JobOpening.findOne({ _id: req.params.id, partnerOrgId: org._id });
+        if (!opening) {
+            res.status(404).json({ message: 'Job opening not found.' });
+            return;
+        }
+
+        const application = await JobApplication.findOne({ _id: req.params.appId, jobOpeningId: opening._id });
+        if (!application) {
+            res.status(404).json({ message: 'Application not found.' });
+            return;
+        }
+
+        application.interviewCompletedAt = new Date();
+        if (partnerNotes !== undefined) application.partnerNotes = partnerNotes;
+
+        if (outcome === 'offer_extended') {
+            application.status = 'offered';
+            application.partnerOutcome = 'offer_extended';
+        } else if (outcome === 'not_selected') {
+            application.status = 'not_selected';
+            application.partnerOutcome = 'not_selected';
+        } else {
+            application.status = 'interview_completed';
+        }
+
+        await application.save();
+
+        const user = await User.findById(application.userId).select('fullName email').lean();
+
+        notificationEmitter.emit('jobApplication.outcome_logged', {
+            opsEmail: env.OPS_EMAIL || env.EMAIL_REPLY_TO,
+            orgName: org.name,
+            jobTitle: opening.title,
+            userId: application.userId.toString(),
+            userEmail: (user as any)?.email,
+            userName: (user as any)?.fullName || 'Participant',
+            outcome,
+        });
+
+        await logAction(
+            req,
+            'PARTNER_JOB_INTERVIEW_OUTCOME',
+            `Recorded interview outcome "${outcome}" for "${(user as any)?.fullName || 'Participant'}" (${opening.title})`,
+            { targetId: application._id.toString(), targetType: 'JobApplication' }
+        );
+
+        res.json({ message: 'Interview outcome recorded.', application });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error recording interview outcome.', error: err.message });
+    }
+};
+

@@ -41,8 +41,10 @@ import {
     sendPartnerNewJobApplicationAlertEmail,
     sendJobApplicationSubmittedEmail,
     sendJobApplicationInterviewScheduledEmail,
+    sendAdminJobApplicationInterviewScheduledAlert,
 } from './emailService.js';
 import { PartnerOrganization } from '../models/PartnerOrganization.js';
+import { env } from '../config/env.js';
 
 export const notificationEmitter = new EventEmitter();
 
@@ -1197,12 +1199,13 @@ notificationEmitter.on('jobApplication.submitted', async ({ applicationId, userI
 /**
  * jobApplication.interview_scheduled
  * Emitted when partner schedules an interview for an applicant.
- * In-app + email to the candidate.
+ * In-app + email to candidate, in-app + email to superadmins/ops.
  */
 notificationEmitter.on('jobApplication.interview_scheduled', async ({
-    userId, userEmail, userName, jobTitle, partnerOrgName, interviewDate, format, interviewLink, interviewLocation
+    opsEmail, userId, userEmail, userName, jobTitle, partnerOrgName, interviewDate, format, interviewLink, interviewLocation
 }) => {
     try {
+        // 1. Candidate in-app notification
         const userObjId = new Types.ObjectId(userId as string);
         await Notification.create({
             userId: userObjId,
@@ -1212,17 +1215,64 @@ notificationEmitter.on('jobApplication.interview_scheduled', async ({
             link: '/dashboard/job-openings',
         });
 
+        // 2. Candidate email
         if (userEmail) {
-            await sendJobApplicationInterviewScheduledEmail(
-                userEmail,
-                userName || 'Participant',
-                jobTitle,
-                partnerOrgName,
-                interviewDate,
-                format,
-                interviewLink,
-                interviewLocation
-            );
+            try {
+                await sendJobApplicationInterviewScheduledEmail(
+                    userEmail,
+                    userName || 'Participant',
+                    jobTitle,
+                    partnerOrgName,
+                    interviewDate,
+                    format,
+                    interviewLink,
+                    interviewLocation
+                );
+            } catch (candEmailErr) {
+                console.error(`[Event:jobApplication.interview_scheduled] Candidate email error:`, candEmailErr);
+            }
+        }
+
+        // 3. Admin & Superadmin in-app notifications
+        const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } }).select('_id email role').lean();
+        const adminNotifications = admins.map(admin => ({
+            userId: admin._id,
+            title: 'Job Interview Scheduled',
+            message: `${partnerOrgName} scheduled an interview with ${userName || 'applicant'} for "${jobTitle}" on ${interviewDate} (${format}).`,
+            type: 'info' as const,
+            link: '/admin/job-openings',
+        }));
+        if (adminNotifications.length > 0) {
+            await Notification.insertMany(adminNotifications);
+        }
+
+        // 4. Admin email alerts (Superadmins + Ops)
+        const recipientEmails = new Set<string>();
+        for (const admin of admins) {
+            if (admin.role === 'superadmin' && admin.email && admin.email.trim().length > 0) {
+                recipientEmails.add(admin.email.toLowerCase().trim());
+            }
+        }
+        const effectiveOps = opsEmail || env.OPS_EMAIL || env.EMAIL_REPLY_TO;
+        if (effectiveOps && effectiveOps.trim().length > 0) {
+            recipientEmails.add(effectiveOps.toLowerCase().trim());
+        }
+
+        for (const email of recipientEmails) {
+            try {
+                await sendAdminJobApplicationInterviewScheduledAlert(
+                    email,
+                    partnerOrgName,
+                    userName || 'Participant',
+                    jobTitle,
+                    interviewDate,
+                    format,
+                    interviewLink,
+                    interviewLocation
+                );
+            } catch (adminEmailErr) {
+                console.error(`[Event:jobApplication.interview_scheduled] Failed sending email to ${email}:`, adminEmailErr);
+            }
         }
     } catch (err) {
         console.error('[Event:jobApplication.interview_scheduled] Error:', err);
@@ -1252,5 +1302,77 @@ notificationEmitter.on('jobApplication.reviewed', async ({
         });
     } catch (err) {
         console.error('[Event:jobApplication.reviewed] Error:', err);
+    }
+});
+
+/**
+ * jobApplication.outcome_logged
+ * Emitted when partner records interview outcome for a job opening application.
+ */
+notificationEmitter.on('jobApplication.outcome_logged', async ({
+    opsEmail, orgName, jobTitle, userId, userEmail, userName, outcome,
+}) => {
+    try {
+        const userObjId = new Types.ObjectId(userId as string);
+        const isOffer = outcome === 'offer_extended';
+        const isNotSelected = outcome === 'not_selected';
+
+        // 1. In-app alert for candidate
+        await Notification.create({
+            userId: userObjId,
+            title: isOffer ? 'Job Offer Extended' : isNotSelected ? 'Application Update' : 'Interview Completed',
+            message: isOffer
+                ? `Congratulations! ${orgName} has extended an offer for "${jobTitle}" following your interview.`
+                : isNotSelected
+                ? `${orgName} has updated your application status for "${jobTitle}". Check your applications dashboard for details.`
+                : `${orgName} marked your interview for "${jobTitle}" as completed.`,
+            type: isOffer ? 'success' : 'info',
+            link: '/dashboard/job-openings',
+        });
+
+        // 2. Candidate email on offer
+        if (isOffer && userEmail) {
+            try {
+                await sendOfferExtendedToIntern(userEmail, userName || 'Participant', orgName);
+            } catch (candEmailErr) {
+                console.error(`[Event:jobApplication.outcome_logged] Candidate email error:`, candEmailErr);
+            }
+        }
+
+        // 3. Admin & Superadmin in-app notifications
+        const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } }).select('_id email role').lean();
+        const outcomeLabel = isOffer ? 'Offer Extended' : isNotSelected ? 'Not Selected' : 'Interview Completed';
+        const adminNotifications = admins.map(admin => ({
+            userId: admin._id,
+            title: `Job Interview Outcome: ${outcomeLabel}`,
+            message: `${orgName} recorded outcome "${outcomeLabel}" for ${userName || 'applicant'} (${jobTitle}).`,
+            type: isOffer ? 'success' as const : 'info' as const,
+            link: '/admin/job-openings',
+        }));
+        if (adminNotifications.length > 0) {
+            await Notification.insertMany(adminNotifications);
+        }
+
+        // 4. Admin email alerts
+        const recipientEmails = new Set<string>();
+        for (const admin of admins) {
+            if (admin.role === 'superadmin' && admin.email && admin.email.trim().length > 0) {
+                recipientEmails.add(admin.email.toLowerCase().trim());
+            }
+        }
+        const effectiveOps = opsEmail || env.OPS_EMAIL || env.EMAIL_REPLY_TO;
+        if (effectiveOps && effectiveOps.trim().length > 0) {
+            recipientEmails.add(effectiveOps.toLowerCase().trim());
+        }
+
+        for (const email of recipientEmails) {
+            try {
+                await sendOutcomeLoggedAlert(email, orgName, userName || 'Applicant', outcome);
+            } catch (adminEmailErr) {
+                console.error(`[Event:jobApplication.outcome_logged] Failed sending email to ${email}:`, adminEmailErr);
+            }
+        }
+    } catch (err) {
+        console.error('[Event:jobApplication.outcome_logged] Error:', err);
     }
 });

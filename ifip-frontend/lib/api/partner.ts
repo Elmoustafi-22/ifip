@@ -562,3 +562,48 @@ export const scheduleJobInterview = async (
   return data;
 };
 
+export interface PartnerInterviewTask {
+  id: string;
+  type: 'job_application' | 'placement';
+  sourceId: string;
+  candidateName: string;
+  candidateEmail: string;
+  candidatePhone?: string;
+  candidateAvatar?: string | null;
+  role: string;
+  department?: string;
+  interviewDate: string;
+  interviewFormat: 'Video' | 'Call' | 'In-person';
+  interviewLink?: string;
+  interviewLocation?: string;
+  partnerNotes?: string;
+  isOverdue: boolean;
+}
+
+export interface PartnerTasksResponse {
+  tasks: {
+    interviews: PartnerInterviewTask[];
+    pendingInterviewsCount: number;
+    pendingReviewCount: number;
+  };
+}
+
+export const getPartnerTasks = async (): Promise<PartnerTasksResponse> => {
+  const { data } = await authClient.get('/partner/tasks');
+  return data;
+};
+
+export const logJobInterviewOutcome = async (
+  openingId: string,
+  appId: string,
+  outcome: 'offer_extended' | 'not_selected' | 'completed',
+  partnerNotes?: string
+): Promise<{ message: string; application: JobApplicantRecord }> => {
+  const { data } = await authClient.patch(
+    `/partners/job-openings/${openingId}/applications/${appId}/outcome`,
+    { outcome, partnerNotes }
+  );
+  return data;
+};
+
+

@@ -178,7 +178,7 @@ export default function MyPlacementsPage() {
                       </span>
                       <span className="text-slate-300">&rarr;</span>
                       <span className={statusStep >= 2 ? "text-emerald-700 font-semibold" : "text-slate-400 font-medium"}>
-                        2. Interviewing
+                        2. Interview Scheduled
                       </span>
                       <span className="text-slate-300">&rarr;</span>
                       <span className={statusStep >= 3 ? "text-emerald-700 font-semibold" : "text-slate-400 font-medium"}>

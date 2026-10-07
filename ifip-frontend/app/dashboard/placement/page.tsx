@@ -142,10 +142,10 @@ export default function ParticipantPlacementPage() {
                     </div>
                     <div className="text-left sm:text-center">
                       <div className={`font-bold capitalize text-xs ${isActive ? "text-[#000666]" : "text-slate-400"}`}>
-                        {step}
+                        {step === "interviewing" ? "Interview Scheduled" : step}
                       </div>
                       <span className="text-[10px] text-slate-400 block sm:inline mt-0.5 capitalize">
-                        {step === "matched" ? "Matched" : step === "interviewing" ? "Interviewing" : "Onboarded"}
+                        {step === "matched" ? "Matched" : step === "interviewing" ? "Interview Scheduled" : "Onboarded"}
                       </span>
                     </div>
                   </div>

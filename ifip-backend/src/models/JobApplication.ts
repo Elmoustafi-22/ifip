@@ -5,6 +5,8 @@ export type JobApplicationStatus =
     | 'under_review'
     | 'shortlisted'
     | 'interview_scheduled'
+    | 'interview_completed'
+    | 'offered'
     | 'not_selected';
 
 export interface IJobApplicationResponse {
@@ -21,9 +23,13 @@ export interface IJobApplication extends Document {
     status: JobApplicationStatus;
     partnerNotes?: string;
     interviewScheduledAt?: Date;
+    interviewCompletedAt?: Date;
     interviewFormat?: 'Video' | 'Call' | 'In-person';
     interviewLink?: string;
     interviewLocation?: string;
+    partnerOutcome?: 'offer_extended' | 'not_selected';
+    reminder24hSent?: boolean;
+    reminder1hSent?: boolean;
     submittedAt: Date;
     reviewedAt?: Date;
     createdAt: Date;
@@ -47,15 +53,19 @@ const jobApplicationSchema = new Schema<IJobApplication>(
         responses: { type: [jobApplicationResponseSchema], default: [] },
         status: {
             type: String,
-            enum: ['submitted', 'under_review', 'shortlisted', 'interview_scheduled', 'not_selected'],
+            enum: ['submitted', 'under_review', 'shortlisted', 'interview_scheduled', 'interview_completed', 'offered', 'not_selected'],
             default: 'submitted',
             required: true,
         },
         partnerNotes: { type: String },
         interviewScheduledAt: { type: Date },
+        interviewCompletedAt: { type: Date },
         interviewFormat: { type: String, enum: ['Video', 'Call', 'In-person'] },
         interviewLink: { type: String },
         interviewLocation: { type: String },
+        partnerOutcome: { type: String, enum: ['offer_extended', 'not_selected'] },
+        reminder24hSent: { type: Boolean, default: false },
+        reminder1hSent: { type: Boolean, default: false },
         submittedAt: { type: Date, default: Date.now },
         reviewedAt: { type: Date },
     },

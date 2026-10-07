@@ -28,6 +28,8 @@ import {
     getJobApplicationById,
     reviewJobApplication,
     scheduleJobInterview,
+    getPartnerTasks,
+    logJobInterviewOutcome,
 } from '../controllers/partnerPortalController.js';
 
 const router = Router();
@@ -40,6 +42,7 @@ router.post('/apply', submitPartnerApplication);
 const partnerAuth = [authenticate, authorize('partner')];
 
 router.get('/me',                                      ...partnerAuth, getPartnerMe);
+router.get('/tasks',                                   ...partnerAuth, getPartnerTasks);
 router.get('/interns',                                 ...partnerAuth, getInternPool);
 router.get('/interns/:userId',                         ...partnerAuth, getInternById);
 
@@ -67,6 +70,7 @@ router.get('/job-openings/:id/applications',                              ...par
 router.get('/job-openings/:id/applications/:appId',                       ...partnerAuth, getJobApplicationById);
 router.patch('/job-openings/:id/applications/:appId/review',              ...partnerAuth, reviewJobApplication);
 router.patch('/job-openings/:id/applications/:appId/interview',           ...partnerAuth, scheduleJobInterview);
+router.patch('/job-openings/:id/applications/:appId/outcome',             ...partnerAuth, logJobInterviewOutcome);
 
 router.get('/notifications',                           ...partnerAuth, getPartnerNotifications);
 router.patch('/notifications/:id/read',                ...partnerAuth, markNotificationRead);

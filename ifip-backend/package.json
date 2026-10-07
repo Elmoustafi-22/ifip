@@ -15,6 +15,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@types/node-cron": "^3.0.11",
     "axios": "^1.18.1",
     "bcryptjs": "^3.0.3",
     "bullmq": "^5.80.3",
@@ -30,6 +31,7 @@
     "mongoose": "^9.7.3",
     "morgan": "^1.11.0",
     "multer": "^2.2.0",
+    "node-cron": "^4.6.0",
     "otplib": "^13.4.1",
     "qrcode": "^1.5.4",
     "redis": "^6.1.0",

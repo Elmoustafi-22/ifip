@@ -392,7 +392,7 @@ export default function AdminPlacementsPage() {
           }`}
         >
           <div className="flex items-center justify-between text-amber-600 mb-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Interviewing</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider">Interview Scheduled</span>
             <HiOutlineClock className="w-4 h-4 text-amber-600" />
           </div>
           <div className="text-2xl font-black text-amber-700">{counts.interviewing}</div>
@@ -660,7 +660,7 @@ export default function AdminPlacementsPage() {
                                 }`}
                               >
                                 <option value="matched">Matched</option>
-                                <option value="interviewing">Interviewing</option>
+                                <option value="interviewing">Interview Scheduled</option>
                                 <option value="placed">Placement Confirmed</option>
                                 <option value="declined">Declined</option>
                               </select>
@@ -716,7 +716,7 @@ export default function AdminPlacementsPage() {
                                   ? "bg-indigo-50 text-indigo-700 border-indigo-100"
                                   : "bg-amber-50 text-amber-700 border-amber-100"
                             }`}>
-                              {match.status === "placed" ? "Confirmed" : match.status === "interviewing" ? "Interviewing" : "Matched"}
+                              {match.status === "placed" ? "Confirmed" : match.status === "interviewing" ? "Interview Scheduled" : "Matched"}
                             </span>
                           ) : (
                             <span className="bg-slate-50 text-slate-400 border border-slate-200 text-[10px] font-bold px-2 py-0.5 rounded">
@@ -742,7 +742,7 @@ export default function AdminPlacementsPage() {
                               className="text-[10px] font-bold px-2 py-0.5 rounded-md border focus:outline-none bg-white cursor-pointer"
                             >
                               <option value="matched">Matched</option>
-                              <option value="interviewing">Interviewing</option>
+                              <option value="interviewing">Interview Scheduled</option>
                               <option value="placed">Placement Confirmed</option>
                               <option value="declined">Declined</option>
                             </select>
