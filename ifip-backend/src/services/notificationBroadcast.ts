@@ -42,6 +42,7 @@ import {
     sendJobApplicationSubmittedEmail,
     sendJobApplicationInterviewScheduledEmail,
     sendAdminJobApplicationInterviewScheduledAlert,
+    sendJobOpeningClosedEmail,
 } from './emailService.js';
 import { PartnerOrganization } from '../models/PartnerOrganization.js';
 import { env } from '../config/env.js';
@@ -821,7 +822,18 @@ notificationEmitter.on('partner.interest_declined', async ({
  * Notifies all admins in-app + email, and the intern in-app + email.
  */
 notificationEmitter.on('partner.interview_logged', async ({
-    opsEmail, orgName, internUserId, internEmail, internName, interviewDate, format, interviewLink, interviewLocation
+    opsEmail, orgName, internUserId, internEmail, internName, interviewDate, format, interviewLink, interviewLocation, isReschedule
+}: {
+    opsEmail: string;
+    orgName: string;
+    internUserId: any;
+    internEmail?: string;
+    internName: string;
+    interviewDate: string;
+    format: string;
+    interviewLink?: string;
+    interviewLocation?: string;
+    isReschedule?: boolean;
 }) => {
     try {
         // 1. Fetch all Superadmins and send email alerts
@@ -838,7 +850,16 @@ notificationEmitter.on('partner.interview_logged', async ({
 
         for (const email of recipientEmails) {
             try {
-                await sendInterviewLoggedAlert(email, orgName, internName, interviewDate, format, interviewLink, interviewLocation);
+                await sendInterviewLoggedAlert(
+                    email,
+                    orgName,
+                    internName,
+                    interviewDate,
+                    format,
+                    interviewLink,
+                    interviewLocation,
+                    isReschedule || false
+                );
             } catch (emailErr) {
                 console.error(`[Event:partner.interview_logged] Failed sending email to ${email}:`, emailErr);
             }
@@ -848,8 +869,10 @@ notificationEmitter.on('partner.interview_logged', async ({
         const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } });
         const adminNotifications = admins.map(admin => ({
             userId: admin._id,
-            title: 'Interview Scheduled by Partner',
-            message: `${orgName} has scheduled an interview with intern ${internName} for ${interviewDate} (${format}).`,
+            title: isReschedule ? 'Interview Rescheduled by Partner' : 'Interview Scheduled by Partner',
+            message: isReschedule
+                ? `${orgName} has rescheduled the interview with intern ${internName} to ${interviewDate} (${format}).`
+                : `${orgName} has scheduled an interview with intern ${internName} for ${interviewDate} (${format}).`,
             type: 'info' as const,
             link: '/admin/partner-interests',
         }));
@@ -861,8 +884,10 @@ notificationEmitter.on('partner.interview_logged', async ({
         if (internUserId) {
             await Notification.create({
                 userId: new Types.ObjectId(internUserId as string),
-                title: 'Interview Scheduled!',
-                message: `An interview has been scheduled with ${orgName} on ${interviewDate} (${format}).${interviewLink ? ' You can join via the link on your placement dashboard.' : ''}`,
+                title: isReschedule ? 'Interview Rescheduled!' : 'Interview Scheduled!',
+                message: isReschedule
+                    ? `Your interview with ${orgName} has been rescheduled to ${interviewDate} (${format}).${interviewLink ? ' You can join via the link on your placement dashboard.' : ''}`
+                    : `An interview has been scheduled with ${orgName} on ${interviewDate} (${format}).${interviewLink ? ' You can join via the link on your placement dashboard.' : ''}`,
                 type: 'info' as const,
                 link: '/dashboard/placement',
             });
@@ -870,7 +895,16 @@ notificationEmitter.on('partner.interview_logged', async ({
 
         // 4. Send email to the intern
         if (internEmail) {
-            await sendInterviewScheduledToIntern(internEmail, internName, orgName, interviewDate, format, interviewLink, interviewLocation);
+            await sendInterviewScheduledToIntern(
+                internEmail,
+                internName,
+                orgName,
+                interviewDate,
+                format,
+                interviewLink,
+                interviewLocation,
+                isReschedule || false
+            );
         }
     } catch (err) {
         console.error('[Event:partner.interview_logged] Error:', err);
@@ -1202,15 +1236,29 @@ notificationEmitter.on('jobApplication.submitted', async ({ applicationId, userI
  * In-app + email to candidate, in-app + email to superadmins/ops.
  */
 notificationEmitter.on('jobApplication.interview_scheduled', async ({
-    opsEmail, userId, userEmail, userName, jobTitle, partnerOrgName, interviewDate, format, interviewLink, interviewLocation
+    opsEmail, userId, userEmail, userName, jobTitle, partnerOrgName, interviewDate, format, interviewLink, interviewLocation, isReschedule
+}: {
+    opsEmail: string;
+    userId: string;
+    userEmail?: string;
+    userName?: string;
+    jobTitle: string;
+    partnerOrgName: string;
+    interviewDate: string;
+    format: string;
+    interviewLink?: string;
+    interviewLocation?: string;
+    isReschedule?: boolean;
 }) => {
     try {
         // 1. Candidate in-app notification
         const userObjId = new Types.ObjectId(userId as string);
         await Notification.create({
             userId: userObjId,
-            title: 'Interview Scheduled',
-            message: `${partnerOrgName} has scheduled an interview for "${jobTitle}" on ${interviewDate} (${format}).`,
+            title: isReschedule ? 'Interview Rescheduled' : 'Interview Scheduled',
+            message: isReschedule
+                ? `${partnerOrgName} has rescheduled your interview for "${jobTitle}" to ${interviewDate} (${format}).`
+                : `${partnerOrgName} has scheduled an interview for "${jobTitle}" on ${interviewDate} (${format}).`,
             type: 'success',
             link: '/dashboard/job-openings',
         });
@@ -1226,7 +1274,8 @@ notificationEmitter.on('jobApplication.interview_scheduled', async ({
                     interviewDate,
                     format,
                     interviewLink,
-                    interviewLocation
+                    interviewLocation,
+                    isReschedule || false
                 );
             } catch (candEmailErr) {
                 console.error(`[Event:jobApplication.interview_scheduled] Candidate email error:`, candEmailErr);
@@ -1237,8 +1286,10 @@ notificationEmitter.on('jobApplication.interview_scheduled', async ({
         const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } }).select('_id email role').lean();
         const adminNotifications = admins.map(admin => ({
             userId: admin._id,
-            title: 'Job Interview Scheduled',
-            message: `${partnerOrgName} scheduled an interview with ${userName || 'applicant'} for "${jobTitle}" on ${interviewDate} (${format}).`,
+            title: isReschedule ? 'Job Interview Rescheduled' : 'Job Interview Scheduled',
+            message: isReschedule
+                ? `${partnerOrgName} rescheduled the interview with ${userName || 'applicant'} for "${jobTitle}" to ${interviewDate} (${format}).`
+                : `${partnerOrgName} scheduled an interview with ${userName || 'applicant'} for "${jobTitle}" on ${interviewDate} (${format}).`,
             type: 'info' as const,
             link: '/admin/job-openings',
         }));
@@ -1268,7 +1319,8 @@ notificationEmitter.on('jobApplication.interview_scheduled', async ({
                     interviewDate,
                     format,
                     interviewLink,
-                    interviewLocation
+                    interviewLocation,
+                    isReschedule || false
                 );
             } catch (adminEmailErr) {
                 console.error(`[Event:jobApplication.interview_scheduled] Failed sending email to ${email}:`, adminEmailErr);
@@ -1374,5 +1426,67 @@ notificationEmitter.on('jobApplication.outcome_logged', async ({
         }
     } catch (err) {
         console.error('[Event:jobApplication.outcome_logged] Error:', err);
+    }
+});
+
+/**
+ * jobOpening.closed
+ * Emitted when a partner closes one of their job openings.
+ * 1. Alerts all admins/superadmins in-app.
+ * 2. Emails every applicant who was still active at the time of closure.
+ */
+notificationEmitter.on('jobOpening.closed', async ({
+    openingId, title, orgName, partnerOrgId, applicants, opsEmail,
+}: {
+    openingId: string;
+    title: string;
+    orgName: string;
+    partnerOrgId: string;
+    applicants: { userId: string; fullName: string; email: string }[];
+    opsEmail: string;
+}) => {
+    try {
+        // 1. Admin in-app notifications
+        const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } }).select('_id').lean();
+        const adminNotifications = admins.map(admin => ({
+            userId: admin._id,
+            title: 'Job Opening Closed by Partner',
+            message: `${orgName} has closed the job opening for "${title}". ${applicants.length} applicant(s) have been notified.`,
+            type: 'info' as const,
+            link: '/admin/job-openings',
+        }));
+        if (adminNotifications.length > 0) {
+            await Notification.insertMany(adminNotifications);
+        }
+
+        // 2. In-app notifications for each affected applicant
+        if (applicants.length > 0) {
+            const candidateNotifications = applicants.map(applicant => ({
+                userId: new Types.ObjectId(applicant.userId),
+                title: 'Application Update — Position Filled',
+                message: `The ${title} position at ${orgName} has been filled. Thank you for applying — keep exploring other open opportunities on the board.`,
+                type: 'info' as const,
+                link: '/dashboard/job-openings',
+            }));
+            await Notification.insertMany(candidateNotifications);
+
+            // 3. Email each applicant individually
+            for (const applicant of applicants) {
+                if (applicant.email && applicant.email.trim().length > 0) {
+                    try {
+                        await sendJobOpeningClosedEmail(
+                            applicant.email,
+                            applicant.fullName,
+                            title,
+                            orgName
+                        );
+                    } catch (emailErr) {
+                        console.error(`[Event:jobOpening.closed] Email error for ${applicant.email}:`, emailErr);
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        console.error('[Event:jobOpening.closed] Error:', err);
     }
 });

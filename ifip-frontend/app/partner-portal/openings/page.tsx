@@ -22,9 +22,11 @@ import {
   createPartnerJobOpening,
   updatePartnerJobOpening,
   deletePartnerJobOpening,
+  closePartnerJobOpening,
   JobOpeningItem,
   JobWorkMode,
 } from "@/lib/api/partner";
+import { HiOutlineLockClosed } from "react-icons/hi2";
 
 export default function PartnerOpeningsPage() {
   const [openings, setOpenings] = useState<JobOpeningItem[]>([]);
@@ -49,6 +51,11 @@ export default function PartnerOpeningsPage() {
   // Delete Confirmation State
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Close Confirmation State
+  const [closeTarget, setCloseTarget] = useState<JobOpeningItem | null>(null);
+  const [closing, setClosing] = useState(false);
+  const [closeSuccess, setCloseSuccess] = useState("");
 
   const fetchOpenings = async () => {
     try {
@@ -171,6 +178,27 @@ export default function PartnerOpeningsPage() {
       alert(err?.response?.data?.message || "Failed to withdraw job opening.");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleCloseOpening = async () => {
+    if (!closeTarget) return;
+    setClosing(true);
+    try {
+      const res = await closePartnerJobOpening(closeTarget._id);
+      setCloseSuccess(
+        `"${closeTarget.title}" has been closed. ${
+          res.notified > 0
+            ? `${res.notified} applicant${res.notified === 1 ? "" : "s"} have been notified by email.`
+            : "No active applicants to notify."
+        }`
+      );
+      setCloseTarget(null);
+      fetchOpenings();
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Failed to close job opening.");
+    } finally {
+      setClosing(false);
     }
   };
 
@@ -344,6 +372,17 @@ export default function PartnerOpeningsPage() {
                       Withdraw
                     </button>
                   </div>
+                )}
+
+                {/* Close Opening (only when live/open) */}
+                {op.status === "open" && (
+                  <button
+                    onClick={() => setCloseTarget(op)}
+                    className="w-full py-1.5 px-2.5 text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <HiOutlineLockClosed className="w-3.5 h-3.5" />
+                    Close This Opening
+                  </button>
                 )}
               </div>
             </div>
@@ -592,6 +631,88 @@ export default function PartnerOpeningsPage() {
                 {deleting ? "Withdrawing..." : "Confirm Withdrawal"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Close Opening Confirmation Modal */}
+      {closeTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 space-y-4">
+            {/* Icon + Heading */}
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center">
+                <HiOutlineLockClosed className="w-5 h-5 text-amber-700" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Close This Job Opening?</h3>
+                <p className="text-xs text-slate-500 mt-0.5 font-medium">{closeTarget.title}</p>
+              </div>
+            </div>
+
+            {/* Consequences */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2 text-xs text-amber-900">
+              <p className="font-semibold">This action will:</p>
+              <ul className="list-disc list-inside space-y-1 text-amber-800 leading-relaxed">
+                <li>Mark the position as <strong>closed</strong> immediately.</li>
+                <li>Set all active applicants (submitted, under review, shortlisted) to <strong>not selected</strong>.</li>
+                <li>Send each affected applicant a courteous email letting them know the position has been filled and encouraging them to explore other openings.</li>
+              </ul>
+              <p className="text-amber-700 mt-1">
+                This cannot be undone. If you need to re-open a similar role, you will need to post a new opening.
+              </p>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Are you sure you have moved forward with another candidate and are ready to close{" "}
+              <strong>"{closeTarget.title}"</strong>?
+            </p>
+
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setCloseTarget(null)}
+                disabled={closing}
+                className="w-full sm:w-auto px-3.5 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl sm:rounded-lg cursor-pointer text-center disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCloseOpening}
+                disabled={closing}
+                className="w-full sm:w-auto px-5 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 active:scale-[0.98] rounded-xl sm:rounded-lg transition disabled:opacity-50 cursor-pointer text-center flex items-center justify-center gap-1.5"
+              >
+                {closing ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Closing &amp; Notifying...</span>
+                  </>
+                ) : (
+                  <>
+                    <HiOutlineLockClosed className="w-3.5 h-3.5" />
+                    Yes, Close &amp; Notify Applicants
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Close Success Banner */}
+      {closeSuccess && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] w-full max-w-md px-4">
+          <div className="bg-emerald-700 text-white rounded-2xl px-5 py-4 shadow-xl flex items-start gap-3 animate-in slide-in-from-bottom-4 duration-300">
+            <HiOutlineCheckCircle className="w-5 h-5 shrink-0 mt-0.5 text-emerald-200" />
+            <p className="text-sm leading-relaxed flex-1">{closeSuccess}</p>
+            <button
+              onClick={() => setCloseSuccess("")}
+              className="text-emerald-200 hover:text-white transition shrink-0 cursor-pointer"
+              aria-label="Dismiss"
+            >
+              <HiOutlineXMark className="w-5 h-5" />
+            </button>
           </div>
         </div>
       )}

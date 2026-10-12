@@ -518,6 +518,13 @@ export const deletePartnerJobOpening = async (id: string): Promise<{ message: st
   return data;
 };
 
+export const closePartnerJobOpening = async (
+  id: string
+): Promise<{ message: string; opening: JobOpeningItem; notified: number }> => {
+  const { data } = await authClient.patch(`/partners/job-openings/${id}/close`);
+  return data;
+};
+
 export const getJobOpeningApplications = async (
   openingId: string
 ): Promise<{ applications: JobApplicantRecord[]; total: number }> => {

@@ -9,7 +9,7 @@ import { PartnerInterest } from '../models/PartnerInterest.js';
 import { Notification } from '../models/Notification.js';
 import { CohortConfig } from '../models/CohortConfig.js';
 import { JobOpening } from '../models/JobOpening.js';
-import { JobApplication } from '../models/JobApplication.js';
+import { JobApplication, JobApplicationStatus } from '../models/JobApplication.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { logAction } from '../utils/auditLogger.js';
 import { env } from '../config/env.js';
@@ -612,6 +612,8 @@ export const logInterview = async (req: Request, res: Response) => {
             return;
         }
 
+        const isReschedule = !!placement.interviewScheduledAt;
+
         placement.interviewScheduledAt = new Date(interviewScheduledAt);
         placement.interviewFormat = interviewFormat;
         placement.interviewLink = interviewLink ? String(interviewLink).trim() : undefined;
@@ -627,7 +629,8 @@ export const logInterview = async (req: Request, res: Response) => {
             month: 'short',
             year: 'numeric',
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
+            timeZone: 'Africa/Lagos',
         });
 
         notificationEmitter.emit('partner.interview_logged', {
@@ -640,12 +643,13 @@ export const logInterview = async (req: Request, res: Response) => {
             format: interviewFormat,
             interviewLink: placement.interviewLink,
             interviewLocation: placement.interviewLocation,
+            isReschedule,
         });
 
         await logAction(
             req,
-            'PARTNER_INTERVIEW_SCHEDULE',
-            `Scheduled ${interviewFormat} interview with intern "${intern?.fullName || 'Intern'}" for ${formattedDate}`,
+            isReschedule ? 'PARTNER_INTERVIEW_RESCHEDULE' : 'PARTNER_INTERVIEW_SCHEDULE',
+            `${isReschedule ? 'Rescheduled' : 'Scheduled'} ${interviewFormat} interview with intern "${intern?.fullName || 'Intern'}" for ${formattedDate}`,
             { targetId: placement._id.toString(), targetType: 'Placement' }
         );
 
@@ -1335,6 +1339,8 @@ export const scheduleJobInterview = async (req: Request, res: Response) => {
             return;
         }
 
+        const isReschedule = !!application.interviewScheduledAt;
+
         application.interviewScheduledAt = new Date(interviewScheduledAt);
         application.interviewFormat = interviewFormat;
         application.interviewLink = interviewLink ? String(interviewLink).trim() : undefined;
@@ -1351,6 +1357,7 @@ export const scheduleJobInterview = async (req: Request, res: Response) => {
             year: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
+            timeZone: 'Africa/Lagos',
         });
 
         notificationEmitter.emit('jobApplication.interview_scheduled', {
@@ -1364,12 +1371,13 @@ export const scheduleJobInterview = async (req: Request, res: Response) => {
             format: interviewFormat,
             interviewLink: application.interviewLink,
             interviewLocation: application.interviewLocation,
+            isReschedule,
         });
 
         await logAction(
             req,
-            'PARTNER_JOB_INTERVIEW_SCHEDULE',
-            `Scheduled ${interviewFormat} interview with "${(user as any)?.fullName || 'Participant'}" for "${opening.title}" on ${formattedDate}`,
+            isReschedule ? 'PARTNER_JOB_INTERVIEW_RESCHEDULE' : 'PARTNER_JOB_INTERVIEW_SCHEDULE',
+            `${isReschedule ? 'Rescheduled' : 'Scheduled'} ${interviewFormat} interview with "${(user as any)?.fullName || 'Participant'}" for "${opening.title}" on ${formattedDate}`,
             { targetId: application._id.toString(), targetType: 'JobApplication' }
         );
 
@@ -1544,3 +1552,84 @@ export const logJobInterviewOutcome = async (req: Request, res: Response) => {
     }
 };
 
+// ─── PATCH /api/v1/partners/job-openings/:id/close ────────────────────────────
+/**
+ * Allows a partner to close one of their own job openings.
+ * - Sets status to 'closed' and stamps closedAt.
+ * - Marks all applicants still in an active (non-terminal) state as 'not_selected'.
+ * - Fires the 'jobOpening.closed' event, which emails every affected applicant
+ *   a gracious closure notice and alerts admins in-app.
+ */
+export const closeJobOpening = async (req: Request, res: Response) => {
+    try {
+        const org = await getPartnerOrg(req, res);
+        if (!org) return;
+
+        const opening = await JobOpening.findOne({
+            _id: req.params.id,
+            partnerOrgId: org._id,
+        });
+
+        if (!opening) {
+            res.status(404).json({ message: 'Job opening not found.' });
+            return;
+        }
+
+        if (opening.status === 'closed') {
+            res.status(400).json({ message: 'This job opening is already closed.' });
+            return;
+        }
+
+        // ── 1. Close the opening ───────────────────────────────────────────────
+        opening.status = 'closed';
+        opening.closedAt = new Date();
+        await opening.save();
+
+        // ── 2. Identify applicants who are still in-flight (not yet terminal) ─
+        const activeStatuses: JobApplicationStatus[] = ['submitted', 'under_review', 'shortlisted', 'interview_scheduled', 'interview_completed'];
+        const affectedApps = await JobApplication.find({
+            jobOpeningId: opening._id,
+            status: { $in: activeStatuses },
+        });
+
+        // Mark them all as not_selected
+        const affectedIds = affectedApps.map(a => a._id);
+        await JobApplication.updateMany(
+            { _id: { $in: affectedIds } },
+            { $set: { status: 'not_selected', partnerOutcome: 'not_selected' } }
+        );
+
+        // ── 3. Collect emails for the closure notification ─────────────────────
+        const userIds = affectedApps.map(a => a.userId);
+        const users = await User.find({ _id: { $in: userIds } })
+            .select('_id fullName email')
+            .lean();
+
+        const applicants = users.map(u => ({
+            userId: (u as any)._id.toString(),
+            fullName: (u as any).fullName || 'Participant',
+            email: (u as any).email,
+        }));
+
+        // ── 4. Emit closure event ──────────────────────────────────────────────
+        notificationEmitter.emit('jobOpening.closed', {
+            openingId: opening._id.toString(),
+            title: opening.title,
+            orgName: org.name,
+            partnerOrgId: org._id.toString(),
+            applicants,
+            opsEmail: env.OPS_EMAIL || env.EMAIL_REPLY_TO,
+        });
+
+        await logAction(
+            req,
+            'PARTNER_JOB_OPENING_CLOSE',
+            `Closed job opening "${opening.title}" — ${applicants.length} applicant(s) notified.`,
+            { targetId: opening._id.toString(), targetType: 'JobOpening' }
+        );
+
+        res.json({ message: 'Job opening closed successfully.', opening, notified: applicants.length });
+    } catch (err: any) {
+        res.status(500).json({ message: 'Error closing job opening.', error: err.message });
+    }
+};

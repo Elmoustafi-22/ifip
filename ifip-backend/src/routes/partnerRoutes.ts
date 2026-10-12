@@ -30,6 +30,7 @@ import {
     scheduleJobInterview,
     getPartnerTasks,
     logJobInterviewOutcome,
+    closeJobOpening,
 } from '../controllers/partnerPortalController.js';
 
 const router = Router();
@@ -71,6 +72,7 @@ router.get('/job-openings/:id/applications/:appId',                       ...par
 router.patch('/job-openings/:id/applications/:appId/review',              ...partnerAuth, reviewJobApplication);
 router.patch('/job-openings/:id/applications/:appId/interview',           ...partnerAuth, scheduleJobInterview);
 router.patch('/job-openings/:id/applications/:appId/outcome',             ...partnerAuth, logJobInterviewOutcome);
+router.patch('/job-openings/:id/close',                                   ...partnerAuth, closeJobOpening);
 
 router.get('/notifications',                           ...partnerAuth, getPartnerNotifications);
 router.patch('/notifications/:id/read',                ...partnerAuth, markNotificationRead);

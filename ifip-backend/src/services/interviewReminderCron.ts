@@ -140,6 +140,7 @@ export const processInterviewReminders = async (): Promise<void> => {
                 year: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit',
+                timeZone: 'Africa/Lagos',
             });
 
             // Fetch partner org details

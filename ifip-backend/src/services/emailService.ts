@@ -1258,8 +1258,15 @@ export const sendInterviewLoggedAlert = async (
     interviewDate: string,
     format: string,
     interviewLink?: string,
-    interviewLocation?: string
+    interviewLocation?: string,
+    isReschedule: boolean = false
 ) => {
+    const headerTitle = isReschedule ? 'Interview Rescheduled' : 'Interview Scheduled';
+    const subject = `${headerTitle}: ${orgName} with ${internName}`;
+    const introText = isReschedule
+        ? `<strong>${orgName}</strong> has updated their interview schedule with <strong>${internName}</strong>.`
+        : `<strong>${orgName}</strong> has scheduled an interview with <strong>${internName}</strong>.`;
+
     const html = `
     <div style="${partnerWrapperStyle}">
         <div style="${partnerCardStyle}">
@@ -1267,9 +1274,10 @@ export const sendInterviewLoggedAlert = async (
                 <img src="${LOGO_WHITE_WORDMARK_URL}" style="height: 40px; width: auto; display: block; margin: 0 auto;" alt="IFIP">
             </div>
             <div style="${partnerContentStyle}">
-                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">Interview Scheduled</h1>
+                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">${headerTitle}</h1>
                 <p style="font-size: 15px; color: #475569; line-height: 1.7;">
-                    <strong>${orgName}</strong> has scheduled an interview with <strong>${internName}</strong>.<br><br>
+                    ${introText}<br><br>
+                    ${isReschedule ? '<span style="display: inline-block; background-color: #FEF3C7; color: #92400E; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; margin-bottom: 12px;">⚠️ Schedule Change Notice: The partner adjusted the interview time.</span><br>' : ''}
                     <strong>Interview Details:</strong><br>
                     📅 Date &amp; Time: <strong>${interviewDate}</strong><br>
                     💻 Format: <strong>${format}</strong><br>
@@ -1285,7 +1293,7 @@ export const sendInterviewLoggedAlert = async (
             </div>
         </div>
     </div>`;
-    await send(opsEmail, `Interview Scheduled: ${orgName} with ${internName}`, html, EMAIL_SENDERS.PLACEMENT);
+    await send(opsEmail, subject, html, EMAIL_SENDERS.PLACEMENT);
 };
 
 export const sendInterviewScheduledToIntern = async (
@@ -1295,8 +1303,18 @@ export const sendInterviewScheduledToIntern = async (
     interviewDate: string,
     format: string,
     interviewLink?: string,
-    interviewLocation?: string
+    interviewLocation?: string,
+    isReschedule: boolean = false
 ) => {
+    const headerTitle = isReschedule ? 'Interview Rescheduled' : 'Interview Invitation';
+    const subject = isReschedule
+        ? `Interview Rescheduled with ${orgName} — IFIP Placement`
+        : `Interview Invitation from ${orgName} — IFIP Placement`;
+
+    const introText = isReschedule
+        ? `Your interview with <strong>${orgName}</strong> has been rescheduled to a new date and time.`
+        : `Great news! An interview has been scheduled for you with <strong>${orgName}</strong>.`;
+
     const html = `
     <div style="${partnerWrapperStyle}">
         <div style="${partnerCardStyle}">
@@ -1304,10 +1322,11 @@ export const sendInterviewScheduledToIntern = async (
                 <img src="${LOGO_WHITE_WORDMARK_URL}" style="height: 40px; width: auto; display: block; margin: 0 auto;" alt="IFIP">
             </div>
             <div style="${partnerContentStyle}">
-                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">Interview Invitation</h1>
+                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0;">${headerTitle}</h1>
                 <p style="font-size: 15px; color: #475569; line-height: 1.7;">
                     Hello <strong>${internName}</strong>,<br><br>
-                    Great news! An interview has been scheduled for you with <strong>${orgName}</strong>.<br><br>
+                    ${introText}<br><br>
+                    ${isReschedule ? '<span style="display: inline-block; background-color: #FEF3C7; color: #92400E; padding: 8px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; margin-bottom: 14px;">Important: This new schedule replaces your previously scheduled time.</span><br>' : ''}
                     <strong>Interview Details:</strong><br>
                     📅 <strong>Date &amp; Time:</strong> ${interviewDate}<br>
                     💻 <strong>Format:</strong> ${format}<br>
@@ -1331,7 +1350,7 @@ export const sendInterviewScheduledToIntern = async (
             </div>
         </div>
     </div>`;
-    await send(internEmail, `Interview Invitation from ${orgName} — IFIP Placement`, html, EMAIL_SENDERS.PLACEMENT);
+    await send(internEmail, subject, html, EMAIL_SENDERS.PLACEMENT);
 };
 
 export const sendOutcomeLoggedAlert = async (
@@ -2268,23 +2287,38 @@ export const sendJobApplicationInterviewScheduledEmail = async (
     interviewDate: string,
     format: string,
     interviewLink?: string,
-    interviewLocation?: string
+    interviewLocation?: string,
+    isReschedule: boolean = false
 ) => {
     const dashboardUrl = `${env.CLIENT_URL}/dashboard/job-openings`;
     const nameStr = applicantName ? applicantName.trim() : 'Participant';
+    const headerTitle = isReschedule ? 'Interview Rescheduled' : 'Interview Scheduled';
+    const subject = `${headerTitle}: ${openingTitle} at ${orgName}`;
+
+    const introText = isReschedule
+        ? `<strong>${orgName}</strong> has updated the interview schedule for your application for <strong>${openingTitle}</strong>. Please take note of your new date and time below:`
+        : `<strong>${orgName}</strong> has reviewed your application for <strong>${openingTitle}</strong> and scheduled an interview.`;
+
+    const rescheduleAlertBanner = isReschedule
+        ? `<div style="background-color: #FEF3C7; border: 1px solid #FCD34D; border-left: 4px solid #D97706; border-radius: 6px; padding: 14px 16px; margin-bottom: 22px; font-size: 13px; color: #92400E; line-height: 1.5;">
+            <strong>Important — Schedule Change:</strong> This interview has been rescheduled by the organisation and replaces your previously scheduled time slot.
+           </div>`
+        : '';
+
     const html = `
     <div style="font-family: Arial, sans-serif; background-color: #F8F9FA; padding: 40px 10px; margin: 0;">
         <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #E7E2D8;">
             <div style="background-color: #000666; padding: 28px 24px; text-align: center;">
-                <h1 style="color: #ffffff; font-family: Georgia, serif; font-size: 20px; margin: 0;">Interview Scheduled</h1>
+                <h1 style="color: #ffffff; font-family: Georgia, serif; font-size: 20px; margin: 0;">${headerTitle}</h1>
             </div>
             <div style="padding: 32px 24px; color: #1E293B;">
                 <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
                     Dear <strong>${nameStr}</strong>,
                 </p>
                 <p style="font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">
-                    <strong>${orgName}</strong> has reviewed your application for <strong>${openingTitle}</strong> and scheduled an interview.
+                    ${introText}
                 </p>
+                ${rescheduleAlertBanner}
                 <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-left: 4px solid #000666; border-radius: 6px; padding: 18px; margin-bottom: 24px;">
                     <div style="font-size: 14px; line-height: 1.8;">
                         <div><strong>Role:</strong> ${openingTitle}</div>
@@ -2307,11 +2341,11 @@ export const sendJobApplicationInterviewScheduledEmail = async (
         </div>
     </div>`;
 
-    await send(applicantEmail, `Interview Scheduled: ${openingTitle} at ${orgName}`, html, EMAIL_SENDERS.PLACEMENT);
+    await send(applicantEmail, subject, html, EMAIL_SENDERS.PLACEMENT);
 };
 
 /**
- * Admin Alert: Partner scheduled an interview for a job opening application.
+ * Admin Alert: Partner scheduled or rescheduled an interview for a job opening application.
  */
 export const sendAdminJobApplicationInterviewScheduledAlert = async (
     adminEmail: string,
@@ -2321,19 +2355,28 @@ export const sendAdminJobApplicationInterviewScheduledAlert = async (
     interviewDate: string,
     format: string,
     interviewLink?: string,
-    interviewLocation?: string
+    interviewLocation?: string,
+    isReschedule: boolean = false
 ) => {
     const adminUrl = `${env.CLIENT_URL}/admin/job-openings`;
+    const headerTitle = isReschedule ? 'Job Interview Rescheduled' : 'Job Interview Scheduled';
+    const subject = `[Admin Alert] Interview ${isReschedule ? 'Rescheduled' : 'Scheduled'}: ${jobTitle} - ${orgName} (${candidateName})`;
+
+    const introText = isReschedule
+        ? `<strong>${orgName}</strong> has rescheduled their interview with applicant <strong>${candidateName}</strong> for <strong>${jobTitle}</strong>.`
+        : `<strong>${orgName}</strong> has scheduled an interview with applicant <strong>${candidateName}</strong> for <strong>${jobTitle}</strong>.`;
+
     const html = `
     <div style="font-family: Arial, sans-serif; background-color: #F8F9FA; padding: 40px 10px; margin: 0;">
         <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #E7E2D8;">
             <div style="background-color: #000666; padding: 28px 24px; text-align: center;">
-                <h1 style="color: #ffffff; font-family: Georgia, serif; font-size: 20px; margin: 0;">Job Interview Scheduled</h1>
+                <h1 style="color: #ffffff; font-family: Georgia, serif; font-size: 20px; margin: 0;">${headerTitle}</h1>
             </div>
             <div style="padding: 32px 24px; color: #1E293B;">
                 <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
-                    <strong>${orgName}</strong> has scheduled an interview with applicant <strong>${candidateName}</strong> for <strong>${jobTitle}</strong>.
+                    ${introText}
                 </p>
+                ${isReschedule ? `<div style="background-color: #FEF3C7; border: 1px solid #FCD34D; border-left: 4px solid #D97706; border-radius: 6px; padding: 10px 14px; margin-bottom: 20px; font-size: 13px; color: #92400E;"><strong>Reschedule Notice:</strong> The partner adjusted the interview schedule for this applicant.</div>` : ''}
                 <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-left: 4px solid #000666; border-radius: 6px; padding: 18px; margin-bottom: 24px;">
                     <div style="font-size: 14px; line-height: 1.8;">
                         <div><strong>Organisation:</strong> ${orgName}</div>
@@ -2476,4 +2519,102 @@ export const sendInterviewReminderToPartner = async (
     </div>`;
 
     await send(partnerEmail, `Reminder: Interview with ${candidateName} (${timeframeLabel})`, html, EMAIL_SENDERS.PLACEMENT);
+};
+
+/**
+ * Job Opening Closed — Candidate Notification
+ *
+ * Sent to every applicant who was still in an active (non-terminal) state
+ * when a partner closes a job opening. Worded with care: acknowledges the
+ * effort, explains the position has been filled, and encourages continued
+ * engagement with the programme.
+ */
+export const sendJobOpeningClosedEmail = async (
+    to: string,
+    candidateName: string,
+    jobTitle: string,
+    orgName: string
+) => {
+    const dashboardUrl = `${env.CLIENT_URL}/dashboard/job-openings`;
+
+    const html = `
+    <div style="${wrapperStyle}">
+        <div style="${cardStyle}">
+            <!-- Header Logo -->
+            <div style="padding: 40px 32px 0 32px; text-align: center;">
+                <img src="${LOGO_HEADER_URL}" style="height: 64px; max-height: 64px; width: auto; display: block; margin: 0 auto;" alt="IFIP Logo">
+                <div style="width: 80px; height: 4px; background-color: #000666; margin: 24px auto 0 auto; border-radius: 2px;"></div>
+            </div>
+
+            <div style="${contentContainerStyle}">
+                <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: bold; color: #000666; text-align: center; margin: 0 0 8px 0;">
+                    Application Update
+                </h1>
+                <p style="font-size: 13px; color: #64748B; text-align: center; margin: 0 0 32px 0; letter-spacing: 0.5px; text-transform: uppercase;">
+                    ${jobTitle} &bull; ${orgName}
+                </p>
+
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 16px 0;">
+                    Dear <strong>${candidateName}</strong>,
+                </p>
+
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    Thank you for the time and effort you invested in your application for the
+                    <strong>${jobTitle}</strong> position at <strong>${orgName}</strong>.
+                    We genuinely appreciate your interest and the quality of your engagement throughout
+                    the process.
+                </p>
+
+                <!-- Status Card -->
+                <div style="background-color: #FDFBF7; border: 1px solid #E7E2D8; border-left: 4px solid #94A3B8; border-radius: 6px; padding: 20px; margin-bottom: 24px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="vertical-align: top; width: 32px; font-size: 20px;">📋</td>
+                            <td style="vertical-align: top;">
+                                <h3 style="font-size: 13px; font-weight: bold; color: #1E293B; margin: 0 0 6px 0;">Position Now Filled</h3>
+                                <p style="font-size: 14px; color: #454652; line-height: 1.6; margin: 0;">
+                                    After a thorough review, <strong>${orgName}</strong> has moved forward with another
+                                    candidate for this role. The position is now closed. This decision reflects
+                                    the highly competitive nature of the selection and is in no way a reflection
+                                    of your capabilities or potential.
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
+                    We encourage you to keep an eye on the <strong>Job Openings</strong> board — new opportunities
+                    from our partner network are posted regularly, and your profile remains active and visible
+                    to all partner organisations.
+                </p>
+
+                <!-- CTA -->
+                <div style="text-align: center; margin: 28px 0;">
+                    <a href="${dashboardUrl}" style="display: inline-block; background-color: #000666; color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 6px; font-size: 14px; font-weight: bold;">
+                        Browse Open Opportunities
+                    </a>
+                </div>
+
+                <p style="font-size: 14px; color: #64748B; line-height: 1.6; text-align: center; margin: 0;">
+                    Keep going — the right match is out there. We remain in your corner.
+                </p>
+            </div>
+
+            <!-- Footer -->
+            <div style="background-color: #000666; padding: 24px 32px; text-align: center;">
+                <img src="${LOGO_WHITE_WORDMARK_URL}" style="height: 32px; width: auto; margin-bottom: 12px;" alt="IFIP">
+                <p style="font-size: 12px; color: rgba(255,255,255,0.6); margin: 0;">
+                    Islamic Finance Internship Program &bull; <a href="${env.CLIENT_URL}" style="color: rgba(255,255,255,0.7); text-decoration: none;">ifip.org</a>
+                </p>
+            </div>
+        </div>
+    </div>`;
+
+    await send(
+        to,
+        `Update on Your Application — ${jobTitle} at ${orgName}`,
+        html,
+        EMAIL_SENDERS.PARTNER
+    );
 };
