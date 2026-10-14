@@ -309,6 +309,7 @@ export const applyToJobOpening = async (req: Request, res: Response) => {
 
         notificationEmitter.emit('jobApplication.submitted', {
             applicationId: (application as any)._id.toString(),
+            jobOpeningId: opening._id.toString(),
             userId,
             userName: user?.fullName || user?.email || 'Participant',
             jobTitle: opening.title,

@@ -30,6 +30,7 @@ export interface IJobApplication extends Document {
     partnerOutcome?: 'offer_extended' | 'not_selected';
     reminder24hSent?: boolean;
     reminder1hSent?: boolean;
+    partnerDigestNotified?: boolean;  // true once this application has been included in a digest email to the partner
     submittedAt: Date;
     reviewedAt?: Date;
     createdAt: Date;
@@ -66,6 +67,7 @@ const jobApplicationSchema = new Schema<IJobApplication>(
         partnerOutcome: { type: String, enum: ['offer_extended', 'not_selected'] },
         reminder24hSent: { type: Boolean, default: false },
         reminder1hSent: { type: Boolean, default: false },
+        partnerDigestNotified: { type: Boolean, default: false },
         submittedAt: { type: Date, default: Date.now },
         reviewedAt: { type: Date },
     },

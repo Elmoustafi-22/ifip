@@ -22,7 +22,7 @@ Promise.all([connectDB(), connectRedis()]).then(async () => {
         console.error('Database migration error:', migErr.message);
     }
 
-    // Initialize interview reminder cron (runs every 5 minutes)
+    // Initialize interview reminder cron (runs every 5 minutes, checks only scheduled interviews)
     startInterviewReminderCron();
 
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

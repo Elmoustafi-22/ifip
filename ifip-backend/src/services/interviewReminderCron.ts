@@ -19,7 +19,7 @@ import { User } from '../models/User.js';
 import { Notification } from '../models/Notification.js';
 import {
     sendInterviewReminderToCandidate,
-    sendInterviewReminderToPartner,
+    sendInterviewReminderDigestToPartner,
 } from './emailService.js';
 
 interface ReminderTarget {
@@ -130,6 +130,20 @@ export const processInterviewReminders = async (): Promise<void> => {
 
         console.log(`[InterviewReminderCron] Processing ${targets.length} interview reminder(s)...`);
 
+        // ── Group target interviews by partner org for consolidated digest email ──
+        const orgInterviewsMap = new Map<string, {
+            partnerOrgId: Types.ObjectId;
+            entries: Array<{
+                candidateName: string;
+                roleTitle: string;
+                formattedDate: string;
+                format: string;
+                timeframeLabel: string;
+                interviewLink?: string;
+                interviewLocation?: string;
+            }>;
+        }>();
+
         for (const target of targets) {
             const is1hReminder = target.needs1h;
             const timeframeLabel = is1hReminder ? 'in 1 hour (starting soon)' : 'tomorrow';
@@ -143,17 +157,17 @@ export const processInterviewReminders = async (): Promise<void> => {
                 timeZone: 'Africa/Lagos',
             });
 
-            // Fetch partner org details
-            const org = await PartnerOrganization.findById(target.partnerOrgId).select('name contactEmail contactPerson').lean();
-            const orgName = org?.name || 'Partner Organisation';
-
-            // Mark flag in DB immediately to prevent duplicate sends
+            // Mark flag in DB immediately to prevent duplicate processing
             const updateField = is1hReminder ? { reminder1hSent: true } : { reminder24hSent: true };
             if (target.type === 'job_application') {
                 await JobApplication.updateOne({ _id: target.docId }, { $set: updateField });
             } else {
                 await Placement.updateOne({ _id: target.docId }, { $set: updateField });
             }
+
+            // Fetch partner org details for candidate notification
+            const org = await PartnerOrganization.findById(target.partnerOrgId).select('name').lean();
+            const orgName = org?.name || 'Partner Organisation';
 
             // ── A. CANDIDATE REMINDERS ──────────────────────────────────────
             // 1. In-app notification
@@ -165,7 +179,7 @@ export const processInterviewReminders = async (): Promise<void> => {
                 link: target.type === 'job_application' ? '/dashboard/job-openings' : '/dashboard/placement',
             });
 
-            // 2. Email
+            // 2. Candidate Email
             if (target.candidateEmail) {
                 try {
                     await sendInterviewReminderToCandidate(
@@ -184,8 +198,7 @@ export const processInterviewReminders = async (): Promise<void> => {
                 }
             }
 
-            // ── B. PARTNER REMINDERS ────────────────────────────────────────
-            // Find partner users for in-app alert + direct emails
+            // ── B. PARTNER IN-APP NOTIFICATIONS (per interview) ──────────────
             const partnerUsers = await User.find({
                 orgId: target.partnerOrgId,
                 role: 'partner',
@@ -195,12 +208,43 @@ export const processInterviewReminders = async (): Promise<void> => {
                 userId: pu._id,
                 title: is1hReminder ? 'Interview Starting Soon' : 'Upcoming Interview Reminder',
                 message: `Interview with ${target.candidateName} for "${target.roleTitle}" is scheduled ${timeframeLabel} (${formattedDate}).`,
-                type: is1hReminder ? 'warning' as const : 'info' as const,
+                type: is1hReminder ? ('warning' as const) : ('info' as const),
                 link: '/partner-portal',
             }));
             if (partnerNotifications.length > 0) {
                 await Notification.insertMany(partnerNotifications);
             }
+
+            // Collect into org digest map
+            const orgKey = target.partnerOrgId.toString();
+            if (!orgInterviewsMap.has(orgKey)) {
+                orgInterviewsMap.set(orgKey, {
+                    partnerOrgId: target.partnerOrgId,
+                    entries: [],
+                });
+            }
+            orgInterviewsMap.get(orgKey)!.entries.push({
+                candidateName: target.candidateName,
+                roleTitle: target.roleTitle,
+                formattedDate,
+                format: target.format,
+                timeframeLabel,
+                interviewLink: target.link,
+                interviewLocation: target.location,
+            });
+        }
+
+        // ── C. SEND ONE CONSOLIDATED DIGEST EMAIL PER PARTNER ORG ────────────
+        for (const [orgIdStr, { partnerOrgId, entries }] of orgInterviewsMap.entries()) {
+            if (entries.length === 0) continue;
+
+            const org = await PartnerOrganization.findById(partnerOrgId).select('name contactEmail contactPerson').lean();
+            const orgName = org?.name || 'Partner Organisation';
+
+            const partnerUsers = await User.find({
+                orgId: partnerOrgId,
+                role: 'partner',
+            }).select('_id email fullName').lean();
 
             // Collect partner recipient emails (org contact email + all partner team members)
             const partnerEmails = new Set<string>();
@@ -213,26 +257,23 @@ export const processInterviewReminders = async (): Promise<void> => {
                 }
             }
 
+            if (partnerEmails.size === 0) continue;
+
             const contactName = org?.contactPerson || partnerUsers[0]?.fullName || 'Partner';
             for (const pEmail of partnerEmails) {
                 try {
-                    await sendInterviewReminderToPartner(
+                    await sendInterviewReminderDigestToPartner(
                         pEmail,
                         contactName,
-                        target.candidateName,
-                        target.roleTitle,
-                        formattedDate,
-                        target.format,
-                        timeframeLabel,
-                        target.link,
-                        target.location
+                        orgName,
+                        entries
                     );
                 } catch (err: any) {
-                    console.error(`[InterviewReminderCron] Partner reminder failed (${pEmail}):`, err.message);
+                    console.error(`[InterviewReminderCron] Partner digest failed (${pEmail}):`, err.message);
                 }
             }
 
-            console.log(`[InterviewReminderCron] Sent ${is1hReminder ? '1h' : '24h'} reminder for "${target.roleTitle}" (${target.candidateName} & ${orgName})`);
+            console.log(`[InterviewReminderCron] Sent consolidated digest with ${entries.length} interview(s) to ${orgName} (${Array.from(partnerEmails).join(', ')})`);
         }
     } catch (err: any) {
         console.error('[InterviewReminderCron] Error during reminder run:', err.message);

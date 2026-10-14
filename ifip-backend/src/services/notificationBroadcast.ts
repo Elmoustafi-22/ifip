@@ -5,6 +5,8 @@ import { User } from '../models/User.js';
 import { Application } from '../models/Application.js';
 import { Applicant } from '../models/Applicants.js';
 import { Module } from '../models/Module.js';
+import { JobApplication } from '../models/JobApplication.js';
+import { checkThresholdAndSendDigest } from './jobApplicationDigestCron.js';
 import {
     sendOtpEmail,
     sendResumeLinkEmail,
@@ -98,8 +100,10 @@ notificationEmitter.on('application.enrolled', async ({ user, application }) => 
             await Notification.insertMany(notifications);
         }
 
-        // 2. Email alert digest for superadmins / admins
-        for (const admin of admins) {
+        // 2. Email alert digest — superadmins only to avoid inbox flooding on every enrolment.
+        // Regular admins see the in-app notification above; only superadmins need the email ping.
+        const superadminRecipients = admins.filter(a => a.role === 'superadmin');
+        for (const admin of superadminRecipients) {
             try {
                 await sendAdminEnrollmentDigest(admin.email, 1);
             } catch (err) {
@@ -1073,21 +1077,29 @@ notificationEmitter.on('jobOpening.opened', async ({ openingId, title, orgName, 
             });
         }
 
-        // Send email to partner user(s)
-        const partnerUsers = await User.find({
+        // Send email to partner user(s) — deduplicated by email address to prevent double-sending
+        // when the job creator is also returned by the org-member clause of the $or query.
+        const partnerUsersRaw = await User.find({
             $or: [
                 { orgId: new Types.ObjectId(partnerOrgId as string), role: 'partner' },
                 ...(createdByUserId && Types.ObjectId.isValid(createdByUserId as string) ? [{ _id: new Types.ObjectId(createdByUserId as string) }] : []),
             ]
         }).select('email fullName').lean();
 
+        const seenPartnerEmails = new Set<string>();
+        const partnerUsers = partnerUsersRaw.filter(pu => {
+            if (!pu.email) return false;
+            const key = pu.email.toLowerCase().trim();
+            if (seenPartnerEmails.has(key)) return false;
+            seenPartnerEmails.add(key);
+            return true;
+        });
+
         for (const pu of partnerUsers) {
-            if (pu.email) {
-                try {
-                    await sendPartnerJobOpeningOpenedEmail(pu.email, pu.fullName || 'Partner', title);
-                } catch (pEmailErr) {
-                    console.error(`[Event:jobOpening.opened] Partner email error for ${pu.email}:`, pEmailErr);
-                }
+            try {
+                await sendPartnerJobOpeningOpenedEmail(pu.email!, pu.fullName || 'Partner', title);
+            } catch (pEmailErr) {
+                console.error(`[Event:jobOpening.opened] Partner email error for ${pu.email}:`, pEmailErr);
             }
         }
 
@@ -1110,24 +1122,11 @@ notificationEmitter.on('jobOpening.opened', async ({ openingId, title, orgName, 
             await Notification.insertMany(participantNotifications);
         }
 
-        // Send email alerts to active participants
-        for (const app of validApps) {
-            const user = app.userId as any;
-            if (user?.email) {
-                try {
-                    await sendParticipantJobOpeningAnnouncedEmail(
-                        user.email,
-                        user.fullName || (app as any).fullName || 'Participant',
-                        title,
-                        orgName,
-                        workMode,
-                        location
-                    );
-                } catch (emailErr) {
-                    console.error(`[Event:jobOpening.opened] Participant email error for ${user.email}:`, emailErr);
-                }
-            }
-        }
+        // NOTE: Individual email blasts to ALL participants for every job opening are intentionally
+        // disabled. Sending one email per participant per approval causes severe inbox flooding
+        // (e.g. 5 approvals × 100 participants = 500 emails/day).
+        // Participants receive the in-app notification above. Email is reserved for direct
+        // interview invitations and placement-specific actions only.
     } catch (err) {
         console.error('[Event:jobOpening.opened] Error:', err);
     }
@@ -1150,20 +1149,29 @@ notificationEmitter.on('jobOpening.rejected', async ({ openingId, title, orgName
             });
         }
 
-        const partnerUsers = await User.find({
+        // Deduplicate by email — the $or query can return the job creator twice:
+        // once as an org partner member and once by their _id.
+        const partnerUsersRaw = await User.find({
             $or: [
                 { orgId: new Types.ObjectId(partnerOrgId as string), role: 'partner' },
                 ...(createdByUserId && Types.ObjectId.isValid(createdByUserId as string) ? [{ _id: new Types.ObjectId(createdByUserId as string) }] : []),
             ]
         }).select('email fullName').lean();
 
-        for (const pu of partnerUsers) {
-            if (pu.email) {
-                try {
-                    await sendPartnerJobOpeningRejectedEmail(pu.email, pu.fullName || 'Partner', title, adminNotes);
-                } catch (emailErr) {
-                    console.error(`[Event:jobOpening.rejected] Email error for ${pu.email}:`, emailErr);
-                }
+        const seenRejectedEmails = new Set<string>();
+        const uniquePartnerUsers = partnerUsersRaw.filter(pu => {
+            if (!pu.email) return false;
+            const key = pu.email.toLowerCase().trim();
+            if (seenRejectedEmails.has(key)) return false;
+            seenRejectedEmails.add(key);
+            return true;
+        });
+
+        for (const pu of uniquePartnerUsers) {
+            try {
+                await sendPartnerJobOpeningRejectedEmail(pu.email!, pu.fullName || 'Partner', title, adminNotes);
+            } catch (emailErr) {
+                console.error(`[Event:jobOpening.rejected] Email error for ${pu.email}:`, emailErr);
             }
         }
     } catch (err) {
@@ -1177,7 +1185,7 @@ notificationEmitter.on('jobOpening.rejected', async ({ openingId, title, orgName
  * 1. Notifies candidate (in-app + email confirmation).
  * 2. Notifies partner (in-app + email alert).
  */
-notificationEmitter.on('jobApplication.submitted', async ({ applicationId, userId, userName, jobTitle, partnerOrgName, partnerOrgId }) => {
+notificationEmitter.on('jobApplication.submitted', async ({ applicationId, userId, userName, jobTitle, partnerOrgName, partnerOrgId, jobOpeningId }) => {
     try {
         // 1. Candidate confirmation
         const userObjId = new Types.ObjectId(userId as string);
@@ -1198,7 +1206,7 @@ notificationEmitter.on('jobApplication.submitted', async ({ applicationId, userI
             }
         }
 
-        // 2. Partner notification
+        // 2. Partner notification: In-app real-time notification
         const partnerUsers = await User.find({
             orgId: new Types.ObjectId(partnerOrgId as string),
             role: 'partner',
@@ -1216,14 +1224,19 @@ notificationEmitter.on('jobApplication.submitted', async ({ applicationId, userI
             await Notification.insertMany(partnerNotifications);
         }
 
-        for (const pu of partnerUsers) {
-            if (pu.email) {
-                try {
-                    await sendPartnerNewJobApplicationAlertEmail(pu.email, pu.fullName || 'Partner', jobTitle, userName);
-                } catch (emailErr) {
-                    console.error(`[Event:jobApplication.submitted] Partner email error for ${pu.email}:`, emailErr);
-                }
+        // 3. Partner Email: Batched/Digest only — do NOT email partners per applicant.
+        // If applications for this opening reach 20 unnotified applications, dispatch digest immediately.
+        // Otherwise, they are bundled into the scheduled daily digest.
+        let targetOpeningId = jobOpeningId;
+        if (!targetOpeningId && applicationId) {
+            const appDoc = await JobApplication.findById(applicationId).select('jobOpeningId').lean();
+            if (appDoc?.jobOpeningId) {
+                targetOpeningId = appDoc.jobOpeningId.toString();
             }
+        }
+
+        if (targetOpeningId) {
+            await checkThresholdAndSendDigest(targetOpeningId);
         }
     } catch (err) {
         console.error('[Event:jobApplication.submitted] Error:', err);

@@ -23,6 +23,18 @@ export const EMAIL_SENDERS = {
 } as const;
 
 const send = async (to: string, subject: string, html: string, senderName: string = EMAIL_SENDERS.DEFAULT) => {
+    // Append a universal email-preference / unsubscribe footer to every outgoing email.
+    // This satisfies CAN-SPAM / GDPR requirements and reduces spam reports from recipients.
+    const unsubscribeBlock = `
+    <div style="text-align:center; padding: 12px 16px 8px 16px; font-size: 10px; color: #9ca3af; font-family: 'Segoe UI', Arial, sans-serif; border-top: 1px solid #f0f0f0; margin-top: 8px;">
+        You are receiving this email because you have an account or application with IFIP.
+        &nbsp;&middot;&nbsp;
+        <a href="${env.CLIENT_URL}/settings/notifications" style="color: #9ca3af; text-decoration: underline;">Manage email preferences</a>
+        &nbsp;&middot;&nbsp;
+        <a href="${env.CLIENT_URL}/unsubscribe?email=${encodeURIComponent(to)}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe</a>
+    </div>`;
+    const htmlWithFooter = html + unsubscribeBlock;
+
     try {
         await brevoApi.post('/smtp/email', {
             sender: {
@@ -35,7 +47,7 @@ const send = async (to: string, subject: string, html: string, senderName: strin
             },
             to: [{ email: to }],
             subject,
-            htmlContent: html,
+            htmlContent: htmlWithFooter,
         });
         console.log(`[EmailService] Sent email "${subject}" to ${to} (${senderName})`);
     } catch (err: any) {
@@ -2617,4 +2629,207 @@ export const sendJobOpeningClosedEmail = async (
         html,
         EMAIL_SENDERS.PARTNER
     );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DIGEST EMAIL TEMPLATES — Partner batched notifications
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface InterviewDigestEntry {
+    candidateName: string;
+    roleTitle: string;
+    formattedDate: string;
+    format: string;
+    timeframeLabel: string;
+    interviewLink?: string;
+    interviewLocation?: string;
+}
+
+/**
+ * Partner Digest: Multiple upcoming interviews in a single email.
+ * Sent by the interview reminder cron when a partner org has ≥1 upcoming
+ * interviews in the same reminder window — consolidates all into one email.
+ */
+export const sendInterviewReminderDigestToPartner = async (
+    partnerEmail: string,
+    contactName: string,
+    orgName: string,
+    interviews: InterviewDigestEntry[]
+) => {
+    const portalUrl = `${env.CLIENT_URL}/partner-portal`;
+    const nameStr = contactName ? contactName.trim() : 'Partner';
+    const count = interviews.length;
+    const isUrgent = interviews.some(i => i.timeframeLabel.includes('1 hour'));
+
+    const interviewRows = interviews.map((iv, idx) => `
+        <tr style="background-color: ${idx % 2 === 0 ? '#f8fafc' : '#ffffff'};">
+            <td style="padding: 12px 14px; font-size: 13px; color: #1e293b; border-bottom: 1px solid #e2e8f0;">
+                <strong>${iv.candidateName}</strong>
+            </td>
+            <td style="padding: 12px 14px; font-size: 13px; color: #475569; border-bottom: 1px solid #e2e8f0;">
+                ${iv.roleTitle}
+            </td>
+            <td style="padding: 12px 14px; font-size: 13px; color: #475569; border-bottom: 1px solid #e2e8f0;">
+                📅 ${iv.formattedDate}<br>
+                <span style="font-size: 11px; color: #64748b;">💻 ${iv.format}</span>
+                ${iv.interviewLink ? `<br><a href="${iv.interviewLink}" style="font-size: 11px; color: #0284c7; text-decoration: underline;">Join Link</a>` : ''}
+                ${iv.interviewLocation ? `<br><span style="font-size: 11px; color: #64748b;">📍 ${iv.interviewLocation}</span>` : ''}
+            </td>
+            <td style="padding: 12px 14px; font-size: 12px; border-bottom: 1px solid #e2e8f0; text-align: center;">
+                <span style="display: inline-block; background-color: ${isUrgent ? '#FEF3C7' : '#EFF6FF'}; color: ${isUrgent ? '#92400E' : '#1D4ED8'}; padding: 3px 10px; border-radius: 12px; font-weight: 600; white-space: nowrap;">
+                    ${iv.timeframeLabel}
+                </span>
+            </td>
+        </tr>`).join('');
+
+    const html = `
+    <div style="${partnerWrapperStyle}">
+        <div style="${partnerCardStyle}">
+            <div style="${partnerHeaderStyle}">
+                <img src="${LOGO_WHITE_WORDMARK_URL}" style="height: 40px; width: auto; display: block; margin: 0 auto;" alt="IFIP">
+            </div>
+            <div style="${partnerContentStyle}">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <span style="display: inline-block; background-color: ${isUrgent ? '#FEF3C7' : '#EFF6FF'}; color: ${isUrgent ? '#92400E' : '#1D4ED8'}; font-size: 12px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; padding: 6px 16px; border-radius: 20px;">
+                        ${isUrgent ? '⚡ Interviews Starting Soon' : '📅 Upcoming Interview Schedule'}
+                    </span>
+                </div>
+
+                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 8px 0; text-align: center;">
+                    You Have ${count} Interview${count > 1 ? 's' : ''} Scheduled
+                </h1>
+
+                <p style="font-size: 15px; color: #475569; line-height: 1.7; margin: 0 0 24px 0;">
+                    Dear <strong>${nameStr}</strong>,<br><br>
+                    Here is a summary of your upcoming interview${count > 1 ? 's' : ''} from <strong>${orgName}</strong>. Please ensure all arrangements are confirmed before the scheduled time.
+                </p>
+
+                <!-- Interview Table -->
+                <div style="overflow-x: auto; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif;">
+                        <thead>
+                            <tr style="background-color: #0f172a;">
+                                <th style="padding: 12px 14px; text-align: left; font-size: 12px; font-weight: 600; color: #cbd5e1; text-transform: uppercase; letter-spacing: 0.5px;">Candidate</th>
+                                <th style="padding: 12px 14px; text-align: left; font-size: 12px; font-weight: 600; color: #cbd5e1; text-transform: uppercase; letter-spacing: 0.5px;">Role</th>
+                                <th style="padding: 12px 14px; text-align: left; font-size: 12px; font-weight: 600; color: #cbd5e1; text-transform: uppercase; letter-spacing: 0.5px;">Date & Format</th>
+                                <th style="padding: 12px 14px; text-align: center; font-size: 12px; font-weight: 600; color: #cbd5e1; text-transform: uppercase; letter-spacing: 0.5px;">When</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${interviewRows}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="margin-top: 28px; text-align: center;">
+                    <a href="${portalUrl}" style="${partnerBtnStyle}">Open Partner Portal →</a>
+                </div>
+            </div>
+            <div style="${partnerFooterStyle}">
+                <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026 &mdash; Islamic Finance Internship Preparatory &amp; Placement Program</p>
+            </div>
+        </div>
+    </div>`;
+
+    const subject = count > 1
+        ? `Upcoming Interviews (${count}) — ${orgName}`
+        : `Upcoming Interview Reminder — ${interviews[0].candidateName}`;
+
+    await send(partnerEmail, subject, html, EMAIL_SENDERS.PLACEMENT);
+};
+
+export interface ApplicationDigestEntry {
+    applicantName: string;
+    submittedAt: Date;
+}
+
+/**
+ * Partner Digest: Multiple new job applications bundled into one email.
+ * Sent by the job application digest cron, once per cycle per opening.
+ * Partners never receive one email per applicant — only this periodic digest.
+ */
+export const sendPartnerJobApplicationDigestEmail = async (
+    partnerEmail: string,
+    contactPerson: string,
+    openingTitle: string,
+    orgName: string,
+    applicants: ApplicationDigestEntry[]
+) => {
+    const portalUrl = `${env.CLIENT_URL}/partner-portal/job-openings`;
+    const nameStr = contactPerson ? contactPerson.trim() : 'Partner';
+    const count = applicants.length;
+
+    const applicantRows = applicants.map((a, idx) => {
+        const date = new Date(a.submittedAt).toLocaleString('en-GB', {
+            day: 'numeric', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+            timeZone: 'Africa/Lagos',
+        });
+        return `
+        <tr style="background-color: ${idx % 2 === 0 ? '#f8fafc' : '#ffffff'};">
+            <td style="padding: 11px 14px; font-size: 13px; color: #1e293b; border-bottom: 1px solid #e2e8f0;">
+                <strong>${a.applicantName}</strong>
+            </td>
+            <td style="padding: 11px 14px; font-size: 12px; color: #64748b; border-bottom: 1px solid #e2e8f0;">
+                ${date}
+            </td>
+        </tr>`;
+    }).join('');
+
+    const html = `
+    <div style="${partnerWrapperStyle}">
+        <div style="${partnerCardStyle}">
+            <div style="${partnerHeaderStyle}">
+                <img src="${LOGO_WHITE_WORDMARK_URL}" style="height: 40px; width: auto; display: block; margin: 0 auto;" alt="IFIP">
+            </div>
+            <div style="${partnerContentStyle}">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <span style="display: inline-block; background-color: #ecfdf5; color: #065f46; font-size: 12px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; padding: 6px 16px; border-radius: 20px;">
+                        📥 New Applications Received
+                    </span>
+                </div>
+
+                <h1 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 8px 0; text-align: center;">
+                    ${count} New Applicant${count > 1 ? 's' : ''} for <br>"${openingTitle}"
+                </h1>
+
+                <p style="font-size: 15px; color: #475569; line-height: 1.7; margin: 16px 0 24px 0;">
+                    Dear <strong>${nameStr}</strong>,<br><br>
+                    The following candidate${count > 1 ? 's have' : ' has'} applied to your <strong>${openingTitle}</strong> opening at <strong>${orgName}</strong> since the last notification. You can review their CVs, cover notes, and task responses directly in your partner portal.
+                </p>
+
+                <!-- Applicant Table -->
+                <div style="overflow-x: auto; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 28px;">
+                    <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif;">
+                        <thead>
+                            <tr style="background-color: #0d9373;">
+                                <th style="padding: 12px 14px; text-align: left; font-size: 12px; font-weight: 600; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px;">Applicant</th>
+                                <th style="padding: 12px 14px; text-align: left; font-size: 12px; font-weight: 600; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px;">Applied At</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${applicantRows}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; font-size: 13px; color: #14532d; line-height: 1.6;">
+                    All applicants have met the required coursework task standards. Review their profiles, shortlist candidates, and schedule interviews from the portal.
+                </div>
+
+                <div style="text-align: center;">
+                    <a href="${portalUrl}" style="${partnerBtnStyle}">Review Applications →</a>
+                </div>
+            </div>
+            <div style="${partnerFooterStyle}">
+                <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026 &mdash; Islamic Finance Internship Preparatory &amp; Placement Program</p>
+            </div>
+        </div>
+    </div>`;
+
+    const subject = count > 1
+        ? `${count} New Applicants for "${openingTitle}" — IFIP`
+        : `New Application for "${openingTitle}": ${applicants[0].applicantName}`;
+
+    await send(partnerEmail, subject, html, EMAIL_SENDERS.PLACEMENT);
 };
