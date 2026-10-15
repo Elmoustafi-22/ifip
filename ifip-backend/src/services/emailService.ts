@@ -2596,15 +2596,14 @@ export const sendJobOpeningClosedEmail = async (
                 </div>
 
                 <p style="font-size: 15px; color: #454652; line-height: 1.7; margin: 0 0 20px 0;">
-                    We encourage you to keep an eye on the <strong>Job Openings</strong> board — new opportunities
-                    from our partner network are posted regularly, and your profile remains active and visible
-                    to all partner organisations.
+                    Your profile remains active and visible across our partner network. We will keep you informed and notify you
+                    as new opportunities become available.
                 </p>
 
                 <!-- CTA -->
                 <div style="text-align: center; margin: 28px 0;">
                     <a href="${dashboardUrl}" style="display: inline-block; background-color: #000666; color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 6px; font-size: 14px; font-weight: bold;">
-                        Browse Open Opportunities
+                        Visit Job Board
                     </a>
                 </div>
 

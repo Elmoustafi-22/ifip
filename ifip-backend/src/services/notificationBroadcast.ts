@@ -1477,7 +1477,7 @@ notificationEmitter.on('jobOpening.closed', async ({
             const candidateNotifications = applicants.map(applicant => ({
                 userId: new Types.ObjectId(applicant.userId),
                 title: 'Application Update — Position Filled',
-                message: `The ${title} position at ${orgName} has been filled. Thank you for applying — keep exploring other open opportunities on the board.`,
+                message: `The ${title} position at ${orgName} has been filled. Thank you for applying — we will notify you as new opportunities become available.`,
                 type: 'info' as const,
                 link: '/dashboard/job-openings',
             }));
