@@ -13,6 +13,8 @@ import { JobOpening } from '../models/JobOpening.js';
 import { PartnerOrganization } from '../models/PartnerOrganization.js';
 import { User } from '../models/User.js';
 import { sendPartnerJobApplicationDigestEmail, ApplicationDigestEntry } from './emailService.js';
+import { generatePartnerUnsubscribeToken } from '../utils/partnerUnsubscribeToken.js';
+import { env } from '../config/env.js';
 
 export const BATCH_THRESHOLD = 20;
 
@@ -82,6 +84,7 @@ export const sendOpeningApplicationDigest = async (openingId: Types.ObjectId | s
         }));
 
         const contactName = org?.contactPerson || partnerUsers[0]?.fullName || 'Partner';
+        const unsubUrl = `${env.CLIENT_URL}/partner-portal/unsubscribe?token=${generatePartnerUnsubscribeToken(String(opening.partnerOrgId))}`;
 
         // Send digest email to all partner recipients
         for (const pEmail of partnerEmails) {
@@ -91,7 +94,8 @@ export const sendOpeningApplicationDigest = async (openingId: Types.ObjectId | s
                     contactName,
                     opening.title,
                     orgName,
-                    applicants
+                    applicants,
+                    unsubUrl
                 );
             } catch (err: any) {
                 console.error(`[JobAppDigest] Failed to send digest email to ${pEmail}:`, err.message);

@@ -12,7 +12,8 @@ import {
   HiOutlineExclamationTriangle,
   HiOutlineCamera,
   HiOutlineLink,
-  HiOutlineSparkles
+  HiOutlineSparkles,
+  HiOutlineBell,
 } from "react-icons/hi2";
 import { 
   getMyApplication, 
@@ -22,7 +23,7 @@ import {
   uploadAltCertificateFile,
   saveAltCertificateUrl
 } from "@/lib/api/services";
-import { changePassword, mfaSetup, mfaEnable, mfaDisable } from "@/lib/api/auth";
+import { changePassword, mfaSetup, mfaEnable, mfaDisable, updateNotificationPreferences } from "@/lib/api/auth";
 
 // Common country list for dial codes & location matching
 const POPULAR_COUNTRIES = [
@@ -199,6 +200,28 @@ export default function SettingsPage() {
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Notification Preferences States
+  const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(true);
+  const [toggleSaving, setToggleSaving] = useState(false);
+  const [toggleSaved, setToggleSaved] = useState(false);
+
+  const handleToggleNotification = async () => {
+    const nextVal = !emailNotificationsEnabled;
+    setEmailNotificationsEnabled(nextVal);
+    setToggleSaving(true);
+    setToggleSaved(false);
+    try {
+      await updateNotificationPreferences(nextVal);
+      setToggleSaved(true);
+      setTimeout(() => setToggleSaved(false), 2500);
+    } catch (err: any) {
+      setEmailNotificationsEnabled(!nextVal);
+      setErrorMsg(err?.message || "Failed to update notification preferences.");
+    } finally {
+      setToggleSaving(false);
+    }
+  };
+
   // Fetch candidate profile on load
   useEffect(() => {
     const fetchProfile = async () => {
@@ -211,6 +234,7 @@ export default function SettingsPage() {
           setStateCity(data.stateCity || "");
           setCvUrl(data.cvUrl || "");
           setAvatarUrl(data.avatarUrl || "");
+          setEmailNotificationsEnabled(data.emailNotificationsEnabled ?? true);
           if ((data as any).altInstituteCertUrl) {
             setAltInstituteCertUrl((data as any).altInstituteCertUrl);
             setCertUrlInput((data as any).altInstituteCertUrl);
@@ -1020,6 +1044,52 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* SECTION: NOTIFICATION PREFERENCES */}
+        <div className="bg-white rounded-2xl border border-slate-200/60 shadow-level1 p-6 md:p-8 flex flex-col gap-6">
+          <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+            <div className="text-[#0E1B5D]">
+              <HiOutlineBell className="w-5 h-5" />
+            </div>
+            <h3 className="text-base font-bold text-[#000666] font-display">Notification Preferences</h3>
+          </div>
+
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold text-slate-800">Email Notifications</p>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {toggleSaving && (
+                  <div className="w-3.5 h-3.5 border-2 border-slate-300 border-t-[#000666] rounded-full animate-spin" />
+                )}
+                {toggleSaved && !toggleSaving && (
+                  <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-0.5">
+                    <HiOutlineCheck className="w-3.5 h-3.5" /> Saved
+                  </span>
+                )}
+                <button
+                  id="participant-email-notifications-toggle"
+                  type="button"
+                  role="switch"
+                  aria-checked={emailNotificationsEnabled}
+                  disabled={toggleSaving}
+                  onClick={handleToggleNotification}
+                  className={`relative w-10 h-5 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#000666] disabled:opacity-60 cursor-pointer ${
+                    emailNotificationsEnabled ? "bg-[#000666]" : "bg-slate-300"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
+                      emailNotificationsEnabled ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Receive email alerts for coursework reviews, assessment grading, interview invitations, and placement offers. In-app notifications are always active regardless of this setting.
+            </p>
           </div>
         </div>
 

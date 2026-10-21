@@ -6,7 +6,8 @@ import {
   HiOutlineLockClosed,
   HiOutlineCheck,
   HiOutlineExclamationTriangle,
-  HiOutlineCamera
+  HiOutlineCamera,
+  HiOutlineBell,
 } from "react-icons/hi2";
 import { getMyApplication, uploadAvatarAuth } from "@/lib/api/services";
 import {
@@ -14,7 +15,8 @@ import {
   mfaSetup,
   mfaEnable,
   mfaDisable,
-  updateProfile
+  updateProfile,
+  updateNotificationPreferences,
 } from "@/lib/api/auth";
 
 export default function AdminSettingsPage() {
@@ -54,6 +56,11 @@ export default function AdminSettingsPage() {
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Notification Preferences States
+  const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(true);
+  const [toggleSaving, setToggleSaving] = useState(false);
+  const [toggleSaved, setToggleSaved] = useState(false);
+
   useEffect(() => {
     const fetchAdminProfile = async () => {
       try {
@@ -65,6 +72,7 @@ export default function AdminSettingsPage() {
           setRole(data.role || "admin");
           setAvatarUrl(data.avatarUrl || "");
           setMfaEnabled(data.mfaEnabled || false);
+          setEmailNotificationsEnabled(data.emailNotificationsEnabled ?? true);
         }
       } catch (err: any) {
         console.error("Failed to load settings profile:", err);
@@ -75,6 +83,23 @@ export default function AdminSettingsPage() {
     };
     fetchAdminProfile();
   }, []);
+
+  const handleToggleNotification = async () => {
+    const nextVal = !emailNotificationsEnabled;
+    setEmailNotificationsEnabled(nextVal);
+    setToggleSaving(true);
+    setToggleSaved(false);
+    try {
+      await updateNotificationPreferences(nextVal);
+      setToggleSaved(true);
+      setTimeout(() => setToggleSaved(false), 2500);
+    } catch (err: any) {
+      setEmailNotificationsEnabled(!nextVal);
+      setErrorMsg(err?.message || "Failed to update notification preferences.");
+    } finally {
+      setToggleSaving(false);
+    }
+  };
 
   const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -357,6 +382,52 @@ export default function AdminSettingsPage() {
                 className="w-full border border-slate-200 rounded-[6px] px-4 py-3 text-sm bg-slate-100/50 text-slate-400 cursor-not-allowed font-medium"
               />
             </div>
+          </div>
+        </div>
+
+        {/* SECTION: NOTIFICATION PREFERENCES */}
+        <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6 md:p-8 flex flex-col gap-6">
+          <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+            <div className="text-[#0E1B5D]">
+              <HiOutlineBell className="w-5 h-5" />
+            </div>
+            <h3 className="text-base font-bold text-[#000666] font-display">Notification Preferences</h3>
+          </div>
+
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold text-slate-800">Email Notifications</p>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {toggleSaving && (
+                  <div className="w-3.5 h-3.5 border-2 border-slate-300 border-t-[#000666] rounded-full animate-spin" />
+                )}
+                {toggleSaved && !toggleSaving && (
+                  <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-0.5">
+                    <HiOutlineCheck className="w-3.5 h-3.5" /> Saved
+                  </span>
+                )}
+                <button
+                  id="admin-email-notifications-toggle"
+                  type="button"
+                  role="switch"
+                  aria-checked={emailNotificationsEnabled}
+                  disabled={toggleSaving}
+                  onClick={handleToggleNotification}
+                  className={`relative w-10 h-5 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#000666] disabled:opacity-60 cursor-pointer ${
+                    emailNotificationsEnabled ? "bg-[#000666]" : "bg-slate-300"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
+                      emailNotificationsEnabled ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Receive email alerts for new student enrollments, partnership applications, job opening submissions, and interview updates. In-app notifications are always active regardless of this setting.
+            </p>
           </div>
         </div>
 

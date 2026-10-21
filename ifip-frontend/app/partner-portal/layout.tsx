@@ -78,6 +78,11 @@ export default function PartnerPortalLayout({ children }: { children: React.Reac
   }, [pathname]);
 
   useEffect(() => {
+    if (pathname === "/partner-portal/unsubscribe") {
+      setLoading(false);
+      return;
+    }
+
     const initPartnerPortal = async () => {
       const token = getAccessToken();
       if (!token) {
@@ -101,12 +106,16 @@ export default function PartnerPortalLayout({ children }: { children: React.Reac
     };
 
     initPartnerPortal();
-  }, [router]);
+  }, [router, pathname]);
 
   const handleLogout = () => {
     clearAuth();
     router.push("/login");
   };
+
+  if (pathname === "/partner-portal/unsubscribe") {
+    return <>{children}</>;
+  }
 
   if (loading) {
     return (

@@ -31,6 +31,7 @@ import {
     getPartnerTasks,
     logJobInterviewOutcome,
     closeJobOpening,
+    unsubscribeFromEmails,
 } from '../controllers/partnerPortalController.js';
 
 const router = Router();
@@ -38,6 +39,10 @@ const router = Router();
 // ─── Public ───────────────────────────────────────────────────────────────────
 router.get('/active', getActivePartners);
 router.post('/apply', submitPartnerApplication);
+
+// One-click email unsubscribe — no auth, linked from email footers
+router.get('/unsubscribe', unsubscribeFromEmails);
+router.post('/unsubscribe', unsubscribeFromEmails);
 
 // ─── Partner Portal (authenticated partner role) ───────────────────────────────
 const partnerAuth = [authenticate, authorize('partner')];

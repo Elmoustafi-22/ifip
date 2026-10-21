@@ -1182,8 +1182,12 @@ export const sendInterestApprovedToPartner = async (
     to: string,
     contactPerson: string,
     orgName: string,
-    internName: string
+    internName: string,
+    unsubscribeUrl?: string
 ) => {
+    const unsubscribeSnippet = unsubscribeUrl
+        ? `<p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 12px 0 0 0;"><a href="${unsubscribeUrl}" style="color: #94a3b8; text-decoration: underline;">Stop receiving these emails</a></p>`
+        : '';
     const html = `
     <div style="${partnerWrapperStyle}">
         <div style="${partnerCardStyle}">
@@ -1200,6 +1204,7 @@ export const sendInterestApprovedToPartner = async (
             </div>
             <div style="${partnerFooterStyle}">
                 <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026</p>
+                ${unsubscribeSnippet}
             </div>
         </div>
     </div>`;
@@ -1237,8 +1242,12 @@ export const sendInterestDeclinedToPartner = async (
     to: string,
     contactPerson: string,
     internName: string,
-    reason?: string
+    reason?: string,
+    unsubscribeUrl?: string
 ) => {
+    const unsubscribeSnippet = unsubscribeUrl
+        ? `<p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 12px 0 0 0;"><a href="${unsubscribeUrl}" style="color: #94a3b8; text-decoration: underline;">Stop receiving these emails</a></p>`
+        : '';
     const html = `
     <div style="${partnerWrapperStyle}">
         <div style="${partnerCardStyle}">
@@ -1257,6 +1266,7 @@ export const sendInterestDeclinedToPartner = async (
             </div>
             <div style="${partnerFooterStyle}">
                 <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026</p>
+                ${unsubscribeSnippet}
             </div>
         </div>
     </div>`;
@@ -2070,10 +2080,14 @@ export const sendAdminJobOpeningCreatedEmail = async (
 export const sendPartnerJobOpeningOpenedEmail = async (
     partnerEmail: string,
     contactPerson: string,
-    openingTitle: string
+    openingTitle: string,
+    unsubscribeUrl?: string
 ) => {
     const portalUrl = `${env.CLIENT_URL}/partner-portal/job-openings`;
     const nameStr = contactPerson ? contactPerson.trim() : 'Partner';
+    const unsubscribeSnippet = unsubscribeUrl
+        ? `<p style="font-size: 11px; color: #94a3b8; margin: 8px 0 0 0;"><a href="${unsubscribeUrl}" style="color: #94a3b8; text-decoration: underline;">Stop receiving these emails</a></p>`
+        : '';
     const html = `
     <div style="font-family: Arial, sans-serif; background-color: #F8F9FA; padding: 40px 10px; margin: 0;">
         <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #E7E2D8;">
@@ -2098,6 +2112,7 @@ export const sendPartnerJobOpeningOpenedEmail = async (
             </div>
             <div style="background-color: #FDFBF7; padding: 20px; text-align: center; border-top: 1px solid #E7E2D8;">
                 <p style="font-size: 12px; color: #64748B; margin: 0;">Islamic Finance Internship Program</p>
+                ${unsubscribeSnippet}
             </div>
         </div>
     </div>`;
@@ -2112,10 +2127,14 @@ export const sendPartnerJobOpeningRejectedEmail = async (
     partnerEmail: string,
     contactPerson: string,
     openingTitle: string,
-    adminNotes?: string
+    adminNotes?: string,
+    unsubscribeUrl?: string
 ) => {
     const portalUrl = `${env.CLIENT_URL}/partner-portal/job-openings`;
     const nameStr = contactPerson ? contactPerson.trim() : 'Partner';
+    const unsubscribeSnippet = unsubscribeUrl
+        ? `<p style="font-size: 11px; color: #94a3b8; margin: 8px 0 0 0;"><a href="${unsubscribeUrl}" style="color: #94a3b8; text-decoration: underline;">Stop receiving these emails</a></p>`
+        : '';
     const html = `
     <div style="font-family: Arial, sans-serif; background-color: #F8F9FA; padding: 40px 10px; margin: 0;">
         <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #E7E2D8;">
@@ -2145,6 +2164,7 @@ export const sendPartnerJobOpeningRejectedEmail = async (
             </div>
             <div style="background-color: #FDFBF7; padding: 20px; text-align: center; border-top: 1px solid #E7E2D8;">
                 <p style="font-size: 12px; color: #64748B; margin: 0;">Islamic Finance Internship Program</p>
+                ${unsubscribeSnippet}
             </div>
         </div>
     </div>`;
@@ -2752,11 +2772,15 @@ export const sendPartnerJobApplicationDigestEmail = async (
     contactPerson: string,
     openingTitle: string,
     orgName: string,
-    applicants: ApplicationDigestEntry[]
+    applicants: ApplicationDigestEntry[],
+    unsubscribeUrl?: string
 ) => {
     const portalUrl = `${env.CLIENT_URL}/partner-portal/job-openings`;
     const nameStr = contactPerson ? contactPerson.trim() : 'Partner';
     const count = applicants.length;
+    const unsubscribeSnippet = unsubscribeUrl
+        ? `<p style="font-size: 11px; color: #94a3b8; margin: 8px 0 0 0;"><a href="${unsubscribeUrl}" style="color: #94a3b8; text-decoration: underline;">Stop receiving these emails</a></p>`
+        : '';
 
     const applicantRows = applicants.map((a, idx) => {
         const date = new Date(a.submittedAt).toLocaleString('en-GB', {
@@ -2822,6 +2846,7 @@ export const sendPartnerJobApplicationDigestEmail = async (
             </div>
             <div style="${partnerFooterStyle}">
                 <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026 &mdash; Islamic Finance Internship Preparatory &amp; Placement Program</p>
+                ${unsubscribeSnippet}
             </div>
         </div>
     </div>`;

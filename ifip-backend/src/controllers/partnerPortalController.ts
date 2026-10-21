@@ -13,6 +13,7 @@ import { JobApplication, JobApplicationStatus } from '../models/JobApplication.j
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { logAction } from '../utils/auditLogger.js';
 import { env } from '../config/env.js';
+import { verifyPartnerUnsubscribeToken } from '../utils/partnerUnsubscribeToken.js';
 
 /** Helper to retrieve candidate statuses that should be visible to partners */
 export const getAllowedPoolStatuses = async (): Promise<ApplicationStatus[]> => {
@@ -1633,5 +1634,96 @@ export const closeJobOpening = async (req: Request, res: Response) => {
         res.json({ message: 'Job opening closed successfully.', opening, notified: applicants.length });
     } catch (err: any) {
         res.status(500).json({ message: 'Error closing job opening.', error: err.message });
+    }
+};
+
+// ─── GET /api/v1/partners/unsubscribe?token= (PUBLIC) ─────────────────────────
+/**
+ * One-click email unsubscribe handler.
+ * Linked from the footer of all partner notification emails.
+ * No authentication required — the HMAC-signed token is the credential.
+ */
+export const unsubscribeFromEmails = async (req: Request, res: Response) => {
+    const rawToken = req.query.token ?? req.body?.token;
+    const token = typeof rawToken === 'string' ? rawToken : '';
+    const wantsJson = req.query.format === 'json' || req.headers.accept?.includes('application/json');
+
+    const respond = (success: boolean, alreadyOff = false) => {
+        if (wantsJson) {
+            return res.status(success ? 200 : 400).json({
+                success,
+                alreadyUnsubscribed: alreadyOff,
+                message: success
+                    ? alreadyOff
+                        ? 'Email notifications were already disabled for your organisation.'
+                        : 'Email notifications disabled successfully.'
+                    : 'The unsubscribe link is invalid or has expired.',
+            });
+        }
+
+        const title = success
+            ? alreadyOff ? 'Already Unsubscribed' : 'Unsubscribed Successfully'
+            : 'Invalid Link';
+        const icon = success ? (alreadyOff ? '☑️' : '✅') : '❌';
+        const heading = success
+            ? alreadyOff ? 'You are already unsubscribed' : 'You have been unsubscribed'
+            : 'This link is invalid or has expired';
+        const body = success
+            ? `Email notifications for your organisation have been turned off. You will still receive all in-app alerts on your partner portal. <br><br>You can re-enable email notifications at any time from <strong>Settings → Notification Preferences</strong> in your partner portal.`
+            : `The unsubscribe link could not be verified. Please use the <strong>Settings → Notification Preferences</strong> page in your partner portal to manage email preferences.`;
+
+        res.set('Content-Type', 'text/html').send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title} — IFIP</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f8f9fa; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .card { background: #fff; border: 1px solid #e7e2d8; border-radius: 10px; max-width: 480px; width: 90%; padding: 40px 32px; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+    .icon { font-size: 48px; margin-bottom: 16px; }
+    h1 { font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 14px 0; }
+    p { font-size: 14px; color: #475569; line-height: 1.7; margin: 0 0 24px 0; }
+    a.btn { display: inline-block; background: #000666; color: #fff; text-decoration: none; padding: 11px 28px; border-radius: 6px; font-size: 14px; font-weight: bold; }
+    .footer { margin-top: 28px; font-size: 11px; color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">${icon}</div>
+    <h1>${heading}</h1>
+    <p>${body}</p>
+    <a class="btn" href="${env.CLIENT_URL}/partner-portal/settings">Go to Settings</a>
+    <div class="footer">Islamic Finance Internship Program &copy; ${new Date().getFullYear()}</div>
+  </div>
+</body>
+</html>`);
+    };
+
+    if (!token) {
+        return respond(false);
+    }
+
+    const orgId = verifyPartnerUnsubscribeToken(token);
+    if (!orgId) {
+        return respond(false);
+    }
+
+    try {
+        const org = await PartnerOrganization.findById(orgId);
+        if (!org) return respond(false);
+
+        if (org.emailNotificationsEnabled === false) {
+            return respond(true, true); // already unsubscribed
+        }
+
+        org.emailNotificationsEnabled = false;
+        await org.save();
+
+        console.log(`[Unsubscribe] Partner org "${org.name}" (${orgId}) unsubscribed via email link.`);
+        return respond(true);
+    } catch (err: any) {
+        console.error('[Unsubscribe] Error:', err.message);
+        return respond(false);
     }
 };

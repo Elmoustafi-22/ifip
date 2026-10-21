@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { generateSecret, generateURI, verifySync } from 'otplib';
 import QRCode from 'qrcode';
 import { User, type UserRole } from '../models/User.js';
+import { PartnerOrganization } from '../models/PartnerOrganization.js';
 import {
     signAccessToken,
     signRefreshToken,
@@ -452,7 +453,7 @@ export const mfaDisable = async (req: Request, res: Response) => {
 export const updateProfile = async (req: Request, res: Response) => {
     try {
         const userId = req.user!.id;
-        const { fullName, title, avatarUrl } = req.body;
+        const { fullName, title, avatarUrl, emailNotificationsEnabled } = req.body;
 
         const user = await User.findById(userId);
         if (!user) {
@@ -473,6 +474,15 @@ export const updateProfile = async (req: Request, res: Response) => {
             user.avatarUrl = avatarUrl;
             updatedFields.push('avatarUrl');
         }
+        if (emailNotificationsEnabled !== undefined) {
+            user.emailNotificationsEnabled = Boolean(emailNotificationsEnabled);
+            updatedFields.push('emailNotificationsEnabled');
+            if (user.orgId) {
+                await PartnerOrganization.findByIdAndUpdate(user.orgId, {
+                    emailNotificationsEnabled: user.emailNotificationsEnabled,
+                });
+            }
+        }
         await user.save();
 
         if (updatedFields.length > 0) {
@@ -492,10 +502,54 @@ export const updateProfile = async (req: Request, res: Response) => {
                 fullName: user.fullName,
                 title: user.title,
                 role: user.role,
-                avatarUrl: user.avatarUrl
+                avatarUrl: user.avatarUrl,
+                emailNotificationsEnabled: user.emailNotificationsEnabled !== false,
             }
         });
     } catch (e: any) {
         res.status(500).json({ message: 'Error updating profile.', error: e.message });
+    }
+};
+
+// ── PATCH /api/v1/auth/notification-preferences ─────────────────────────
+export const updateNotificationPreferences = async (req: Request, res: Response) => {
+    try {
+        const userId = req.user!.id;
+        const { emailNotificationsEnabled } = req.body;
+
+        if (typeof emailNotificationsEnabled !== 'boolean') {
+            res.status(400).json({ message: 'emailNotificationsEnabled must be a boolean.' });
+            return;
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            res.status(404).json({ message: 'User not found.' });
+            return;
+        }
+
+        user.emailNotificationsEnabled = emailNotificationsEnabled;
+        await user.save();
+
+        // If this user is linked to a partner organisation, keep the org preference in sync
+        if (user.orgId) {
+            await PartnerOrganization.findByIdAndUpdate(user.orgId, {
+                emailNotificationsEnabled,
+            });
+        }
+
+        await logAction(
+            req,
+            'NOTIFICATION_PREFERENCES_UPDATE',
+            `Set email notifications to ${emailNotificationsEnabled ? 'enabled' : 'disabled'}`,
+            { targetId: user._id.toString(), targetType: 'User' }
+        );
+
+        res.json({
+            message: `Email notifications ${emailNotificationsEnabled ? 'enabled' : 'disabled'} successfully.`,
+            emailNotificationsEnabled: user.emailNotificationsEnabled,
+        });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Error updating notification preferences.', error: e.message });
     }
 };

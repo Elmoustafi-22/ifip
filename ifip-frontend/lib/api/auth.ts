@@ -270,12 +270,24 @@ export const stopSilentRefresh = (): void => {
 export const updateProfile = async (
   fullName: string,
   title?: string,
-  avatarUrl?: string
+  avatarUrl?: string,
+  emailNotificationsEnabled?: boolean
 ): Promise<{ message: string; user: any }> => {
   const { data } = await authClient.patch<{ message: string; user: any }>("/auth/profile", {
     fullName,
     title,
     avatarUrl,
+    emailNotificationsEnabled,
   });
+  return data;
+};
+
+export const updateNotificationPreferences = async (
+  emailNotificationsEnabled: boolean
+): Promise<{ message: string; emailNotificationsEnabled: boolean }> => {
+  const { data } = await authClient.patch<{ message: string; emailNotificationsEnabled: boolean }>(
+    "/auth/notification-preferences",
+    { emailNotificationsEnabled }
+  );
   return data;
 };

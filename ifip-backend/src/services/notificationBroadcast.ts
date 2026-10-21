@@ -47,6 +47,7 @@ import {
     sendJobOpeningClosedEmail,
 } from './emailService.js';
 import { PartnerOrganization } from '../models/PartnerOrganization.js';
+import { generatePartnerUnsubscribeToken } from '../utils/partnerUnsubscribeToken.js';
 import { env } from '../config/env.js';
 
 export const notificationEmitter = new EventEmitter();
@@ -77,6 +78,31 @@ async function isPartnerEmailEnabledByUserId(partnerUserId: string | Types.Objec
         const user = await User.findById(partnerUserId).select('orgId').lean();
         if (!(user as any)?.orgId) return true;
         return isPartnerEmailEnabled((user as any).orgId);
+    } catch {
+        return true;
+    }
+}
+
+/**
+ * Returns true if a user (participant or admin) has email notifications enabled.
+ * Defaults to true when the field is missing (backwards-compatible).
+ */
+export async function isUserEmailEnabled(userId: string | Types.ObjectId): Promise<boolean> {
+    try {
+        const user = await User.findById(userId).select('emailNotificationsEnabled').lean();
+        return (user as any)?.emailNotificationsEnabled !== false;
+    } catch {
+        return true; // fail-open
+    }
+}
+
+/**
+ * Returns true if a user by email has email notifications enabled.
+ */
+export async function isUserEmailEnabledByEmail(email: string): Promise<boolean> {
+    try {
+        const user = await User.findOne({ email: email.toLowerCase().trim() }).select('emailNotificationsEnabled').lean();
+        return (user as any)?.emailNotificationsEnabled !== false;
     } catch {
         return true;
     }
@@ -133,7 +159,7 @@ notificationEmitter.on('application.enrolled', async ({ user, application }) => 
 
         // 2. Email alert digest — superadmins only to avoid inbox flooding on every enrolment.
         // Regular admins see the in-app notification above; only superadmins need the email ping.
-        const superadminRecipients = admins.filter(a => a.role === 'superadmin');
+        const superadminRecipients = admins.filter(a => a.role === 'superadmin' && (a as any).emailNotificationsEnabled !== false);
         for (const admin of superadminRecipients) {
             try {
                 await sendAdminEnrollmentDigest(admin.email, 1);
@@ -289,14 +315,16 @@ notificationEmitter.on('assessment.graded', async ({ submission, assessment, use
             link: `/dashboard/modules/${submission.moduleId}`
         });
         // Email
-        await sendAssessmentGradedEmail(
-            user.email,
-            user.fullName || 'Participant',
-            assessment.title,
-            submission.score,
-            submission.passed,
-            attemptsRemaining
-        );
+        if (await isUserEmailEnabled(user._id)) {
+            await sendAssessmentGradedEmail(
+                user.email,
+                user.fullName || 'Participant',
+                assessment.title,
+                submission.score,
+                submission.passed,
+                attemptsRemaining
+            );
+        }
     } catch (err) {
         console.error('[Event:assessment.graded] Error:', err);
     }
@@ -355,7 +383,7 @@ notificationEmitter.on('module_task.reviewed', async ({ submission, user, module
         });
 
         // 2. Email Notification
-        if (user.email) {
+        if (user.email && await isUserEmailEnabled(user._id)) {
             await sendModuleTaskReviewedEmail({
                 to: user.email,
                 fullName: user.fullName || 'Participant',
@@ -383,13 +411,15 @@ notificationEmitter.on('placement.matched', async ({ userId, userEmail, userFull
             link: '/dashboard/placement'
         });
         // Email
-        await sendPlacementMatchedEmail(
-            userEmail,
-            userFullName || 'Participant',
-            partner.name,
-            area,
-            notes
-        );
+        if (await isUserEmailEnabled(userId as string)) {
+            await sendPlacementMatchedEmail(
+                userEmail,
+                userFullName || 'Participant',
+                partner.name,
+                area,
+                notes
+            );
+        }
     } catch (err) {
         console.error('[Event:placement.matched] Error:', err);
     }
@@ -431,14 +461,16 @@ notificationEmitter.on('partner.applied', async ({ email, companyName, contactPe
                 });
 
                 // Send notification email to the admin
-                await sendAdminPartnerApplicationReceived(
-                    admin.email,
-                    companyName,
-                    contactPerson,
-                    email,
-                    hasOpenings,
-                    openings
-                );
+                if ((admin as any).emailNotificationsEnabled !== false) {
+                    await sendAdminPartnerApplicationReceived(
+                        admin.email,
+                        companyName,
+                        contactPerson,
+                        email,
+                        hasOpenings,
+                        openings
+                    );
+                }
             } catch (adminErr) {
                 console.error(`[Event:partner.applied] Error alerting admin ${admin.email}:`, adminErr);
             }
@@ -765,11 +797,11 @@ notificationEmitter.on('partner.interest_expressed', async ({
         if (notifications.length > 0) await Notification.insertMany(notifications);
 
         // Fetch all Superadmins to receive direct email alerts
-        const superadmins = await User.find({ role: 'superadmin' }).select('email fullName').lean();
+        const superadmins = await User.find({ role: 'superadmin' }).select('email fullName emailNotificationsEnabled').lean();
         const recipientEmails = new Set<string>();
 
         for (const sa of superadmins) {
-            if (sa.email && sa.email.trim().length > 0) {
+            if ((sa as any).emailNotificationsEnabled !== false && sa.email && sa.email.trim().length > 0) {
                 recipientEmails.add(sa.email.toLowerCase().trim());
             }
         }
@@ -822,9 +854,15 @@ notificationEmitter.on('partner.interest_approved', async ({
         if (notifications.length > 0) await Notification.insertMany(notifications);
         // Partner email — only when not opted out
         if (partnerEmail && partnerUserId && await isPartnerEmailEnabledByUserId(partnerUserId as string)) {
-            await sendInterestApprovedToPartner(partnerEmail, contactPerson, orgName, internName);
+            const user = await User.findById(partnerUserId).select('orgId').lean();
+            const unsubUrl = (user as any)?.orgId
+                ? `${env.CLIENT_URL}/partner-portal/unsubscribe?token=${generatePartnerUnsubscribeToken(String((user as any).orgId))}`
+                : undefined;
+            await sendInterestApprovedToPartner(partnerEmail, contactPerson, orgName, internName, unsubUrl);
         }
-        if (internEmail) await sendPlacementMatchedToIntern(internEmail, internName, orgName);
+        if (internEmail && (!internUserId || await isUserEmailEnabled(internUserId as string))) {
+            await sendPlacementMatchedToIntern(internEmail, internName, orgName);
+        }
     } catch (err) {
         console.error('[Event:partner.interest_approved] Error:', err);
     }
@@ -849,7 +887,11 @@ notificationEmitter.on('partner.interest_declined', async ({
             });
         }
         if (partnerEmail && partnerUserId && await isPartnerEmailEnabledByUserId(partnerUserId as string)) {
-            await sendInterestDeclinedToPartner(partnerEmail, contactPerson, internName, adminReason);
+            const user = await User.findById(partnerUserId).select('orgId').lean();
+            const unsubUrl = (user as any)?.orgId
+                ? `${env.CLIENT_URL}/partner-portal/unsubscribe?token=${generatePartnerUnsubscribeToken(String((user as any).orgId))}`
+                : undefined;
+            await sendInterestDeclinedToPartner(partnerEmail, contactPerson, internName, adminReason, unsubUrl);
         }
     } catch (err) {
         console.error('[Event:partner.interest_declined] Error:', err);
@@ -877,10 +919,10 @@ notificationEmitter.on('partner.interview_logged', async ({
 }) => {
     try {
         // 1. Fetch all Superadmins and send email alerts
-        const superadmins = await User.find({ role: 'superadmin' }).select('email').lean();
+        const superadmins = await User.find({ role: 'superadmin' }).select('email emailNotificationsEnabled').lean();
         const recipientEmails = new Set<string>();
         for (const sa of superadmins) {
-            if (sa.email && sa.email.trim().length > 0) {
+            if ((sa as any).emailNotificationsEnabled !== false && sa.email && sa.email.trim().length > 0) {
                 recipientEmails.add(sa.email.toLowerCase().trim());
             }
         }
@@ -934,7 +976,7 @@ notificationEmitter.on('partner.interview_logged', async ({
         }
 
         // 4. Send email to the intern
-        if (internEmail) {
+        if (internEmail && (!internUserId || await isUserEmailEnabled(internUserId as string))) {
             await sendInterviewScheduledToIntern(
                 internEmail,
                 internName,
@@ -976,10 +1018,10 @@ notificationEmitter.on('partner.outcome_logged', async ({
         }
 
         // 2. Fetch all Superadmins and send email alerts
-        const superadmins = await User.find({ role: 'superadmin' }).select('email').lean();
+        const superadmins = await User.find({ role: 'superadmin' }).select('email emailNotificationsEnabled').lean();
         const recipientEmails = new Set<string>();
         for (const sa of superadmins) {
-            if (sa.email && sa.email.trim().length > 0) {
+            if ((sa as any).emailNotificationsEnabled !== false && sa.email && sa.email.trim().length > 0) {
                 recipientEmails.add(sa.email.toLowerCase().trim());
             }
         }
@@ -1004,7 +1046,9 @@ notificationEmitter.on('partner.outcome_logged', async ({
                 type: 'success' as const,
                 link: '/dashboard/placement',
             });
-            if (internEmail) await sendOfferExtendedToIntern(internEmail, internName, orgName);
+            if (internEmail && (!internUserId || await isUserEmailEnabled(internUserId as string))) {
+                await sendOfferExtendedToIntern(internEmail, internName, orgName);
+            }
         }
     } catch (err) {
         console.error('[Event:partner.outcome_logged] Error:', err);
@@ -1081,7 +1125,7 @@ notificationEmitter.on('jobOpening.created', async ({ openingId, orgName, title,
 
         // 2. Email alerts for admins
         for (const admin of admins) {
-            if (admin.email) {
+            if (admin.email && (admin as any).emailNotificationsEnabled !== false) {
                 try {
                     await sendAdminJobOpeningCreatedEmail(admin.email, title, orgName, workMode, undefined, slots);
                 } catch (emailErr) {
@@ -1133,9 +1177,10 @@ notificationEmitter.on('jobOpening.opened', async ({ openingId, title, orgName, 
 
         // Partner emails — only when not opted out
         if (await isPartnerEmailEnabled(partnerOrgId as string)) {
+            const unsubUrl = `${env.CLIENT_URL}/partner-portal/unsubscribe?token=${generatePartnerUnsubscribeToken(String(partnerOrgId))}`;
             for (const pu of partnerUsers) {
                 try {
-                    await sendPartnerJobOpeningOpenedEmail(pu.email!, pu.fullName || 'Partner', title);
+                    await sendPartnerJobOpeningOpenedEmail(pu.email!, pu.fullName || 'Partner', title, unsubUrl);
                 } catch (pEmailErr) {
                     console.error(`[Event:jobOpening.opened] Partner email error for ${pu.email}:`, pEmailErr);
                 }
@@ -1208,9 +1253,10 @@ notificationEmitter.on('jobOpening.rejected', async ({ openingId, title, orgName
 
         // Partner emails — only when not opted out
         if (await isPartnerEmailEnabled(partnerOrgId as string)) {
+            const unsubUrl = `${env.CLIENT_URL}/partner-portal/unsubscribe?token=${generatePartnerUnsubscribeToken(String(partnerOrgId))}`;
             for (const pu of uniquePartnerUsers) {
                 try {
-                    await sendPartnerJobOpeningRejectedEmail(pu.email!, pu.fullName || 'Partner', title, adminNotes);
+                    await sendPartnerJobOpeningRejectedEmail(pu.email!, pu.fullName || 'Partner', title, adminNotes, unsubUrl);
                 } catch (emailErr) {
                     console.error(`[Event:jobOpening.rejected] Email error for ${pu.email}:`, emailErr);
                 }
@@ -1239,8 +1285,8 @@ notificationEmitter.on('jobApplication.submitted', async ({ applicationId, userI
             link: '/dashboard/job-openings',
         });
 
-        const user = await User.findById(userObjId).select('email fullName').lean();
-        if (user?.email) {
+        const user = await User.findById(userObjId).select('email fullName emailNotificationsEnabled').lean();
+        if (user?.email && (user as any).emailNotificationsEnabled !== false) {
             try {
                 await sendJobApplicationSubmittedEmail(user.email, user.fullName || userName || 'Participant', jobTitle, partnerOrgName);
             } catch (emailErr) {
@@ -1319,7 +1365,7 @@ notificationEmitter.on('jobApplication.interview_scheduled', async ({
         });
 
         // 2. Candidate email
-        if (userEmail) {
+        if (userEmail && (!userId || await isUserEmailEnabled(userId as string))) {
             try {
                 await sendJobApplicationInterviewScheduledEmail(
                     userEmail,
@@ -1338,7 +1384,7 @@ notificationEmitter.on('jobApplication.interview_scheduled', async ({
         }
 
         // 3. Admin & Superadmin in-app notifications
-        const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } }).select('_id email role').lean();
+        const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } }).select('_id email role emailNotificationsEnabled').lean();
         const adminNotifications = admins.map(admin => ({
             userId: admin._id,
             title: isReschedule ? 'Job Interview Rescheduled' : 'Job Interview Scheduled',
@@ -1355,7 +1401,7 @@ notificationEmitter.on('jobApplication.interview_scheduled', async ({
         // 4. Admin email alerts (Superadmins + Ops)
         const recipientEmails = new Set<string>();
         for (const admin of admins) {
-            if (admin.role === 'superadmin' && admin.email && admin.email.trim().length > 0) {
+            if (admin.role === 'superadmin' && (admin as any).emailNotificationsEnabled !== false && admin.email && admin.email.trim().length > 0) {
                 recipientEmails.add(admin.email.toLowerCase().trim());
             }
         }
@@ -1438,7 +1484,7 @@ notificationEmitter.on('jobApplication.outcome_logged', async ({
         });
 
         // 2. Candidate email on offer
-        if (isOffer && userEmail) {
+        if (isOffer && userEmail && (!userObjId || await isUserEmailEnabled(userObjId))) {
             try {
                 await sendOfferExtendedToIntern(userEmail, userName || 'Participant', orgName);
             } catch (candEmailErr) {
@@ -1447,7 +1493,7 @@ notificationEmitter.on('jobApplication.outcome_logged', async ({
         }
 
         // 3. Admin & Superadmin in-app notifications
-        const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } }).select('_id email role').lean();
+        const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } }).select('_id email role emailNotificationsEnabled').lean();
         const outcomeLabel = isOffer ? 'Offer Extended' : isNotSelected ? 'Not Selected' : 'Interview Completed';
         const adminNotifications = admins.map(admin => ({
             userId: admin._id,
@@ -1463,7 +1509,7 @@ notificationEmitter.on('jobApplication.outcome_logged', async ({
         // 4. Admin email alerts
         const recipientEmails = new Set<string>();
         for (const admin of admins) {
-            if (admin.role === 'superadmin' && admin.email && admin.email.trim().length > 0) {
+            if (admin.role === 'superadmin' && (admin as any).emailNotificationsEnabled !== false && admin.email && admin.email.trim().length > 0) {
                 recipientEmails.add(admin.email.toLowerCase().trim());
             }
         }
@@ -1527,7 +1573,7 @@ notificationEmitter.on('jobOpening.closed', async ({
 
             // 3. Email each applicant individually
             for (const applicant of applicants) {
-                if (applicant.email && applicant.email.trim().length > 0) {
+                if (applicant.email && applicant.email.trim().length > 0 && (!applicant.userId || await isUserEmailEnabled(applicant.userId))) {
                     try {
                         await sendJobOpeningClosedEmail(
                             applicant.email,

@@ -20,6 +20,7 @@ export interface IUser extends Document {
     mfaSecret?: string;
     lastLoginAt?: Date;
     orgId?: Types.ObjectId; // links partner user to their PartnerOrganization
+    emailNotificationsEnabled?: boolean;
     comparePassword(candidate: string): Promise<boolean>;
 }
 
@@ -41,6 +42,7 @@ const userSchema = new Schema<IUser>(
         mfaSecret: { type: String },
         lastLoginAt: { type: Date },
         orgId: { type: Schema.Types.ObjectId, ref: 'PartnerOrganization' },
+        emailNotificationsEnabled: { type: Boolean, default: true },
     },
     { timestamps: true }
 );

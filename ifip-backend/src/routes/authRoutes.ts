@@ -13,6 +13,7 @@ import {
     mfaEnable,
     mfaDisable,
     updateProfile,
+    updateNotificationPreferences,
 } from '../controllers/authController.js';
 import { validate } from '../middleware/validate.js';
 import { authenticate } from '../middleware/auth.js';
@@ -54,6 +55,9 @@ router.post('/change-password', authenticate, changePassword);
 
 // Update user profile info (name, title)
 router.patch('/profile', authenticate, updateProfile);
+
+// Update notification preferences (email alerts toggle)
+router.patch('/notification-preferences', authenticate, updateNotificationPreferences);
 
 // MFA setup (authenticated)
 router.get('/mfa/setup', authenticate, mfaSetup);

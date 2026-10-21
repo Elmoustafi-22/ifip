@@ -1,4 +1,13 @@
-import { authClient } from "./client";
+import apiClient, { authClient } from "./client";
+
+export const unsubscribePartner = async (
+  token: string
+): Promise<{ success: boolean; alreadyUnsubscribed?: boolean; message: string }> => {
+  const { data } = await apiClient.get(
+    `/partners/unsubscribe?token=${encodeURIComponent(token)}&format=json`
+  );
+  return data;
+};
 
 export interface PartnerOrgProfile {
   id: string;

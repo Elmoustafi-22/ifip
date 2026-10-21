@@ -4,7 +4,7 @@ import { User } from '../models/User.js';
 import { logAction } from '../utils/auditLogger.js';
 
 export const getMyApplication = async (req: Request, res: Response) => {
-    const application = await Application.findOne({ userId: req.user!.id }).populate('userId', 'email role mfaEnabled avatarUrl');
+    const application = await Application.findOne({ userId: req.user!.id }).populate('userId', 'email role mfaEnabled avatarUrl emailNotificationsEnabled');
     if (!application) {
         const user = await User.findById(req.user!.id);
         if (user && (user.role === 'admin' || user.role === 'superadmin')) {
@@ -17,6 +17,7 @@ export const getMyApplication = async (req: Request, res: Response) => {
                 avatarUrl: user.avatarUrl,
                 title: user.title,
                 mfaEnabled: user.mfaEnabled,
+                emailNotificationsEnabled: user.emailNotificationsEnabled !== false,
                 status: 'active'
             });
             return;
@@ -29,13 +30,15 @@ export const getMyApplication = async (req: Request, res: Response) => {
     const role = (application.userId as any)?.role || 'participant';
     const mfaEnabled = (application.userId as any)?.mfaEnabled || false;
     const avatarUrl = application.avatarUrl || (application.userId as any)?.avatarUrl || undefined;
+    const emailNotificationsEnabled = (application.userId as any)?.emailNotificationsEnabled !== false;
     
     res.json({
         ...application.toObject(),
         email,
         role,
         avatarUrl,
-        mfaEnabled
+        mfaEnabled,
+        emailNotificationsEnabled
     });
 };
 
@@ -56,11 +59,16 @@ export const updateMyApplication = async (req: Request, res: Response) => {
         skills,
         cvUrl,
         avatarUrl,
-        altInstituteCertUrl
+        altInstituteCertUrl,
+        emailNotificationsEnabled
     } = req.body;
 
     const updatedFields: string[] = [];
 
+    if (emailNotificationsEnabled !== undefined) {
+        await User.findByIdAndUpdate(req.user!.id, { emailNotificationsEnabled: Boolean(emailNotificationsEnabled) });
+        updatedFields.push('emailNotificationsEnabled');
+    }
     if (fullName !== undefined) {
         application.fullName = fullName;
         await User.findByIdAndUpdate(req.user!.id, { fullName });
