@@ -51,6 +51,37 @@ import { env } from '../config/env.js';
 
 export const notificationEmitter = new EventEmitter();
 
+// ─── Helper: check partner email opt-out preference ───────────────────────────
+/**
+ * Returns true if the partner org has email notifications enabled.
+ * Defaults to true when the field is missing (backwards-compatible).
+ * Accepts either a partnerOrgId string/ObjectId or a partner userId string
+ * (in which case we resolve via the User's orgId).
+ */
+async function isPartnerEmailEnabled(partnerOrgId: string | Types.ObjectId): Promise<boolean> {
+    try {
+        const org = await PartnerOrganization.findById(partnerOrgId)
+            .select('emailNotificationsEnabled')
+            .lean();
+        return (org as any)?.emailNotificationsEnabled !== false;
+    } catch {
+        return true; // fail-open: send the email if the lookup errors
+    }
+}
+
+/**
+ * Resolves a partner org's emailNotificationsEnabled flag from a partner user ID.
+ */
+async function isPartnerEmailEnabledByUserId(partnerUserId: string | Types.ObjectId): Promise<boolean> {
+    try {
+        const user = await User.findById(partnerUserId).select('orgId').lean();
+        if (!(user as any)?.orgId) return true;
+        return isPartnerEmailEnabled((user as any).orgId);
+    } catch {
+        return true;
+    }
+}
+
 // Define listener contracts
 
 notificationEmitter.on('otp.requested', async ({ email, otp }) => {
@@ -789,7 +820,10 @@ notificationEmitter.on('partner.interest_approved', async ({
             });
         }
         if (notifications.length > 0) await Notification.insertMany(notifications);
-        if (partnerEmail) await sendInterestApprovedToPartner(partnerEmail, contactPerson, orgName, internName);
+        // Partner email — only when not opted out
+        if (partnerEmail && partnerUserId && await isPartnerEmailEnabledByUserId(partnerUserId as string)) {
+            await sendInterestApprovedToPartner(partnerEmail, contactPerson, orgName, internName);
+        }
         if (internEmail) await sendPlacementMatchedToIntern(internEmail, internName, orgName);
     } catch (err) {
         console.error('[Event:partner.interest_approved] Error:', err);
@@ -814,7 +848,9 @@ notificationEmitter.on('partner.interest_declined', async ({
                 link: '/partner-portal/requests',
             });
         }
-        if (partnerEmail) await sendInterestDeclinedToPartner(partnerEmail, contactPerson, internName, adminReason);
+        if (partnerEmail && partnerUserId && await isPartnerEmailEnabledByUserId(partnerUserId as string)) {
+            await sendInterestDeclinedToPartner(partnerEmail, contactPerson, internName, adminReason);
+        }
     } catch (err) {
         console.error('[Event:partner.interest_declined] Error:', err);
     }
@@ -1095,11 +1131,14 @@ notificationEmitter.on('jobOpening.opened', async ({ openingId, title, orgName, 
             return true;
         });
 
-        for (const pu of partnerUsers) {
-            try {
-                await sendPartnerJobOpeningOpenedEmail(pu.email!, pu.fullName || 'Partner', title);
-            } catch (pEmailErr) {
-                console.error(`[Event:jobOpening.opened] Partner email error for ${pu.email}:`, pEmailErr);
+        // Partner emails — only when not opted out
+        if (await isPartnerEmailEnabled(partnerOrgId as string)) {
+            for (const pu of partnerUsers) {
+                try {
+                    await sendPartnerJobOpeningOpenedEmail(pu.email!, pu.fullName || 'Partner', title);
+                } catch (pEmailErr) {
+                    console.error(`[Event:jobOpening.opened] Partner email error for ${pu.email}:`, pEmailErr);
+                }
             }
         }
 
@@ -1167,11 +1206,14 @@ notificationEmitter.on('jobOpening.rejected', async ({ openingId, title, orgName
             return true;
         });
 
-        for (const pu of uniquePartnerUsers) {
-            try {
-                await sendPartnerJobOpeningRejectedEmail(pu.email!, pu.fullName || 'Partner', title, adminNotes);
-            } catch (emailErr) {
-                console.error(`[Event:jobOpening.rejected] Email error for ${pu.email}:`, emailErr);
+        // Partner emails — only when not opted out
+        if (await isPartnerEmailEnabled(partnerOrgId as string)) {
+            for (const pu of uniquePartnerUsers) {
+                try {
+                    await sendPartnerJobOpeningRejectedEmail(pu.email!, pu.fullName || 'Partner', title, adminNotes);
+                } catch (emailErr) {
+                    console.error(`[Event:jobOpening.rejected] Email error for ${pu.email}:`, emailErr);
+                }
             }
         }
     } catch (err) {

@@ -656,7 +656,7 @@ export default function PartnerOpeningsPage() {
               <ul className="list-disc list-inside space-y-1 text-amber-800 leading-relaxed">
                 <li>Mark the position as <strong>closed</strong> immediately.</li>
                 <li>Set all active applicants (submitted, under review, shortlisted) to <strong>not selected</strong>.</li>
-                <li>Send each affected applicant a courteous email letting them know the position has been filled and encouraging them to explore other openings.</li>
+                <li>Send each affected applicant a courteous email letting them know the position has been filled and that they will be notified as new opportunities become available.</li>
               </ul>
               <p className="text-amber-700 mt-1">
                 This cannot be undone. If you need to re-open a similar role, you will need to post a new opening.

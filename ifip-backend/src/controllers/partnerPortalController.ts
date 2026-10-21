@@ -91,6 +91,7 @@ export const getPartnerMe = async (req: Request, res: Response) => {
                 activeSlots: totalSlots,
                 openings: org.openings,
                 portalEnabled: org.portalEnabled,
+                emailNotificationsEnabled: org.emailNotificationsEnabled ?? true,
             },
             stats: {
                 availableInterns,
@@ -874,7 +875,7 @@ export const updatePartnerSettings = async (req: Request, res: Response) => {
         const org = await getPartnerOrg(req, res);
         if (!org) return;
 
-        const { contactPerson, contactPhone, contactEmail, website, description, sectorTags, logoUrl } = req.body;
+        const { contactPerson, contactPhone, contactEmail, website, description, sectorTags, logoUrl, emailNotificationsEnabled } = req.body;
 
         if (contactPerson  !== undefined) org.contactPerson  = contactPerson;
         if (contactPhone   !== undefined) org.contactPhone   = contactPhone;
@@ -899,6 +900,7 @@ export const updatePartnerSettings = async (req: Request, res: Response) => {
         if (description    !== undefined) org.description    = description;
         if (sectorTags     !== undefined) org.sectorTags     = Array.isArray(sectorTags) ? sectorTags : [];
         if (logoUrl        !== undefined) org.logoUrl        = logoUrl;
+        if (typeof emailNotificationsEnabled === 'boolean') org.emailNotificationsEnabled = emailNotificationsEnabled;
 
         await org.save();
 

@@ -8,6 +8,7 @@ import {
   HiOutlineUser,
   HiOutlineCheckCircle,
   HiOutlineExclamationCircle,
+  HiOutlineBell,
 } from "react-icons/hi2";
 import { getPartnerMe, updatePartnerSettings } from "@/lib/api/partner";
 
@@ -24,6 +25,7 @@ export default function PartnerSettingsPage() {
   const [description, setDescription] = useState("");
   const [sectorTagsInput, setSectorTagsInput] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
+  const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(true);
 
   useEffect(() => {
     const fetchOrg = async () => {
@@ -37,6 +39,7 @@ export default function PartnerSettingsPage() {
         setDescription(org.description || "");
         setSectorTagsInput((org.sectorTags || []).join(", "));
         setLogoUrl(org.logoUrl || "");
+        setEmailNotificationsEnabled(org.emailNotificationsEnabled ?? true);
       } catch (err) {
         console.error("Failed to load settings:", err);
       } finally {
@@ -66,6 +69,7 @@ export default function PartnerSettingsPage() {
         description,
         sectorTags,
         logoUrl,
+        emailNotificationsEnabled,
       });
       setSuccessMsg("Organisation settings updated successfully.");
     } catch (err: any) {
@@ -213,6 +217,46 @@ export default function PartnerSettingsPage() {
               />
             </div>
           </div>
+        </div>
+
+        <hr className="border-slate-100" />
+
+        {/* Notification Preferences */}
+        <div>
+          <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center space-x-2">
+            <HiOutlineBell className="w-4 h-4 text-[#000666]" />
+            <span>Notification Preferences</span>
+          </h2>
+          <div className="flex items-start justify-between gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+            <div>
+              <p className="text-xs font-semibold text-slate-800">Email Notifications</p>
+              <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed max-w-sm">
+                Receive email alerts for job opening approvals, application digests, and placement updates.
+                In-app notifications are always active regardless of this setting.
+              </p>
+            </div>
+            <button
+              id="email-notifications-toggle"
+              type="button"
+              role="switch"
+              aria-checked={emailNotificationsEnabled}
+              onClick={() => setEmailNotificationsEnabled((prev) => !prev)}
+              className={`relative flex-shrink-0 mt-0.5 w-10 h-5 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#000666] ${
+                emailNotificationsEnabled ? "bg-[#000666]" : "bg-slate-300"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
+                  emailNotificationsEnabled ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+          {!emailNotificationsEnabled && (
+            <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
+              ⚠ Email notifications are disabled. You will still receive all in-app alerts.
+            </p>
+          )}
         </div>
 
         <div className="pt-2 flex flex-col sm:flex-row sm:justify-end">

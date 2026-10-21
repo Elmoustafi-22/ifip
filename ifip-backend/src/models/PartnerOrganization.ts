@@ -17,6 +17,7 @@ export interface IPartnerOrganization extends Document {
     openings: IPartnerOpening[];
     inviteSentAt?: Date;
     portalEnabled?: boolean;
+    emailNotificationsEnabled: boolean;
     createdAt: Date;
 }
 
@@ -43,6 +44,7 @@ const partnerOrganizationSchema = new Schema<IPartnerOrganization>({
     openings:      { type: [partnerOpeningSchema], default: [] },
     inviteSentAt:  { type: Date },
     portalEnabled: { type: Boolean, default: true },
+    emailNotificationsEnabled: { type: Boolean, default: true },
     createdAt:     { type: Date, default: Date.now },
 });
 

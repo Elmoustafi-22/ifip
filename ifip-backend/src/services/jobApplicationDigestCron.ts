@@ -38,9 +38,20 @@ export const sendOpeningApplicationDigest = async (openingId: Types.ObjectId | s
         if (!opening) return false;
 
         const org = await PartnerOrganization.findById(opening.partnerOrgId)
-            .select('name contactEmail contactPerson')
+            .select('name contactEmail contactPerson emailNotificationsEnabled')
             .lean();
         const orgName = org?.name || 'Partner Organisation';
+
+        // If the partner has opted out of emails, mark apps as notified (no backlog build-up) and exit
+        if ((org as any)?.emailNotificationsEnabled === false) {
+            const appIds = unnotifiedApps.map((a) => a._id);
+            await JobApplication.updateMany(
+                { _id: { $in: appIds } },
+                { $set: { partnerDigestNotified: true } }
+            );
+            console.log(`[JobAppDigest] Email notifications disabled for org ${opening.partnerOrgId}. Marked ${appIds.length} app(s) as notified without emailing.`);
+            return false;
+        }
 
         const partnerUsers = await User.find({
             orgId: opening.partnerOrgId,

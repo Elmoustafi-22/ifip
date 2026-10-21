@@ -13,6 +13,7 @@ export interface PartnerOrgProfile {
   activeSlots: number;
   openings: PartnerOpening[];
   portalEnabled?: boolean;
+  emailNotificationsEnabled?: boolean;
 }
 
 export interface PartnerStats {
@@ -321,6 +322,7 @@ export const updatePartnerSettings = async (payload: {
   description?: string;
   sectorTags?: string[];
   logoUrl?: string;
+  emailNotificationsEnabled?: boolean;
 }) => {
   const { data } = await authClient.patch("/partners/settings", payload);
   return data;
