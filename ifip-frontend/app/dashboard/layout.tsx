@@ -452,9 +452,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </footer>
       </div>
 
-      {/* Mobile Bottom Tab Bar — Option B: 4 spacious core learning tabs */}
-      <nav aria-label="Mobile Navigation" className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#0E1B5D] border-t border-white/10 px-2 py-1.5 shadow-2xl backdrop-blur-md">
-        <div className="flex items-center justify-around max-w-md mx-auto">
+      {/* Mobile Bottom Tab Bar */}
+      <nav aria-label="Mobile Navigation" className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#0E1B5D] border-t border-white/10 px-1 py-1 shadow-2xl backdrop-blur-md">
+        <div className="flex items-center justify-between w-full max-w-md mx-auto">
           {mobileMenuItems.map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
@@ -462,10 +462,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               return (
                 <div
                   key={item.name}
-                  className="flex flex-col items-center justify-center gap-1 py-1.5 px-3 text-white/30 cursor-not-allowed select-none min-w-[70px]"
+                  className="flex-1 flex flex-col items-center justify-center gap-0.5 py-1 px-0.5 text-white/30 cursor-not-allowed select-none min-w-0 text-center"
                 >
                   <Icon className="w-5 h-5 shrink-0" />
-                  <span className="text-[10px] font-semibold tracking-tight">{item.name}</span>
+                  <span className="text-[10px] font-medium tracking-tight truncate max-w-full text-center">{item.name}</span>
                 </div>
               );
             }
@@ -473,14 +473,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link
                 key={item.name}
                 href={item.href}
-                className={`flex flex-col items-center justify-center gap-1 py-1.5 px-3 rounded-xl transition-all duration-200 min-w-[70px] ${
+                className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-1 px-0.5 rounded-lg transition-all duration-200 min-w-0 text-center ${
                   active
                     ? "text-sky-300 font-bold bg-white/10 shadow-xs"
-                    : "text-white/65 hover:text-white"
+                    : "text-white/70 hover:text-white"
                 }`}
               >
                 <Icon className={`w-5 h-5 shrink-0 ${active ? "text-sky-300 stroke-[2.2]" : ""}`} />
-                <span className="text-[10px] font-semibold tracking-tight">{item.name}</span>
+                <span className="text-[10px] font-medium tracking-tight truncate max-w-full text-center">{item.name}</span>
               </Link>
             );
           })}
