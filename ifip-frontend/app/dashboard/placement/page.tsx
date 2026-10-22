@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { 
   HiOutlineBriefcase, 
   HiOutlineChevronRight, 
@@ -102,6 +103,20 @@ export default function ParticipantPlacementPage() {
                 </p>
               </div>
             </div>
+          </div>
+
+          <div className="mt-6 pt-5 border-t border-[#E7E2D8] flex flex-col sm:flex-row items-center justify-between gap-3 text-left bg-sky-50/60 p-4 rounded-xl border border-sky-100">
+            <div>
+              <h4 className="text-xs font-bold text-[#000666]">Looking for Active Partner Openings?</h4>
+              <p className="text-[11px] text-slate-500 mt-0.5">Explore open positions announced by partner organisations and submit your application.</p>
+            </div>
+            <Link
+              href="/dashboard/job-openings"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#000666] hover:bg-[#000666]/90 text-white rounded-lg text-xs font-semibold shrink-0 transition"
+            >
+              <span>View Job Openings</span>
+              <HiOutlineArrowTopRightOnSquare className="w-3.5 h-3.5" />
+            </Link>
           </div>
         </div>
       </div>

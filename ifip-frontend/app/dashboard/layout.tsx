@@ -189,11 +189,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: "Settings", href: "/dashboard/settings", icon: HiOutlineCog6Tooth, disabled: false }
   ];
 
-  // Mobile Bottom Navigation: 4 core learning items (Option B) to prevent overstretching
+  // Mobile Bottom Navigation: 5 core items including Job Openings
   const mobileMenuItems = [
     { name: "Dashboard", href: "/dashboard", icon: HiOutlineSquares2X2, disabled: false },
     { name: "Schedule", href: "/dashboard/schedule", icon: HiOutlineCalendar, disabled: false },
     { name: "Modules", href: "/dashboard/modules", icon: HiOutlineBookOpen, disabled: false },
+    { name: "Openings", href: "/dashboard/job-openings", icon: HiOutlineBriefcase, disabled: !isLaunched },
     { name: "Resources", href: "/dashboard/resources", icon: HiOutlineFolderMinus, disabled: !isLaunched }
   ];
 
@@ -371,6 +372,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                     {/* Mobile-only shortcuts to secondary sections */}
                     <div className="md:hidden border-t border-slate-100 my-1 pt-1">
+                      <Link
+                        href="/dashboard/job-openings"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <HiOutlineBriefcase className="w-4 h-4 text-sky-600" />
+                        <span className="font-bold text-[#000666]">Job Openings</span>
+                      </Link>
                       <Link
                         href="/dashboard/assessments"
                         onClick={() => setDropdownOpen(false)}
