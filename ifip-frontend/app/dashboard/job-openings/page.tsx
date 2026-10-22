@@ -57,9 +57,13 @@ export default function ParticipantJobOpeningsPage() {
       ]);
       if (openingsRes.status === "fulfilled") {
         setOpenings(openingsRes.value?.openings || []);
+      } else {
+        console.error("Failed to load job openings:", openingsRes.reason);
       }
       if (eligibilityRes.status === "fulfilled") {
         setEligibility(eligibilityRes.value);
+      } else {
+        console.error("Failed to check eligibility:", eligibilityRes.reason);
       }
     } catch (err) {
       console.error("Failed to load job openings or eligibility:", err);

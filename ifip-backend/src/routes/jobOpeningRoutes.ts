@@ -10,14 +10,17 @@ import {
 
 const router = Router();
 
-// All routes require authenticated participant
-router.use(authenticate, authorize('participant'));
+// All routes require authenticated user
+router.use(authenticate);
 
-router.get('/', getOpenJobOpenings);
-router.get('/eligibility', checkEligibility);
-router.get('/eligibility/check', checkEligibility);
-router.get('/my-applications', getMyJobApplications);
-router.get('/:id', getJobOpeningById);
-router.post('/:id/apply', applyToJobOpening);
+// View openings & eligibility (participants + admin preview)
+router.get('/', authorize('participant', 'admin', 'superadmin'), getOpenJobOpenings);
+router.get('/eligibility', authorize('participant', 'admin', 'superadmin'), checkEligibility);
+router.get('/eligibility/check', authorize('participant', 'admin', 'superadmin'), checkEligibility);
+router.get('/my-applications', authorize('participant', 'admin', 'superadmin'), getMyJobApplications);
+router.get('/:id', authorize('participant', 'admin', 'superadmin'), getJobOpeningById);
+
+// Submitting applications is strictly for participants
+router.post('/:id/apply', authorize('participant'), applyToJobOpening);
 
 export default router;

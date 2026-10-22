@@ -1187,15 +1187,31 @@ notificationEmitter.on('jobOpening.opened', async ({ openingId, title, orgName, 
             }
         }
 
-        // 2. Notify all active participants
+        // 2. Notify all active participants (in-app + email)
         const activeApps = await Application.find({
-            status: { $in: ['active', 'payment_confirmed', 'placement_ready'] }
-        }).populate<{ userId: { _id: Types.ObjectId; email: string; fullName?: string } }>('userId', 'email fullName');
+            status: { $in: ['active', 'payment_confirmed', 'completed', 'placement_ready'] }
+        }).populate<{ userId: { _id: Types.ObjectId; email: string; fullName?: string; emailNotificationsEnabled?: boolean } }>('userId', 'email fullName emailNotificationsEnabled');
 
-        const validApps = activeApps.filter(app => app.userId && (app.userId as any)._id);
+        // Deduplicate participants by user ID
+        const seenUserIds = new Set<string>();
+        const validParticipants: { id: Types.ObjectId; email: string; fullName: string }[] = [];
+        for (const app of activeApps) {
+            const u = app.userId as any;
+            if (u && u._id && u.email) {
+                const uid = u._id.toString();
+                if (!seenUserIds.has(uid)) {
+                    seenUserIds.add(uid);
+                    validParticipants.push({
+                        id: u._id,
+                        email: u.email,
+                        fullName: u.fullName || 'Participant',
+                    });
+                }
+            }
+        }
 
-        const participantNotifications = validApps.map(app => ({
-            userId: (app.userId as any)._id,
+        const participantNotifications = validParticipants.map(p => ({
+            userId: p.id,
             title: `New Job Opening: ${title}`,
             message: `${orgName} is now accepting applications for "${title}" (${workMode}). Complete your coursework module tasks (maximum 1 pending task allowed) to apply.`,
             type: 'info' as const,
@@ -1206,11 +1222,21 @@ notificationEmitter.on('jobOpening.opened', async ({ openingId, title, orgName, 
             await Notification.insertMany(participantNotifications);
         }
 
-        // NOTE: Individual email blasts to ALL participants for every job opening are intentionally
-        // disabled. Sending one email per participant per approval causes severe inbox flooding
-        // (e.g. 5 approvals × 100 participants = 500 emails/day).
-        // Participants receive the in-app notification above. Email is reserved for direct
-        // interview invitations and placement-specific actions only.
+        // Send email alerts to participants
+        for (const p of validParticipants) {
+            try {
+                await sendParticipantJobOpeningAnnouncedEmail(
+                    p.email,
+                    p.fullName,
+                    title,
+                    orgName,
+                    workMode,
+                    location
+                );
+            } catch (pEmailErr) {
+                console.error(`[Event:jobOpening.opened] Participant email error for ${p.email}:`, pEmailErr);
+            }
+        }
     } catch (err) {
         console.error('[Event:jobOpening.opened] Error:', err);
     }
