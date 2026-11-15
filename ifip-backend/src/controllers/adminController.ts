@@ -443,6 +443,7 @@ export const createCohort = async (req: Request, res: Response) => {
         await updateContentVersion('cohort');
         
         logAction(req, 'COHORT_CREATE', `Created new cohort "${newCohort.name}"`, { targetId: newCohort.id, targetType: 'Cohort' });
+        notificationEmitter.emit('cohort.created', { cohort: newCohort, createdBy: req.user!.id });
         
         res.status(201).json({ message: 'Cohort created successfully.', cohort: newCohort });
     } catch (e: any) {

@@ -32,9 +32,14 @@ See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and 
 
 - **Pathway approved and implemented locally.** See [progress and verification](PROGRESS.md#homepage-pathway-implementation). The [earlier homepage report](homepage/HOMEPAGE_HERO_VERIFICATION.md) is retained as historical evidence.
 
+## Partner application
+
+- **Pathway implemented locally.** The public intake form and confirmation use the registration styling. See [local verification](PROGRESS.md#pathway-partner-application).
+
 ## Admin dashboard
 
 - **Cohort operations implemented locally.** All-cohort overview, cohort creation, waitlist announcements, and admin hiring outcomes passed local checks. See the [verification and staging gaps](PROGRESS.md#admin-dashboard-cohort-operations-proposal).
+- **Waitlist announcement copy updated.** The email and preview show the scheduled registration dates and link to current availability. [Verification](PROGRESS.md#waitlist-registration-copy)
 - **Optional training dates verified locally.** Registration can open before training is scheduled. Editors can add either training date later. See the [verification](PROGRESS.md#optional-cohort-training-dates).
 
 ## Deferred Workstreams

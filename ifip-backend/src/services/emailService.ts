@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { env } from '../config/env.js';
-import { Cohort } from '../models/Cohort.js';
+import { Cohort, type ICohort } from '../models/Cohort.js';
 
 const brevoApi = axios.create({
     baseURL: 'https://api.brevo.com/v3',
@@ -653,14 +653,35 @@ export const sendWaitlistEmail = async (to: string, cohortName: string) => {
     await send(to, 'Waitlist Registered Confirmation — IFIP', html, EMAIL_SENDERS.ADMISSIONS);
 };
 
-export const sendCohortAvailabilityEmail = async (to: string, name: string, deadline: Date, startDate?: Date | null) => {
+export const sendCohortAvailabilityEmail = async (
+    to: string,
+    name: string,
+    registrationStart: Date,
+    registrationEnd: Date,
+    trainingStart?: Date | null,
+) => {
     const safeName = name.replace(/[&<>]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[character]!);
     const format = (date: Date) => date.toLocaleDateString('en-NG', { dateStyle: 'long', timeZone: 'Africa/Lagos' });
-    const html = `<div style="${contentContainerStyle}"><h1>Registration is open for ${safeName}</h1>
-        <p>You joined the IFIP waitlist. You can now apply for ${safeName} while seats are available.</p>
-        <p>Registration closes ${format(deadline)}. ${startDate ? `Training starts ${format(startDate)}.` : 'The training start date will be announced later.'}</p>
-        <p><a href="${env.CLIENT_URL}/apply">Apply now</a></p></div>`;
-    await send(to, `Registration is open for ${name} | IFIP`, html, EMAIL_SENDERS.ADMISSIONS, true);
+    const html = `<div style="${contentContainerStyle}"><h1>Registration dates for ${safeName}</h1>
+        <p>You’re receiving this because you joined the IFIP waitlist.</p>
+        <p>Registration is scheduled from ${format(registrationStart)} to ${format(registrationEnd)}. Seats are limited.</p>
+        <p>${trainingStart ? `Training is scheduled to start on ${format(trainingStart)}.` : 'The training start date will be announced later.'}</p>
+        <p><a href="${env.CLIENT_URL}/apply">Check registration availability</a></p></div>`;
+    await send(to, `Registration dates for ${name} | IFIP`, html, EMAIL_SENDERS.ADMISSIONS, true);
+};
+
+export const sendAdminCohortCreatedEmail = async (
+    to: string,
+    { name, registrationStartDate, registrationEndDate, startDate }: Pick<ICohort, 'name' | 'registrationStartDate' | 'registrationEndDate' | 'startDate'>,
+) => {
+    const safeName = name.replace(/[&<>]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[character]!);
+    const format = (date: Date) => date.toLocaleDateString('en-NG', { dateStyle: 'long', timeZone: 'Africa/Lagos' });
+    const html = `<div style="${contentContainerStyle}"><h1>New cohort created</h1>
+        <p>${safeName} has been added to IFIP.</p>
+        <p>Registration is scheduled from ${format(registrationStartDate)} to ${format(registrationEndDate)}.</p>
+        <p>${startDate ? `Training is scheduled to start on ${format(startDate)}.` : 'The training start date has yet to be set.'}</p>
+        <p><a href="${env.CLIENT_URL}/admin">View cohorts in Admin</a></p></div>`;
+    await send(to, `New cohort created: ${name} | IFIP`, html, EMAIL_SENDERS.ADMIN, true);
 };
 
 export const sendCohortWelcomeEmail = async (to: string, fullName: string, cohortName: string, kickoffDate?: Date | null) => {

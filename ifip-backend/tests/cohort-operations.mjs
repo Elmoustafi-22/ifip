@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { setTimeout as delay } from 'node:timers/promises';
 import mongoose from 'mongoose';
 import axios from 'axios';
 
@@ -8,13 +9,15 @@ const uri = 'mongodb://127.0.0.1:37117/' + database + '?directConnection=true&re
 Object.assign(process.env,{NODE_ENV:'test',MONGO_URI:uri,JWT_ACCESS_SECRET:'x'.repeat(32),JWT_REFRESH_SECRET:'y'.repeat(32),APPLICANT_SESSION_SECRET:'a'.repeat(32),SET_PASSWORD_TOKEN_SECRET:'s'.repeat(32),RESET_PASSWORD_TOKEN_SECRET:'r'.repeat(32),CLOUDINARY_CLOUD_NAME:'fixture',CLOUDINARY_API_KEY:'fixture',CLOUDINARY_API_SECRET:'fixture',CLIENT_URL:'http://127.0.0.1:3217',REDIS_URL:'redis://127.0.0.1:1',BREVO_API_KEY:'fixture',EMAIL_FROM:'fixture@example.invalid',FLUTTERWAVE_SECRET_KEY:'fixture',FLUTTERWAVE_CALLBACK_URL:'http://127.0.0.1:3217/verify-payment',FLUTTERWAVE_WEBHOOK_HASH:'fixture-hash',PAYSTACK_SECRET_KEY:'fixture',PAYSTACK_CALLBACK_URL:'http://127.0.0.1:3217/verify-payment',LEVY_AMOUNT_NGN:'20000',LEVY_AMOUNT_USD:'30'});
 
 const sent = [];
+const adminEmails = [];
 let fail = true;
 axios.defaults.adapter = async config => {
   assert.equal(config.baseURL, 'https://api.brevo.com/v3');
   assert.equal(config.url, '/smtp/email');
   const payload = JSON.parse(config.data);
   const email = payload.to[0].email;
-  sent.push({email, payload});
+  if (payload.subject.startsWith('New cohort created: ')) adminEmails.push({email, payload});
+  else sent.push({email, payload});
   if (email === 'retry@example.invalid' && fail) throw new Error('Simulated provider failure');
   return {data:{messageId:'fixture'},status:201,statusText:'Created',headers:{},config};
 };
@@ -38,21 +41,45 @@ async function call(fn,request){
  await fn({headers:{},socket:{},user:{id:actor.toString(),role:'admin'},query:{},...request},{set(){return this},status(value){status=value;return this},json(value){body=value;return this}});
  return {status,body};
 }
+async function waitForAdminEmails(count) {
+ for (let i = 0; i < 100 && adminEmails.length < count; i++) await delay(20);
+ assert.equal(adminEmails.length, count);
+}
 try {
  await mongoose.connect(uri,{serverSelectionTimeoutMS:10000});
  await Promise.all([Cohort,CohortWaitlistDelivery,Waitlist,Placement,JobApplication,Application,Applicant,AuditLog,User].map(model=>model.init()));
  const now=Date.now(), day=86400000;
+ await User.create([
+  {_id:actor,email:'creator@example.invalid',role:'admin'},
+  {email:'admin@example.invalid',role:'admin'},
+  {email:'superadmin@example.invalid',role:'superadmin'},
+  {email:'opt-out@example.invalid',role:'admin',emailNotificationsEnabled:false},
+  {email:'partner@example.invalid',role:'partner'},
+ ]);
  await Waitlist.create(['first','retry'].map(name=>({email:name+'@example.invalid',createdAt:new Date(now-10000)})));
  const input={name:' New & Cohort ',registrationStartDate:new Date(now-day),registrationEndDate:new Date(now+day),cohortCap:5,notifyWaitlist:true};
  assert.equal((await call(createCohort,{body:{...input,cohortCap:0}})).status,400);
- const created=await call(createCohort,{body:input});
+ const created=await call(createCohort,{body:{...input,registrationStartDate:new Date(now+day/2)}});
  assert.equal(created.status,201);
  const cohort=created.body.cohort;
  const params={id:cohort.id};
  assert.equal(cohort.name,'New & Cohort');
  assert.equal(cohort.startDate,undefined);
  assert.equal(cohort.endDate,undefined);
+ await waitForAdminEmails(2);
+ assert.deepEqual(adminEmails.map(item=>item.email).sort(),['admin@example.invalid','superadmin@example.invalid']);
+ const adminEmail=adminEmails[0].payload;
+ assert.equal(adminEmail.subject,'New cohort created: New & Cohort | IFIP');
+ assert.match(adminEmail.htmlContent,/New &amp; Cohort/);
+ assert.match(adminEmail.htmlContent,/Registration is scheduled from/);
+ assert.match(adminEmail.htmlContent,/training start date has yet to be set/);
+ assert.match(adminEmail.htmlContent,/\/admin"/);
+ assert.doesNotMatch(adminEmail.htmlContent,/registration is open/i);
  const registrationStatus=cohortRouter.stack.find(layer=>layer.route?.path==='/registration-status').route.stack[0].handle;
+ assert.equal((await call(registrationStatus,{})).body.hasActiveCohort,false);
+ await processCohortWaitlist();
+ assert.equal(sent.length,0);
+ assert.equal((await call(updateCohort,{params,body:{registrationStartDate:input.registrationStartDate}})).status,200);
  const openIntake=await call(registrationStatus,{});
  assert.equal(openIntake.status,200);
  assert.equal(openIntake.body.cohortName,'New & Cohort');
@@ -61,6 +88,11 @@ try {
  await Waitlist.create({email:'later@example.invalid',createdAt:new Date(now+5000)});
  await Promise.all([processCohortWaitlist(),processCohortWaitlist()]);
  assert.deepEqual(sent.map(item=>item.email).sort(),['first@example.invalid','retry@example.invalid']);
+ const formatDate = date => date.toLocaleDateString('en-NG',{dateStyle:'long',timeZone:'Africa/Lagos'});
+ assert.equal(sent[0].payload.subject,'Registration dates for New & Cohort | IFIP');
+ assert.ok(sent[0].payload.htmlContent.includes(`Registration is scheduled from ${formatDate(input.registrationStartDate)} to ${formatDate(input.registrationEndDate)}.`));
+ assert.match(sent[0].payload.htmlContent,/Check registration availability/);
+ assert.doesNotMatch(sent[0].payload.htmlContent,/registration is open|apply now/i);
  assert.match(sent[0].payload.htmlContent,/New &amp; Cohort/);
  assert.match(sent[0].payload.htmlContent,/\/apply/);
  assert.match(sent[0].payload.htmlContent,/training start date will be announced later/);
@@ -96,6 +128,15 @@ try {
  assert.equal(stats.status,200);
  assert.deepEqual(stats.body.cohortMetrics[cohort.id],{applications:2,enrolled:1,completed:1,hires:1});
  console.log('PASS hiring persistence, stale-write rejection, private notes and cohort metric deduplication');
+ assert.equal(adminEmails.length,2);
+ const second=await call(createCohort,{body:{
+  ...input,name:'Later cohort',registrationStartDate:new Date(now+3*day),registrationEndDate:new Date(now+4*day),
+  startDate:new Date(now+5*day),notifyWaitlist:false,
+ }});
+ assert.equal(second.status,201);
+ await waitForAdminEmails(4);
+ assert.ok(adminEmails.slice(2).every(item=>item.payload.htmlContent.includes('Training is scheduled to start')));
+ console.log('PASS creation emails reach other opted-in admins, independently of waitlist settings');
 } finally {
  if (mongoose.connection.readyState===1) await mongoose.connection.dropDatabase();
  await mongoose.disconnect();

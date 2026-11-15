@@ -20,7 +20,7 @@ export const processCohortWaitlist = async () => {
 };
 
 async function deliverCohortAnnouncement(
-    cohort: { _id: Types.ObjectId; name: string; registrationEndDate: Date; startDate?: Date | null },
+    cohort: { _id: Types.ObjectId; name: string; registrationStartDate: Date; registrationEndDate: Date; startDate?: Date | null },
     recipient: { _id: Types.ObjectId; email: string },
 ) {
     const id = `${cohort._id}:${recipient._id}`;
@@ -33,7 +33,7 @@ async function deliverCohortAnnouncement(
 
     let status = 'sent';
     try {
-        await sendCohortAvailabilityEmail(recipient.email, cohort.name, cohort.registrationEndDate, cohort.startDate);
+        await sendCohortAvailabilityEmail(recipient.email, cohort.name, cohort.registrationStartDate, cohort.registrationEndDate, cohort.startDate);
     } catch {
         status = 'failed';
     }

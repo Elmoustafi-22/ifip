@@ -202,3 +202,15 @@ On 15 November 2026, the user authorized the fix. The authenticated application 
 - No-emit TypeScript passed for both apps. Scoped ESLint passed for the pricing form, hook and homepage pricing component. A scoped `git diff --check` passed.
 - Ran eight selected scenarios from `tests/registration-concurrency.mjs` via `node --import tsx --input-type=module -`, using a disposable database on the local replica set at port 37118. Mocked provider checks passed for new and existing quotes, coupon amounts, bank transfers, pricing authorization and validation. The full suite still stops at an older fixture that expects new NGN checkouts to initiate through Flutterwave. The current code initiates them through Paystack.
 - Inline Playwright Chromium via `node -` at `localhost:3000` verified the superadmin price form, regular-admin visibility, and that changed prices appear on the homepage and About page. A second run verified the NGN and USD estimates on resumed applications using the saved countries of residence. Live provider checkout and deployment remain outside these local checks.
+
+### Pathway partner application
+
+- Applied the Pathway design to the public `/partners/apply` form and confirmation. Grouped organization details, optional placements and primary contact. Moved program and profile destinations into a compact header menu. Reused the registration support footer. Added a native logo picker with removal and focus on errors and confirmation. Retained the existing intake fields and API payload.
+- From `ifip-frontend`, `node node_modules/typescript/bin/tsc --noEmit --incremental false` and targeted ESLint for `app/partners/apply` passed. The scoped `git diff --check` passed.
+- Inline Playwright Chromium at 320, 390, 768 and 1440 CSS px verified required-field focus, optional-opening submission, adding and removing openings, conditional location, sector retry, upload success and recovery, retained data on submission failure, and confirmation focus. Desktop and mobile captures use intercepted data. Live upload, partner submission, email and administration review remain unverified.
+
+### Waitlist registration copy
+
+- Changed the email and admin preview to show the scheduled registration start and close dates with a link to check current availability. The worker still sends during an eligible registration window.
+- Ran `tests/cohort-operations.mjs` through `node --import tsx --input-type=module -` with the connection redirected to a disposable database on the local replica set at port 37118 and the email API mocked. The test passed and confirmed no notification before registration starts, both dates in the sent copy, the availability link, recipient cutoff, deduplication and retry. No real email was sent.
+- `node node_modules/typescript/bin/tsc --noEmit --incremental false` passed in both apps, and the scoped `git diff --check` passed. The preview was source-checked. The local frontend was unavailable for browser verification.

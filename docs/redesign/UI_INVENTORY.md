@@ -5,7 +5,7 @@ Routes below are backed by files in `ifip-frontend/app/`. Status describes redes
 | Routes | Audience and screens | Important current states | Redesign status |
 | --- | --- | --- | --- |
 | `/`, `/about` | Public program discovery, home hero, pricing, opportunities, partners, FAQ and application entry links | Cached/cohort content, mobile navigation, available/unavailable registration links | Deferred |
-| `/partners/apply` | Public organization intake | Draft, optional openings, submit, success and failure | Deferred |
+| `/partners/apply` | Public organization intake | Draft, optional openings, submit, success and failure | Pathway implemented locally |
 | `/apply`, `/apply/resume` | Applicant availability, waitlist, OTP, saved application, six steps and inline confirmation | Open/closed/full, waitlist duplicate, verification, resume, upload, coupon, checkout and paid draft | Audited, REG-00 next |
 | `/verify-payment`, `/set-password` | Hosted callback and setup link for participant or invited user | Verifying, success, failure, missing/invalid token, password submission and account handoff | Audited, pending registration sequence |
 | `/login`, `/forgot-password`, `/reset-password` | Shared auth and password recovery | Existing session, invalid credentials, MFA, generic reset request, invalid/expired link and success | Audited for registration handoff |

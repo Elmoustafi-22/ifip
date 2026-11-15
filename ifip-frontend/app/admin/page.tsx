@@ -1217,8 +1217,11 @@ export default function AdminDashboardPage() {
                   {notifyWaitlist && <>
                     <p>{recipientCount === null ? "Recipients are determined when the cohort is created." : `${recipientCount} currently waitlisted. The cutoff is the time this cohort is created.`}</p>
                     <details><summary className="cursor-pointer font-semibold">Preview email</summary>
-                      <p className="mt-2">Registration is open for {newCohortName.trim() || "[cohort name]"}. Registration closes {newCohortRegEnd || "[registration deadline]"}. {newCohortStart ? `Training starts ${newCohortStart}.` : "The training start date will be announced later."}</p>
-                      <p className="mt-1 font-semibold">Apply now</p>
+                      <p className="mt-2 font-semibold">Registration dates for {newCohortName.trim() || "[cohort name]"}</p>
+                      <p className="mt-1">You’re receiving this because you joined the IFIP waitlist.</p>
+                      <p className="mt-1">Registration is scheduled from {newCohortRegStart ? formatDate(newCohortRegStart) : "[registration start]"} to {newCohortRegEnd ? formatDate(newCohortRegEnd) : "[registration deadline]"}. Seats are limited.</p>
+                      <p className="mt-1">{newCohortStart ? `Training is scheduled to start on ${formatDate(newCohortStart)}.` : "The training start date will be announced later."}</p>
+                      <p className="mt-1 font-semibold">Check registration availability</p>
                     </details>
                   </>}
                 </div>

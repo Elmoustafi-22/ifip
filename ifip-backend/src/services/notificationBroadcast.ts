@@ -5,6 +5,7 @@ import { User } from '../models/User.js';
 import { Application } from '../models/Application.js';
 import { Applicant } from '../models/Applicants.js';
 import { Module } from '../models/Module.js';
+import type { ICohort } from '../models/Cohort.js';
 import { JobApplication } from '../models/JobApplication.js';
 import { checkThresholdAndSendDigest } from './jobApplicationDigestCron.js';
 import {
@@ -15,6 +16,7 @@ import {
     sendPasswordChangedAlert,
     sendAdminEnrollmentDigest,
     sendCohortWelcomeEmail,
+    sendAdminCohortCreatedEmail,
     sendAssessmentGradedEmail,
     sendPlacementMatchedEmail,
     sendPartnerApplicationReceived,
@@ -216,6 +218,22 @@ notificationEmitter.on('auth.password_changed', async ({ user }) => {
         await sendPasswordChangedAlert(user.email, user.email);
     } catch (err) {
         console.error('[Event:auth.password_changed] Error:', err);
+    }
+});
+
+notificationEmitter.on('cohort.created', async ({ cohort, createdBy }: { cohort: ICohort; createdBy: string }) => {
+    try {
+        const recipients = await User.find({
+            _id: { $ne: createdBy },
+            role: { $in: ['admin', 'superadmin'] },
+            emailNotificationsEnabled: { $ne: false },
+        }).select('email').lean();
+
+        const deliveries = await Promise.allSettled(recipients.map(({ email }) => sendAdminCohortCreatedEmail(email, cohort)));
+        const failed = deliveries.filter(({ status }) => status === 'rejected').length;
+        if (failed) console.error(`[Event:cohort.created] ${failed} admin email delivery attempt(s) failed`);
+    } catch {
+        console.error('[Event:cohort.created] Could not load admin recipients');
     }
 });
 
