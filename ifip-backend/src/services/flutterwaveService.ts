@@ -41,7 +41,7 @@ export const initializeTransaction = async (params: InitializeParams): Promise<I
             email: params.email
         },
         customizations: {
-            title: 'IFIP Admission',
+            title: 'IFIP Application',
             description: 'Commitment Levy Payment'
         }
     });

@@ -1,8 +1,5 @@
-"use client";
-
-import { useState } from "react";
-import { motion } from "framer-motion";
-
+import { TbPlus } from "react-icons/tb";
+import HomepageReveal from "./HomepageReveal";
 const faqs = [
   {
     q: "Is the program open to international participants?",
@@ -43,64 +40,19 @@ const faqs = [
 ];
 
 export default function FaqSection() {
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
-
   return (
-    <section id="faq" className="py-12 md:py-24 bg-white border-t border-outline-variant/10">
-      <div className="max-w-[800px] mx-auto px-4 md:px-8">
-        <motion.div
-          className="text-center mb-16"
-          initial={{ opacity: 0, y: 15 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-        >
-          <h2 className="text-headline-lg text-primary font-display text-3xl md:text-4xl mb-4 font-bold">Frequently Asked Questions</h2>
-        </motion.div>
-
-        <div className="flex flex-col gap-4 font-sans">
-          {faqs.map((faq, index) => {
-            const isOpen = openFaq === index;
-            return (
-              <div
-                key={index}
-                style={{ transform: "translateZ(0)" }}
-                className="bg-white border border-outline-variant/30 rounded-[8px] overflow-hidden shadow-sm"
-              >
-                <button
-                  onClick={() => setOpenFaq(isOpen ? null : index)}
-                  className="w-full px-6 py-5 flex items-center justify-between text-left font-display font-bold text-primary text-base md:text-lg hover:bg-slate-50 transition-colors"
-                >
-                  <span>{faq.q}</span>
-                  <span
-                    className="ml-4 text-primary shrink-0"
-                    style={{
-                      transition: "transform 200ms ease",
-                      transform: isOpen ? "rotate(45deg)" : "rotate(0deg)",
-                    }}
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                    </svg>
-                  </span>
-                </button>
-
-                <div
-                  style={{
-                    maxHeight: isOpen ? "600px" : "0px",
-                    overflow: "hidden",
-                    transition: "max-height 300ms ease-in-out",
-                  }}
-                >
-                  <div className="px-6 py-5 text-sm md:text-base text-on-surface-variant leading-relaxed border-t border-outline-variant/10 bg-slate-50/10">
-                    {faq.a}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+    <section id="faq" className="ifip-home-section ifip-home-white" aria-labelledby="faq-title">
+      <HomepageReveal className="ifip-home-wrap ifip-home-section-grid">
+        <h2 id="faq-title">Frequently asked questions</h2>
+        <div className="ifip-home-faq">
+          {faqs.map(({ q, a }) => (
+            <details key={q} name="homepage-faq">
+              <summary>{q}<TbPlus aria-hidden="true" /></summary>
+              <p>{a}</p>
+            </details>
+          ))}
         </div>
-      </div>
+      </HomepageReveal>
     </section>
   );
 }

@@ -227,7 +227,7 @@ export const createCoupon = async (req: Request, res: Response): Promise<void> =
         if (req.user) {
             logRawAction({
                 userId: req.user.id,
-                userEmail: (req.user as any).email || 'admin@ifip.org',
+                userEmail: (req.user as any).email || 'ifip.program@gmail.com',
                 userRole: req.user.role,
                 action: 'COUPON_CREATED',
                 description: `Created coupon '${coupon.code}' with ${coupon.discountPercent}% discount expiring at ${coupon.expiresAt.toISOString()}`,
@@ -356,7 +356,7 @@ export const updateCoupon = async (req: Request, res: Response): Promise<void> =
         if (req.user) {
             logRawAction({
                 userId: req.user.id,
-                userEmail: (req.user as any).email || 'admin@ifip.org',
+                userEmail: (req.user as any).email || 'ifip.program@gmail.com',
                 userRole: req.user.role,
                 action: 'COUPON_UPDATED',
                 description: `Updated coupon '${coupon.code}' parameters`,
@@ -394,7 +394,7 @@ export const deleteCoupon = async (req: Request, res: Response): Promise<void> =
         if (req.user) {
             logRawAction({
                 userId: req.user.id,
-                userEmail: (req.user as any).email || 'admin@ifip.org',
+                userEmail: (req.user as any).email || 'ifip.program@gmail.com',
                 userRole: req.user.role,
                 action: 'COUPON_DELETED',
                 description: `Deleted coupon '${coupon.code}'`,

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import * as Hi2 from "react-icons/hi2";
+import BankTransferReview from "@/components/admin/BankTransferReview";
 import {
   getAdminPayments,
   getAdminPaymentById,
@@ -113,7 +114,8 @@ export default function AdminPaymentsPage() {
     try {
       const result = await getAdminPayments({
         status: statusFilter === "all" ? undefined : statusFilter,
-        provider: providerFilter === "all" ? undefined : providerFilter,
+        provider: ["all", "bank_transfer"].includes(providerFilter) ? undefined : providerFilter,
+        bankTransfer: providerFilter === "bank_transfer" ? true : undefined,
         search: debouncedSearch || undefined,
         page,
         limit: 50,
@@ -290,8 +292,8 @@ export default function AdminPaymentsPage() {
               ))}
             </div>
             <span className="text-xs font-bold text-slate-400 ml-2">Provider:</span>
-            <div className="flex gap-1.5">
-              {["all", "paystack", "flutterwave"].map((p) => (
+            <div className="flex flex-wrap gap-1.5">
+              {["all", "paystack", "flutterwave", "bank_transfer"].map((p) => (
                 <button
                   key={p}
                   onClick={() => setProviderFilter(p)}
@@ -301,7 +303,7 @@ export default function AdminPaymentsPage() {
                       : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                   }`}
                 >
-                  {p === "all" ? "All" : p}
+                  {p === "all" ? "All" : p === "bank_transfer" ? "Bank transfers" : p}
                 </button>
               ))}
             </div>
@@ -569,6 +571,21 @@ export default function AdminPaymentsPage() {
 
                 {/* Core Fields */}
                 <div className="px-6 py-5 space-y-4">
+                  {drawerPayment.reconciliationReason && (
+                    <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
+                      {drawerPayment.reconciliationReason === "late_success"
+                        ? "Review required. The provider confirmed a charge after this attempt was closed."
+                        : "Review required. The provider confirmation differs from the stored payment details."}
+                    </p>
+                  )}
+                  {drawerPayment.fallbackReason && (
+                    <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-700">
+                      <p>{drawerPayment.fallbackReason === "currency_unavailable"
+                        ? "Flutterwave was selected because this currency is unavailable on Paystack."
+                        : "Flutterwave was selected after Paystack rejected checkout initialization."}</p>
+                      {drawerPayment.fallbackFromRef && <p className="mt-1 break-all">Previous reference {drawerPayment.fallbackFromRef}</p>}
+                    </div>
+                  )}
                   <div>
                     <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1">Reference</p>
                     <div className="flex items-center gap-2">
@@ -629,7 +646,7 @@ export default function AdminPaymentsPage() {
                   )}
 
                   {/* Receipt Preview (if manual or uploaded) */}
-                  {(drawerPayment.receiptUrl || drawerPayment.provider === "manual") && (
+                  {!drawerPayment.bankTransfer && (drawerPayment.receiptUrl || drawerPayment.provider === "manual") && (
                     <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-4 space-y-2.5">
                       <p className="text-[10px] font-bold uppercase text-emerald-800 tracking-wider">Manual Payment Receipt</p>
                       <div className="flex items-center justify-between gap-2">
@@ -673,8 +690,13 @@ export default function AdminPaymentsPage() {
                   )}
                 </div>
 
-                {/* Resolve Section */}
-                <div className="px-6 pb-6">
+                {drawerPayment.bankTransfer ? <div className="px-6 pb-6">
+                  <BankTransferReview key={drawerPayment._id} payment={drawerPayment} onUpdated={async () => {
+                    const updated = await getAdminPaymentById(drawerPayment._id);
+                    setDrawerPayment(current => current?._id === updated._id ? updated : current);
+                    await fetchPayments();
+                  }} />
+                </div> : <div className="px-6 pb-6">
                   <div className="border border-dashed border-slate-300 rounded-2xl p-5 bg-slate-50/50">
                     <div className="flex items-center gap-2 mb-3">
                       <Hi2.HiOutlineWrenchScrewdriver className="w-4 h-4 text-[#FF9800]" />
@@ -751,7 +773,7 @@ export default function AdminPaymentsPage() {
                       </div>
                     )}
                   </div>
-                </div>
+                </div>}
               </div>
             ) : null}
           </div>

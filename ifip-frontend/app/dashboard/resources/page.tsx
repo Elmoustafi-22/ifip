@@ -9,54 +9,21 @@ import {
   HiOutlinePlayCircle,
 } from "react-icons/hi2";
 import {
-  getMyApplication,
-  getCohortConfig,
   getResources,
   Resource,
 } from "@/lib/api/services";
+import { useDashboard } from "../dashboard-context";
 
 export default function ResourcesPage() {
+  const { isLaunched, cohortStartLabel } = useDashboard();
   const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [userData, setUserData] = useState<any>(null);
-  const [cohortStartDate, setCohortStartDate] = useState("2026-08-31T00:00:00.000Z");
-  const [dashboardViewOverride, setDashboardViewOverride] = useState<string>("default");
   const [resources, setResources] = useState<Resource[]>([]);
-  const [resourcesLoading, setResourcesLoading] = useState(false);
-
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const [profile, config] = await Promise.all([
-          getMyApplication(),
-          getCohortConfig(),
-        ]);
-        setUserData(profile);
-        setCohortStartDate(config.cohortStartDate);
-        setDashboardViewOverride(config.dashboardViewOverride || "default");
-      } catch (err) {
-        console.error("Failed to load page parameters:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    init();
-  }, []);
-
-  const getIsLaunched = () => {
-    if (userData?.role === "admin" || userData?.role === "superadmin") return true;
-    if (dashboardViewOverride === "unlocked") return true;
-    if (dashboardViewOverride === "coming_soon") return false;
-    return new Date() >= new Date(cohortStartDate);
-  };
-
-  const isLaunched = getIsLaunched();
+  const [resourcesLoading, setResourcesLoading] = useState(true);
 
   // Fetch resources from API once launched
   useEffect(() => {
     if (!isLaunched) return;
     const fetchResources = async () => {
-      setResourcesLoading(true);
       try {
         const res = await getResources();
         setResources(res);
@@ -88,28 +55,7 @@ export default function ResourcesPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-        <svg className="animate-spin w-8 h-8 text-[#000666]" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-        </svg>
-        <p className="text-slate-500 font-medium text-sm">Loading…</p>
-      </div>
-    );
-  }
-
   if (!isLaunched) {
-    const formatCohortDate = (isoString: string) => {
-      try {
-        return new Date(isoString).toLocaleDateString("en-US", {
-          month: "long", day: "numeric", year: "numeric",
-        });
-      } catch {
-        return "August 31, 2026";
-      }
-    };
     return (
       <div className="flex-grow flex flex-col items-center justify-center py-10 px-4">
         <div className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200/50 p-6 md:p-12 lg:p-16 flex flex-col items-center text-center mx-auto shadow-sm select-none">
@@ -121,9 +67,8 @@ export default function ResourcesPage() {
           </div>
           <h1 className="text-3xl md:text-4xl font-display font-black text-[#000666] mb-4">Resource Center</h1>
           <p className="text-sm text-slate-600 leading-relaxed max-w-lg mb-8 font-medium">
-            Program handouts, reference textbooks, and journal templates are currently locked. Access will be
-            unlocked on program launch day:{" "}
-            <strong className="text-[#000666]">{formatCohortDate(cohortStartDate)}</strong>.
+            Training resources are currently locked.{" "}
+            {cohortStartLabel ? <>Training starts <strong>{cohortStartLabel}</strong>.</> : "The training start date is to be announced."}
           </p>
         </div>
       </div>

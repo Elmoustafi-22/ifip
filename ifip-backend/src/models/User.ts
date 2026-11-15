@@ -18,6 +18,15 @@ export interface IUser extends Document {
     avatarUrl?: string;
     mfaEnabled: boolean;
     mfaSecret?: string;
+    adminMfaStep?: number;
+    adminMfaChallenge?: {
+        id: string;
+        phase: 'login' | 'email' | 'setup';
+        expiresAt: Date;
+        attempts: number;
+        emailDigest?: string;
+        setupSecret?: string;
+    };
     lastLoginAt?: Date;
     orgId?: Types.ObjectId; // links partner user to their PartnerOrganization
     emailNotificationsEnabled?: boolean;
@@ -39,7 +48,19 @@ const userSchema = new Schema<IUser>(
         title: { type: String },
         avatarUrl: { type: String },
         mfaEnabled: { type: Boolean, default: false },
-        mfaSecret: { type: String },
+        mfaSecret: { type: String, select: false },
+        adminMfaStep: { type: Number, select: false },
+        adminMfaChallenge: {
+            type: new Schema({
+                id: String,
+                phase: String,
+                expiresAt: Date,
+                attempts: Number,
+                emailDigest: String,
+                setupSecret: String,
+            }, { _id: false }),
+            select: false,
+        },
         lastLoginAt: { type: Date },
         orgId: { type: Schema.Types.ObjectId, ref: 'PartnerOrganization' },
         emailNotificationsEnabled: { type: Boolean, default: true },

@@ -1,4 +1,5 @@
 import { Schema, model, Document, Types } from 'mongoose';
+import { hiringOutcomeSchema, type HiringOutcome } from './HiringOutcome.js';
 
 export type JobApplicationStatus =
     | 'submitted'
@@ -28,6 +29,7 @@ export interface IJobApplication extends Document {
     interviewLink?: string;
     interviewLocation?: string;
     partnerOutcome?: 'offer_extended' | 'not_selected';
+    hiringOutcome?: HiringOutcome;
     reminder24hSent?: boolean;
     reminder1hSent?: boolean;
     partnerDigestNotified?: boolean;  // true once this application has been included in a digest email to the partner
@@ -65,6 +67,7 @@ const jobApplicationSchema = new Schema<IJobApplication>(
         interviewLink: { type: String },
         interviewLocation: { type: String },
         partnerOutcome: { type: String, enum: ['offer_extended', 'not_selected'] },
+        hiringOutcome: hiringOutcomeSchema,
         reminder24hSent: { type: Boolean, default: false },
         reminder1hSent: { type: Boolean, default: false },
         partnerDigestNotified: { type: Boolean, default: false },

@@ -12,6 +12,7 @@ import {
     verifyRefreshToken,
     verifyResetPasswordToken,
     verifySetPasswordToken,
+    type AdminSessionProof,
 } from '../utils/jwt.js';
 import { env } from '../config/env.js';
 import type {
@@ -23,16 +24,17 @@ import type {
 import { sendPasswordResetEmail } from '../services/emailService.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { logAction, logRawAction } from '../utils/auditLogger.js';
+import { adminPasswordBinding, beginAdminMfa, isAdminRole, validAdminSession, verifyAdminAuthenticator } from '../services/adminMfa.js';
 
 // ── Shared helper: issue tokens + set refresh cookie ──────────────────
-const getCookieOptions = (req?: Request) => {
+const getCookieOptions = (req?: Request, maxAge = 7 * 24 * 60 * 60 * 1000) => {
     const isProd = env.NODE_ENV === 'production' || process.env.NODE_ENV === 'production';
     const isSecure = isProd || Boolean(req && (req.secure || req.headers['x-forwarded-proto'] === 'https'));
     const options: any = {
         httpOnly: true,
         secure: isSecure,
         sameSite: isSecure ? 'none' : 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days for all users/admins
+        maxAge,
         path: '/',
     };
     if (env.COOKIE_DOMAIN) {
@@ -41,12 +43,13 @@ const getCookieOptions = (req?: Request) => {
     return options;
 };
 
-const issueTokens = (res: Response, userId: string, role: UserRole, req?: Request) => {
-    const accessToken = signAccessToken(userId, role);
-    const refreshExpiry = '7d';
+const issueTokens = (res: Response, userId: string, role: UserRole, req?: Request, proof?: AdminSessionProof) => {
+    if (isAdminRole(role) && !proof) throw new Error('Admin token issuance requires MFA');
+    const accessToken = signAccessToken(userId, role, proof);
+    const refreshExpiry = proof ? '8h' : '7d';
 
-    const refreshToken = signRefreshToken(userId, refreshExpiry);
-    res.cookie('refreshToken', refreshToken, getCookieOptions(req));
+    const refreshToken = signRefreshToken(userId, refreshExpiry, proof);
+    res.cookie('refreshToken', refreshToken, getCookieOptions(req, proof ? 8 * 60 * 60 * 1000 : undefined));
     return { accessToken, refreshToken };
 };
 
@@ -65,6 +68,27 @@ export const setPassword = async (req: Request<{}, {}, SetPasswordInput>, res: R
     const user = await User.findById(decoded.userId);
     if (!user) {
         res.status(404).json({ message: 'Account not found.' });
+        return;
+    }
+
+    if (isAdminRole(user.role)) {
+        try {
+            verifySetPasswordToken(token, env.SET_PASSWORD_TOKEN_EXPIRY);
+        } catch {
+            res.status(400).json({ message: 'This admin invitation has expired. Ask a superadmin to send a new invitation.' });
+            return;
+        }
+        const passwordHash = await bcrypt.hash(password, 12);
+        const result = await User.updateOne(
+            { _id: user.id, role: user.role, passwordHash: null },
+            { $set: { passwordHash } },
+        );
+        if (!result.modifiedCount) {
+            res.status(400).json({ message: 'This admin invitation was already used. Sign in or reset your password.' });
+            return;
+        }
+        res.clearCookie('refreshToken', getCookieOptions(req));
+        res.json({ signInRequired: true });
         return;
     }
 
@@ -95,6 +119,7 @@ export const getTokenInfo = async (req: Request, res: Response) => {
             res.status(404).json({ message: 'User not found.' });
             return;
         }
+        if (isAdminRole(user.role)) verifySetPasswordToken(token, env.SET_PASSWORD_TOKEN_EXPIRY);
         res.json({ email: user.email, role: user.role });
     } catch {
         res.status(400).json({ message: 'Invalid or expired token.' });
@@ -123,6 +148,11 @@ export const login = async (req: Request<{}, {}, LoginInput>, res: Response) => 
         return;
     }
 
+    if (isAdminRole(user.role)) {
+        await beginAdminMfa(user, res);
+        return;
+    }
+
     if (user.mfaEnabled) {
         const mfaToken = jwt.sign(
             { sub: user.id, purpose: 'mfa-verify' },
@@ -141,13 +171,12 @@ export const login = async (req: Request<{}, {}, LoginInput>, res: Response) => 
     // Audit — fire-and-forget, do not block the response
     const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
     const ipAddress = Array.isArray(rawIp) ? rawIp[0] : (typeof rawIp === 'string' ? rawIp.split(',')[0].trim() : undefined);
-    const isAdmin = user.role === 'admin' || user.role === 'superadmin';
     logRawAction({
         userId: user.id,
         userEmail: user.email,
         userRole: user.role,
-        action: isAdmin ? 'ADMIN_LOGIN' : 'USER_LOGIN',
-        description: `${isAdmin ? 'Admin' : 'User'} "${user.email}" signed in successfully`,
+        action: 'USER_LOGIN',
+        description: `User "${user.email}" signed in successfully`,
         ipAddress,
         userAgent: req.headers['user-agent'],
     });
@@ -180,16 +209,29 @@ export const refresh = async (req: Request, res: Response) => {
         return;
     }
 
-    const user = await User.findById(decoded.sub);
+    const user = await User.findById(decoded.sub).select('+mfaSecret');
     if (!user) {
         res.clearCookie('refreshToken', getCookieOptions(req));
         res.status(401).json({ message: 'User not found.' });
         return;
     }
 
-    // Issue a fresh access token (and rotate the refresh cookie/token)
-    const { accessToken, refreshToken: newRefreshToken } = issueTokens(res, user.id, user.role, req);
-    res.json({ accessToken, refreshToken: newRefreshToken, user: { id: user.id, email: user.email, role: user.role } });
+    let proof: AdminSessionProof | undefined;
+    if (isAdminRole(user.role)) {
+        if (!validAdminSession(user, decoded)) {
+            res.clearCookie('refreshToken', getCookieOptions(req));
+            res.status(401).json({ message: 'Sign in again with your authenticator.' });
+            return;
+        }
+        proof = { mfaAt: decoded.mfaAt, adminBinding: decoded.adminBinding };
+    } else if (decoded.adminBinding) {
+        res.clearCookie('refreshToken', getCookieOptions(req));
+        res.status(401).json({ message: 'Your account role changed. Sign in again.' });
+        return;
+    }
+
+    const { accessToken, refreshToken: newRefreshToken } = issueTokens(res, user.id, user.role, req, proof);
+    res.json({ accessToken, ...(proof ? {} : { refreshToken: newRefreshToken }), user: { id: user.id, email: user.email, role: user.role } });
 };
 
 // ── POST /api/v1/auth/logout ──────────────────────────────────────────
@@ -212,7 +254,7 @@ export const forgotPassword = async (req: Request<{}, {}, ForgotPasswordInput>, 
 
     // Fire-and-forget after responding — avoids leaking timing differences
     if (user) {
-        const resetToken = signResetPasswordToken(user.id);
+        const resetToken = signResetPasswordToken(user.id, isAdminRole(user.role) ? adminPasswordBinding(user) : undefined);
         await sendPasswordResetEmail(user.email, resetToken);
     }
 };
@@ -235,8 +277,25 @@ export const resetPassword = async (req: Request<{}, {}, ResetPasswordInput>, re
         return;
     }
 
-    user.passwordHash = await bcrypt.hash(password, 12);
-    await user.save();
+    const admin = isAdminRole(user.role);
+    if (admin && decoded.adminResetBinding !== adminPasswordBinding(user)) {
+        res.status(400).json({ message: 'This link is invalid or already used. Request a new password reset link.' });
+        return;
+    }
+    const passwordHash = await bcrypt.hash(password, 12);
+    if (admin) {
+        const result = await User.updateOne(
+            { _id: user.id, role: user.role, passwordHash: user.passwordHash ?? null },
+            { $set: { passwordHash }, $unset: { adminMfaChallenge: 1 } },
+        );
+        if (!result.modifiedCount) {
+            res.status(400).json({ message: 'This password reset link was already used.' });
+            return;
+        }
+    } else {
+        user.passwordHash = passwordHash;
+        await user.save();
+    }
     notificationEmitter.emit('auth.password_changed', { user });
 
     await logRawAction({
@@ -250,6 +309,12 @@ export const resetPassword = async (req: Request<{}, {}, ResetPasswordInput>, re
         targetId: user.id,
         targetType: 'User',
     });
+
+    if (admin) {
+        res.clearCookie('refreshToken', getCookieOptions(req));
+        res.json({ signInRequired: true });
+        return;
+    }
 
     // Log the user in immediately after resetting
     const { accessToken } = issueTokens(res, user.id, user.role, req);
@@ -282,8 +347,20 @@ export const changePassword = async (req: Request, res: Response) => {
         return;
     }
 
-    user.passwordHash = await bcrypt.hash(newPassword, 12);
-    await user.save();
+    const newHash = await bcrypt.hash(newPassword, 12);
+    if (isAdminRole(user.role)) {
+        const result = await User.updateOne(
+            { _id: user.id, role: user.role, passwordHash: user.passwordHash },
+            { $set: { passwordHash: newHash }, $unset: { adminMfaChallenge: 1 } },
+        );
+        if (!result.modifiedCount) {
+            res.status(409).json({ message: 'Your credentials changed. Sign in again before changing your password.' });
+            return;
+        }
+    } else {
+        user.passwordHash = newHash;
+        await user.save();
+    }
     notificationEmitter.emit('auth.password_changed', { user });
 
     await logAction(
@@ -297,6 +374,29 @@ export const changePassword = async (req: Request, res: Response) => {
 };
 
 // ── POST /api/v1/auth/login/mfa-verify ────────────────────────────────
+async function completeAdminMfa(req: Request, res: Response, phase: 'login' | 'setup') {
+    const { mfaToken, code } = req.body ?? {};
+    const result = await verifyAdminAuthenticator(mfaToken, code, phase);
+    if (!result) {
+        res.status(401).json({ message: 'The authenticator code is incorrect, was already used, or the sign-in challenge expired.' });
+        return;
+    }
+    const { user, proof } = result;
+    const { accessToken } = issueTokens(res, user.id, user.role, req, proof);
+    logRawAction({
+        userId: user.id,
+        userEmail: user.email,
+        userRole: user.role,
+        action: phase === 'setup' ? 'ADMIN_MFA_ENROLLED' : 'ADMIN_LOGIN',
+        description: phase === 'setup' ? 'Admin authenticator enrolled' : 'Admin signed in with an authenticator',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+    });
+    res.set('Cache-Control', 'no-store').json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
+}
+
+export const completeAdminMfaSetup = (req: Request, res: Response) => completeAdminMfa(req, res, 'setup');
+
 export const loginMfaVerify = async (req: Request, res: Response) => {
     try {
         const { mfaToken, code } = req.body;
@@ -308,7 +408,7 @@ export const loginMfaVerify = async (req: Request, res: Response) => {
         let decoded: any;
         try {
             decoded = jwt.verify(mfaToken, env.JWT_ACCESS_SECRET);
-            if (decoded.purpose !== 'mfa-verify') {
+            if (decoded.purpose !== 'mfa-verify' && decoded.purpose !== 'admin-mfa-login') {
                 throw new Error('Invalid token purpose');
             }
         } catch (err) {
@@ -316,8 +416,13 @@ export const loginMfaVerify = async (req: Request, res: Response) => {
             return;
         }
 
-        const user = await User.findById(decoded.sub);
-        if (!user || !user.mfaEnabled || !user.mfaSecret) {
+        if (decoded.purpose === 'admin-mfa-login') {
+            await completeAdminMfa(req, res, 'login');
+            return;
+        }
+
+        const user = await User.findById(decoded.sub).select('+mfaSecret');
+        if (!user || isAdminRole(user.role) || !user.mfaEnabled || !user.mfaSecret) {
             res.status(400).json({ message: 'MFA is not enabled for this user.' });
             return;
         }
@@ -349,6 +454,11 @@ export const mfaSetup = async (req: Request, res: Response) => {
         const user = await User.findById(userId);
         if (!user) {
             res.status(404).json({ message: 'User not found.' });
+            return;
+        }
+
+        if (isAdminRole(user.role) || user.mfaEnabled) {
+            res.status(403).json({ message: 'Authenticator setup is unavailable for this session.' });
             return;
         }
 
@@ -397,6 +507,11 @@ export const mfaEnable = async (req: Request, res: Response) => {
             return;
         }
 
+        if (isAdminRole(user.role) || user.mfaEnabled) {
+            res.status(403).json({ message: 'An existing or mandatory authenticator cannot be replaced here.' });
+            return;
+        }
+
         user.mfaSecret = secret;
         user.mfaEnabled = true;
         await user.save();
@@ -418,9 +533,14 @@ export const mfaDisable = async (req: Request, res: Response) => {
             return;
         }
 
-        const user = await User.findById(userId);
+        const user = await User.findById(userId).select('+mfaSecret');
         if (!user) {
             res.status(404).json({ message: 'User not found.' });
+            return;
+        }
+
+        if (isAdminRole(user.role)) {
+            res.status(403).json({ message: 'MFA is required for administrator accounts.' });
             return;
         }
 

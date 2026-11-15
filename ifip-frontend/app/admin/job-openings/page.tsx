@@ -1,5 +1,7 @@
 "use client";
 
+import HiringOutcomeForm from "@/components/admin/HiringOutcomeForm";
+
 import { useEffect, useState, useMemo } from "react";
 import {
   HiOutlineBriefcase,
@@ -37,6 +39,7 @@ import {
 
 export default function AdminJobOpeningsPage() {
   const [openings, setOpenings] = useState<AdminJobOpeningItem[]>([]);
+  const [interviewCheckTime] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -372,6 +375,14 @@ export default function AdminJobOpeningsPage() {
         key={app._id}
         className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-xs hover:border-slate-300 transition space-y-3"
       >
+        {(app.hiringOutcome || ["interview_completed", "offered"].includes(app.status) ||
+          (app.status === "interview_scheduled" && app.interviewScheduledAt && new Date(app.interviewScheduledAt).getTime() <= interviewCheckTime)) && (
+          <HiringOutcomeForm kind="job-applications" id={app._id} outcome={app.hiringOutcome} onSave={hiringOutcome => {
+            const update = (row: AdminJobApplicationItem) => row._id === app._id ? { ...row, hiringOutcome } : row;
+            setAllApps(rows => rows.map(update));
+            setSelectedOpening(opening => opening && { ...opening, applications: opening.applications?.map(update) });
+          }} />
+        )}
         {/* Top Header Row */}
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
           <div className="flex items-start gap-3">

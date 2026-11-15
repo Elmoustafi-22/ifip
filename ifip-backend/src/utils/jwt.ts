@@ -2,25 +2,32 @@ import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
 import type { UserRole } from "../models/User.js";
 
-interface AccessPayload { sub: string; role: UserRole }
-interface RefreshPayload { sub: string }
+export interface AdminSessionProof { mfaAt: number; adminBinding: string }
+interface AccessPayload extends Partial<AdminSessionProof> { sub: string; role: UserRole }
+interface RefreshPayload extends Partial<AdminSessionProof> { sub: string }
 interface ApplicantSessionPayload { applicantId: string }
 interface SetPasswordPayload { userId: string; email: string; purpose: 'set-password'; role?: string }
-interface ResetPasswordPayload { userId: string; purpose: 'reset-password' }
+interface ResetPasswordPayload { userId: string; purpose: 'reset-password'; adminResetBinding?: string }
 interface PollingTokenPayload { reference: string }
 
-export const signAccessToken = (userId: string, role: UserRole): string =>
-    jwt.sign({ sub: userId, role } as AccessPayload, env.JWT_ACCESS_SECRET, {
+export const signAccessToken = (userId: string, role: UserRole, proof?: AdminSessionProof): string =>
+    jwt.sign({ sub: userId, role, ...proof } satisfies AccessPayload, env.JWT_ACCESS_SECRET, {
         expiresIn: env.JWT_ACCESS_EXPIRY,
     } as jwt.SignOptions);
 
-export const signRefreshToken = (userId: string, expiresIn: string = env.JWT_REFRESH_EXPIRY): string =>
-    jwt.sign({ sub: userId } as RefreshPayload, env.JWT_REFRESH_SECRET, {
+export const signRefreshToken = (userId: string, expiresIn: string = env.JWT_REFRESH_EXPIRY, proof?: AdminSessionProof): string =>
+    jwt.sign({ sub: userId, ...proof } satisfies RefreshPayload, env.JWT_REFRESH_SECRET, {
         expiresIn,
     } as jwt.SignOptions);
 
-export const verifyAccessToken = (token: string): AccessPayload =>
-    jwt.verify(token, env.JWT_ACCESS_SECRET) as AccessPayload;
+export const verifyAccessToken = (token: string): AccessPayload => {
+    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET, { algorithms: ['HS256'] });
+    if (typeof payload !== 'object' || typeof payload.sub !== 'string' ||
+        !['applicant', 'participant', 'admin', 'superadmin', 'partner'].includes(payload.role) || payload.purpose) {
+        throw new Error('Invalid access token');
+    }
+    return payload as AccessPayload;
+};
 
 export const verifyRefreshToken = (token: string): RefreshPayload =>
     jwt.verify(token, env.JWT_REFRESH_SECRET) as RefreshPayload;
@@ -36,11 +43,11 @@ export const verifyApplicantSessionToken = (token: string): ApplicantSessionPayl
 export const signSetPasswordToken = (userId: string, email: string, role?: string): string =>
     jwt.sign({ userId, email, purpose: 'set-password', role } as SetPasswordPayload, env.SET_PASSWORD_TOKEN_SECRET);
 
-export const verifySetPasswordToken = (token: string): SetPasswordPayload =>
-    jwt.verify(token, env.SET_PASSWORD_TOKEN_SECRET) as SetPasswordPayload;
+export const verifySetPasswordToken = (token: string, maxAge?: string): SetPasswordPayload =>
+    jwt.verify(token, env.SET_PASSWORD_TOKEN_SECRET, { maxAge }) as SetPasswordPayload;
 
-export const signResetPasswordToken = (userId: string): string =>
-    jwt.sign({ userId, purpose: 'reset-password' } as ResetPasswordPayload, env.RESET_PASSWORD_TOKEN_SECRET, {
+export const signResetPasswordToken = (userId: string, adminResetBinding?: string): string =>
+    jwt.sign({ userId, purpose: 'reset-password', adminResetBinding } satisfies ResetPasswordPayload, env.RESET_PASSWORD_TOKEN_SECRET, {
         expiresIn: env.RESET_PASSWORD_TOKEN_EXPIRY,
     } as jwt.SignOptions);
 

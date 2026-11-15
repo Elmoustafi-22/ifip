@@ -132,6 +132,7 @@ export const submitApplication = async (): Promise<SubmitApplicationResponse> =>
 };
 
 export interface InitiatePaymentResponse {
+  method?: 'bank_transfer';
   authorizationUrl?: string;
   reference: string;
   pollingToken?: string;
@@ -144,6 +145,31 @@ export const initiatePayment = async (couponCode?: string): Promise<InitiatePaym
   const { data } = await apiClient.post<InitiatePaymentResponse>("/payments/initiate", { couponCode });
   return data;
 };
+
+export interface TransferReview {
+  review: 'awaiting_proof' | 'under_review' | 'needs_information' | 'approved' | 'closed';
+  holdUntil: string;
+  feedback?: string;
+}
+
+export interface ApplicantBankTransfer extends TransferReview {
+  reference: string;
+  amount: number;
+  currency: string;
+  account?: { name: string; bank: string; number: string; routing: string; swift: string; type: string; address: string };
+  enrolled: boolean;
+  setPasswordToken?: string;
+}
+
+export async function getApplicantBankTransfer(signal?: AbortSignal) {
+  const { data } = await apiClient.get<{ transfer: ApplicantBankTransfer | null }>("/payments/bank-transfer", { signal });
+  return data.transfer;
+}
+
+export async function submitApplicantBankTransferProof(proof: FormData) {
+  const { data } = await apiClient.post<{ transfer: ApplicantBankTransfer }>("/payments/bank-transfer/proof", proof);
+  return data.transfer;
+}
 
 export interface ValidateCouponResponse {
   valid: boolean;
@@ -161,16 +187,20 @@ export const checkPaymentStatus = async (
   reference: string,
   pollingToken: string,
   transactionId?: string | null,
-  status?: string | null
+  status?: string | null,
+  signal?: AbortSignal
 ): Promise<{ status: "pending" | "success" | "failed"; setPasswordToken?: string }> => {
-  let url = `/payments/${reference}/status?token=${pollingToken}`;
+  const params = new URLSearchParams({ token: pollingToken });
   if (transactionId) {
-    url += `&transaction_id=${encodeURIComponent(transactionId)}`;
+    params.set("transaction_id", transactionId);
   }
   if (status) {
-    url += `&status=${encodeURIComponent(status)}`;
+    params.set("status", status);
   }
-  const { data } = await apiClient.get<{ status: "pending" | "success" | "failed"; setPasswordToken?: string }>(url);
+  const { data } = await apiClient.get<{ status: "pending" | "success" | "failed"; setPasswordToken?: string }>(
+    `/payments/${encodeURIComponent(reference)}/status?${params}`,
+    { signal, preserveApplicantSession: true },
+  );
   return data;
 };
 
@@ -625,6 +655,7 @@ export interface RegistrationFunnel {
 }
 
 export interface AdminStats {
+  cohortMetrics?: Record<string, { applications: number; enrolled: number; completed: number; hires: number }>;
   totalPaid: number;
   activeParticipants: number;
   completedCount: number;
@@ -634,10 +665,12 @@ export interface AdminStats {
 }
 
 export interface Cohort {
+  createdAt?: string;
+  notifyWaitlist?: boolean;
   _id: string;
   name: string;
-  startDate: string;
-  endDate: string;
+  startDate?: string | null;
+  endDate?: string | null;
   status: 'upcoming' | 'active' | 'completed';
   registrationStartDate: string;
   registrationEndDate: string;
@@ -995,9 +1028,10 @@ export const getCohorts = async (): Promise<Cohort[]> => {
 };
 
 export const createCohort = async (payload: { 
+  notifyWaitlist?: boolean;
   name: string; 
-  startDate: string; 
-  endDate: string; 
+  startDate?: string | null;
+  endDate?: string | null;
   registrationStartDate: string; 
   registrationEndDate: string; 
   cohortCap: number; 
@@ -1008,10 +1042,35 @@ export const createCohort = async (payload: {
   return data;
 };
 
+export async function getCohortWaitlistStatus(id: string) {
+  const { data } = await authClient.get<{ pending: number; sending: number; sent: number; failed: number }>(`/admin/cohorts/${id}/waitlist`);
+  return data;
+}
+
+export async function retryCohortWaitlist(id: string) {
+  await authClient.post(`/admin/cohorts/${id}/waitlist/retry`);
+}
+
+export const hiringOutcomeLabels = {
+  selected: "Selected by employer",
+  offer_extended: "Offer extended",
+  hire_confirmed: "Hire confirmed",
+  not_selected: "Not selected",
+} as const;
+
+export type HiringOutcome = { status: keyof typeof hiringOutcomeLabels; recordedAt: string };
+
+export async function recordHiringOutcome(kind: "placements" | "job-applications", id: string, payload: {
+  status: HiringOutcome["status"]; note: string; previousRecordedAt: string | null;
+}) {
+  const { data } = await authClient.patch<{ hiringOutcome: HiringOutcome }>(`/admin/hiring-outcomes/${kind}/${id}`, payload);
+  return data.hiringOutcome;
+}
+
 export const updateCohort = async (id: string, payload: { 
   name?: string; 
-  startDate?: string; 
-  endDate?: string; 
+  startDate?: string | null;
+  endDate?: string | null;
   registrationStartDate?: string; 
   registrationEndDate?: string; 
   cohortCap?: number; 
@@ -1026,6 +1085,7 @@ export interface RegistrationStatus {
   hasActiveCohort: boolean;
   isFull: boolean;
   cohortName?: string;
+  cohortStartDate?: string;
   registrationEndDate?: string;
   cap?: number;
   count?: number;
@@ -1034,6 +1094,18 @@ export interface RegistrationStatus {
 
 export const getRegistrationStatus = async (): Promise<RegistrationStatus> => {
   const { data } = await authClient.get<RegistrationStatus>("/cohort/registration-status");
+  return data;
+};
+
+export type LevyPricing = Record<"NGN" | "USD", number>;
+
+export const getLevyPricing = async (): Promise<LevyPricing> => {
+  const { data } = await apiClient.get<LevyPricing>("/cohort/levy-pricing");
+  return data;
+};
+
+export const updateLevyPricing = async (amounts: LevyPricing): Promise<LevyPricing> => {
+  const { data } = await authClient.patch<LevyPricing>("/admin/levy-pricing", amounts);
   return data;
 };
 
@@ -1085,6 +1157,7 @@ export interface PartnerOrganization {
 }
 
 export interface Placement {
+  hiringOutcome?: HiringOutcome;
   _id: string;
   userId: any;
   partnerOrgId: any;
@@ -1662,6 +1735,9 @@ export const resendAdminInvite = async (userId: string): Promise<{ message: stri
 // ─── Admin Payment Tracking ───────────────────────────────────────────────────
 
 export interface AdminPayment {
+  bankTransfer?: TransferReview & { cohortId: string; bankReference?: string; proofId?: string; transferDate?: string; source?: 'upload' | 'email'; receiptType?: string; creditKey?: string; settledDate?: string };
+  transferApplicant?: { fullName?: string; email?: string };
+  transferCohort?: string;
   _id: string;
   applicantId: string;
   applicationId?: {
@@ -1684,6 +1760,9 @@ export interface AdminPayment {
   recordedByAdminId?: string;
   paystackVerification?: Record<string, unknown>;
   flutterwaveVerification?: Record<string, unknown>;
+  fallbackFromRef?: string;
+  fallbackReason?: 'currency_unavailable' | 'paystack_auth_rejected';
+  reconciliationReason?: 'verification_mismatch' | 'late_success';
   createdAt: string;
   updatedAt: string;
 }
@@ -1702,6 +1781,7 @@ export interface AdminPaymentsResponse {
 }
 
 export const getAdminPayments = async (params?: {
+  bankTransfer?: boolean;
   status?: string;
   provider?: string;
   search?: string;
@@ -1716,6 +1796,16 @@ export const getAdminPaymentById = async (id: string): Promise<AdminPayment> => 
   const { data } = await authClient.get<AdminPayment>(`/admin/payments/${id}`);
   return data;
 };
+
+export async function submitAdminBankTransferAction(id: string, action: 'proof' | 'approve' | 'review' | 'resend-setup', payload?: FormData | Record<string, string>) {
+  const { data } = await authClient.post<{ message?: string }>(`/admin/payments/${id}/bank-transfer/${action}`, payload);
+  return data.message;
+}
+
+export async function getAdminBankTransferReceipt(id: string) {
+  const { data } = await authClient.get<Blob>(`/admin/payments/${id}/bank-transfer/receipt`, { responseType: 'blob' });
+  return data;
+}
 
 export const resolveAdminPayment = async (
   id: string,
@@ -1979,6 +2069,7 @@ export interface AdminJobOpeningItem {
 }
 
 export interface AdminJobApplicationItem {
+  hiringOutcome?: HiringOutcome;
   _id: string;
   jobOpeningId: string;
   userId: string;

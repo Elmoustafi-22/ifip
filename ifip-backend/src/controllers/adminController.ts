@@ -7,6 +7,7 @@ import { Applicant } from '../models/Applicants.js';
 import { User } from '../models/User.js';
 import { Waitlist } from '../models/Waitlist.js';
 import { Cohort } from '../models/Cohort.js';
+import { getLevyAmounts } from '../models/LevyPricing.js';
 import { Notification } from '../models/Notification.js';
 import { Module } from '../models/Module.js';
 import { AuditLog } from '../models/AuditLog.js';
@@ -27,6 +28,9 @@ import { sendAdminInvitationEmail, sendSetPasswordEmail, sendPendingReminderEmai
 import { logAction, logRawAction } from '../utils/auditLogger.js';
 import { executeApplicationSubmission } from './applicantController.js';
 import { validateWeekForCohort, countContentBeyondWeek, MAX_TOTAL_WEEKS } from '../utils/cohortWeeks.js';
+import { CohortWaitlistDelivery } from '../models/CohortWaitlistDelivery.js';
+import { retryCohortWaitlist } from '../services/cohortWaitlist.js';
+import { updateContentVersion } from './contentVersionController.js';
 
 // Step labels for the registration funnel
 const REGISTRATION_STEP_LABELS: Record<number, string> = {
@@ -213,7 +217,38 @@ export const getDashboardStats = async (req: Request, res: Response) => {
             conversionRate,
         };
 
-        res.json({ totalPaid, activeParticipants, completedCount, waitlistCount, leadSources, registrationFunnel });
+        const [placementHires, jobHires, applicationMetrics, draftMetrics] = await Promise.all([
+            Placement.distinct('userId', { 'hiringOutcome.status': 'hire_confirmed' }),
+            JobApplication.distinct('userId', { 'hiringOutcome.status': 'hire_confirmed' }),
+            Application.aggregate<{ _id: Types.ObjectId | null; enrolled: number; completed: number; applications: number }>([
+                { $group: {
+                    _id: '$cohortId', applications: { $sum: 1 },
+                    enrolled: { $sum: { $cond: [{ $in: ['$status', ['payment_confirmed', 'active', 'completed', 'placement_ready']] }, 1, 0] } },
+                    completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+                } },
+            ]),
+            Applicant.aggregate<{ _id: Types.ObjectId | null; drafts: number }>([
+                { $group: { _id: '$cohortId', drafts: { $sum: 1 } } },
+            ]),
+        ]);
+        const hireMetrics = await Application.aggregate<{ _id: Types.ObjectId | null; hires: number }>([
+            { $match: { userId: { $in: [...placementHires, ...jobHires] } } },
+            { $group: { _id: { cohort: '$cohortId', user: '$userId' } } },
+            { $group: { _id: '$_id.cohort', hires: { $sum: 1 } } },
+        ]);
+        const cohortMetrics: Record<string, { applications: number; enrolled: number; completed: number; hires: number }> = {};
+        for (const row of [...applicationMetrics, ...draftMetrics, ...hireMetrics]) {
+            const key = String(row._id ?? 'unassigned');
+            const metrics = cohortMetrics[key] ??= { applications: 0, enrolled: 0, completed: 0, hires: 0 };
+            if ('applications' in row) {
+                metrics.applications += row.applications;
+                metrics.enrolled = row.enrolled;
+                metrics.completed = row.completed;
+            }
+            if ('drafts' in row) metrics.applications += row.drafts;
+            if ('hires' in row) metrics.hires = row.hires;
+        }
+        res.json({ totalPaid, activeParticipants, completedCount, waitlistCount, leadSources, registrationFunnel, cohortMetrics });
     } catch (e: any) {
         res.status(500).json({ message: 'Error retrieving dashboard stats.', error: e.message });
     }
@@ -378,9 +413,9 @@ export const getCohorts = async (req: Request, res: Response) => {
 
 export const createCohort = async (req: Request, res: Response) => {
     try {
-        const { name, startDate, endDate, status, registrationStartDate, registrationEndDate, cohortCap, totalWeeks } = req.body;
-        if (!name || !startDate || !endDate) {
-            res.status(400).json({ message: 'name, startDate, and endDate are required.' });
+        const { name, startDate, endDate, status, registrationStartDate, registrationEndDate, cohortCap, totalWeeks, notifyWaitlist } = req.body;
+        if (typeof name !== 'string' || !name.trim() || name.trim().length > 120 || !registrationStartDate || !registrationEndDate) {
+            res.status(400).json({ message: 'Enter a cohort name of up to 120 characters and both registration dates.' });
             return;
         }
 
@@ -393,16 +428,19 @@ export const createCohort = async (req: Request, res: Response) => {
         }
         
         const newCohort = new Cohort({ 
-            name, 
-            startDate: new Date(startDate), 
-            endDate: new Date(endDate), 
+            name: name.trim(),
+            startDate: startDate === undefined || startDate === null ? startDate : new Date(startDate),
+            endDate: endDate === undefined || endDate === null ? endDate : new Date(endDate),
             status,
             registrationStartDate: registrationStartDate ? new Date(registrationStartDate) : undefined,
             registrationEndDate: registrationEndDate ? new Date(registrationEndDate) : undefined,
             cohortCap: cohortCap !== undefined ? Number(cohortCap) : undefined,
-            totalWeeks: totalWeeks !== undefined ? Number(totalWeeks) : undefined
+            totalWeeks: totalWeeks !== undefined ? Number(totalWeeks) : undefined,
+            notifyWaitlist: notifyWaitlist === true && (!status || status === 'upcoming'),
         });
+        if (!await validateCohortIntake(newCohort, res)) return;
         await newCohort.save();
+        await updateContentVersion('cohort');
         
         logAction(req, 'COHORT_CREATE', `Created new cohort "${newCohort.name}"`, { targetId: newCohort.id, targetType: 'Cohort' });
         
@@ -442,20 +480,68 @@ export const updateCohort = async (req: Request, res: Response) => {
             cohort.totalWeeks = tw;
         }
         
-        if (name) cohort.name = name;
-        if (startDate) cohort.startDate = new Date(startDate);
-        if (endDate) cohort.endDate = new Date(endDate);
+        if (typeof name === 'string' && name.trim()) cohort.name = name.trim();
+        if (startDate !== undefined) cohort.startDate = startDate === null ? null : new Date(startDate);
+        if (endDate !== undefined) cohort.endDate = endDate === null ? null : new Date(endDate);
         if (status) cohort.status = status;
         if (registrationStartDate) cohort.registrationStartDate = new Date(registrationStartDate);
         if (registrationEndDate) cohort.registrationEndDate = new Date(registrationEndDate);
         if (cohortCap !== undefined) cohort.cohortCap = Number(cohortCap);
         
+        if (!await validateCohortIntake(cohort, res)) return;
         await cohort.save();
+        await updateContentVersion('cohort');
         logAction(req, 'COHORT_UPDATE', `Updated cohort "${cohort.name}" settings`, { targetId: cohort.id, targetType: 'Cohort' });
         res.json({ message: 'Cohort updated successfully.', cohort });
     } catch (e: any) {
         res.status(500).json({ message: 'Error updating cohort.', error: e.message });
     }
+};
+
+async function validateCohortIntake(cohort: InstanceType<typeof Cohort>, res: Response) {
+    try {
+        await cohort.validate();
+    } catch {
+        res.status(400).json({ message: 'Enter a valid cohort name, dates, status, and capacity.' });
+        return false;
+    }
+    const { startDate, endDate, registrationStartDate, registrationEndDate, cohortCap, name } = cohort;
+    if (!Number.isSafeInteger(cohortCap) || cohortCap < 1 || name.length > 120 ||
+        registrationEndDate < registrationStartDate ||
+        (startDate && startDate < registrationEndDate) ||
+        (endDate && endDate < (startDate ?? registrationEndDate))) {
+        res.status(400).json({ message: 'Enter a positive whole-number capacity and dates in order: registration opens, registration closes, training starts, training ends.' });
+        return false;
+    }
+    if (cohort.status === 'upcoming' && await Cohort.exists({
+        _id: { $ne: cohort._id }, status: 'upcoming',
+        registrationStartDate: { $lte: cohort.registrationEndDate },
+        registrationEndDate: { $gte: cohort.registrationStartDate },
+    })) {
+        res.status(409).json({ message: 'Registration overlaps another upcoming cohort. Choose a different registration window.' });
+        return false;
+    }
+    return true;
+}
+
+export const getCohortWaitlistStatus = async (req: Request, res: Response) => {
+    const cohort = await Cohort.findById(req.params.id);
+    if (!cohort) { res.status(404).json({ message: 'Cohort not found.' }); return; }
+    const [eligible, sending, sent, failed] = await Promise.all([
+        Waitlist.countDocuments({ createdAt: { $lt: cohort.createdAt } }),
+        CohortWaitlistDelivery.countDocuments({ cohortId: cohort._id, status: 'sending' }),
+        CohortWaitlistDelivery.countDocuments({ cohortId: cohort._id, status: 'sent' }),
+        CohortWaitlistDelivery.countDocuments({ cohortId: cohort._id, status: 'failed' }),
+    ]);
+    res.json({ pending: Math.max(0, eligible - sending - sent - failed), sending, sent, failed });
+};
+
+export const retryCohortWaitlistDelivery = async (req: Request, res: Response) => {
+    if (!await retryCohortWaitlist(String(req.params.id))) {
+        res.status(409).json({ message: 'This cohort must be accepting applications with seats available to retry.' });
+        return;
+    }
+    res.json({ message: 'Failed sends queued for retry.' });
 };
 
 export const deleteCohort = async (req: Request, res: Response) => {
@@ -466,6 +552,7 @@ export const deleteCohort = async (req: Request, res: Response) => {
             res.status(404).json({ message: 'Cohort not found.' });
             return;
         }
+        await updateContentVersion('cohort');
         logAction(req, 'COHORT_DELETE', `Deleted cohort "${result.name}" (ID: ${id})`);
         res.json({ message: 'Cohort deleted successfully.' });
     } catch (e: any) {
@@ -737,7 +824,7 @@ export const broadcastCustomNotification = async (req: Request, res: Response) =
 
         // Fetch sender admin email from DB since JWT token only carries { sub, role }
         const adminUser = await User.findById((req as any).user?.id);
-        const senderEmail = adminUser?.email || 'admin@nextif.org';
+        const senderEmail = adminUser?.email || 'ifip.program@gmail.com';
 
         // Record the broadcast log
         await Broadcast.create({
@@ -1347,6 +1434,7 @@ export const getAdminPayments = async (req: Request, res: Response) => {
         const match: any = {};
         if (status && status !== 'all') match.status = status;
         if (provider && provider !== 'all') match.provider = provider;
+        if (req.query.bankTransfer === 'true') match['bankTransfer.review'] = { $exists: true };
 
         // Search by providerRef text
         if (search) {
@@ -1414,7 +1502,11 @@ export const getAdminPaymentById = async (req: Request, res: Response) => {
             return;
         }
 
-        res.json(payment);
+        const [transferApplicant, transferCohort] = payment.bankTransfer ? await Promise.all([
+            Applicant.findById(payment.applicantId).select('fullName email').lean(),
+            Cohort.findById(payment.bankTransfer.cohortId).select('name').lean(),
+        ]) : [];
+        res.json({ ...payment, transferApplicant, transferCohort: transferCohort?.name });
     } catch (e: any) {
         res.status(500).json({ message: 'Error retrieving payment.', error: e.message });
     }
@@ -1440,6 +1532,10 @@ export const resolvePayment = async (req: Request, res: Response) => {
         }
 
         const previousStatus = payment.status;
+        if (payment.bankTransfer) {
+            res.status(409).json({ message: 'Use bank transfer review to confirm the settled credit.' });
+            return;
+        }
         payment.status = status;
         await payment.save();
 
@@ -1603,6 +1699,24 @@ export const recordManualPaymentForApplicant = async (req: Request, res: Respons
             return;
         }
 
+        if (await Payment.exists({ applicantId: applicant._id, status: 'pending', 'bankTransfer.review': { $exists: true } })) {
+            res.status(409).json({ message: 'Review the existing bank transfer from Admin Payments.' });
+            return;
+        }
+
+        const selectedCurrency: unknown = currency || (applicant.country === 'Nigeria' ? 'NGN' : 'USD');
+        if (selectedCurrency !== 'NGN' && selectedCurrency !== 'USD') {
+            res.status(400).json({ message: 'Choose NGN or USD.' });
+            return;
+        }
+        const amountInSubunits = amount == null || amount === ''
+            ? (await getLevyAmounts())[selectedCurrency]
+            : Math.round(Number(amount) * 100);
+        if (!Number.isSafeInteger(amountInSubunits) || amountInSubunits <= 0) {
+            res.status(400).json({ message: 'Enter a positive payment amount.' });
+            return;
+        }
+
         // Upload receipt to Cloudinary if provided
         let receiptUrl: string | undefined = undefined;
         if (req.file) {
@@ -1635,15 +1749,6 @@ export const recordManualPaymentForApplicant = async (req: Request, res: Respons
                 );
                 stream.end(req.file!.buffer);
             });
-        }
-
-        // Determine currency and amount in sub-units (kobo/cents)
-        const selectedCurrency = currency || (applicant.country === 'Nigeria' ? 'NGN' : 'USD');
-        let amountInSubunits: number;
-        if (amount && !isNaN(Number(amount))) {
-            amountInSubunits = Number(amount) * 100;
-        } else {
-            amountInSubunits = selectedCurrency === 'NGN' ? 20000 * 100 : 30 * 100;
         }
 
         // Ensure declaration is populated on applicant

@@ -4,6 +4,7 @@ import { env } from './config/env.js';
 import { connectRedis } from './services/redisService.js';
 import { PartnerOrganization } from './models/PartnerOrganization.js';
 import { startInterviewReminderCron } from './services/interviewReminderCron.js';
+import { startCohortWaitlistCron } from './services/cohortWaitlist.js';
 
 const PORT = Number(env.PORT);
 
@@ -24,6 +25,7 @@ Promise.all([connectDB(), connectRedis()]).then(async () => {
 
     // Initialize interview reminder cron (runs every 5 minutes, checks only scheduled interviews)
     startInterviewReminderCron();
+    startCohortWaitlistCron();
 
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 });

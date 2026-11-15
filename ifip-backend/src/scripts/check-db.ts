@@ -38,7 +38,7 @@ const run = async () => {
         console.log('   None');
     } else {
         cohorts.forEach(c => {
-            console.log(`   [${c.status}] "${c.name}"  cap=${c.cohortCap}  start=${c.startDate.toDateString()}`);
+            console.log(`   [${c.status}] "${c.name}"  cap=${c.cohortCap}  start=${c.startDate?.toDateString() ?? 'TBD'}`);
         });
     }
 

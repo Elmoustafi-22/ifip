@@ -31,6 +31,7 @@ import { FaWhatsapp } from "react-icons/fa";
 import { useContext } from "react";
 import { AdminCohortContext } from "../layout";
 import ExportApplicantsModal from "@/components/admin/ExportApplicantsModal";
+import { useLevyPricing } from "@/lib/hooks/useLevyPricing";
 import {
   getPendingApplicants,
   sendPendingApplicantReminder,
@@ -55,6 +56,7 @@ const STEP_LABELS: Record<number, string> = {
 
 export default function PendingApplicantsPage() {
   const { selectedCohortId, cohorts } = useContext(AdminCohortContext);
+  const { pricing } = useLevyPricing();
   const [applicants, setApplicants] = useState<PendingApplicant[]>([]);
   const [summary, setSummary] = useState<PendingApplicantsSummary | null>(null);
   const [total, setTotal] = useState(0);
@@ -113,7 +115,7 @@ export default function PendingApplicantsPage() {
     setManualPaymentApplicant(applicant);
     const curr = applicant.country === "Nigeria" ? "NGN" : "USD";
     setManualCurrency(curr);
-    setManualAmount(curr === "NGN" ? "20000" : "30");
+    setManualAmount(pricing ? String(pricing[curr] / 100) : "");
     setManualMethod("Bank Transfer");
     setManualRef("");
     setManualNotes("");
@@ -1846,7 +1848,7 @@ export default function PendingApplicantsPage() {
                     onChange={(e) => {
                       const curr = e.target.value as "NGN" | "USD";
                       setManualCurrency(curr);
-                      setManualAmount(curr === "NGN" ? "20000" : "30");
+                      setManualAmount(pricing ? String(pricing[curr] / 100) : "");
                     }}
                     className="w-full text-xs font-medium px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   >

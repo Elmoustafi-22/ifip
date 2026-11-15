@@ -1,5 +1,7 @@
 import type { Request, Response } from 'express';
 import { Application } from '../models/Application.js';
+import { Cohort } from '../models/Cohort.js';
+import { CohortConfig } from '../models/CohortConfig.js';
 import { User } from '../models/User.js';
 import { logAction } from '../utils/auditLogger.js';
 
@@ -31,9 +33,15 @@ export const getMyApplication = async (req: Request, res: Response) => {
     const mfaEnabled = (application.userId as any)?.mfaEnabled || false;
     const avatarUrl = application.avatarUrl || (application.userId as any)?.avatarUrl || undefined;
     const emailNotificationsEnabled = (application.userId as any)?.emailNotificationsEnabled !== false;
+    const [cohort, config] = await Promise.all([
+        application.cohortId ? Cohort.findById(application.cohortId).select('name startDate').lean() : null,
+        CohortConfig.findOne().select('dashboardViewOverride').lean(),
+    ]);
     
     res.json({
         ...application.toObject(),
+        cohort: cohort ? { name: cohort.name, startDate: cohort.startDate ?? null } : null,
+        dashboardViewOverride: config?.dashboardViewOverride ?? 'default',
         email,
         role,
         avatarUrl,

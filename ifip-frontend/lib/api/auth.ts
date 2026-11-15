@@ -41,6 +41,7 @@ export const clearAuth = (): void => {
   sessionStorage.removeItem("accessToken");
   localStorage.removeItem("accessToken");
   localStorage.removeItem("refreshToken");
+  sessionStorage.removeItem("adminSelectedCohortId");
 };
 
 // ── Auth API calls ────────────────────────────────────────────────────────────
@@ -60,6 +61,7 @@ export const login = async (
     password,
   });
   if (!data.mfaRequired && data.accessToken) {
+    sessionStorage.removeItem("adminSelectedCohortId");
     storeAccessToken(data.accessToken, rememberMe);
     if (data.refreshToken) storeRefreshToken(data.refreshToken);
   }
@@ -78,6 +80,7 @@ export const setPassword = async (
     token,
     password,
   });
+  if (data.signInRequired) clearAuth();
   if (data.accessToken) {
     storeAccessToken(data.accessToken, false);
     if (data.refreshToken) storeRefreshToken(data.refreshToken);
@@ -133,6 +136,7 @@ export const resetPassword = async (
     token,
     password,
   });
+  if (data.signInRequired) clearAuth();
   if (data.accessToken) {
     storeAccessToken(data.accessToken);
   }
@@ -170,15 +174,24 @@ export const changePassword = async (
 export const loginMfaVerify = async (
   mfaToken: string,
   code: string,
-  rememberMe = false
+  rememberMe = false,
+  enrollAdmin = false
 ): Promise<AuthResponse> => {
-  const { data } = await authClient.post<AuthResponse>("/auth/login/mfa-verify", {
+  const route = enrollAdmin ? "/auth/login/admin-mfa/enable" : "/auth/login/mfa-verify";
+  const { data } = await authClient.post<AuthResponse>(route, {
     mfaToken,
     code,
   });
   if (data.accessToken) {
+    clearAuth();
     storeAccessToken(data.accessToken, rememberMe);
+    if (data.refreshToken) storeRefreshToken(data.refreshToken);
   }
+  return data;
+};
+
+export const verifyAdminMfaEmail = async (mfaToken: string, code: string) => {
+  const { data } = await authClient.post<{ secret: string; qrCode: string }>("/auth/login/admin-mfa/setup", { mfaToken, code });
   return data;
 };
 

@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import { Applicant } from '../models/Applicants.js';
 import { generateOtp, verifyOtp } from '../services/otpServices.js';
 import { generateResumeToken, hashToken } from '../services/tokenService.js';
@@ -212,76 +212,105 @@ export const updateMyApplicant = async (req: Request, res: Response) => {
 };
 
 export const executeApplicationSubmission = async (applicantId: Types.ObjectId | string, paymentId: Types.ObjectId | string) => {
-    const applicant = await Applicant.findById(applicantId);
-    if (!applicant) {
-        throw new Error('Applicant not found.');
-    }
+    const result = await mongoose.connection.transaction(async (session) => {
+        const payment = await Payment.findOne({ _id: paymentId, applicantId, status: 'success' }).session(session);
+        if (!payment) throw new Error('Payment verification is required.');
 
-    const payment = await Payment.findById(paymentId);
-    if (!payment || payment.status !== 'success') {
-        throw new Error('Payment verification is required.');
-    }
+        const existing = await Application.findOne({ paymentId }).session(session);
+        if (existing) {
+            const user = await User.findById(existing.userId).session(session).orFail();
+            const draft = await Applicant.findById(applicantId).session(session);
+            if (draft) {
+                user.role = 'participant';
+                await user.save({ session });
+                await Applicant.deleteOne({ _id: draft._id }).session(session);
+            }
+            if (!payment.applicationId) {
+                payment.applicationId = existing._id as Types.ObjectId;
+                await payment.save({ session });
+            }
+            return { application: existing, user, applicant: null };
+        }
 
-    let user = await User.findOne({ email: applicant.email });
-    if (!user) {
-        user = await User.create({
-            email: applicant.email,
+        const applicant = await Applicant.findById(applicantId).session(session);
+        if (!applicant) {
+            throw new Error('Applicant not found.');
+        }
+
+        let user = await User.findOne({ email: applicant.email }).session(session);
+        if (!user) {
+            [user] = await User.create([{
+                email: applicant.email,
+                fullName: applicant.fullName,
+                phone: applicant.phone,
+                dob: applicant.dob,
+                gender: applicant.gender,
+                country: applicant.country,
+                stateCity: applicant.stateCity
+            }], { session });
+        }
+
+        const [application] = await Application.create([{
+            userId: user._id,
+            paymentId: payment._id,
             fullName: applicant.fullName,
             phone: applicant.phone,
             dob: applicant.dob,
             gender: applicant.gender,
             country: applicant.country,
-            stateCity: applicant.stateCity
-        });
-    }
+            stateCity: applicant.stateCity,
+            academicInfo: applicant.academicInfo,
+            programInterest: applicant.programInterest,
+            skills: applicant.skills,
+            motivation: applicant.motivation,
+            cvUrl: applicant.cvUrl,
+            linkedinUrl: applicant.linkedinUrl,
+            portfolioUrl: applicant.portfolioUrl,
+            leadSource: applicant.leadSource,
+            levyAcknowledged: applicant.levyAcknowledged,
+            declaration: applicant.declaration,
+            cohortId: applicant.cohortId,
+            status: 'active',
+        }], { session });
 
-    const application = await Application.create({
-        userId: user._id,
-        paymentId: payment._id,
-        fullName: applicant.fullName,
-        phone: applicant.phone,
-        dob: applicant.dob,
-        gender: applicant.gender,
-        country: applicant.country,
-        stateCity: applicant.stateCity,
-        academicInfo: applicant.academicInfo,
-        programInterest: applicant.programInterest,
-        skills: applicant.skills,
-        motivation: applicant.motivation,
-        cvUrl: applicant.cvUrl,
-        linkedinUrl: applicant.linkedinUrl,
-        portfolioUrl: applicant.portfolioUrl,
-        leadSource: applicant.leadSource,
-        levyAcknowledged: applicant.levyAcknowledged,
-        declaration: applicant.declaration,
-        cohortId: applicant.cohortId,
-        status: 'active',
+        user.role = 'participant';
+        await user.save({ session });
+
+        payment.applicationId = application._id as any;
+        await payment.save({ session });
+
+        await Applicant.deleteOne({ _id: applicant._id }).session(session);
+        return { application, user, applicant };
     });
 
-    user.role = 'participant';
-    await user.save();
-
-    payment.applicationId = application._id as any;
-    await payment.save();
-
-    const setPasswordToken = signSetPasswordToken(user.id, user.email);
-    notificationEmitter.emit('application.submitted', { email: applicant.email, setPasswordToken, country: applicant.country });
-    
-    const cohort = await Cohort.findById(applicant.cohortId);
-    if (cohort) {
-        notificationEmitter.emit('cohort.assigned', { user, cohort });
+    const { application, user, applicant } = result;
+    const setPasswordToken = applicant || !user.passwordHash ? signSetPasswordToken(user.id, user.email) : undefined;
+    if (applicant) {
+        notificationEmitter.emit('application.submitted', { email: applicant.email, setPasswordToken, country: applicant.country });
+        if (applicant.cohortId) {
+            void Cohort.findById(applicant.cohortId).then((cohort) => {
+                if (cohort) notificationEmitter.emit('cohort.assigned', { user, cohort, skipEmail: true });
+            }).catch((error: unknown) => console.error('[Enrollment] Could not notify cohort assignment', error));
+        }
+        notificationEmitter.emit('application.enrolled', { user, application });
     }
-
-    notificationEmitter.emit('application.enrolled', { user, application });
-
-    await Applicant.deleteOne({ _id: applicant._id });
-
     return { application, setPasswordToken };
 };
 
 export const submitApplication = async (req: Request, res: Response) => {
-    const applicant = await Applicant.findById(req.applicant!.id);
+    const applicantId = req.applicant!.id;
+    const applicant = await Applicant.findById(applicantId);
     if (!applicant) {
+        const payment = await Payment.findOne({
+            applicantId,
+            status: 'success',
+            applicationId: { $ne: null },
+        });
+        if (payment) {
+            const { application, setPasswordToken } = await executeApplicationSubmission(applicantId, payment._id);
+            res.json({ message: 'Application submitted successfully. Please check your email to set your password.', application, setPasswordToken });
+            return;
+        }
         res.status(404).json({ message: 'Session expired — please resume via your email link.' });
         return;
     }

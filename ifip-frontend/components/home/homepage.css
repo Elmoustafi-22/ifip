@@ -1,0 +1,248 @@
+.ifip-home {
+  --ink: #101f3f;
+  --muted: #43536e;
+  --paper: #eef4fa;
+  --white: #fff;
+  --line: #cbd8e8;
+  --accent: #12617e;
+  --ice: #a9e2fa;
+  background: var(--paper);
+  color: var(--ink);
+  min-width: 0;
+  padding-bottom: 72px;
+  font-family: var(--font-sans);
+}
+
+.ifip-home [id] { scroll-margin-top: 76px; }
+.ifip-home :is(h1, h2, h3) { font-family: inherit; text-wrap: balance; }
+.ifip-home h2 { font-size: clamp(1.85rem, 3.5vw, 3rem); line-height: 1.1; font-weight: 650; letter-spacing: -.045em; }
+.ifip-home h3 { font-size: 1.2rem; line-height: 1.28; font-weight: 650; letter-spacing: -.025em; }
+.ifip-home p, .ifip-home li { line-height: 1.65; }
+.ifip-home :is(a, button, summary):focus-visible { outline: 2px solid var(--focus-color, var(--ink)); outline-offset: 4px; }
+
+.ifip-home-wrap, .ifip-home-hero-grid, .ifip-home-nav-inner {
+  width: min(1220px, calc(100% - clamp(36px, 8vw, 112px)));
+  margin-inline: auto;
+}
+
+.ifip-home-hero, .ifip-home-dark {
+  background: var(--ink);
+  color: #f4f8fe;
+  --focus-color: var(--ice);
+}
+
+.ifip-home-hero { border-bottom: 2px solid #80d8ff; }
+.ifip-home-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.17fr) minmax(0, .83fr);
+  align-items: center;
+  gap: clamp(27px, 6vw, 86px);
+  padding-block: clamp(38px, 6vw, 88px);
+}
+.ifip-home-hero h1 { font-size: clamp(2.35rem, 5.1vw, 4.75rem); line-height: 1.06; letter-spacing: -.046em; font-weight: 700; text-wrap: wrap; }
+.ifip-home-hero h1 em { display: block; font-style: normal; color: var(--ice); }
+.ifip-home-eyebrow { font-size: .72rem; letter-spacing: .105em; text-transform: uppercase; font-weight: 650; }
+.ifip-home-hero .ifip-home-eyebrow { color: var(--ice); margin-bottom: 16px; }
+.ifip-home-lead { max-width: 49ch; font-size: clamp(.95rem, 1.4vw, 1.1rem); margin-top: 20px; }
+.ifip-home-hero .ifip-home-lead, .ifip-home-hero .ifip-home-cohort, .ifip-home-dark p { color: #d1dff2; }
+.ifip-home-cohort { min-height: 1.6em; margin-top: 12px; font-size: .81rem; overflow-wrap: anywhere; }
+
+.ifip-home-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; margin-top: 20px; }
+.ifip-home-button, .ifip-home-text-link { display: inline-flex; align-items: center; gap: 9px; min-height: 44px; font-size: .85rem; font-weight: 650; }
+.ifip-home-button { min-height: 48px; padding: 9px 17px; border-radius: 5px; background: var(--ink); color: var(--white); }
+.ifip-home-button:hover { background: #24395f; }
+:is(.ifip-home-hero,.ifip-home-dark) .ifip-home-button { background: var(--ice); color: var(--ink); }
+:is(.ifip-home-hero,.ifip-home-dark) .ifip-home-button:hover { background: #d5effc; }
+.ifip-home-text-link { text-decoration: underline; text-underline-offset: 4px; }
+.ifip-home-text-link:hover { text-decoration-thickness: 2px; }
+.ifip-home-text-link svg, .ifip-home-button svg { width: 17px; height: 17px; flex: none; }
+
+.ifip-home-pathway { background: #162951; border: 1px solid #476181; border-radius: 12px; padding: 20px 23px 9px; }
+.ifip-home-pathway li { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 13px; padding-block: 12px; border-top: 1px solid #536789; }
+.ifip-home-pathway strong { font-size: 1rem; }
+.ifip-home-pathway li p { color: #d1dff2; font-size: .84rem; }
+.ifip-home-icon { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 8px; background: #e1f1fb; color: var(--accent); flex: none; }
+.ifip-home-icon svg { width: 20px; height: 20px; }
+.ifip-home-pathway .ifip-home-icon, .ifip-home-dark .ifip-home-icon { background: #284972; color: var(--ice); }
+
+.ifip-home-section { padding-block: clamp(39px, 5.3vw, 72px); border-bottom: 1px solid var(--line); }
+.ifip-home-white { background: #f8fbfe; }
+.ifip-home-tint { background: #dfedfa; }
+.ifip-home-section-grid { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); align-items: start; gap: clamp(20px, 6vw, 86px); }
+.ifip-home-section-intro p { max-width: 44ch; margin-top: 12px; color: var(--muted); }
+.ifip-home-dark .ifip-home-section-intro p { color: #d1dff2; }
+.ifip-home-section-intro .ifip-home-text-link { margin-top: 5px; }
+.ifip-home-section-intro .ifip-home-eyebrow { color: var(--accent); margin: 0 0 10px; }
+
+.ifip-home-cards, .ifip-home-partners-grid, .ifip-home-eligibility { display: grid; gap: clamp(12px, 1.7vw, 24px); grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 23px; }
+.ifip-home-card { min-width: 0; overflow-wrap: anywhere; background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: clamp(16px, 2vw, 25px); }
+.ifip-home-card > .ifip-home-icon { margin-bottom: 12px; }
+.ifip-home-card p, .ifip-home-card ul { margin-top: 8px; color: var(--muted); }
+.ifip-home-curriculum-list { list-style: disc; padding-inline-start: 17px; }
+.ifip-home-curriculum-list li + li { margin-top: 5px; }
+.ifip-home-eligibility { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; gap: 12px; }
+.ifip-home-eligibility .ifip-home-card { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 11px; padding: 15px; }
+.ifip-home-eligibility .ifip-home-icon { width: 34px; height: 34px; margin: 0; }
+.ifip-home-eligibility h3 { font-size: 1rem; }
+.ifip-home-eligibility p { font-size: .88rem; }
+.ifip-home-dark .ifip-home-card { background: #1c345a; border-color: #48678d; }
+.ifip-home-dark .ifip-home-card p { color: #d1dff2; }
+
+.ifip-home-journey { list-style: none; counter-reset: stage; padding: 0; }
+.ifip-home-journey li { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 5px 11px; counter-increment: stage; border-top: 1px solid #b8cbe0; padding-block: 15px; }
+.ifip-home-journey li::before { content: counter(stage, decimal-leading-zero); color: var(--accent); font-weight: 650; grid-row: span 2; }
+.ifip-home-journey p { color: var(--muted); }
+
+.ifip-home-levy { border-inline-start: 4px solid var(--accent); min-height: 142px; display: grid; align-content: center; gap: 8px; }
+.ifip-home-levy .ifip-home-amount { color: var(--ink); font-size: clamp(2.1rem, 4.6vw, 3.5rem); font-weight: 700; line-height: 1.08; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.ifip-home-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; color: var(--muted); font-size: .85rem; }
+.ifip-home-meta svg { width: 16px; height: 16px; flex: none; color: var(--accent); }
+
+.ifip-home-switcher { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 20px; }
+.ifip-home-switcher button, .ifip-home-retry { min-height: 44px; border: 1px solid #7185a0; border-radius: 5px; padding: 8px 12px; font-size: .85rem; cursor: pointer; }
+.ifip-home-switcher button[aria-pressed="true"] { background: var(--ink); color: var(--white); border-color: var(--ink); font-weight: 650; }
+.ifip-home-switcher button:hover:not([aria-pressed="true"]), .ifip-home-retry:hover { background: #e1f1fb; }
+.ifip-home-catalog [hidden] { display: none; }
+.ifip-home-catalog .ifip-home-cards { margin-top: 15px; }
+.ifip-home-catalog-state { margin-top: 16px; }
+.ifip-home-catalog-state .ifip-home-retry { margin-top: 8px; }
+.ifip-home-tags { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; }
+.ifip-home-tag { display: inline-flex; align-items: center; gap: 5px; background: #e1f1fb; color: #12536d; padding: 3px 8px; border-radius: 4px; font-size: .76rem; font-weight: 600; }
+.ifip-home-opening { display: flex; flex-direction: column; align-items: flex-start; }
+.ifip-home-opening .ifip-home-department { margin: 0 0 8px; color: var(--accent); font-size: .8rem; font-weight: 650; }
+.ifip-home-opening .ifip-home-meta { margin-top: auto; padding-top: 12px; }
+.ifip-home-opening .ifip-home-text-link { margin-top: 4px; }
+
+.ifip-home-partners-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); list-style: none; }
+.ifip-home-partners-grid a { display: block; height: 100%; }
+.ifip-home-partners-grid a:hover h3 { text-decoration: underline; text-underline-offset: 4px; }
+.ifip-home-partners-grid h3 { font-size: 1rem; }
+.ifip-home-partner-logo { display: grid; place-items: center; width: 100%; height: 64px; margin-bottom: 12px; }
+.ifip-home-partner-logo img { max-width: 100%; max-height: 64px; width: auto; height: auto; object-fit: contain; }
+
+.ifip-home-faq details { border-top: 1px solid var(--line); }
+.ifip-home-faq details:last-child { border-bottom: 1px solid var(--line); }
+.ifip-home-faq summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 12px 3px; font-weight: 550; cursor: pointer; list-style: none; }
+.ifip-home-faq summary::-webkit-details-marker { display: none; }
+.ifip-home-faq summary svg { width: 18px; height: 18px; flex: none; }
+.ifip-home-faq details[open] summary svg { rotate: 45deg; }
+.ifip-home-faq details p { color: var(--muted); padding: 0 3px 14px; }
+
+.ifip-home-header { position: sticky; top: 0; z-index: 30; background: var(--white); border-bottom: 1px solid var(--line); }
+.ifip-home-nav-inner { display: flex; align-items: center; justify-content: space-between; min-height: 66px; gap: 20px; position: relative; }
+.ifip-home-logo { object-fit: contain; width: auto; height: 38px; max-width: 175px; }
+.ifip-home-nav { display: flex; align-items: center; gap: clamp(12px, 2.6vw, 36px); }
+.ifip-home-nav a { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; font-size: .84rem; font-weight: 550; white-space: nowrap; }
+.ifip-home-nav a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.ifip-home-menu { display: none; }
+
+.ifip-home-footer { padding-block: 36px 22px; }
+.ifip-home-footer h2 { font-size: 1rem; letter-spacing: -.015em; margin-bottom: 9px; }
+.ifip-home-footer-grid { display: grid; grid-template-columns: 1fr .7fr 1fr; gap: 24px; font-size: .85rem; }
+.ifip-home-footer-grid p { color: var(--muted); max-width: 34ch; margin-top: 8px; }
+.ifip-home-footer a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.ifip-home-footer-contacts :is(a, .ifip-home-address) { display: flex; align-items: center; gap: 9px; min-height: 44px; overflow-wrap: anywhere; width: fit-content; max-width: 100%; }
+.ifip-home-footer-contacts .ifip-home-icon { width: 30px; height: 30px; }
+.ifip-home-footer-contacts .ifip-home-icon svg { width: 17px; height: 17px; }
+.ifip-home-footer-bottom { border-top: 1px solid var(--line); margin-top: 23px; padding-top: 14px; font-size: .79rem; color: var(--muted); }
+
+@media (min-width: 768px) { .ifip-home { padding-bottom: 0; } }
+@media (max-width: 960px) {
+  .ifip-home-eligibility .ifip-home-card { grid-template-columns: minmax(0, 1fr); }
+  .ifip-home-partners-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 850px) {
+  .ifip-home-menu { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 10px; border: 1px solid #7185a0; border-radius: 5px; font-size: .85rem; cursor: pointer; }
+  .ifip-home-menu svg { width: 18px; height: 18px; }
+  .ifip-home-nav { display: none; }
+  .ifip-home-nav[data-open="true"] { display: grid; gap: 0; position: absolute; inset: 100% 0 auto auto; max-height: calc(100dvh - 128px); overflow: auto; width: min(100%, 290px); background: var(--white); border: 1px solid var(--line); border-radius: 0 0 8px 8px; padding: 8px 14px; }
+  .ifip-home-nav > * + * { border-top: 1px solid var(--line); }
+
+}
+@media (max-width: 750px) {
+  .ifip-home-hero-grid, .ifip-home-section-grid { grid-template-columns: minmax(0, 1fr); }
+  .ifip-home-hero h1 { font-size: clamp(2.18rem, 10vw, 2.65rem); }
+  .ifip-home-pathway { padding: 14px 13px 6px; }
+  .ifip-home-cards { grid-template-columns: minmax(0, 1fr); }
+  .ifip-home-footer-grid { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+}
+@media (max-width: 450px) {
+  .ifip-home-eligibility { grid-template-columns: minmax(0, 1fr); }
+  .ifip-home-eligibility .ifip-home-card { grid-template-columns: auto minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ifip-home :is(.ifip-home-button, .ifip-home-text-link, .ifip-home-switcher button, .ifip-home-menu) { transition: background-color 150ms ease, color 150ms ease, text-decoration-color 150ms ease, transform 150ms ease; }
+  .ifip-home-button:active { transform: scale(.96); }
+
+  .ifip-home :is(.ifip-home-button, .ifip-home-text-link) svg { transition: translate 150ms ease-out; }
+  .ifip-home-nav > a { text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 4px; transition: text-decoration-color 150ms ease; }
+  .ifip-home-nav > a:focus-visible { text-decoration-color: currentColor; }
+  @media (hover: hover) {
+    .ifip-home :is(.ifip-home-button, .ifip-home-text-link):hover svg { translate: 4px 0; }
+    .ifip-home-nav > a:hover { text-decoration-color: currentColor; }
+    .ifip-home-partners-grid .ifip-home-card:has(a) { transition: border-color 150ms ease, box-shadow 150ms ease; }
+    .ifip-home-partners-grid .ifip-home-card:has(a:hover) { border-color: #7185a0; box-shadow: 0 5px 14px #101f3f12; }
+  }
+  .ifip-home-faq summary svg { transition: rotate 150ms ease; }
+
+}
+@media (prefers-reduced-motion: reduce) {
+  html:has(.ifip-home) { scroll-behavior: auto; }
+}
+
+.ifip-home-bottom-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 3px;
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 35;
+  min-height: 58px;
+  padding: 4px 8px max(4px, env(safe-area-inset-bottom));
+  background: var(--white);
+  border-top: 1px solid var(--line);
+}
+.ifip-home-bottom-nav > a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 44px;
+  min-width: 53px;
+  font-size: .72rem;
+  font-weight: 650;
+}
+.ifip-home-bottom-nav > a svg { width: 20px; height: 20px; }
+.ifip-home-bottom-nav > a[aria-current="page"] { color: var(--accent); }
+.ifip-home :is(.ifip-home-nav, .ifip-home-bottom-nav) button { min-height: 44px; }
+@media (min-width: 768px) { .ifip-home-bottom-nav { display: none; } }
+@media (max-width: 850px) {
+  .ifip-home-nav > div > div { position: static; width: 100%; }
+}
+@media (max-width: 767px) {
+  .ifip-home { padding-bottom: calc(66px + env(safe-area-inset-bottom)); }
+  html:has(.ifip-home) { scroll-padding-bottom: calc(62px + env(safe-area-inset-bottom)); }
+}
+.ifip-home-pathway {
+  transform: translateX(calc(var(--pathway-offset, 0) * 1px));
+}
+.ifip-home-actions[data-home-entrance]:focus-within {
+  transform: none !important;
+}
+.ifip-home [data-home-reveal]:focus-within {
+  opacity: 1 !important;
+  transform: none !important;
+}
+@media (max-width: 750px) {
+  .ifip-home-pathway {
+    transform: translateY(calc(var(--pathway-offset, 0) * .6px));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ifip-home :is([data-home-entrance], [data-home-reveal]) {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

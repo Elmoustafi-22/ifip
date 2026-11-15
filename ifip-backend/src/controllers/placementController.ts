@@ -58,6 +58,10 @@ export const createMatch = async (req: Request, res: Response) => {
         // Check if user already has a match
         let placement = await Placement.findOne({ userId: new Types.ObjectId(userId) });
         if (placement) {
+            if (placement.hiringOutcome) {
+                res.status(409).json({ message: 'This match has a recorded hiring outcome. Keep it as part of the participant’s history.' });
+                return;
+            }
             // Restore previous slot of old partner
             await PartnerOrganization.findByIdAndUpdate(placement.partnerOrgId, { $inc: { activeSlots: 1 } });
             

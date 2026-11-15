@@ -1,8 +1,9 @@
 import crypto from 'node:crypto';
+import { isAxiosError } from 'axios';
 import type { Request, Response } from 'express';
-import { Types } from 'mongoose';
+import mongoose, { Types, type ClientSession } from 'mongoose';
 import { Applicant } from '../models/Applicants.js';
-import { Payment } from '../models/Payments.js';
+import { Payment, type BankTransfer, type IPayment } from '../models/Payments.js';
 import { Application } from '../models/Application.js';
 import { User } from '../models/User.js';
 import { Cohort } from '../models/Cohort.js';
@@ -11,9 +12,10 @@ import * as paystackService from '../services/paystackService.js';
 import * as flutterwaveService from '../services/flutterwaveService.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { generateResumeToken } from '../services/tokenService.js';
-import { signSetPasswordToken, signPollingToken, verifyPollingToken } from '../utils/jwt.js';
-import { paymentInitiateSchema } from '../validators/applicantValidators.js';
+import { signPollingToken, verifyPollingToken } from '../utils/jwt.js';
+import { paymentInitiateSchema, paymentReadySchema } from '../validators/applicantValidators.js';
 import { env } from '../config/env.js';
+import { getLevyAmounts } from '../models/LevyPricing.js';
 import { executeApplicationSubmission } from './applicantController.js';
 import { logRawAction } from '../utils/auditLogger.js';
 
@@ -27,8 +29,8 @@ export const getActiveRegistrationCohort = async (): Promise<any> => {
     return cohort;
 };
 
-export const checkCohortCapacity = async (cohortId: Types.ObjectId | string, excludeApplicantId?: string): Promise<{ isFull: boolean; count: number; cap: number }> => {
-    const cohort = await Cohort.findById(cohortId);
+export const checkCohortCapacity = async (cohortId: Types.ObjectId | string, excludeApplicantId?: string, session: ClientSession | null = null): Promise<{ isFull: boolean; count: number; cap: number }> => {
+    const cohort = await Cohort.findById(cohortId).session(session);
     if (!cohort) {
         return { isFull: true, count: 0, cap: 0 };
     }
@@ -36,13 +38,14 @@ export const checkCohortCapacity = async (cohortId: Types.ObjectId | string, exc
     const applicationsCount = await Application.countDocuments({
         cohortId: new Types.ObjectId(cohortId as string),
         status: { $in: ['payment_confirmed', 'active', 'completed', 'placement_ready'] }
-    });
+    }).session(session);
 
     const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
     const filter: any = {
         cohortId: new Types.ObjectId(cohortId as string),
         $or: [
             { isPaid: true },
+            { transferHoldUntil: { $gt: new Date() } },
             { 
                 isPaid: false, 
                 checkoutStartedAt: { $gte: fifteenMinutesAgo } 
@@ -53,7 +56,7 @@ export const checkCohortCapacity = async (cohortId: Types.ObjectId | string, exc
         filter._id = { $ne: new Types.ObjectId(excludeApplicantId) };
     }
 
-    const lockedApplicantsCount = await Applicant.countDocuments(filter);
+    const lockedApplicantsCount = await Applicant.countDocuments(filter).session(session);
     const totalOccupied = applicationsCount + lockedApplicantsCount;
 
     return {
@@ -63,183 +66,269 @@ export const checkCohortCapacity = async (cohortId: Types.ObjectId | string, exc
     };
 };
 
-const LEVY_AMOUNT_KOBO = Number(env.LEVY_AMOUNT_NGN) * 100;
+class CheckoutRejected extends Error {
+    constructor(message: string, public statusCode = 400) {
+        super(message);
+    }
+}
+
+async function replaceRejectedPaystackAttempt(payment: IPayment) {
+    return mongoose.connection.transaction(async (session) => {
+        const retired = await Payment.updateOne({ _id: payment._id, provider: 'paystack', status: 'pending',
+            authorizationUrl: { $exists: false }, reconciliationReason: { $exists: false },
+        }, { $set: { status: 'failed' } }, { session });
+        if (!retired.modifiedCount) return null;
+
+        const [replacement] = await Payment.create([{
+            applicantId: payment.applicantId, type: payment.type,
+            provider: 'flutterwave', providerRef: `IFIP-${crypto.randomUUID()}`,
+            amount: payment.amount, currency: payment.currency, originalAmount: payment.originalAmount,
+            couponId: payment.couponId, discountPercent: payment.discountPercent,
+            checkoutManaged: true, fallbackFromRef: payment.providerRef, fallbackReason: 'paystack_auth_rejected',
+        }], { session });
+        return replacement;
+    });
+}
+
+async function initializeHostedCheckout(payment: IPayment, email: string): Promise<IPayment> {
+    const metadata = { applicantId: String(payment.applicantId), couponId: payment.couponId?.toString() };
+    let authorizationUrl: string;
+    try {
+        authorizationUrl = payment.provider === 'paystack'
+            ? (await paystackService.initializeTransaction({ email, amountMinor: payment.amount,
+                reference: payment.providerRef, currency: payment.currency, metadata })).authorization_url
+            : (await flutterwaveService.initializeTransaction({ email, amount: payment.amount / 100,
+                reference: payment.providerRef, currency: payment.currency, metadata })).link;
+    } catch (error) {
+        const status = isAxiosError(error) ? error.response?.status : undefined;
+        if (status === 401 || status === 403) {
+            await recordProviderFailure(payment);
+            throw new CheckoutRejected('The payment provider is unavailable. Please try again later.', 503);
+        }
+        // The provider may have created a payable checkout before the response was lost.
+        console.error('[Checkout] Could not confirm hosted checkout creation for', payment.providerRef, error instanceof Error ? error.name : 'unknown error');
+        return payment;
+    }
+
+    const saved = await Payment.updateOne({ _id: payment._id, status: 'pending', reconciliationReason: { $exists: false } }, { $set: { authorizationUrl } });
+    if (!saved.matchedCount) return payment;
+    payment.authorizationUrl = authorizationUrl;
+    void logRawAction({
+        userId: String(payment.applicantId), userEmail: email, userRole: 'applicant',
+        action: 'PAYMENT_INITIATED', description: `Checkout started with ${payment.provider} for ${payment.providerRef}`,
+        targetId: String(payment._id), targetType: 'Payment',
+    });
+    return payment;
+}
 
 export const initiatePayment = async (req: Request, res: Response) => {
-    const applicant = await Applicant.findById(req.applicant!.id);
-    if (!applicant) {
-        res.status(404).json({ message: 'Session expired — please resume via your email link.' });
-        return;
-    }
+    const applicantId = req.applicant!.id;
+    const code = typeof req.body?.couponCode === 'string' ? req.body.couponCode.trim().toUpperCase() : '';
 
-    const validation = paymentInitiateSchema.safeParse(applicant.toObject());
-    if (!validation.success) {
-        res.status(400).json({
-            message: 'Application is incomplete. Please finish all sections before paying.',
-            errors: validation.error.flatten(),
-        });
-        return;
-    }
+    const { payment, customerEmail } = await mongoose.connection.transaction(async (session) => {
+        const applicant = await Applicant.findById(applicantId).session(session);
+        const existing = await Payment.findOne({
+            applicantId,
+            type: 'commitment_levy',
+            $or: [
+                { status: 'success' },
+                { status: 'pending', provider: { $in: ['flutterwave', 'paystack'] } },
+                { status: 'pending', 'bankTransfer.review': { $exists: true } },
+                { reconciliationReason: 'late_success' },
+            ],
+        })
+            .sort({ status: -1, createdAt: -1 }).select('+authorizationUrl').session(session);
 
-    const activeCohort = await getActiveRegistrationCohort();
-    if (!activeCohort) {
-        res.status(400).json({ message: 'There is no active cohort registration window open at this time. Please join our waitlist.' });
-        return;
-    }
+        // Authenticated retries can recover a completed attempt even after the draft was removed.
+        if (existing) return { payment: existing, customerEmail: undefined };
+        if (!applicant) throw new CheckoutRejected('Session expired — please resume via your email link.', 404);
+        if (applicant.isPaid) throw new CheckoutRejected('Payment is already confirmed. Resume your application to submit it.', 409);
 
-    const { isFull } = await checkCohortCapacity(activeCohort._id, applicant.id);
-    if (isFull) {
-        res.status(400).json({ message: 'This cohort has reached its registration capacity limit. Please join the waitlist for the next intake.' });
-        return;
-    }
+        const validation = paymentInitiateSchema.safeParse(applicant.toObject());
+        if (!validation.success) throw new CheckoutRejected('Application is incomplete. Please finish all sections before paying.');
 
-    // Check optional coupon code parameter
-    const { couponCode } = req.body;
-    let coupon: any = null;
-    let discountPercent = 0;
+        const now = new Date();
+        // Updating the cohort in this transaction serializes competing checkout starts.
+        const cohort = await Cohort.findOneAndUpdate({
+            registrationStartDate: { $lte: now },
+            registrationEndDate: { $gte: now },
+            status: 'upcoming',
+        }, { $inc: { checkoutRevision: 1 } }, { session });
+        if (!cohort) throw new CheckoutRejected('There is no active cohort registration window open at this time. Please join our waitlist.');
+        const { isFull } = await checkCohortCapacity(cohort.id, applicantId, session);
+        if (isFull) throw new CheckoutRejected('This cohort has reached its registration capacity limit. Please join the waitlist for the next intake.');
 
-    if (couponCode && typeof couponCode === 'string' && couponCode.trim()) {
-        const normalizedCode = couponCode.trim().toUpperCase();
-        coupon = await Coupon.findOne({ code: normalizedCode });
-
-        if (!coupon) {
-            res.status(400).json({ message: 'Invalid coupon code.' });
-            return;
-        }
-        if (!coupon.isActive) {
-            res.status(400).json({ message: 'This coupon code is currently inactive.' });
-            return;
-        }
-        if (coupon.expiresAt && new Date(coupon.expiresAt) <= new Date()) {
-            res.status(400).json({ message: coupon.expiredMessage || 'This coupon code has expired.' });
-            return;
-        }
-        if (coupon.maxUses !== undefined && coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) {
-            res.status(400).json({ message: 'This coupon code has reached its maximum usage limit.' });
-            return;
-        }
-        discountPercent = coupon.discountPercent;
-    }
-
-    // Assign cohort association and save checkoutStartedAt lock timestamp
-    applicant.cohortId = activeCohort._id as any;
-    applicant.checkoutStartedAt = new Date();
-    await applicant.save();
-
-    const isNigeria = applicant.country === 'Nigeria';
-    const currency = isNigeria ? 'NGN' : 'USD';
-    const rawOriginalAmount = isNigeria ? Number(env.LEVY_AMOUNT_NGN) : Number(env.LEVY_AMOUNT_USD);
-    const originalAmount = rawOriginalAmount * 100;
-
-    let finalAmount = originalAmount;
-    if (discountPercent > 0) {
-        finalAmount = Math.max(0, Math.round(originalAmount * (1 - discountPercent / 100)));
-    }
-
-    // ── 100% DISCOUNT WAIVER BYPASS GATEWAY ──────────────────────────────────
-    if (discountPercent === 100 || finalAmount === 0) {
-        const reference = `COUPON-${crypto.randomUUID()}`;
-
-        const payment = await Payment.create({
-            applicantId: applicant._id,
-            provider: 'manual',
-            providerRef: reference,
-            amount: 0,
-            originalAmount,
-            discountPercent: 100,
-            couponId: coupon._id,
-            currency,
-            status: 'success',
-            webhookVerified: true,
-            paymentMethod: 'coupon_100_waiver',
-            manualPaymentNotes: `100% Commitment Levy Waiver Coupon: ${coupon.code}`,
-        });
-
-        // Increment coupon used count atomically
-        await Coupon.findByIdAndUpdate(coupon._id, { $inc: { usedCount: 1 } });
-
-        applicant.isPaid = true;
-        applicant.expiresAt = undefined;
-        await applicant.save();
-
-        let setPasswordToken: string | undefined = undefined;
-
-        if (applicant.declaration?.confirmed && applicant.declaration?.signature) {
-            try {
-                const submission = await executeApplicationSubmission(applicant._id, payment._id);
-                payment.applicationId = submission.application._id as any;
-                await payment.save();
-                setPasswordToken = submission.setPasswordToken;
-                console.log(`[initiatePayment Waiver] Auto-submitted application for ${applicant.email}`);
-            } catch (err) {
-                console.error(`[initiatePayment Waiver] Auto-submit failed:`, err);
+        // Serialize claims for the same coupon even across different cohorts.
+        const coupon = code
+            ? await Coupon.findOneAndUpdate({ code }, { $inc: { checkoutRevision: 1 } }, { session })
+            : null;
+        if (code && !coupon) throw new CheckoutRejected('Invalid coupon code.');
+        if (coupon && !coupon.isActive) throw new CheckoutRejected('This coupon code is currently inactive.');
+        if (coupon?.expiresAt && coupon.expiresAt <= now) throw new CheckoutRejected(coupon.expiredMessage || 'This coupon code has expired.');
+        if (coupon?.maxUses != null) {
+            const pending = await Payment.countDocuments({
+                couponId: coupon._id, status: 'pending', checkoutManaged: true,
+                $or: [{ bankTransfer: { $exists: false } }, { 'bankTransfer.holdUntil': { $gt: now } }],
+            }).session(session);
+            if (coupon.usedCount + pending >= coupon.maxUses) {
+                throw new CheckoutRejected('This coupon code has reached its maximum usage limit.');
             }
-        } else {
-            const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
-            applicant.resumeTokenHash = resumeTokenHash;
-            await applicant.save();
-            notificationEmitter.emit('payment.success', { email: applicant.email, resumeToken: resumeTokenRaw, country: applicant.country });
         }
 
-        // Audit — PAYMENT_CONFIRMED via 100% coupon waiver
-        logRawAction({
-            userId: applicant.id,
-            userEmail: applicant.email,
-            userRole: 'applicant',
-            action: 'PAYMENT_CONFIRMED',
-            description: `100% coupon waiver applied ('${coupon.code}') for "${applicant.email}" — ref: ${reference}`,
-            targetId: payment.id,
-            targetType: 'Payment',
-        });
+        const currency = applicant.country === 'Nigeria' ? 'NGN' : 'USD';
+        const originalAmount = (await getLevyAmounts(session))[currency];
+        const discountPercent = coupon?.discountPercent ?? 0;
+        const amount = Math.max(0, Math.round(originalAmount * (1 - discountPercent / 100)));
+        const waived = amount === 0;
+        const transfer = !waived && currency === 'USD';
+        let bankTransfer: BankTransfer | undefined;
+        if (transfer) {
+            if (!applicant.emailVerified || !paymentReadySchema.safeParse(applicant.toObject()).success) {
+                throw new CheckoutRejected('Verify your email and sign the declaration before starting a bank transfer.');
+            }
+            if (!env.BANK_TRANSFER_ACCOUNT_NUMBER) {
+                throw new CheckoutRejected('USD bank transfer instructions are unavailable. Email ifip.program@gmail.com for help.', 503);
+            }
+            bankTransfer = {
+                cohortId: cohort._id as Types.ObjectId,
+                account: { name: 'Nextif Mentorship Ltd', bank: 'Lead Bank', number: env.BANK_TRANSFER_ACCOUNT_NUMBER,
+                    routing: '101019644', swift: 'LEADUS49', type: 'Personal checking',
+                    address: '9450 Southwest Gemini Drive, Beaverton, OR 97008, USA' },
+                holdUntil: new Date(now.getTime() + env.BANK_TRANSFER_HOLD_DAYS * 86_400_000),
+                review: 'awaiting_proof',
+            };
+        }
 
-        res.json({ status: 'success', bypassPayment: true, reference, setPasswordToken });
+        applicant.cohortId = cohort._id as Types.ObjectId;
+        if (bankTransfer) applicant.transferHoldUntil = bankTransfer.holdUntil;
+        else applicant.checkoutStartedAt = now;
+        await applicant.save({ session });
+        if (waived && coupon) await Coupon.updateOne({ _id: coupon._id }, { $inc: { usedCount: 1 } }, { session });
+
+        const [createdPayment] = await Payment.create([{
+            applicantId,
+            provider: waived || transfer ? 'manual' : 'paystack',
+            providerRef: (waived ? 'COUPON-' : 'IFIP-') + crypto.randomUUID(),
+            amount,
+            originalAmount,
+            currency,
+            status: waived ? 'success' : 'pending',
+            checkoutManaged: true,
+            bankTransfer,
+            discountPercent: discountPercent || undefined,
+            couponId: coupon?._id,
+            webhookVerified: waived,
+            paymentMethod: waived ? 'coupon_100_waiver' : transfer ? 'International bank transfer' : undefined,
+            manualPaymentNotes: waived && coupon ? '100% Commitment Levy Waiver Coupon: ' + coupon.code : undefined,
+        }], { session });
+        return { payment: createdPayment, customerEmail: applicant.email };
+    });
+
+    if (payment.status === 'success') {
+        const setPasswordToken = await completePaidRegistration(payment);
+        if (payment.paymentMethod === 'coupon_100_waiver') {
+            if (customerEmail) {
+                logRawAction({
+                    userId: applicantId, userEmail: customerEmail, userRole: 'applicant',
+                    action: 'PAYMENT_CONFIRMED', description: 'Commitment levy waived for ' + payment.providerRef,
+                    targetId: String(payment._id), targetType: 'Payment',
+                });
+            }
+            res.json({ status: 'success', bypassPayment: true, reference: payment.providerRef, setPasswordToken });
+        } else {
+            res.json({ reference: payment.providerRef, pollingToken: signPollingToken(payment.providerRef) });
+        }
         return;
     }
 
-    // ── PARTIAL DISCOUNT OR STANDARD PAYMENT GATEWAY INITIATION ─────────────
-    const reference = `IFIP-${crypto.randomUUID()}`;
-    const provider: 'paystack' | 'flutterwave' = 'flutterwave';
-    const rawDiscountedAmount = finalAmount / 100;
+    if (payment.bankTransfer) {
+        res.json({ method: 'bank_transfer', reference: payment.providerRef });
+        return;
+    }
 
-    const flutterwaveResponse = await flutterwaveService.initializeTransaction({
-        email: applicant.email,
-        amount: rawDiscountedAmount,
-        reference,
-        currency,
-        metadata: { applicantId: applicant.id, couponId: coupon?._id ? String(coupon._id) : undefined },
+    const checkout = customerEmail ? await initializeHostedCheckout(payment, customerEmail) : payment;
+
+    res.json({
+        authorizationUrl: checkout.reconciliationReason || checkout.currency === 'USD' ? undefined : checkout.authorizationUrl,
+        reference: checkout.providerRef,
+        pollingToken: signPollingToken(checkout.providerRef),
     });
-    const authorizationUrl = flutterwaveResponse.link;
-
-    await Payment.create({
-        applicantId: applicant._id,
-        provider,
-        providerRef: reference,
-        amount: finalAmount,
-        originalAmount,
-        discountPercent: discountPercent > 0 ? discountPercent : undefined,
-        couponId: coupon?._id,
-        currency,
-        status: 'pending',
-    });
-
-    const pollingToken = signPollingToken(reference);
-
-    // Audit — PAYMENT_INITIATED (fire-and-forget)
-    logRawAction({
-        userId: applicant.id,
-        userEmail: applicant.email,
-        userRole: 'applicant',
-        action: 'PAYMENT_INITIATED',
-        description: `Payment initiated for "${applicant.email}" via ${provider.toUpperCase()} — ref: ${reference}, amount: ${finalAmount / 100} ${currency}${discountPercent > 0 ? ` (${discountPercent}% off coupon)` : ''}`,
-        targetId: applicant.id,
-        targetType: 'Applicant',
-    });
-
-    res.json({ authorizationUrl, reference, pollingToken });
 };
 
+async function completePaidRegistration(payment: IPayment) {
+    if (payment.status !== 'success') return undefined;
+    const applicant = await Applicant.findById(payment.applicantId);
+    if (!applicant || (applicant.declaration?.confirmed && applicant.declaration.signature)) {
+        try {
+            return (await executeApplicationSubmission(payment.applicantId, payment._id)).setPasswordToken;
+        } catch (error) {
+            // Leave the successful payment and draft available for the next verification or final submit.
+            if (applicant) {
+                await Applicant.updateOne({ _id: applicant._id }, { $set: { isPaid: true }, $unset: { expiresAt: 1 } });
+            }
+            console.error('[Enrollment] Could not finish payment', payment.providerRef, error instanceof Error ? error.name : 'unknown error');
+            return undefined;
+        }
+    }
+
+    const { raw, hash } = generateResumeToken();
+    const markedPaid = await Applicant.findOneAndUpdate({ _id: applicant._id, isPaid: { $ne: true } }, {
+        $set: { isPaid: true, resumeTokenHash: hash },
+        $unset: { expiresAt: 1 },
+    });
+    if (markedPaid) notificationEmitter.emit('payment.success', { email: applicant.email, resumeToken: raw, country: applicant.country });
+    return undefined;
+}
+
+async function recordProviderSuccess(payment: IPayment, verification: Record<string, unknown>, webhookVerified: boolean) {
+    const flutterwave = payment.provider === 'flutterwave';
+    const verificationField = flutterwave ? 'flutterwaveVerification' : 'paystackVerification';
+    const reference = flutterwave ? verification.tx_ref : verification.reference;
+    const providerAmount = typeof verification.amount === 'number' ? verification.amount : NaN;
+    const requestedAmount = typeof verification.requested_amount === 'number' ? verification.requested_amount : undefined;
+    const amount = flutterwave ? Math.round(providerAmount * 100) : providerAmount;
+    const amountMatches = amount === payment.amount || (requestedAmount != null && requestedAmount === payment.amount);
+    const matches = reference === payment.providerRef && amountMatches && verification.currency === payment.currency;
+
+    const confirmed = await mongoose.connection.transaction(async (session) => {
+        if (!matches) {
+            await Payment.updateOne({ _id: payment._id, status: { $ne: 'success' }, reconciliationReason: { $ne: 'late_success' } }, {
+                $set: { reconciliationReason: 'verification_mismatch', [verificationField]: verification },
+            }, { session });
+            return false;
+        }
+        const updated = await Payment.findOneAndUpdate({ _id: payment._id, status: 'pending' }, {
+            $set: { status: 'success', [verificationField]: verification, ...(webhookVerified ? { webhookVerified: true } : {}) },
+            $unset: { reconciliationReason: 1 },
+        }, { session, returnDocument: 'before' });
+        if (updated?.couponId) await Coupon.updateOne({ _id: updated.couponId }, { $inc: { usedCount: 1 } }, { session });
+        if (!updated) {
+            // A retired attempt may have a replacement already. Keep late receipts for reconciliation.
+            await Payment.updateOne({ _id: payment._id, status: 'failed' }, {
+                $set: { reconciliationReason: 'late_success', [verificationField]: verification },
+            }, { session });
+            if (webhookVerified) await Payment.updateOne({ _id: payment._id, status: 'success' }, { $set: { webhookVerified: true } }, { session });
+        }
+        return Boolean(updated);
+    });
+    if (confirmed) {
+        void Applicant.findById(payment.applicantId).select('email').then((applicant) => {
+            if (!applicant) return;
+            return logRawAction({
+                userId: String(payment.applicantId), userEmail: applicant.email, userRole: 'applicant',
+                action: 'PAYMENT_CONFIRMED', description: 'Payment confirmed for ' + payment.providerRef,
+                targetId: String(payment._id), targetType: 'Payment',
+            });
+        }).catch((error: unknown) => console.error('[Payment] Could not write confirmation audit', error));
+    }
+}
+
+async function recordProviderFailure(payment: IPayment) {
+    await Payment.updateOne({ _id: payment._id, status: 'pending', reconciliationReason: { $exists: false } }, { $set: { status: 'failed' } });
+}
+
 export const getPaymentStatus = async (req: Request, res: Response) => {
-    const { token, transaction_id, status: queryStatus } = req.query;
+    const { token, transaction_id } = req.query;
 
     if (typeof token !== 'string') {
         res.status(401).json({ message: 'Polling token required.' });
@@ -265,130 +354,42 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
         return;
     }
 
-    // Fallback direct check if webhook is delayed
-    if (payment.status === 'pending') {
+    // Use provider evidence for the outcome. A callback label alone can be stale.
+    if (payment.status !== 'success') {
         try {
             if (payment.provider === 'flutterwave') {
-                if (queryStatus === 'cancelled' || queryStatus === 'failed') {
-                    payment.status = 'failed';
-                    await payment.save();
-                } else {
-                    let verified: any = null;
-                    if (typeof transaction_id === 'string' && transaction_id.trim()) {
-                        try {
-                            verified = await flutterwaveService.verifyTransaction(transaction_id);
-                        } catch (err: any) {
-                            console.warn(`[PaymentStatus] Flutterwave verify by ID failed (${transaction_id}), falling back to ref:`, err?.message);
-                        }
-                    }
-                    if (!verified) {
-                        verified = await flutterwaveService.verifyTransactionByRef(req.params.reference);
-                    }
-
-                    console.log(`[PaymentStatus] Flutterwave verify → status=${verified.status} amount=${verified.amount} stored=${payment.amount}`);
-
-                    if (verified.status === 'successful') {
-                        payment.status = 'success';
-                        payment.flutterwaveVerification = verified as unknown as Record<string, unknown>;
-                        await payment.save();
-
-                        if (payment.couponId) {
-                            await Coupon.findByIdAndUpdate(payment.couponId, { $inc: { usedCount: 1 } });
-                        }
-
-                        // Mark applicant as paid and remove TTL expiresAt field to prevent auto-deletion
-                        const applicant = await Applicant.findById(payment.applicantId);
-                        if (applicant && !applicant.isPaid) {
-                            applicant.isPaid = true;
-                            applicant.expiresAt = undefined;
-                            await applicant.save();
-
-                            // Check if declaration signed and confirmed
-                            if (applicant.declaration?.confirmed && applicant.declaration?.signature) {
-                                try {
-                                    const submission = await executeApplicationSubmission(applicant._id, payment._id);
-                                    payment.applicationId = submission.application._id as any;
-                                    console.log(`[PaymentStatus] Auto-submitted application on verify check for ${applicant.email}`);
-                                } catch (err) {
-                                    console.error(`[PaymentStatus] Auto-submit failed on verify check:`, err);
-                                }
-                            } else {
-                                // Fallback (paid but not signed yet) - generate new resume token & email it
-                                const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
-                                applicant.resumeTokenHash = resumeTokenHash;
-                                await applicant.save();
-                                notificationEmitter.emit('payment.success', { email: applicant.email, resumeToken: resumeTokenRaw, country: applicant.country });
-                            }
-                        }
-                    } else if (verified.status === 'failed' || verified.status === 'cancelled') {
-                        payment.status = 'failed';
-                        await payment.save();
+                let verified;
+                if (typeof transaction_id === 'string' && transaction_id.trim()) {
+                    try {
+                        verified = await flutterwaveService.verifyTransaction(transaction_id);
+                    } catch {
+                        // The transaction ID is optional; the stored reference can also be verified.
                     }
                 }
-            } else {
-                const verified = await paystackService.verifyTransaction(req.params.reference);
-                console.log(`[PaymentStatus] Paystack verify → status=${verified.status} amount=${verified.amount} stored=${payment.amount}`);
-
+                if (verified?.tx_ref !== payment.providerRef) {
+                    verified = await flutterwaveService.verifyTransactionByRef(payment.providerRef);
+                }
+                if (verified.status === 'successful') {
+                    await recordProviderSuccess(payment, { ...verified }, false);
+                } else if (verified.tx_ref === payment.providerRef && (verified.status === 'failed' || verified.status === 'cancelled')) {
+                    await recordProviderFailure(payment);
+                }
+            } else if (payment.provider === 'paystack') {
+                const verified = await paystackService.verifyTransaction(payment.providerRef);
                 if (verified.status === 'success') {
-                    // Trust the reference match — Paystack adds processing fee so amounts differ
-                    payment.status = 'success';
-                    payment.paystackVerification = verified as unknown as Record<string, unknown>;
-                    await payment.save();
-
-                    if (payment.couponId) {
-                        await Coupon.findByIdAndUpdate(payment.couponId, { $inc: { usedCount: 1 } });
-                    }
-
-                    // Mark applicant as paid and remove TTL expiresAt field to prevent auto-deletion
-                    const applicant = await Applicant.findById(payment.applicantId);
-                    if (applicant && !applicant.isPaid) {
-                        applicant.isPaid = true;
-                        applicant.expiresAt = undefined;
-                        await applicant.save();
-
-                        // Check if declaration signed and confirmed
-                        if (applicant.declaration?.confirmed && applicant.declaration?.signature) {
-                            try {
-                                const submission = await executeApplicationSubmission(applicant._id, payment._id);
-                                payment.applicationId = submission.application._id as any;
-                                console.log(`[PaymentStatus] Auto-submitted application on verify check for ${applicant.email}`);
-                            } catch (err) {
-                                console.error(`[PaymentStatus] Auto-submit failed on verify check:`, err);
-                            }
-                        } else {
-                            // Fallback (paid but not signed yet) - generate new resume token & email it
-                            const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
-                            applicant.resumeTokenHash = resumeTokenHash;
-                            await applicant.save();
-                            notificationEmitter.emit('payment.success', { email: applicant.email, resumeToken: resumeTokenRaw, country: applicant.country });
-                        }
-                    }
-                } else if (verified.status === 'failed' || verified.status === 'abandoned') {
-                    payment.status = 'failed';
-                    await payment.save();
+                    await recordProviderSuccess(payment, { ...verified }, false);
+                } else if (verified.reference === payment.providerRef && verified.status === 'failed') {
+                    await recordProviderFailure(payment);
                 }
             }
-        } catch (e: any) {
-            console.error('[PaymentStatus] Verification check error:', e?.response?.status, e?.response?.data ?? e?.message);
+        } catch (error) {
+            console.error('[PaymentStatus] Could not verify payment', payment.providerRef, error instanceof Error ? error.name : 'unknown error');
         }
     }
 
-    if (payment.status === 'success') {
-        let setPasswordToken: string | undefined = undefined;
-        if (payment.applicationId) {
-            const application = await Application.findById(payment.applicationId);
-            if (application) {
-                const user = await User.findById(application.userId);
-                if (user) {
-                    setPasswordToken = signSetPasswordToken(user.id, user.email);
-                }
-            }
-        }
-        res.json({ status: payment.status, setPasswordToken });
-        return;
-    }
-
-    res.json({ status: payment.status });
+    const current = await Payment.findById(payment._id).orFail();
+    const setPasswordToken = await completePaidRegistration(current);
+    res.json({ status: current.status !== 'success' && current.reconciliationReason ? 'pending' : current.status, setPasswordToken });
 };
 
 export const handlePaystackWebhook = async (req: Request, res: Response) => {
@@ -396,91 +397,35 @@ export const handlePaystackWebhook = async (req: Request, res: Response) => {
         res.status(200).end();
         return;
     }
-    const signature = req.headers['x-paystack-signature'] as string | undefined;
-    const expectedSignature = crypto
-        .createHmac('sha512', env.PAYSTACK_SECRET_KEY)
-        .update(req.rawBody!)
-        .digest('hex');
-
-    if (!signature || signature !== expectedSignature) {
+    if (!paystackService.verifyWebhookSignature(req.rawBody, req.get('paystack-signature'), req.get('x-paystack-signature'))) {
         console.warn('Paystack webhook signature mismatch — possible spoofed request');
         res.status(401).end();
         return;
     }
 
-    const event = req.body as { event: string; data: { reference: string } };
-    if (event.event !== 'charge.success') {
+    const event = req.body as { event?: string; data?: { reference?: string } } | undefined;
+    const reference = event?.data?.reference;
+    if (event?.event !== 'charge.success' || typeof reference !== 'string' || !reference) {
         res.status(200).end();
         return;
     }
 
-    const { reference } = event.data;
-    const payment = await Payment.findOne({ providerRef: reference });
-
+    const payment = await Payment.findOne({ providerRef: reference, provider: 'paystack' });
     if (!payment) {
-        console.warn(`Webhook received for unknown reference: ${reference}`);
         res.status(200).end();
         return;
     }
-
-    if (payment.status === 'success') {
-        res.status(200).end();
-        return;
-    }
-
-    const verified = await paystackService.verifyTransaction(reference);
-    if (verified.status !== 'success') {
-        console.error(`Webhook verify: non-success status for ${reference}:`, verified.status);
-        payment.status = 'failed';
-        await payment.save();
-        res.status(200).end();
-        return;
-    }
-
-    payment.status = 'success';
-    payment.webhookVerified = true;
-    payment.paystackVerification = verified as unknown as Record<string, unknown>;
-    await payment.save();
-
-    if (payment.couponId) {
-        await Coupon.findByIdAndUpdate(payment.couponId, { $inc: { usedCount: 1 } });
-    }
-
-    // Mark applicant as paid and remove TTL expiresAt field to prevent auto-deletion
-    const applicant = await Applicant.findById(payment.applicantId);
-    if (applicant && !applicant.isPaid) {
-        applicant.isPaid = true;
-        applicant.expiresAt = undefined;
-        await applicant.save();
-
-        // Check if declaration signed and confirmed
-        if (applicant.declaration?.confirmed && applicant.declaration?.signature) {
-            try {
-                await executeApplicationSubmission(applicant._id, payment._id);
-                console.log(`[Webhook] Auto-submitted application on webhook for ${applicant.email}`);
-            } catch (err) {
-                console.error(`[Webhook] Auto-submit failed on webhook:`, err);
-            }
-        } else {
-            // Fallback (paid but not signed yet) - generate new resume token & email it
-            const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
-            applicant.resumeTokenHash = resumeTokenHash;
-            await applicant.save();
-            notificationEmitter.emit('payment.success', { email: applicant.email, resumeToken: resumeTokenRaw, country: applicant.country });
+    if (payment.status !== 'success') {
+        const verified = await paystackService.verifyTransaction(reference);
+        if (verified.status !== 'success') {
+            res.status(503).end();
+            return;
         }
-
-        // Audit — PAYMENT_CONFIRMED via Paystack webhook (fire-and-forget)
-        logRawAction({
-            userId: applicant.id,
-            userEmail: applicant.email,
-            userRole: 'applicant',
-            action: 'PAYMENT_CONFIRMED',
-            description: `Paystack payment confirmed via webhook for "${applicant.email}" — ref: ${reference}`,
-            targetId: payment.id,
-            targetType: 'Payment',
-        });
+        await recordProviderSuccess(payment, { ...verified }, true);
+    } else if (!payment.webhookVerified) {
+        await Payment.updateOne({ _id: payment._id, status: 'success' }, { $set: { webhookVerified: true } });
     }
-
+    await completePaidRegistration(await Payment.findById(payment._id).orFail());
     res.status(200).end();
 };
 
@@ -501,72 +446,16 @@ export const handleFlutterwaveWebhook = async (req: Request, res: Response) => {
     }
 
     const { tx_ref, id } = payload.data;
-    const payment = await Payment.findOne({ providerRef: tx_ref });
-
+    const payment = await Payment.findOne({ providerRef: tx_ref, provider: 'flutterwave' });
     if (!payment) {
-        console.warn(`Webhook received for unknown reference: ${tx_ref}`);
         res.status(200).end();
         return;
     }
-
-    if (payment.status === 'success') {
-        res.status(200).end();
-        return;
-    }
-
-    try {
+    if (payment.status !== 'success') {
         const verified = await flutterwaveService.verifyTransaction(id);
-        if (verified.status !== 'successful') {
-            console.error(`Webhook verify: non-success status for ${tx_ref}:`, verified.status);
-            payment.status = 'failed';
-            await payment.save();
-            res.status(200).end();
-            return;
-        }
-
-        payment.status = 'success';
-        payment.webhookVerified = true;
-        payment.flutterwaveVerification = verified as unknown as Record<string, unknown>;
-        await payment.save();
-
-        if (payment.couponId) {
-            await Coupon.findByIdAndUpdate(payment.couponId, { $inc: { usedCount: 1 } });
-        }
-
-        const applicant = await Applicant.findById(payment.applicantId);
-        if (applicant && !applicant.isPaid) {
-            applicant.isPaid = true;
-            applicant.expiresAt = undefined;
-            await applicant.save();
-
-            if (applicant.declaration?.confirmed && applicant.declaration?.signature) {
-                try {
-                    await executeApplicationSubmission(applicant._id, payment._id);
-                    console.log(`[Webhook] Auto-submitted application on Flutterwave webhook for ${applicant.email}`);
-                } catch (err) {
-                    console.error(`[Webhook] Auto-submit failed on Flutterwave webhook:`, err);
-                }
-            } else {
-                const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
-                applicant.resumeTokenHash = resumeTokenHash;
-                await applicant.save();
-                notificationEmitter.emit('payment.success', { email: applicant.email, resumeToken: resumeTokenRaw, country: applicant.country });
-            }
-
-            // Audit — PAYMENT_CONFIRMED via Flutterwave webhook (fire-and-forget)
-            logRawAction({
-                userId: applicant.id,
-                userEmail: applicant.email,
-                userRole: 'applicant',
-                action: 'PAYMENT_CONFIRMED',
-                description: `Flutterwave payment confirmed via webhook for "${applicant.email}" — ref: ${tx_ref}`,
-                targetId: payment.id,
-                targetType: 'Payment',
-            });
-        }
-    } catch (err: any) {
-        console.error('[Webhook] Flutterwave verify error:', err?.response?.status, err?.response?.data ?? err?.message);
+        if (verified.status === 'successful') await recordProviderSuccess(payment, { ...verified }, true);
+        else if (verified.tx_ref === payment.providerRef && (verified.status === 'failed' || verified.status === 'cancelled')) await recordProviderFailure(payment);
     }
-
+    await completePaidRegistration(await Payment.findById(payment._id).orFail());
     res.status(200).end();
 };

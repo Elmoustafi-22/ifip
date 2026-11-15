@@ -18,36 +18,27 @@ import {
 import {
   getLMSModules,
   LMSModule,
-  getMyApplication,
-  getCohortConfig,
   getMyTaskRewardSummary,
   MyTaskRewardSummary,
 } from "@/lib/api/services";
+import { useDashboard } from "../dashboard-context";
 
 export default function ModulesPage() {
+  const { profile, isLaunched, cohortStartLabel } = useDashboard();
   const [modules, setModules] = useState<LMSModule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [userData, setUserData] = useState<any>(null);
-  const [cohortStartDate, setCohortStartDate] = useState("2026-08-31T00:00:00.000Z");
-  const [dashboardViewOverride, setDashboardViewOverride] = useState<string>("default");
   const [isAwaitingAssignment, setIsAwaitingAssignment] = useState(false);
   const [taskRewardSummary, setTaskRewardSummary] = useState<MyTaskRewardSummary | null>(null);
 
   useEffect(() => {
     const fetchModulesData = async () => {
       try {
-        const [profile, config, rewardSummary] = await Promise.all([
-          getMyApplication(),
-          getCohortConfig(),
-          getMyTaskRewardSummary().catch(() => null)
+        const [modulesData, rewardSummary] = await Promise.all([
+          getLMSModules(),
+          getMyTaskRewardSummary().catch(() => null),
         ]);
-        setUserData(profile);
-        setCohortStartDate(config.cohortStartDate);
-        setDashboardViewOverride(config.dashboardViewOverride || "default");
         setTaskRewardSummary(rewardSummary);
-
-        const modulesData = await getLMSModules();
         setModules(modulesData);
       } catch (err: any) {
         console.error("Failed to load modules page parameters:", err);
@@ -88,15 +79,6 @@ export default function ModulesPage() {
     return "bg-[#000666]/5 border-[#000666]/10 text-[#000666]";
   };
 
-  const getIsLaunched = () => {
-    if (userData?.role === "admin" || userData?.role === "superadmin") return true;
-    if (dashboardViewOverride === "unlocked") return true;
-    if (dashboardViewOverride === "coming_soon") return false;
-    return new Date() >= new Date(cohortStartDate);
-  };
-
-  const isLaunched = getIsLaunched();
-
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
@@ -125,7 +107,7 @@ export default function ModulesPage() {
           </h1>
           
           <p className="text-sm text-slate-600 leading-relaxed font-medium mb-6">
-            Welcome, <strong>{userData?.fullName || "Candidate"}</strong>! Your commitment levy has been successfully received and verified. 
+            Welcome, <strong>{profile.fullName || "Candidate"}</strong>! Your commitment levy has been successfully received and verified.
           </p>
 
           <div className="bg-[#000666]/5 rounded-xl p-4 text-xs text-[#000666] leading-relaxed font-semibold max-w-md mx-auto mb-8 border border-[#000666]/10 text-left">
@@ -161,37 +143,6 @@ export default function ModulesPage() {
   }
 
   if (!isLaunched) {
-    const formatCohortDate = (isoString: string) => {
-      try {
-        const d = new Date(isoString);
-        return d.toLocaleDateString("en-US", {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        });
-      } catch {
-        return "August 31, 2026";
-      }
-    };
-
-    const getOrdinalDay = (isoString: string) => {
-      try {
-        const d = new Date(isoString);
-        const day = d.getDate();
-        const month = d.toLocaleDateString("en-US", { month: "long" });
-        const year = d.getFullYear();
-        
-        let suffix = "th";
-        if (day === 1 || day === 21 || day === 31) suffix = "st";
-        else if (day === 2 || day === 22) suffix = "nd";
-        else if (day === 3 || day === 23) suffix = "rd";
-        
-        return `${month} ${day}${suffix}, ${year}`;
-      } catch {
-        return "August 31st, 2026";
-      }
-    };
-
     return (
       <div className="flex-grow flex flex-col items-center justify-center py-10 px-4">
         <div className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200/50 p-6 md:p-12 lg:p-16 flex flex-col items-center text-center mx-auto shadow-sm select-none">
@@ -223,8 +174,7 @@ export default function ModulesPage() {
 
           {/* Dynamic launch text */}
           <p className="text-sm text-slate-600 leading-relaxed max-w-lg mb-8 font-medium">
-            The learning curriculum and coursework modules are currently locked. Full access to all units and interactive training files will be granted upon official program commencement on{" "}
-            <strong className="text-[#000666]">{getOrdinalDay(cohortStartDate)}</strong>.
+            Coursework and training materials are currently locked.
           </p>
 
           {/* Launch Date Border Box */}
@@ -233,7 +183,7 @@ export default function ModulesPage() {
               Program Launch Date
             </span>
             <span className="text-xl font-display font-black text-[#000666]">
-              {formatCohortDate(cohortStartDate)}
+              {cohortStartLabel ?? "To be announced"}
             </span>
           </div>
 

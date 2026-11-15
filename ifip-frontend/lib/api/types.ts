@@ -32,6 +32,7 @@ export interface DeclarationInfo {
 }
 
 export interface Applicant {
+  transferHoldUntil?: string;
   id: string;
   _id: string;
   email: string;
@@ -109,7 +110,9 @@ export interface AuthResponse {
   refreshToken?: string;
   user?: AuthUser;
   mfaRequired?: boolean;
+  mfaEnrollmentRequired?: boolean;
   mfaToken?: string;
+  signInRequired?: boolean;
 }
 
 export interface ForgotPasswordResponse {

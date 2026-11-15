@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  ...(process.env.IFIP_ISOLATED_DEV === "1" ? { distDir: ".next/ifip-local" } : {}),
   compress: true,
   poweredByHeader: false,
   images: {

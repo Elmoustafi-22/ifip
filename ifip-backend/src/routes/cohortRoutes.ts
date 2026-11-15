@@ -7,12 +7,15 @@ import { authenticate, authorize } from '../middleware/auth.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { logAction } from '../utils/auditLogger.js';
 import { updateContentVersion } from '../controllers/contentVersionController.js';
+import { getLevyPricing } from '../controllers/levyPricingController.js';
 
 const router = Router();
 
+router.get('/levy-pricing', getLevyPricing);
+
 router.get('/registration-status', async (req, res) => {
     try {
-        res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+        res.set('Cache-Control', 'no-store');
         const cohort = await getActiveRegistrationCohort();
         if (!cohort) {
             res.json({ hasActiveCohort: false, isFull: true });
@@ -25,6 +28,7 @@ router.get('/registration-status', async (req, res) => {
             hasActiveCohort: true,
             isFull: capacity.isFull,
             cohortName: cohort.name,
+            cohortStartDate: cohort.startDate?.toISOString(),
             registrationEndDate: cohort.registrationEndDate.toISOString(),
             cap: capacity.cap,
             count: capacity.count,
@@ -40,7 +44,7 @@ router.get('/active', authenticate, async (req, res) => {
         const config = await CohortConfig.findOne();
         if (!config) {
             // Fallback to active/upcoming cohort in database
-            const activeCohort = await Cohort.findOne({ status: { $in: ['active', 'upcoming'] } }).sort({ startDate: 1 });
+            const activeCohort = await Cohort.findOne({ status: { $in: ['active', 'upcoming'] }, startDate: { $type: 'date' } }).sort({ startDate: 1 });
             const defaultDate = activeCohort?.startDate || new Date('2026-09-05T00:00:00.000Z');
             const defaultCap = activeCohort?.cohortCap || Number(env.COHORT_CAP || 100);
 
@@ -83,7 +87,7 @@ router.post('/active', authenticate, authorize('admin', 'superadmin'), async (re
             if (startDate) {
                 start = new Date(startDate);
             } else {
-                const activeCohort = await Cohort.findOne({ status: { $in: ['active', 'upcoming'] } }).sort({ startDate: 1 });
+                const activeCohort = await Cohort.findOne({ status: { $in: ['active', 'upcoming'] }, startDate: { $type: 'date' } }).sort({ startDate: 1 });
                 start = activeCohort?.startDate || new Date('2026-09-05T00:00:00.000Z');
             }
             const cap = cohortCap !== undefined ? Number(cohortCap) : Number(env.COHORT_CAP || 100);

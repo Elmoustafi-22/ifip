@@ -3,11 +3,11 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import RegistrationSupportFooter from "@/components/RegistrationSupportFooter";
 import {
   HiEnvelope,
   HiArrowRight,
   HiArrowLeft,
-  HiLockClosed,
   HiCheckCircle,
   HiInformationCircle,
 } from "react-icons/hi2";
@@ -39,10 +39,10 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-academic-cream font-sans text-on-surface flex flex-col">
+    <div className="min-h-screen bg-[#eef4fa] font-sans text-on-surface flex flex-col">
 
       {/* Minimal header — logo only (secure flow) */}
-      <header className="py-5 px-6 flex items-center justify-center border-b border-outline-variant/20 bg-white/60 backdrop-blur-sm">
+      <header className="py-3 px-5 flex items-center justify-center border-b border-outline-variant/20 bg-white">
         <Link href="/">
           <Image
             src="/images/logos/logo-full-color.png"
@@ -55,15 +55,15 @@ export default function ForgotPasswordPage() {
         </Link>
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center px-4 py-12">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 sm:py-12">
 
         {submitted ? (
           /* ── Success state ── */
-          <div className="w-full max-w-[440px] bg-white rounded-2xl shadow-level1 border border-outline-variant/20 p-8 md:p-10 flex flex-col items-center gap-5 text-center">
+          <div className="w-full max-w-[440px] bg-[#ffffff] rounded-[18px] border border-[#cbd8e8] p-5 sm:p-8 flex flex-col items-center gap-5 text-center">
             <div className="w-20 h-20 rounded-full bg-green-50 border border-green-200 flex items-center justify-center">
               <HiCheckCircle className="w-10 h-10 text-green-500" />
             </div>
-            <h1 className="text-headline-md text-primary">Check Your Inbox</h1>
+            <h1 className="text-2xl leading-tight tracking-tight text-[#101f3f] sm:text-3xl font-semibold font-sans">Check your email</h1>
             <p className="text-sm text-on-surface-variant leading-relaxed">
               If an account with <strong>{email}</strong> exists, we&apos;ve sent a password reset link. It expires in <strong>1 hour</strong>.
             </p>
@@ -84,7 +84,7 @@ export default function ForgotPasswordPage() {
           </div>
         ) : (
           /* ── Form state ── */
-          <div className="w-full max-w-[440px] bg-white rounded-2xl shadow-level1 border border-outline-variant/20 p-8 md:p-10">
+          <div className="w-full max-w-[440px] bg-[#ffffff] rounded-[18px] border border-[#cbd8e8] p-5 sm:p-8">
 
             {/* Logo + heading */}
             <div className="flex flex-col items-center mb-8">
@@ -97,7 +97,7 @@ export default function ForgotPasswordPage() {
                   className="w-14 h-14 object-contain"
                 />
               </div>
-              <h1 className="text-headline-md text-primary text-center">Reset Your Password</h1>
+              <h1 className="text-2xl leading-tight tracking-tight text-[#101f3f] sm:text-3xl text-center font-semibold font-sans">Forgot your password?</h1>
               <p className="text-sm text-on-surface-variant text-center mt-2 leading-relaxed">
                 Enter the email address associated with your IFIP account and we&apos;ll send you a link to reset your password.
               </p>
@@ -133,7 +133,7 @@ export default function ForgotPasswordPage() {
                 id="forgot-password-submit"
                 type="submit"
                 disabled={loading}
-                className="w-full bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-white font-semibold text-sm py-3.5 px-6 rounded-[6px] flex items-center justify-center gap-2 shadow-sm hover-lift transition-all"
+                className="w-full min-h-[50px] rounded-[9px] bg-[#101f3f] px-5 py-3 text-sm font-semibold text-white hover:bg-[#24395f] disabled:opacity-60 motion-safe:transition-colors flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -161,24 +161,9 @@ export default function ForgotPasswordPage() {
             </form>
           </div>
         )}
+      </div>
 
-        <p className="mt-6 text-xs text-on-surface-variant/60 flex items-center gap-1.5">
-          <HiLockClosed className="w-3.5 h-3.5" />
-          Secure Institutional Gateway
-        </p>
-      </main>
-
-      {/* Minimal footer */}
-      <footer className="py-6 px-4 border-t border-outline-variant/20 bg-academic-cream">
-        <div className="max-w-[1280px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-on-surface-variant">
-          <span>© {new Date().getFullYear()} IFIP. All rights reserved. Ethical Finance Education.</span>
-          <div className="flex items-center gap-4">
-            <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-primary transition-colors">Program FAQs</a>
-          </div>
-        </div>
-      </footer>
+      <RegistrationSupportFooter />
     </div>
   );
 }

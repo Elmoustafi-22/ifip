@@ -24,6 +24,7 @@ import {
   saveAltCertificateUrl
 } from "@/lib/api/services";
 import { changePassword, mfaSetup, mfaEnable, mfaDisable, updateNotificationPreferences } from "@/lib/api/auth";
+import { useDashboard } from "../dashboard-context";
 
 // Common country list for dial codes & location matching
 const POPULAR_COUNTRIES = [
@@ -44,6 +45,7 @@ const POPULAR_COUNTRIES = [
 import { useFormOptions } from "@/lib/hooks/useFormOptions";
 
 export default function SettingsPage() {
+  const { updateProfile } = useDashboard();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
@@ -433,7 +435,8 @@ export default function SettingsPage() {
     };
 
     try {
-      await updateMyApplication(payload);
+      const { fullName, avatarUrl, cvUrl } = await updateMyApplication(payload);
+      updateProfile({ fullName, avatarUrl, cvUrl });
       setSuccessMsg("Your profile has been successfully saved.");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err: any) {

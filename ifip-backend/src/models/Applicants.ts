@@ -38,6 +38,7 @@ export interface IApplicant extends Document {
     expiresAt?: Date;
     cohortId?: Types.ObjectId;
     checkoutStartedAt?: Date;
+    transferHoldUntil?: Date;
     lastReminderSentAt?: Date;
     reminderCount?: number;
     reminderHistory?: Array<{
@@ -84,6 +85,7 @@ const applicantSchema = new Schema<IApplicant>(
         expiresAt: { type: Date, required: false },
         cohortId: { type: Schema.Types.ObjectId, ref: 'Cohort' },
         checkoutStartedAt: Date,
+        transferHoldUntil: Date,
         lastReminderSentAt: Date,
         reminderCount: { type: Number, default: 0 },
         reminderHistory: [

@@ -9,6 +9,7 @@ import {
     getTokenInfo,
     changePassword,
     loginMfaVerify,
+    completeAdminMfaSetup,
     mfaSetup,
     mfaEnable,
     mfaDisable,
@@ -17,6 +18,7 @@ import {
 } from '../controllers/authController.js';
 import { validate } from '../middleware/validate.js';
 import { authenticate } from '../middleware/auth.js';
+import { verifyAdminEnrollmentEmail } from '../services/adminMfa.js';
 import {
     setPasswordSchema,
     loginSchema,
@@ -37,6 +39,8 @@ router.post('/login', validate(loginSchema), login);
 
 // MFA second-step verification
 router.post('/login/mfa-verify', loginMfaVerify);
+router.post('/login/admin-mfa/setup', verifyAdminEnrollmentEmail);
+router.post('/login/admin-mfa/enable', completeAdminMfaSetup);
 
 // Refresh access token using the httpOnly refreshToken cookie
 router.post('/refresh', refresh);

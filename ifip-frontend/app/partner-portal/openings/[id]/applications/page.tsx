@@ -1,5 +1,7 @@
 "use client";
 
+import { hiringOutcomeLabels } from "@/lib/api/services";
+
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -398,7 +400,7 @@ export default function JobOpeningApplicationsReviewPage() {
                   </div>
 
                   <div className="flex items-center gap-2 self-start sm:self-auto">
-                    {getStatusBadge(app.status)}
+                    {app.hiringOutcome ? <span className="text-xs font-semibold text-slate-800">{hiringOutcomeLabels[app.hiringOutcome.status]} · Recorded by IFIP</span> : getStatusBadge(app.status)}
                   </div>
                 </div>
 
@@ -591,7 +593,7 @@ export default function JobOpeningApplicationsReviewPage() {
                     {selectedApplicant.applicant?.fullName || "Candidate"}
                   </h3>
                   <div className="mt-1 flex items-center gap-2">
-                    {getStatusBadge(selectedApplicant.status)}
+                    {selectedApplicant.hiringOutcome ? <span className="text-xs font-semibold text-slate-800">{hiringOutcomeLabels[selectedApplicant.hiringOutcome.status]} · Recorded by IFIP</span> : getStatusBadge(selectedApplicant.status)}
                   </div>
                 </div>
               </div>

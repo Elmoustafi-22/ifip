@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import RegistrationSupportFooter from "@/components/RegistrationSupportFooter";
 import { useSearchParams } from "next/navigation";
 import {
   HiEye,
@@ -47,6 +48,7 @@ function ResetPasswordInner() {
   const [tokenChecked, setTokenChecked] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [signInRequired, setSignInRequired] = useState(false);
 
   const reqs = checkRequirements(password);
   const allReqsMet = Object.values(reqs).every(Boolean);
@@ -78,9 +80,9 @@ function ResetPasswordInner() {
 
     setLoading(true);
     try {
-      await resetPasswordApi(token, password);
+      const result = await resetPasswordApi(token, password);
+      setSignInRequired(result.signInRequired === true);
       setSuccess(true);
-      setTimeout(() => { window.location.href = "/dashboard"; }, 1800);
     } catch (err: unknown) {
       setSubmitError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -91,16 +93,12 @@ function ResetPasswordInner() {
   // ── Success state ──
   if (success) {
     return (
-      <div className="w-full max-w-[460px] bg-white rounded-2xl shadow-level1 border border-outline-variant/20 p-8 md:p-10 flex flex-col items-center gap-4 text-center">
+      <div className="w-full max-w-[460px] bg-[#ffffff] rounded-[18px] border border-[#cbd8e8] p-5 sm:p-8 flex flex-col items-center gap-4 text-center">
         <div className="w-16 h-16 rounded-full bg-green-50 border border-green-200 flex items-center justify-center">
           <HiCheckCircle className="w-9 h-9 text-green-500" />
         </div>
-        <h2 className="text-headline-md text-primary">Password Reset!</h2>
-        <p className="text-sm text-on-surface-variant">Your password has been updated. Redirecting you to your dashboard…</p>
-        <svg className="animate-spin w-5 h-5 text-primary/50 mt-2" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-        </svg>
+        <h1 className="text-2xl leading-tight tracking-tight text-[#101f3f] sm:text-3xl font-semibold font-sans">Your password was reset</h1>
+        <Link href={signInRequired ? "/login" : "/dashboard"} className="inline-flex min-h-[50px] w-full items-center justify-center rounded-[9px] bg-[#101f3f] px-5 text-sm font-semibold text-white hover:bg-[#24395f]">{signInRequired ? "Continue to sign in" : "Continue"}</Link>
       </div>
     );
   }
@@ -108,11 +106,11 @@ function ResetPasswordInner() {
   // ── Token error state ──
   if (tokenChecked && tokenError) {
     return (
-      <div className="w-full max-w-[460px] bg-white rounded-2xl shadow-level1 border border-outline-variant/20 p-8 md:p-10 flex flex-col items-center gap-4 text-center">
+      <div className="w-full max-w-[460px] bg-[#ffffff] rounded-[18px] border border-[#cbd8e8] p-5 sm:p-8 flex flex-col items-center gap-4 text-center">
         <div className="w-16 h-16 rounded-full bg-red-50 border border-red-200 flex items-center justify-center">
           <HiLockClosed className="w-8 h-8 text-red-400" />
         </div>
-        <h2 className="text-headline-md text-primary">Link Expired or Invalid</h2>
+        <h1 className="text-2xl leading-tight tracking-tight text-[#101f3f] sm:text-3xl font-semibold font-sans">This link is unavailable</h1>
         <p className="text-sm text-on-surface-variant max-w-sm">{tokenError}</p>
         <Link href="/forgot-password" className="mt-2 text-sm font-semibold text-vibrant-blue hover:underline">
           Request a new reset link →
@@ -126,11 +124,9 @@ function ResetPasswordInner() {
   }
 
   return (
-    <div className="w-full max-w-[460px] bg-white rounded-2xl shadow-level1 border border-outline-variant/20 overflow-hidden">
-      {/* Card top accent */}
-      <div className="h-1.5 bg-gradient-to-r from-primary via-vibrant-blue to-secondary" />
+    <div className="w-full max-w-[460px] bg-[#ffffff] rounded-[18px] border border-[#cbd8e8] overflow-hidden">
 
-      <div className="p-8 md:p-10">
+      <div className="p-5 sm:p-8">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <Image
@@ -140,7 +136,7 @@ function ResetPasswordInner() {
             height={80}
             className="w-16 h-16 object-contain mb-4"
           />
-          <h1 className="text-headline-md text-primary text-center">Reset Password</h1>
+          <h1 className="text-2xl leading-tight tracking-tight text-[#101f3f] sm:text-3xl text-center font-semibold font-sans">Choose a new password</h1>
           <p className="text-sm text-on-surface-variant text-center mt-1">
             No worries! Set a new strong password for your Batch 2026 participant account.
           </p>
@@ -149,9 +145,9 @@ function ResetPasswordInner() {
         {/* Token checking skeleton */}
         {!tokenChecked && (
           <div className="space-y-3 mb-6">
-            <div className="h-4 bg-slate-100 rounded animate-pulse w-1/2" />
-            <div className="h-12 bg-slate-100 rounded-lg animate-pulse" />
-            <div className="h-12 bg-slate-100 rounded-lg animate-pulse" />
+            <div className="h-4 bg-slate-100 rounded motion-safe:animate-pulse w-1/2" />
+            <div className="h-12 bg-slate-100 rounded-lg motion-safe:animate-pulse" />
+            <div className="h-12 bg-slate-100 rounded-lg motion-safe:animate-pulse" />
           </div>
         )}
 
@@ -232,7 +228,7 @@ function ResetPasswordInner() {
                 id="reset-password-submit"
                 type="submit"
                 disabled={loading || !allReqsMet || !passwordsMatch}
-                className="w-full bg-primary hover:bg-primary/90 disabled:bg-primary/40 disabled:cursor-not-allowed text-white font-semibold text-sm py-3.5 px-6 rounded-[6px] flex items-center justify-center gap-2 shadow-sm hover-lift transition-all mt-1"
+                className="w-full min-h-[50px] rounded-[9px] bg-[#101f3f] px-5 py-3 text-sm font-semibold text-white hover:bg-[#24395f] disabled:opacity-60 motion-safe:transition-colors flex items-center justify-center gap-2 mt-1"
               >
                 {loading ? (
                   <>
@@ -268,9 +264,9 @@ function ResetPasswordInner() {
 // ── Page export ───────────────────────────────────────────────────────
 export default function ResetPasswordPage() {
   return (
-    <div className="min-h-screen bg-academic-cream font-sans text-on-surface flex flex-col">
+    <div className="min-h-screen bg-[#eef4fa] font-sans text-on-surface flex flex-col">
       {/* Minimal header */}
-      <header className="py-5 px-6 flex items-center justify-center border-b border-outline-variant/20 bg-white/60 backdrop-blur-sm">
+      <header className="py-3 px-5 flex items-center justify-center border-b border-outline-variant/20 bg-white">
         <Link href="/">
           <Image
             src="/images/logos/logo-full-color.png"
@@ -283,33 +279,19 @@ export default function ResetPasswordPage() {
         </Link>
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center px-4 py-12">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 sm:py-12">
         <Suspense fallback={
-          <div className="w-full max-w-[460px] bg-white rounded-2xl shadow-level1 border border-outline-variant/20 p-10 flex flex-col items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-slate-100 animate-pulse" />
-            <div className="h-6 w-48 bg-slate-100 rounded animate-pulse" />
-            <div className="h-4 w-64 bg-slate-100 rounded animate-pulse" />
+          <div className="w-full max-w-[460px] bg-[#ffffff] rounded-[18px] border border-[#cbd8e8] p-5 sm:p-10 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-slate-100 motion-safe:animate-pulse" />
+            <div className="h-6 w-48 bg-slate-100 rounded motion-safe:animate-pulse" />
+            <div className="h-4 w-64 max-w-full bg-slate-100 rounded motion-safe:animate-pulse" />
           </div>
         }>
           <ResetPasswordInner />
         </Suspense>
+      </div>
 
-        <p className="mt-6 text-xs text-on-surface-variant/60 flex items-center gap-1.5">
-          <HiLockClosed className="w-3.5 h-3.5" />
-          Secure Institutional Gateway
-        </p>
-      </main>
-
-      {/* Minimal footer */}
-      <footer className="py-6 px-4 border-t border-outline-variant/20 bg-academic-cream">
-        <div className="max-w-[1280px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-on-surface-variant">
-          <span>© {new Date().getFullYear()} IFIP. All rights reserved. Ethical Finance Education.</span>
-          <div className="flex items-center gap-4">
-            <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-primary transition-colors">Technical Support</a>
-          </div>
-        </div>
-      </footer>
+      <RegistrationSupportFooter />
     </div>
   );
 }

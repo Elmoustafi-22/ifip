@@ -25,3 +25,13 @@ dist/
 
 # Optional local files
 *.local
+
+# Local agent tooling
+/.agents/
+/skills-lock.json
+
+# Design references and generated QA captures
+/design-references/
+/docs/redesign/**/baseline/**/*.png
+/docs/redesign/**/verification/**/*.png
+/docs/redesign/**/verification/**/*.html

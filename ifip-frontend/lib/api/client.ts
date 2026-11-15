@@ -1,5 +1,11 @@
 import axios from "axios";
 
+declare module "axios" {
+  interface AxiosRequestConfig {
+    preserveApplicantSession?: boolean;
+  }
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -38,7 +44,7 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && typeof window !== "undefined") {
+    if (error.response?.status === 401 && !error.config?.preserveApplicantSession && typeof window !== "undefined") {
       localStorage.removeItem("applicantToken");
     }
 

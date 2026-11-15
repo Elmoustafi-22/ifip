@@ -1,4 +1,5 @@
 import { Schema, model, Document, Types } from 'mongoose';
+import { hiringOutcomeSchema, type HiringOutcome } from './HiringOutcome.js';
 
 export interface IPlacement extends Document {
     userId: Types.ObjectId;
@@ -15,6 +16,7 @@ export interface IPlacement extends Document {
     interviewLink?: string;
     interviewLocation?: string;
     partnerOutcome?: 'offer_extended' | 'not_selected';
+    hiringOutcome?: HiringOutcome;
     reminder24hSent?: boolean;
     reminder1hSent?: boolean;
     createdAt: Date;
@@ -39,6 +41,7 @@ const placementSchema = new Schema<IPlacement>({
     interviewLink: { type: String },
     interviewLocation: { type: String },
     partnerOutcome: { type: String, enum: ['offer_extended', 'not_selected'] },
+    hiringOutcome: hiringOutcomeSchema,
     reminder24hSent: { type: Boolean, default: false },
     reminder1hSent: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now }

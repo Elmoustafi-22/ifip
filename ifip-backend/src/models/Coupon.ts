@@ -8,6 +8,7 @@ export interface ICoupon extends Document {
     isActive: boolean;
     maxUses?: number;
     usedCount: number;
+    checkoutRevision?: number;
     createdByAdminId?: Types.ObjectId;
     createdAt: Date;
     updatedAt: Date;
@@ -51,6 +52,7 @@ const couponSchema = new Schema<ICoupon>(
             default: 0,
             min: 0,
         },
+        checkoutRevision: { type: Number, select: false },
         createdByAdminId: {
             type: Schema.Types.ObjectId,
             ref: 'User',

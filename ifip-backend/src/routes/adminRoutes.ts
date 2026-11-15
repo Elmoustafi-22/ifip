@@ -1,6 +1,9 @@
 import { Router } from 'express';
+import { approveBankTransfer, attachEmailedTransferProof, downloadTransferReceipt, resendTransferSetup, reviewBankTransfer, uploadTransferReceipt } from '../controllers/bankTransferController.js';
+import { recordHiringOutcome } from '../controllers/hiringOutcomeController.js';
 import multer from 'multer';
-import { authenticate, authorize } from '../middleware/auth.js';
+import { authenticate, authorize, requireRecentAdminMfa } from '../middleware/auth.js';
+import { updateLevyPricing } from '../controllers/levyPricingController.js';
 import {
     getDashboardStats,
     getAdminApplications,
@@ -9,6 +12,8 @@ import {
     setPlacementReady,
     getCohorts,
     createCohort,
+    getCohortWaitlistStatus,
+    retryCohortWaitlistDelivery,
     updateCohort,
     deleteCohort,
     createModule,
@@ -125,6 +130,7 @@ router.use(authenticate);
 router.use(authorize('admin', 'superadmin'));
 
 router.get('/stats', getDashboardStats);
+router.patch('/hiring-outcomes/:kind/:id', recordHiringOutcome);
 router.get('/users', getAdminUsers);
 router.post('/users/invite', authorize('superadmin'), inviteAdmin);
 router.post('/users/:id/resend-invite', authorize('superadmin'), resendSetPasswordLink);
@@ -165,12 +171,18 @@ router.get('/pending-applicants', getPendingApplicants);
 router.post('/pending-applicants/bulk-remind-email', sendBulkPendingApplicantReminders);
 router.post('/pending-applicants/:applicantId/remind-email', sendPendingApplicantReminder);
 router.post('/pending-applicants/:applicantId/upload-cv', handleUpload('cv'), uploadPendingApplicantCv);
-router.post('/pending-applicants/:applicantId/record-manual-payment', handleUpload('receipt'), recordManualPaymentForApplicant);
+router.post('/pending-applicants/:applicantId/record-manual-payment', requireRecentAdminMfa, handleUpload('receipt'), recordManualPaymentForApplicant);
 
 // ── Payment Tracking & Resolution ────────────────────────────────────
 router.get('/payments', getAdminPayments);
+router.patch('/levy-pricing', authorize('superadmin'), requireRecentAdminMfa, updateLevyPricing);
 router.get('/payments/:id', getAdminPaymentById);
-router.patch('/payments/:id/resolve', resolvePayment);
+router.patch('/payments/:id/resolve', requireRecentAdminMfa, resolvePayment);
+router.get('/payments/:id/bank-transfer/receipt', downloadTransferReceipt);
+router.post('/payments/:id/bank-transfer/proof', requireRecentAdminMfa, uploadTransferReceipt, attachEmailedTransferProof);
+router.post('/payments/:id/bank-transfer/approve', requireRecentAdminMfa, approveBankTransfer);
+router.post('/payments/:id/bank-transfer/review', requireRecentAdminMfa, reviewBankTransfer);
+router.post('/payments/:id/bank-transfer/resend-setup', requireRecentAdminMfa, resendTransferSetup);
 
 // ── Waitlist Management ──────────────────────────────────────────────
 router.get('/waitlist', getWaitlist);
@@ -178,6 +190,8 @@ router.delete('/waitlist/:id', deleteWaitlistEntry);
 
 router.get('/cohorts', getCohorts);
 router.post('/cohorts', createCohort);
+router.get('/cohorts/:id/waitlist', getCohortWaitlistStatus);
+router.post('/cohorts/:id/waitlist/retry', retryCohortWaitlistDelivery);
 router.patch('/cohorts/:id', updateCohort);
 router.delete('/cohorts/:id', deleteCohort);
 
@@ -217,10 +231,10 @@ router.post('/assessments/:id/submissions/reset', resetAttempts);
 
 // ─── Superadmin Only — Coupon Code Management ─────────────────────────────────
 router.get('/coupons',          authorize('superadmin'), getAdminCoupons);
-router.post('/coupons',         authorize('superadmin'), createCoupon);
+router.post('/coupons',         authorize('superadmin'), requireRecentAdminMfa, createCoupon);
 router.get('/coupons/:id',      authorize('superadmin'), getCouponById);
-router.patch('/coupons/:id',    authorize('superadmin'), updateCoupon);
-router.delete('/coupons/:id',   authorize('superadmin'), deleteCoupon);
+router.patch('/coupons/:id',    authorize('superadmin'), requireRecentAdminMfa, updateCoupon);
+router.delete('/coupons/:id',   authorize('superadmin'), requireRecentAdminMfa, deleteCoupon);
 
 // ─── Superadmin Only — Partner Management ─────────────────────────────────────
 // Partner Organizations (direct CRUD & Invite)

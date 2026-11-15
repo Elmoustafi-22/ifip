@@ -156,16 +156,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           setAdminName(profile.fullName || "Admin");
           setAdminAvatarUrl(profile.avatarUrl);
           setCohorts(cohortsList);
-          const saved = localStorage.getItem("adminSelectedCohortId");
-          if (saved) {
-            setSelectedCohortId(saved);
-          } else if (cohortsList.length > 0) {
-            const active   = cohortsList.find((c: Cohort) => c.status === "active");
-            const upcoming = cohortsList.find((c: Cohort) => c.status === "upcoming");
-            const id = active?._id || upcoming?._id || cohortsList[0]._id;
-            setSelectedCohortId(id);
-            localStorage.setItem("adminSelectedCohortId", id);
-          }
+          const saved = sessionStorage.getItem("adminSelectedCohortId");
+          const newest = [...cohortsList].sort((a, b) =>
+            (Date.parse(b.createdAt ?? b.startDate ?? "") || 0) - (Date.parse(a.createdAt ?? a.startDate ?? "") || 0)
+          )[0];
+          const savedIsValid = saved === "" || saved === "unassigned" || cohortsList.some(cohort => cohort._id === saved);
+          setSelectedCohortId(savedIsValid ? saved ?? "" : newest?._id ?? "");
         } else {
           router.push("/dashboard?error=unauthorized");
         }
@@ -175,7 +171,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         setLoading(false);
       }
     })();
-  }, [authorized, router]);
+  }, [router]);
 
   // Proactive silent token refresh — renews the access token 2 min before it
   // expires so the admin never experiences a 401 mid-session.
@@ -187,7 +183,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const handleSetCohort = (id: string) => {
     setSelectedCohortId(id);
-    localStorage.setItem("adminSelectedCohortId", id);
+    sessionStorage.setItem("adminSelectedCohortId", id);
   };
 
   const upsertCohort = (updated: Cohort) => {

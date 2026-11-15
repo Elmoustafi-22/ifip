@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { isAxiosError } from "axios";
 import { 
   HiOutlineUsers, 
   HiOutlineCheckCircle, 
@@ -21,6 +22,7 @@ import {
 } from "react-icons/hi2";
 import { useContext } from "react";
 import { AdminCohortContext } from "./layout";
+import LevyPricingForm from "@/components/admin/LevyPricingForm";
 import ExportApplicantsModal from "@/components/admin/ExportApplicantsModal";
 import { 
   getAdminStats, 
@@ -31,6 +33,9 @@ import {
   uploadBrochure,
   getRegistrationApplicants,
   getTaskRewardSummary,
+  getAdminWaitlist,
+  getCohortWaitlistStatus,
+  retryCohortWaitlist,
   AdminStats, 
   AnonApplicant,
   Cohort,
@@ -38,10 +43,11 @@ import {
 } from "@/lib/api/services";
 
 export default function AdminDashboardPage() {
-  const { selectedCohortId, cohorts, upsertCohort } = useContext(AdminCohortContext);
+  const { selectedCohortId, setSelectedCohortId, cohorts, upsertCohort, adminRole } = useContext(AdminCohortContext);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [rewardSummary, setRewardSummary] = useState<TaskRewardSummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [checkedAt, setCheckedAt] = useState(0);
   const [activeTab, setActiveTab] = useState("cohorts"); // cohorts, system, acquisition, funnel
   const [exportModalOpen, setExportModalOpen] = useState(false);
 
@@ -52,8 +58,8 @@ export default function AdminDashboardPage() {
   const [drawerLoading, setDrawerLoading] = useState(false);
 
   const getCohortScopeName = () => {
-    if (selectedCohortId === "") return "Global Scope (All Cohorts)";
-    if (selectedCohortId === "unassigned") return "Awaiting Cohort Assignment";
+    if (selectedCohortId === "") return "All cohorts";
+    if (selectedCohortId === "unassigned") return "Unassigned";
     const matched = cohorts.find(c => c._id === selectedCohortId);
     return matched ? matched.name : "Selected Cohort";
   };
@@ -74,6 +80,10 @@ export default function AdminDashboardPage() {
 
   // Cohort Modal form state
   const [modalOpen, setModalOpen] = useState(false);
+  const cohortDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (modalOpen && !cohortDialog.current?.open) cohortDialog.current?.showModal();
+  }, [modalOpen]);
   const [newCohortName, setNewCohortName] = useState("");
   const [newCohortStart, setNewCohortStart] = useState("");
   const [newCohortEnd, setNewCohortEnd] = useState("");
@@ -84,6 +94,29 @@ export default function AdminDashboardPage() {
   const [newCohortStatus, setNewCohortStatus] = useState("upcoming");
   const [creatingCohort, setCreatingCohort] = useState(false);
   const [editingCohortItem, setEditingCohortItem] = useState<Cohort | null>(null);
+  const [notifyWaitlist, setNotifyWaitlist] = useState(true);
+  const [recipientCount, setRecipientCount] = useState<number | null>(null);
+  const [cohortMessage, setCohortMessage] = useState("");
+  const [savedCohortId, setSavedCohortId] = useState<string | null>(null);
+  const [cohortError, setCohortError] = useState("");
+  const [announcement, setAnnouncement] = useState<{ cohort: Cohort; counts: Awaited<ReturnType<typeof getCohortWaitlistStatus>> } | null>(null);
+
+  const allMetrics = Object.values(stats?.cohortMetrics ?? {});
+  const currentMetrics = selectedCohortId ? [stats?.cohortMetrics?.[selectedCohortId]] : allMetrics;
+  const applications = currentMetrics.reduce((total, row) => total + (row?.applications ?? 0), 0);
+  const hires = currentMetrics.reduce((total, row) => total + (row?.hires ?? 0), 0);
+
+  async function showWaitlistDelivery(cohort: Cohort, retry = false) {
+    setCohortMessage("");
+    setSavedCohortId(null);
+    try {
+      if (retry) await retryCohortWaitlist(cohort._id);
+      setAnnouncement({ cohort, counts: await getCohortWaitlistStatus(cohort._id) });
+      if (retry) setCohortMessage("Failed sends queued for retry.");
+    } catch (err) {
+      setCohortMessage(isAxiosError(err) ? err.response?.data?.message || "Could not load delivery status." : "Could not load delivery status.");
+    }
+  }
 
   const fetchAdminDashboard = async () => {
     try {
@@ -93,6 +126,7 @@ export default function AdminDashboardPage() {
         getTaskRewardSummary()
       ]);
       setStats(statsData);
+      setCheckedAt(Date.now());
       setRewardSummary(rewardsData.summary || []);
       
       // Load current config parameters
@@ -170,6 +204,10 @@ export default function AdminDashboardPage() {
   };
 
   const openCreateModal = () => {
+    setCohortError("");
+    setNotifyWaitlist(true);
+    setRecipientCount(null);
+    void getAdminWaitlist({ limit: 1 }).then(result => setRecipientCount(result.total)).catch(() => {});
     setEditingCohortItem(null);
     setNewCohortName("");
     setNewCohortStart("");
@@ -183,6 +221,7 @@ export default function AdminDashboardPage() {
   };
 
   const openEditModal = (cohort: Cohort) => {
+    setCohortError("");
     setEditingCohortItem(cohort);
     setNewCohortName(cohort.name);
     setNewCohortStart(cohort.startDate ? cohort.startDate.split("T")[0] : "");
@@ -197,29 +236,34 @@ export default function AdminDashboardPage() {
 
   const handleSubmitCohort = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCohortName || !newCohortStart || !newCohortEnd || !newCohortRegStart || !newCohortRegEnd || creatingCohort) return;
+    if (!newCohortName || !newCohortRegStart || !newCohortRegEnd || creatingCohort) return;
     
     setCreatingCohort(true);
+    setCohortError("");
+    setSavedCohortId(null);
     try {
       const payload = {
         name: newCohortName,
-        startDate: new Date(newCohortStart).toISOString(),
-        endDate: new Date(newCohortEnd).toISOString(),
+        startDate: newCohortStart ? new Date(newCohortStart).toISOString() : null,
+        endDate: newCohortEnd ? new Date(newCohortEnd).toISOString() : null,
         registrationStartDate: new Date(newCohortRegStart).toISOString(),
         registrationEndDate: new Date(newCohortRegEnd).toISOString(),
         cohortCap: Number(newCohortCap),
         totalWeeks: Number(newCohortTotalWeeks),
-        status: newCohortStatus as any
+        status: newCohortStatus,
       };
 
       if (editingCohortItem) {
         const res = await updateCohort(editingCohortItem._id, payload);
         if (res?.cohort) upsertCohort(res.cohort);
-        alert("Cohort details updated successfully!");
+        setCohortMessage(`${newCohortName.trim()} updated.`);
       } else {
-        const res = await createCohort(payload);
-        if (res?.cohort) upsertCohort(res.cohort);
-        alert("New program cohort created successfully!");
+        const res = await createCohort({ ...payload, notifyWaitlist: newCohortStatus === "upcoming" && notifyWaitlist });
+        if (res?.cohort) {
+          upsertCohort(res.cohort);
+          setSavedCohortId(res.cohort._id);
+        }
+        setCohortMessage(`${newCohortName.trim()} created.${res?.cohort?.notifyWaitlist ? " Waitlist email queued for registration opening." : ""}`);
       }
       
       // Reset Modal Form
@@ -235,9 +279,9 @@ export default function AdminDashboardPage() {
       setModalOpen(false);
       
       fetchAdminDashboard();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to save cohort:", err);
-      alert(err?.response?.data?.message || "Failed to save cohort. Please check parameters.");
+      setCohortError(isAxiosError(err) ? err.response?.data?.message || "Could not save the cohort." : "Could not save the cohort.");
     } finally {
       setCreatingCohort(false);
     }
@@ -246,10 +290,17 @@ export default function AdminDashboardPage() {
   const formatDate = (isoString: string) => {
     try {
       const d = new Date(isoString);
-      return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
     } catch {
       return "N/A";
     }
+  };
+
+  const formatTrainingWindow = ({ startDate, endDate }: Cohort) => {
+    if (startDate && endDate) return `${formatDate(startDate)} – ${formatDate(endDate)}`;
+    if (startDate) return `Starts ${formatDate(startDate)}`;
+    if (endDate) return `Start to be announced · Ends ${formatDate(endDate)}`;
+    return "To be announced";
   };
 
   if (loading && !stats) {
@@ -273,23 +324,53 @@ export default function AdminDashboardPage() {
             <HiOutlineCog6Tooth className="w-7 h-7 text-[#FF9800]" /> Overview
           </h1>
           <p className="text-slate-500 text-sm">
-            Reviewing: <strong className="text-[#000666]">{getCohortScopeName()}</strong> &bull; Configure kickoff milestones, stats, and gating bounds.
+            Viewing <strong className="text-[#000666]">{getCohortScopeName()}</strong>
           </p>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2">
+        <button type="button" onClick={openCreateModal} className="inline-flex items-center gap-2 rounded-xl bg-[#000666] px-4 py-2.5 text-sm font-semibold text-white">
+          <HiOutlinePlus aria-hidden="true" className="h-4 w-4" /> New cohort
+        </button>
         <button
           onClick={() => setExportModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#000666] hover:bg-[#000666]/90 text-white text-xs font-semibold px-4 py-2 rounded-xl transition shadow-xs cursor-pointer self-start sm:self-auto"
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-[#000666]"
           title="Configure filters and download applicants insights in CSV format (Paid or Unpaid)"
         >
           <HiOutlineArrowDownTray className="w-4 h-4" />
           <span>Export Insights CSV</span>
         </button>
+        </div>
       </div>
+      {cohortMessage && <div className="mb-4 flex flex-wrap gap-x-3 gap-y-1 rounded-lg bg-white p-3 text-sm text-slate-700">
+        <p role="status">{cohortMessage}</p>
+        {savedCohortId && <button type="button" className="font-semibold text-[#000666] underline" onClick={() => {
+          setSelectedCohortId(savedCohortId);
+          setActiveTab("cohorts");
+          document.getElementById("cohort-overview")?.scrollIntoView({ block: "start" });
+        }}>View cohort</button>}
+      </div>}
+      {announcement && <section aria-label="Waitlist delivery" className="mb-4 space-y-2 rounded-lg border border-slate-200 bg-white p-4 text-sm">
+        <h2 className="font-bold">{announcement.cohort.name} waitlist delivery</h2>
+        <p>{announcement.counts.pending} pending · {announcement.counts.sending} sending · {announcement.counts.sent} sent · {announcement.counts.failed} failed</p>
+        <div className="flex flex-wrap gap-4 text-[#000666]">
+          <button type="button" className="underline" onClick={() => showWaitlistDelivery(announcement.cohort)}>Refresh status</button>
+          {announcement.counts.failed > 0 && <button type="button" className="underline" onClick={() => showWaitlistDelivery(announcement.cohort, true)}>Retry failed sends</button>}
+          <button type="button" className="underline" onClick={() => setAnnouncement(null)}>Dismiss</button>
+        </div>
+      </section>}
 
       {/* KPI Stats widgets */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+            <p className="mb-3 text-xs font-semibold text-slate-600">Applications started</p>
+            <p className="text-2xl font-black text-[#000666]">{applications}</p>
+          </div>
+          <Link href="/admin/placements" className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+            <p className="mb-3 text-xs font-semibold text-slate-600">Participants hired</p>
+            <p className="text-2xl font-black text-[#000666]">{hires}</p>
+          </Link>
           <div className="bg-white border border-slate-200/80 rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-3 text-slate-400">
               <span className="text-[10px] font-bold uppercase tracking-wider">Total Paid</span>
@@ -319,7 +400,7 @@ export default function AdminDashboardPage() {
             className="bg-white border border-slate-200/80 rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-amber-300 transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between mb-3 text-slate-400">
-              <span className="text-[10px] font-bold uppercase tracking-wider group-hover:text-amber-600 transition-colors">Waitlisted Users</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider group-hover:text-amber-600 transition-colors">Program-wide waitlist</span>
               <HiOutlineInboxStack className="w-5 h-5 text-rose-500 group-hover:scale-110 transition-transform" />
             </div>
             <div className="text-2xl font-black text-[#000666]">{stats.waitlistCount}</div>
@@ -505,6 +586,7 @@ export default function AdminDashboardPage() {
               </button>
             </form>
           </div>
+          {adminRole === "superadmin" && <LevyPricingForm />}
         </div>
 
         {/* 2. Acquisition Desk (Col-span 1 on Desktop, controlled by activeTab on mobile) */}
@@ -585,18 +667,12 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* 3. Cohort/Intake Intake Manager Table (Col-span 2 on Desktop, controlled by activeTab on mobile) */}
-        <div className={`${activeTab === "cohorts" ? "block" : "hidden"} lg:block bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm lg:col-span-2 flex flex-col justify-between`}>
+        <div id="cohort-overview" className={`${activeTab === "cohorts" ? "block" : "hidden"} min-w-0 scroll-mt-20 lg:block bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm lg:col-span-2`}>
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-2 border-b border-slate-100">
               <h2 className="text-base font-bold text-[#000666]">
-                Intake Cohort Management
+                Cohorts
               </h2>
-              <button
-                onClick={openCreateModal}
-                className="inline-flex items-center gap-1 text-xs font-bold text-[#00B0FF] hover:underline self-start sm:self-auto"
-              >
-                <HiOutlinePlus className="w-4 h-4" /> Add Intake Cohort
-              </button>
             </div>
 
             {/* Desktop Cohort Table */}
@@ -608,7 +684,7 @@ export default function AdminDashboardPage() {
                     <th className="px-4 py-3">Registration Window</th>
                     <th className="px-4 py-3">Training Window</th>
                     <th className="px-4 py-3">Weeks</th>
-                    <th className="px-4 py-3">Cap</th>
+                    <th className="px-4 py-3">Seats filled / max</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
@@ -623,18 +699,23 @@ export default function AdminDashboardPage() {
                   ) : (
                     cohorts.map((cohort) => (
                       <tr key={cohort._id} className="hover:bg-slate-50/50">
-                        <td className="px-4 py-3 font-bold text-[#000666]">{cohort.name}</td>
-                        <td className="px-4 py-3 text-slate-500">
-                          {formatDate(cohort.registrationStartDate)} &mdash; {formatDate(cohort.registrationEndDate)}
+                        <td className="px-4 py-3 font-bold text-[#000666]">
+                          <button type="button" onClick={() => setSelectedCohortId(cohort._id)} className="text-start underline">{cohort.name}</button>
+                          <p className="mt-1 font-normal text-slate-600">{stats?.cohortMetrics?.[cohort._id]?.applications ?? 0} started · {stats?.cohortMetrics?.[cohort._id]?.completed ?? 0} completed · {stats?.cohortMetrics?.[cohort._id]?.hires ?? 0} hired</p>
+                          {cohort.notifyWaitlist && <button type="button" className="mt-1 underline" onClick={() => showWaitlistDelivery(cohort)}>Waitlist delivery</button>}
                         </td>
                         <td className="px-4 py-3 text-slate-500">
-                          {formatDate(cohort.startDate)} &mdash; {formatDate(cohort.endDate)}
+                          {formatDate(cohort.registrationStartDate)} &mdash; {formatDate(cohort.registrationEndDate)}
+                          {cohort.status === "upcoming" && checkedAt > 0 && Date.parse(cohort.registrationStartDate) > checkedAt && <p className="mt-1 text-slate-600">Scheduled to open {formatDate(cohort.registrationStartDate)}</p>}
+                        </td>
+                        <td className="px-4 py-3 text-slate-500">
+                          {formatTrainingWindow(cohort)}
                         </td>
                         <td className="px-4 py-3 text-slate-700 font-semibold">
                           {cohort.totalWeeks || 4} wks
                         </td>
                         <td className="px-4 py-3 text-slate-500 font-mono font-bold">
-                          {cohort.cohortCap || 100} slots
+                          {stats?.cohortMetrics?.[cohort._id]?.enrolled ?? 0} / {cohort.cohortCap || 100}
                         </td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center gap-1.5 font-medium text-xs px-2.5 py-0.5 rounded-full ${
@@ -679,7 +760,7 @@ export default function AdminDashboardPage() {
                 cohorts.map((cohort) => (
                   <div key={cohort._id} className="py-4 flex flex-col gap-2">
                     <div className="flex justify-between items-start">
-                      <span className="font-bold text-[#000666] text-sm">{cohort.name}</span>
+                      <button type="button" onClick={() => setSelectedCohortId(cohort._id)} className="min-w-0 break-words text-start text-sm font-bold text-[#000666] underline">{cohort.name}</button>
                       <span className={`inline-block font-bold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded ${
                         cohort.status === "active"
                           ? "bg-indigo-50 text-indigo-700"
@@ -697,12 +778,14 @@ export default function AdminDashboardPage() {
                       </div>
                       <div>
                         <span className="text-slate-400 font-medium">Training:</span>{" "}
-                        {formatDate(cohort.startDate)} &mdash; {formatDate(cohort.endDate)} ({cohort.totalWeeks || 4} weeks)
+                        {formatTrainingWindow(cohort)} ({cohort.totalWeeks || 4} weeks)
                       </div>
                       <div>
                         <span className="text-slate-400 font-medium">Capacity:</span>{" "}
-                        <strong className="text-slate-700 font-mono">{cohort.cohortCap || 100} slots</strong>
+                        <strong className="text-slate-700 font-mono">{stats?.cohortMetrics?.[cohort._id]?.enrolled ?? 0} / {cohort.cohortCap || 100} seats</strong>
                       </div>
+                      <p>{stats?.cohortMetrics?.[cohort._id]?.applications ?? 0} started · {stats?.cohortMetrics?.[cohort._id]?.completed ?? 0} completed · {stats?.cohortMetrics?.[cohort._id]?.hires ?? 0} hired</p>
+                      {cohort.notifyWaitlist && <button type="button" className="font-semibold text-[#000666] underline" onClick={() => showWaitlistDelivery(cohort)}>Waitlist delivery</button>}
                     </div>
                     <div className="pt-2 border-t border-slate-50 flex justify-end">
                       <button
@@ -716,6 +799,10 @@ export default function AdminDashboardPage() {
                 ))
               )}
             </div>
+            {stats?.cohortMetrics?.unassigned && <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3 text-xs text-slate-700">
+              <button type="button" className="font-semibold text-[#000666] underline" onClick={() => setSelectedCohortId("unassigned")}>Unassigned</button>
+              <span>{stats.cohortMetrics.unassigned.applications} started · {stats.cohortMetrics.unassigned.enrolled} enrolled · {stats.cohortMetrics.unassigned.hires} hired</span>
+            </div>}
           </div>
         </div>
       </div>
@@ -740,7 +827,7 @@ export default function AdminDashboardPage() {
                     <HiOutlineFunnel className="w-4 h-4 text-indigo-600" />
                   </div>
                   <div>
-                    <h2 className="text-base font-bold text-[#000666]">Registration Funnel</h2>
+                    <h2 className="text-base font-bold text-[#000666]">Program-wide registration funnel</h2>
                     <p className="text-[10px] text-slate-400 font-medium">Live pipeline — identities hidden until payment is confirmed</p>
                   </div>
                 </div>
@@ -980,14 +1067,19 @@ export default function AdminDashboardPage() {
 
       {/* Cohort Modal Overlay */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white border border-slate-200/80 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-h-none flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+        <dialog ref={cohortDialog} aria-labelledby="cohort-dialog-title" onCancel={event => {
+          event.preventDefault();
+          if (!creatingCohort) setModalOpen(false);
+        }} className="fixed inset-x-0 top-auto bottom-0 m-0 w-full max-w-none overflow-hidden rounded-t-2xl bg-white shadow-xl backdrop:bg-black/40 sm:inset-0 sm:m-auto sm:max-w-md sm:rounded-2xl">
+          <div className="flex max-h-[90dvh] flex-col overflow-hidden">
             <div className="bg-[#000666] text-white py-4 px-6 flex items-center justify-between shrink-0">
-              <h3 className="font-bold text-base flex items-center gap-1.5">
-                <HiOutlineCalendarDays className="w-5 h-5" /> {editingCohortItem ? "Edit Intake Cohort" : "Add Intake Cohort"}
+              <h3 id="cohort-dialog-title" className="font-bold text-base flex items-center gap-1.5">
+                <HiOutlineCalendarDays className="w-5 h-5" /> {editingCohortItem ? "Edit cohort" : "New cohort"}
               </h3>
               <button 
                 onClick={() => setModalOpen(false)}
+                aria-label="Close cohort form"
+                disabled={creatingCohort}
                 className="text-white/80 hover:text-white"
               >
                 <HiOutlineXMark className="w-5 h-5" />
@@ -996,11 +1088,13 @@ export default function AdminDashboardPage() {
 
             <form onSubmit={handleSubmitCohort} className="p-6 space-y-4 text-xs sm:text-sm overflow-y-auto">
               <div>
-                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">
-                  Cohort Name / Intake Code
+                <label htmlFor="cohort-name" className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2 block">
+                  Cohort name
                 </label>
                 <input 
-                  type="text" 
+                  type="text"
+                  id="cohort-name"
+                  maxLength={120}
                   value={newCohortName}
                   onChange={(e) => setNewCohortName(e.target.value)}
                   placeholder="Intake or cohort name"
@@ -1011,11 +1105,12 @@ export default function AdminDashboardPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">
+                  <label htmlFor="registration-opens" className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2 block">
                     Registration Starts
                   </label>
                   <input 
                     type="date"
+                    id="registration-opens"
                     value={newCohortRegStart}
                     onChange={(e) => setNewCohortRegStart(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#00B0FF] bg-white"
@@ -1023,11 +1118,12 @@ export default function AdminDashboardPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">
+                  <label htmlFor="registration-closes" className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2 block">
                     Registration Ends
                   </label>
                   <input 
                     type="date"
+                    id="registration-closes"
                     value={newCohortRegEnd}
                     onChange={(e) => setNewCohortRegEnd(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#00B0FF] bg-white"
@@ -1038,38 +1134,40 @@ export default function AdminDashboardPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">
-                    Training Commences
+                  <label htmlFor="programme-start" className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2 block">
+                    Training starts (optional)
                   </label>
                   <input 
                     type="date"
+                    id="programme-start"
                     value={newCohortStart}
                     onChange={(e) => setNewCohortStart(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#00B0FF] bg-white"
-                    required
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">
-                    Training Concludes
+                  <label htmlFor="programme-end" className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2 block">
+                    Training ends (optional)
                   </label>
                   <input 
                     type="date"
+                    id="programme-end"
                     value={newCohortEnd}
                     onChange={(e) => setNewCohortEnd(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#00B0FF] bg-white"
-                    required
                   />
                 </div>
               </div>
 
+              <p className="text-xs text-slate-600">You can add training dates later in Edit cohort.</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">
+                  <label htmlFor="programme-duration" className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2 block">
                     Duration (Weeks)
                   </label>
                   <input 
                     type="number"
+                    id="programme-duration"
                     value={newCohortTotalWeeks}
                     onChange={(e) => setNewCohortTotalWeeks(Number(e.target.value))}
                     className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#00B0FF] bg-white font-mono"
@@ -1079,11 +1177,12 @@ export default function AdminDashboardPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">
-                    Capacity Cap
+                  <label htmlFor="cohort-capacity" className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2 block">
+                    Maximum seats
                   </label>
                   <input 
                     type="number"
+                    id="cohort-capacity"
                     value={newCohortCap}
                     onChange={(e) => setNewCohortCap(Number(e.target.value))}
                     className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#00B0FF] bg-white font-mono"
@@ -1092,10 +1191,11 @@ export default function AdminDashboardPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">
+                  <label htmlFor="cohort-status" className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2 block">
                     Intake Status
                   </label>
                   <select
+                    id="cohort-status"
                     value={newCohortStatus}
                     onChange={(e) => setNewCohortStatus(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none bg-white"
@@ -1108,10 +1208,27 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
+              {!editingCohortItem && newCohortStatus === "upcoming" && (
+                <div className="space-y-2 rounded-lg border border-slate-200 p-3 text-slate-700">
+                  <label className="flex items-start gap-2 font-semibold">
+                    <input type="checkbox" className="mt-0.5" checked={notifyWaitlist} onChange={event => setNotifyWaitlist(event.target.checked)} />
+                    Notify existing waitlist when registration opens
+                  </label>
+                  {notifyWaitlist && <>
+                    <p>{recipientCount === null ? "Recipients are determined when the cohort is created." : `${recipientCount} currently waitlisted. The cutoff is the time this cohort is created.`}</p>
+                    <details><summary className="cursor-pointer font-semibold">Preview email</summary>
+                      <p className="mt-2">Registration is open for {newCohortName.trim() || "[cohort name]"}. Registration closes {newCohortRegEnd || "[registration deadline]"}. {newCohortStart ? `Training starts ${newCohortStart}.` : "The training start date will be announced later."}</p>
+                      <p className="mt-1 font-semibold">Apply now</p>
+                    </details>
+                  </>}
+                </div>
+              )}
+              {cohortError && <p role="alert" className="text-red-700">{cohortError}</p>}
               <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
+                  disabled={creatingCohort}
                   className="text-slate-500 hover:text-slate-700 font-bold px-4 py-2"
                 >
                   Cancel
@@ -1119,14 +1236,14 @@ export default function AdminDashboardPage() {
                 <button
                   type="submit"
                   disabled={creatingCohort}
-                  className="bg-[#FF9800] hover:bg-[#FF9800]/95 text-white font-bold px-6 py-2.5 rounded-xl shadow-sm transition-all"
+                  className="rounded-xl bg-[#000666] px-6 py-2.5 font-bold text-white hover:bg-[#000666]/90 disabled:opacity-60"
                 >
                   {creatingCohort ? "Saving..." : (editingCohortItem ? "Save Changes" : "Save Cohort")}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </dialog>
       )}
 
       {/* Export Applicants Insights Modal */}

@@ -22,7 +22,7 @@ export const EMAIL_SENDERS = {
     ADMIN: 'IFIP Administration',
 } as const;
 
-const send = async (to: string, subject: string, html: string, senderName: string = EMAIL_SENDERS.DEFAULT) => {
+const send = async (to: string, subject: string, html: string, senderName: string = EMAIL_SENDERS.DEFAULT, reportFailure = false) => {
     // Append a universal email-preference / unsubscribe footer to every outgoing email.
     // This satisfies CAN-SPAM / GDPR requirements and reduces spam reports from recipients.
     const unsubscribeBlock = `
@@ -49,13 +49,22 @@ const send = async (to: string, subject: string, html: string, senderName: strin
             subject,
             htmlContent: htmlWithFooter,
         });
-        console.log(`[EmailService] Sent email "${subject}" to ${to} (${senderName})`);
+        if (!reportFailure) console.log(`[EmailService] Sent email "${subject}" to ${to} (${senderName})`);
     } catch (err: any) {
+        if (reportFailure) throw err;
         console.error(`[EmailService] Failed to send email "${subject}" to ${to}:`, err?.response?.data ?? err.message);
     }
 };
 
 const LOGO_HEADER_URL = "https://res.cloudinary.com/dwryrfa1u/image/upload/v1783863950/logo-full-color_ngtq5n.png";
+
+export const sendAdminMfaSetupCode = (to: string, code: string) => send(
+    to,
+    'Set up your IFIP admin authenticator',
+    `<p>Enter <strong>${code}</strong> on the IFIP sign-in page to start authenticator setup. This code expires in 10 minutes. If you did not request it, contact IFIP support.</p>`,
+    EMAIL_SENDERS.SECURITY,
+    true,
+);
 const LOGO_WHITE_WORDMARK_URL = "https://res.cloudinary.com/dwryrfa1u/image/upload/v1783863951/logo-white-wordmark_bkpjzz.png";
 
 // Common wrapper styles
@@ -317,7 +326,7 @@ export const sendPaymentSuccessEmail = async (to: string, resumeToken: string, c
     await send(to, 'Payment Confirmed — Complete Your IFIP Application', html, EMAIL_SENDERS.ADMISSIONS);
 };
 
-export const sendSetPasswordEmail = async (to: string, setPasswordToken: string, country = 'Nigeria') => {
+export const sendSetPasswordEmail = async (to: string, setPasswordToken: string, country = 'Nigeria', reportFailure = false) => {
     const setPasswordUrl = `${env.CLIENT_URL}/set-password?token=${setPasswordToken}`;
 
     const html = `
@@ -375,7 +384,7 @@ export const sendSetPasswordEmail = async (to: string, setPasswordToken: string,
     </div>
     `;
 
-    await send(to, 'Application Submitted — Set Your Password — IFIP', html, EMAIL_SENDERS.ADMISSIONS);
+    await send(to, 'Application Submitted — Set Your Password — IFIP', html, EMAIL_SENDERS.ADMISSIONS, reportFailure);
 };
 
 export const sendPasswordResetEmail = async (to: string, resetToken: string) => {
@@ -644,7 +653,17 @@ export const sendWaitlistEmail = async (to: string, cohortName: string) => {
     await send(to, 'Waitlist Registered Confirmation — IFIP', html, EMAIL_SENDERS.ADMISSIONS);
 };
 
-export const sendCohortWelcomeEmail = async (to: string, fullName: string, cohortName: string, kickoffDate: string) => {
+export const sendCohortAvailabilityEmail = async (to: string, name: string, deadline: Date, startDate?: Date | null) => {
+    const safeName = name.replace(/[&<>]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[character]!);
+    const format = (date: Date) => date.toLocaleDateString('en-NG', { dateStyle: 'long', timeZone: 'Africa/Lagos' });
+    const html = `<div style="${contentContainerStyle}"><h1>Registration is open for ${safeName}</h1>
+        <p>You joined the IFIP waitlist. You can now apply for ${safeName} while seats are available.</p>
+        <p>Registration closes ${format(deadline)}. ${startDate ? `Training starts ${format(startDate)}.` : 'The training start date will be announced later.'}</p>
+        <p><a href="${env.CLIENT_URL}/apply">Apply now</a></p></div>`;
+    await send(to, `Registration is open for ${name} | IFIP`, html, EMAIL_SENDERS.ADMISSIONS, true);
+};
+
+export const sendCohortWelcomeEmail = async (to: string, fullName: string, cohortName: string, kickoffDate?: Date | null) => {
     const html = `
     <div style="${wrapperStyle}">
         <div style="${cardStyle}">
@@ -663,7 +682,7 @@ export const sendCohortWelcomeEmail = async (to: string, fullName: string, cohor
                 <div style="background-color: #F0FFF4; border-left: 4px solid #16a34a; border-radius: 4px; padding: 16px 20px; margin: 0 0 24px 0;">
                     <p style="font-size: 14px; color: #15803d; margin: 0; font-weight: 600;">Program Details</p>
                     <p style="font-size: 14px; color: #454652; margin: 8px 0 0 0; line-height: 1.6;">
-                        <strong>Kickoff Date:</strong> ${new Date(kickoffDate).toLocaleDateString()}<br/>
+                        <strong>Kickoff Date:</strong> ${kickoffDate ? new Date(kickoffDate).toLocaleDateString() : 'To be announced'}<br/>
                         <strong>Workspace:</strong> <a href="${env.CLIENT_URL}/dashboard" style="color: #000666; font-weight: bold; text-decoration: underline;">Access Dashboard</a>
                     </p>
                 </div>

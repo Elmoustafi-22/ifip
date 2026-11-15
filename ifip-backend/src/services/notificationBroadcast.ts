@@ -196,10 +196,6 @@ notificationEmitter.on('auth.password_set', async ({ user }) => {
                 type: 'success',
                 link: '/dashboard',
             });
-            // Welcome Email
-            if (user.email) {
-                await sendAccountActivatedWelcomeEmail(user.email, user.fullName || '');
-            }
         }
     } catch (err) {
         console.error('[Event:auth.password_set] Error:', err);
@@ -223,7 +219,7 @@ notificationEmitter.on('auth.password_changed', async ({ user }) => {
     }
 });
 
-notificationEmitter.on('cohort.assigned', async ({ user, cohort }) => {
+notificationEmitter.on('cohort.assigned', async ({ user, cohort, skipEmail }: { user: any; cohort: any; skipEmail?: boolean }) => {
     try {
         // In-app
         await Notification.create({
@@ -233,13 +229,15 @@ notificationEmitter.on('cohort.assigned', async ({ user, cohort }) => {
             type: 'success',
             link: '/dashboard/modules'
         });
-        // Email
-        await sendCohortWelcomeEmail(
-            user.email,
-            user.fullName || 'Participant',
-            cohort.name,
-            cohort.startDate
-        );
+        // Email (sent on admin assignment/transfer, skipped during initial self-registration to avoid duplicate welcome emails)
+        if (!skipEmail) {
+            await sendCohortWelcomeEmail(
+                user.email,
+                user.fullName || 'Participant',
+                cohort.name,
+                cohort.startDate
+            );
+        }
     } catch (err) {
         console.error('[Event:cohort.assigned] Error:', err);
     }

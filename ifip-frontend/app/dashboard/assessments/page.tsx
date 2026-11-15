@@ -11,29 +11,20 @@ import {
   HiOutlineChevronRight,
   HiOutlineAcademicCap
 } from "react-icons/hi2";
-import { getLMSModules, LMSModule, getMyApplication, getCohortConfig } from "@/lib/api/services";
+import { getLMSModules, LMSModule } from "@/lib/api/services";
+import { useDashboard } from "../dashboard-context";
 
 export default function AssessmentsPage() {
+  const { isLaunched, cohortStartLabel } = useDashboard();
   const [modules, setModules] = useState<LMSModule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [userData, setUserData] = useState<any>(null);
-  const [cohortStartDate, setCohortStartDate] = useState("2026-08-31T00:00:00.000Z");
-  const [dashboardViewOverride, setDashboardViewOverride] = useState<string>("default");
 
   useEffect(() => {
     const fetchAssessmentsData = async () => {
       try {
-        const [modulesData, profile, config] = await Promise.all([
-          getLMSModules(),
-          getMyApplication(),
-          getCohortConfig()
-        ]);
-        setModules(modulesData);
-        setUserData(profile);
-        setCohortStartDate(config.cohortStartDate);
-        setDashboardViewOverride(config.dashboardViewOverride || "default");
-      } catch (err: any) {
+        setModules(await getLMSModules());
+      } catch (err) {
         console.error("Failed to load assessments page parameters:", err);
         setError("Unable to retrieve assessments. Please try again later.");
       } finally {
@@ -42,15 +33,6 @@ export default function AssessmentsPage() {
     };
     fetchAssessmentsData();
   }, []);
-
-  const getIsLaunched = () => {
-    if (userData?.role === "admin" || userData?.role === "superadmin") return true;
-    if (dashboardViewOverride === "unlocked") return true;
-    if (dashboardViewOverride === "coming_soon") return false;
-    return new Date() >= new Date(cohortStartDate);
-  };
-
-  const isLaunched = getIsLaunched();
 
   // Fix 1: Only show modules that have a published assessment (assessmentId set).
   // Modules without an assessment ID are completely excluded — no "Pending Upload" cards.
@@ -131,15 +113,6 @@ export default function AssessmentsPage() {
   }
 
   if (!isLaunched) {
-    const formatCohortDate = (isoString: string) => {
-      try {
-        const d = new Date(isoString);
-        return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-      } catch {
-        return "August 31, 2026";
-      }
-    };
-
     return (
       <div className="flex-grow flex flex-col items-center justify-center py-10 px-4">
         <div className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200/50 p-6 md:p-12 lg:p-16 flex flex-col items-center text-center mx-auto shadow-sm select-none">
@@ -151,8 +124,8 @@ export default function AssessmentsPage() {
           </div>
           <h1 className="text-3xl md:text-4xl font-display font-black text-[#000666] mb-4">Course Assessments</h1>
           <p className="text-sm text-slate-600 leading-relaxed max-w-lg mb-8 font-medium">
-            Program assessments and practical evaluations are currently locked. Access will be unlocked on program launch day:{" "}
-            <strong className="text-[#000666]">{formatCohortDate(cohortStartDate)}</strong>.
+            Assessments are currently locked.{" "}
+            {cohortStartLabel ? <>Training starts <strong>{cohortStartLabel}</strong>.</> : "The training start date is to be announced."}
           </p>
         </div>
       </div>

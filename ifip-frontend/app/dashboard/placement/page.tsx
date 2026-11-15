@@ -313,7 +313,7 @@ export default function ParticipantPlacementPage() {
               Questions regarding internship matches or slots capacity? Get in touch with our matching desk.
             </p>
             <a 
-              href="mailto:placement.ifip@gmail.com" 
+              href="mailto:ifip.program@gmail.com" 
               className="text-[#00B0FF] font-bold text-xs hover:underline block"
             >
               Contact Matching Coordinator &rarr;

@@ -1,30 +1,20 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { TbBrandWhatsapp, TbMail } from "react-icons/tb";
 import { useRouter } from "next/navigation";
 import {
-  HiOutlineShieldCheck,
   HiChevronRight,
   HiCheckCircle,
   HiOutlineChevronLeft,
-  HiPaperClip,
-  HiLockClosed,
   HiShieldCheck,
   HiBars3,
-  HiXMark,
-  HiEnvelope,
-  HiInformationCircle,
-  HiOutlineClock,
-  HiShare,
   HiUserGroup,
-  HiTag,
-  HiGift,
 } from "react-icons/hi2";
-import { FaWhatsapp } from "react-icons/fa";
 import {
-  TbBook,
   TbUserCog,
   TbBriefcase,
   TbRefresh,
@@ -37,24 +27,25 @@ import {
   TbHeartHandshake,
   TbAward
 } from "react-icons/tb";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 import {
   startApplication,
   verifyOtp,
   getApplicantProfile,
+  getApplicantBankTransfer,
   updateApplicantProfile,
   uploadCv,
   submitApplication,
   resumeApplication,
   initiatePayment,
-  checkPaymentStatus,
   getCohortStatus,
   getRegistrationStatus,
   joinWaitlist,
   validateCoupon,
 } from "@/lib/api/services";
 import { getAccessToken } from "@/lib/api/auth";
+import type { Applicant } from "@/lib/api/types";
 import {
   step1EmailSchema,
   step1OtpSchema,
@@ -66,6 +57,138 @@ import {
 } from "@/lib/validation/applySchemas";
 
 import { useFormOptions } from "@/lib/hooks/useFormOptions";
+import { formatLevyAmount, useLevyPricing } from "@/lib/hooks/useLevyPricing";
+
+type RegistrationAvailability =
+  | { status: "checking" | "closed" | "failed" }
+  | { status: "open" | "full"; cohortName?: string };
+
+type WaitlistSubmission =
+  | { status: "idle" | "submitting" | "joined" | "already_joined" | "failed" }
+  | { status: "invalid"; message: string };
+
+type ResumeStatus = "restoring" | "idle" | "invalid_link" | "stale_session" | "retry";
+type VerificationRequest = "idle" | "sending" | "resending" | "verifying";
+
+const otherInterest = "Other (Specify)";
+const otherInterestPrefix = "Other: ";
+
+function interestChoice(value: string) {
+  return /^(other|other \(specify\))$/i.test(value.trim()) || value.startsWith(otherInterestPrefix)
+    ? otherInterest
+    : value;
+}
+
+function saveInterest(choice: string, detail: string) {
+  return choice === otherInterest && detail.trim() ? otherInterestPrefix + detail.trim() : choice;
+}
+
+const registrationButton = "min-h-11 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary hover:bg-primary-container focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:bg-surface-container-high disabled:text-on-surface-variant";
+
+const entryWidth = "mx-auto w-full max-w-[1264px] px-4 min-[360px]:px-5 sm:px-[5vw] lg:px-14";
+const entryFocus = "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#12617e]";
+const entryHeading = "break-words font-sans text-[32px] leading-[1.045] font-bold tracking-[-0.045em] text-balance text-[#101f3f] min-[360px]:text-[36px] min-[681px]:text-[clamp(36px,4vw,51px)]";
+const entryCopy = "text-base leading-[1.55] text-[#43536e]";
+const entryInput = `min-h-[54px] w-full min-w-0 rounded-[10px] border bg-[#fbfcff] px-3.5 py-2.5 text-base text-[#101f3f] placeholder:text-[#616b81] ${entryFocus}`;
+const formControl = "min-h-12 w-full min-w-0 scroll-mt-28 rounded-lg border border-outline bg-surface-container-lowest px-2.5 py-2 text-base text-on-surface aria-invalid:border-error sm:px-3 " + entryFocus;
+type CouponState =
+  | { status: "idle" | "checking" | "removed" }
+  | { status: "applied"; code: string; discountPercent: number }
+  | { status: "error"; message: string };
+
+type CheckoutState =
+  | { status: "idle" | "saving" | "requesting" | "redirecting" }
+  | { status: "error"; title: string; message: string; canCheckPayment?: boolean };
+
+type CvUpload =
+  | { status: "idle" }
+  | { status: "uploading"; file: File }
+  | { status: "failed"; message: string; retryFile?: File; sessionExpired?: boolean };
+
+const cvMaxMiB = 5;
+const formHeading = "scroll-mt-28 font-sans text-3xl font-bold tracking-tight leading-tight text-[#101f3f] sm:text-4xl";
+const formSection = "mb-3 font-sans text-xl font-semibold text-[#101f3f]";
+const optionalLabel = "font-normal text-on-surface-variant";
+const formLabel = "text-sm font-semibold text-on-surface";
+const stepActionRow = "grid grid-cols-[auto_minmax(0,1fr)] gap-2.5";
+const stepBackAction = "inline-flex min-h-[50px] items-center justify-center gap-1.5 rounded-[9px] border border-outline px-3 text-sm font-semibold text-[#101f3f] hover:bg-surface-container-low disabled:opacity-60 " + entryFocus;
+const stepForwardAction = "min-h-[50px] min-w-0 rounded-[9px] bg-[#101f3f] px-3 py-2.5 text-sm font-semibold text-white hover:bg-[#24395f] motion-safe:transition-[background-color,scale] motion-safe:active:scale-[.985] " + entryFocus;
+const formPartLabel = "block text-sm text-on-surface-variant";
+const formSecondaryAction = "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-outline px-4 py-2 text-sm font-semibold text-primary hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-60 " + entryFocus;
+const birthMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const graduationYears = Array.from({ length: 26 }, (_, index) => String(2010 + index));
+const qualifications = [
+  { value: "Undergraduate", label: "Undergraduate Student" },
+  { value: "Diploma", label: "Diploma / ND / HND" },
+  { value: "Bachelor's Degree", label: "Bachelor's Degree (B.Sc, B.A, etc.)" },
+  { value: "Master's Degree", label: "Master's Degree (M.Sc, MBA, etc.)" },
+  { value: "Doctorate", label: "PhD / Doctorate" },
+];
+const entryAction = `flex min-h-[54px] w-full items-center justify-between gap-3 rounded-[10px] bg-[#101f3f] px-4 py-3 text-start text-base font-semibold text-white hover:bg-[#24395f] motion-safe:transition-colors disabled:cursor-not-allowed disabled:bg-surface-container-high disabled:text-on-surface-variant aria-disabled:cursor-wait aria-disabled:bg-surface-container-high aria-disabled:text-on-surface-variant ${entryFocus}`;
+
+function RegistrationEntryFrame({ children, open = false }: { children: ReactNode; open?: boolean }) {
+  return (
+    <div className="grid overflow-hidden rounded-[14px] border border-[#cbd8e8] bg-white shadow-[0_18px_52px_#1824430c] min-[681px]:min-h-[530px] min-[681px]:grid-cols-2 min-[681px]:rounded-[22px] lg:min-h-[584px]">
+      <aside aria-label="About IFIP" className="relative isolate flex flex-col justify-between gap-8 overflow-hidden bg-[#101f3f] px-5 py-5 text-[#f4f8fe] min-[681px]:p-[clamp(30px,4vw,56px)]">
+        <div aria-hidden="true" className="pointer-events-none absolute -end-24 -bottom-20 -z-10 h-36 w-60 -rotate-[34deg] border-y-[16px] border-[#a9e2fa]/22 bg-[#a9e2fa]/16 bg-clip-content py-3" />
+        <div>
+          <p className="max-w-[38ch] text-xs font-semibold leading-normal text-[#a9e2fa] min-[681px]:mb-6 min-[681px]:text-sm lg:mb-[38px]">
+            Islamic Finance Internship Preparatory &amp; Placement Program
+          </p>
+          <p className="hidden max-w-[15ch] min-[681px]:block font-sans font-bold text-[clamp(32px,8vw,44px)] leading-none tracking-[-0.051em] text-balance min-[681px]:mt-0 min-[681px]:max-w-[13ch] min-[681px]:text-[clamp(39px,6vw,54px)] lg:text-[clamp(48px,4.5vw,62px)]">
+            Build your future in <em className="not-italic text-[#a9e2fa]">Islamic finance.</em>
+          </p>
+          <p className="mt-5 hidden max-w-[37ch] text-base leading-[1.55] text-[#d1dff2] min-[681px]:block">
+            Prepare for a career in Islamic finance through structured learning, assessment and internship placement.
+          </p>
+        </div>
+        {open && (
+          <div className="hidden space-y-2 border-t border-[#7582ab] pt-4 text-sm min-[681px]:block">
+            <strong>Have these ready</strong>
+            <ul className="flex list-disc flex-wrap gap-x-6 gap-y-1 ps-[18px] text-[#d1dff2] marker:text-[#a9e2fa]">
+              <li>An email you can access</li>
+              <li>Your CV as a PDF</li>
+            </ul>
+          </div>
+        )}
+      </aside>
+      <div className="flex min-w-0 items-center px-5 py-[23px] min-[681px]:p-[clamp(26px,4.2vw,60px)]">
+        <div className="mx-auto w-full max-w-[432px]">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function EntryIntake({ label, cohortName, tone = "neutral" }: {
+  label: string;
+  cohortName?: string;
+  tone?: "open" | "waitlist" | "error" | "neutral";
+}) {
+  const color = {
+    open: "text-[#176448]",
+    waitlist: "text-[#785018]",
+    error: "text-[#9e2638]",
+    neutral: "text-[#43536e]",
+  }[tone];
+  return (
+    <p className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-normal text-[#43536e] min-[360px]:gap-x-3 min-[360px]:text-[13px] min-[681px]:mb-[27px]">
+      <span className={`inline-flex items-center gap-2 font-bold ${color}`}>
+        <span className="size-[7px] shrink-0 rounded-full bg-current" aria-hidden="true" />
+        {label}
+      </span>
+      {cohortName && <span className="min-w-0 break-words border-s border-[#b0b7c5] ps-[11px]">{cohortName}</span>}
+    </p>
+  );
+}
+
+function EntryRecovery() {
+  return (
+    <div className="mt-[18px] space-y-1 border-t border-[#cbd8e8] pt-[14px] text-sm leading-relaxed text-[#43536e] min-[681px]:mt-6 min-[681px]:pt-[18px]">
+      <p className="font-semibold text-[#101f3f]">Already started an application?</p>
+      <p>Use the resume link in your email to continue.</p>
+    </div>
+  );
+}
 
 interface CountryDialCode {
   code: string;
@@ -291,10 +414,14 @@ const parsePhoneNumber = (fullPhone: string, list: CountryDialCode[]) => {
   };
 };
 
+const residenceOptions = [...DIAL_CODES].sort((a, b) => (
+  Number(b.code === "NG") - Number(a.code === "NG") || a.name.localeCompare(b.name)
+));
+
 const STATUS_DESCS: Record<string, string> = {
   "University Student": "Early Years",
   "Penultimate Year Student": "Year before final",
-  "Final Year Student": "Graduating 2026",
+  "Final Year Student": "In your final year",
   "Recent Graduate": "Post-university",
   "NYSC Participant": "Current service",
   "Early-Career Professional": "0-2 years exp",
@@ -316,7 +443,7 @@ export default function ApplyPage() {
   } = useFormOptions("academic_status");
 
   const router = useRouter();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const reduceMotion = useReducedMotion();
 
   // Steps: 1: VERIFY, 2: PROFILE, 3: ACADEMIC, 4: INTEREST, 5: SKILLS, 6: PAYMENT
   const [step, setStep] = useState(1);
@@ -324,25 +451,43 @@ export default function ApplyPage() {
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [token, setToken] = useState("");
-  const [createdPasswordToken, setCreatedPasswordToken] = useState("");
+  const [confirmation, setConfirmation] = useState<{ type: "submitted" | "waived"; setupToken?: string } | null>(null);
+  const paymentReturn = useRef(false);
+  const [paymentRecovery, setPaymentRecovery] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Waitlist/Cohort status state
-  const [cohortFull, setCohortFull] = useState(false);
-  const [finalizedSeats, setFinalizedSeats] = useState(0);
-  const [cohortCap, setCohortCap] = useState(100);
-  const [checkingCohortStatus, setCheckingCohortStatus] = useState(true);
+  const [registrationAvailability, setRegistrationAvailability] = useState<RegistrationAvailability>({ status: "checking" });
+  const [availabilityAttempt, setAvailabilityAttempt] = useState(0);
   const [waitlistEmail, setWaitlistEmail] = useState("");
-  const [waitlistJoined, setWaitlistJoined] = useState(false);
-  const [waitlistLoading, setWaitlistLoading] = useState(false);
-  const [waitlistError, setWaitlistError] = useState("");
-  const [waitlistSuccessMsg, setWaitlistSuccessMsg] = useState("");
-  const [cohortName, setCohortName] = useState("The Current Cohort");
+  const [waitlist, setWaitlist] = useState<WaitlistSubmission>({ status: "idle" });
+  const waitlistRequest = useRef(false);
+  const waitlistInput = useRef<HTMLInputElement>(null);
+  const entryEmailInput = useRef<HTMLInputElement>(null);
+  const availabilityHeading = useRef<HTMLHeadingElement>(null);
+  const waitlistResultHeading = useRef<HTMLHeadingElement>(null);
 
   // Resume/session restoration states
-  const [isResuming, setIsResuming] = useState(false);
-  const [isResumeNetworkError, setIsResumeNetworkError] = useState(false);
-  const [resumeToken, setResumeToken] = useState("");
+  const [resumeStatus, setResumeStatus] = useState<ResumeStatus>("restoring");
+  const resumeToken = useRef<string | undefined>(undefined);
+  const resumeRequest = useRef(false);
+  const mounted = useRef(false);
+  const resumeHeading = useRef<HTMLHeadingElement>(null);
+  const residenceChosen = useRef(false);
+  const dialCodeChosen = useRef(false);
+  const [verificationRequest, setVerificationRequest] = useState<VerificationRequest>("idle");
+  const activeVerification = useRef(false);
+  const otpInput = useRef<HTMLInputElement>(null);
+  const draftSaveRequest = useRef(false);
+  const verificationStepSave = useRef<Promise<void> | null>(null);
+  const stepToFocus = useRef<number | null>(null);
+  const saveErrorRef = useRef<HTMLDivElement>(null);
+  const [saveNotice, setSaveNotice] = useState("");
+  const [formSaveError, setFormSaveError] = useState("");
+  const firstInvalidField = useRef("");
+  const focusEntryEmail = useRef(false);
+  const [verificationNotice, setVerificationNotice] = useState("");
+  const [registeredEmail, setRegisteredEmail] = useState(false);
 
   // Step 1 State
   const [email, setEmail] = useState("");
@@ -369,18 +514,6 @@ export default function ApplyPage() {
   const [dobDay, setDobDay] = useState("");
   const [dobMonth, setDobMonth] = useState("");
   const [dobYear, setDobYear] = useState("");
-
-  // Sync individual DOB parts when dob state is loaded or updated externally
-  useEffect(() => {
-    if (dob && dob.includes("-")) {
-      const parts = dob.split("-");
-      if (parts.length === 3) {
-        if (parts[0] && parts[0] !== dobYear) setDobYear(parts[0]);
-        if (parts[1] && parts[1] !== dobMonth) setDobMonth(parts[1]);
-        if (parts[2] && parts[2] !== dobDay) setDobDay(parts[2]);
-      }
-    }
-  }, [dob]);
 
   const handleDobPartChange = (part: 'day' | 'month' | 'year', value: string) => {
     const d = part === 'day' ? value.replace(/\D/g, "").slice(0, 2) : dobDay;
@@ -409,42 +542,10 @@ export default function ApplyPage() {
   const [gender, setGender] = useState("");
   const [country, setCountry] = useState("");
   const [stateCity, setStateCity] = useState("");
-  const [dialCodesList, setDialCodesList] = useState<CountryDialCode[]>(DIAL_CODES);
+  const dialCodesList = DIAL_CODES;
   const [selectedCountryCode, setSelectedCountryCode] = useState("NG");
-  const [flagDropdownOpen, setFlagDropdownOpen] = useState(false);
-  const [flagSearch, setFlagSearch] = useState("");
   const [paymentVerified, setPaymentVerified] = useState(false);
-  const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [geoDetecting, setGeoDetecting] = useState(true);
-  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
-  const [countrySearch, setCountrySearch] = useState("");
-  const phoneContainerRef = useRef<HTMLDivElement>(null);
-  const countryContainerRef = useRef<HTMLDivElement>(null);
-
-  // Click outside handler to close the flag selector and country dropdowns
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (phoneContainerRef.current && !phoneContainerRef.current.contains(event.target as Node)) {
-        setFlagDropdownOpen(false);
-      }
-      if (countryContainerRef.current && !countryContainerRef.current.contains(event.target as Node)) {
-        setCountryDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  // Clear search queries on dropdown close
-  useEffect(() => {
-    if (!flagDropdownOpen) setFlagSearch("");
-  }, [flagDropdownOpen]);
-
-  useEffect(() => {
-    if (!countryDropdownOpen) setCountrySearch("");
-  }, [countryDropdownOpen]);
 
   // Step 3 State (Academic)
   const [academicStatus, setAcademicStatus] = useState("");
@@ -456,6 +557,9 @@ export default function ApplyPage() {
   // Step 4 State (Interest)
   const [primaryInterest, setPrimaryInterest] = useState<string[]>([]);
   const [secondaryInterest, setSecondaryInterest] = useState("");
+  const [otherPrimaryInterest, setOtherPrimaryInterest] = useState("");
+  const [otherSecondaryInterest, setOtherSecondaryInterest] = useState("");
+  const [restoredInterests, setRestoredInterests] = useState<{ primary: string[]; secondary: string }>({ primary: [], secondary: "" });
 
   // Step 5 State (Skills & Motivation)
   const [skillsText, setSkillsText] = useState(""); // Comma separated tags
@@ -466,10 +570,12 @@ export default function ApplyPage() {
   const [availability, setAvailability] = useState("Immediately");
   const [whyApplying, setWhyApplying] = useState("");
   const [careerGoals, setCareerGoals] = useState("");
-  const [cvFile, setCvFile] = useState<File | null>(null);
   const [cvUrl, setCvUrl] = useState("");
-  const [cvUploading, setCvUploading] = useState(false);
-  const [cvUploadError, setCvUploadError] = useState("");
+  const [cvUpload, setCvUpload] = useState<CvUpload>({ status: "idle" });
+  const cvUploadRequest = useRef(false);
+  const cvNeedsConfirmation = useRef(false);
+  const cvUploading = cvUpload.status === "uploading";
+  const cvSessionExpired = cvUpload.status === "failed" && cvUpload.sessionExpired;
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [portfolioUrl, setPortfolioUrl] = useState("");
   const [leadSource, setLeadSource] = useState("LinkedIn");
@@ -482,49 +588,73 @@ export default function ApplyPage() {
     new Date().toISOString().substring(0, 10)
   );
 
-  // Step 6 State (Coupon Code)
   const [couponOpen, setCouponOpen] = useState(false);
   const [couponInput, setCouponInput] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState<{
-    code: string;
-    discountPercent: number;
-    message: string;
-  } | null>(null);
-  const [couponLoading, setCouponLoading] = useState(false);
-  const [couponError, setCouponError] = useState("");
-  const [couponSuccessMsg, setCouponSuccessMsg] = useState("");
+  const [coupon, setCoupon] = useState<CouponState>({ status: "idle" });
+  const [checkout, setCheckout] = useState<CheckoutState>({ status: "idle" });
+  const couponRequest = useRef(false);
+  const checkoutRequest = useRef(false);
+  const couponSummary = useRef<HTMLElement>(null);
+  const couponField = useRef<HTMLInputElement>(null);
+  const checkoutError = useRef<HTMLDivElement>(null);
+  const couponBusy = coupon.status === "checking";
+  const checkoutBusy = checkout.status === "saving" || checkout.status === "requesting" || checkout.status === "redirecting";
+  const appliedCoupon = coupon.status === "applied" ? coupon : null;
+  const levyCurrency = country === "Nigeria" ? "NGN" : "USD";
+  const { pricing, failed: pricingFailed } = useLevyPricing(step === 6 && !paymentVerified);
+  const estimatedLevy = pricing?.[levyCurrency];
+  const estimatedTotal = estimatedLevy === undefined ? undefined :
+    Math.max(0, Math.round(estimatedLevy * (1 - (appliedCoupon?.discountPercent ?? 0) / 100)));
 
-  const handleApplyCoupon = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCouponError("");
-    setCouponSuccessMsg("");
-    if (!couponInput || !couponInput.trim()) {
-      setCouponError("Please enter a coupon code.");
+  useEffect(() => {
+    if (coupon.status === "applied") couponSummary.current?.focus();
+    if (coupon.status === "removed" || coupon.status === "error") {
+      (couponOpen ? couponField.current : couponSummary.current)?.focus();
+    }
+  }, [coupon, couponOpen]);
+
+  useEffect(() => {
+    if (checkout.status === "error") checkoutError.current?.focus();
+  }, [checkout]);
+
+  useEffect(() => {
+    const restoreFromHistory = (event: PageTransitionEvent) => {
+      if (!event.persisted || checkout.status !== "redirecting") return;
+      checkoutRequest.current = false;
+      setCheckout({ status: "idle" });
+    };
+    window.addEventListener("pageshow", restoreFromHistory);
+    return () => window.removeEventListener("pageshow", restoreFromHistory);
+  }, [checkout.status]);
+
+  const handleApplyCoupon = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (couponRequest.current || checkoutRequest.current) return;
+    const code = couponInput.trim();
+    if (!code) {
+      setCoupon({ status: "error", message: "Enter a coupon code." });
       return;
     }
-    setCouponLoading(true);
+    couponRequest.current = true;
+    setCoupon({ status: "checking" });
     try {
-      const res = await validateCoupon(couponInput.trim());
-      setAppliedCoupon({
-        code: res.code,
-        discountPercent: res.discountPercent,
-        message: res.message,
-      });
-      setCouponSuccessMsg(res.message);
-      setCouponError("");
-    } catch (err: any) {
-      setCouponError(err.message || "Failed to validate coupon code.");
-      setAppliedCoupon(null);
+      const result = await validateCoupon(code);
+      if (mounted.current) {
+        setCoupon(result.valid
+          ? { status: "applied", code: result.code, discountPercent: result.discountPercent }
+          : { status: "error", message: result.message || "This coupon could not be applied." });
+      }
+    } catch (error) {
+      if (mounted.current) setCoupon({ status: "error", message: error instanceof Error ? error.message : "We couldn’t check this coupon. Try again." });
     } finally {
-      setCouponLoading(false);
+      couponRequest.current = false;
     }
   };
 
   const handleRemoveCoupon = () => {
-    setAppliedCoupon(null);
+    if (checkoutRequest.current) return;
     setCouponInput("");
-    setCouponError("");
-    setCouponSuccessMsg("");
+    setCoupon({ status: "removed" });
   };
 
   const handleInputChange = (field: string, value: any, setter: Function) => {
@@ -562,14 +692,19 @@ export default function ApplyPage() {
         break;
       case 4:
         schema = step4InterestSchema;
-        dataToValidate = { primaryInterest, secondaryInterest };
+        dataToValidate = {
+          primaryInterest,
+          secondaryInterest,
+          otherPrimaryInterest: primaryInterest.includes(otherInterest) ? otherPrimaryInterest : undefined,
+          otherSecondaryInterest: secondaryInterest === otherInterest ? otherSecondaryInterest : undefined,
+        };
         break;
       case 5:
         schema = step5SkillsSchema;
         dataToValidate = { 
           whyApplying, 
           careerGoals, 
-          cvUrl: cvUrl || (cvFile ? "pending_upload" : ""), 
+          cvUrl,
           linkedinUrl, 
           portfolioUrl 
         };
@@ -583,417 +718,411 @@ export default function ApplyPage() {
     }
 
     const result = schema.safeParse(dataToValidate);
-    if (!result.success) {
+    // A Date can roll an impossible day into the following month.
+    const parsedDob = currentStep === 2 && dob ? new Date(dob) : null;
+    const invalidCalendarDate = parsedDob && (Number.isNaN(parsedDob.getTime()) || parsedDob.toISOString().slice(0, 10) !== dob);
+    const missingPhone = currentStep === 2 && !phone.trim();
+    if (!result.success || invalidCalendarDate || missingPhone) {
       const formattedErrors: Record<string, string> = {};
-      result.error.issues.forEach((issue) => {
+      if (!result.success) result.error.issues.forEach((issue) => {
         const path = issue.path[0] as string;
         if (!formattedErrors[path]) {
           formattedErrors[path] = issue.message;
         }
       });
+      if (missingPhone) formattedErrors.phone = "Enter your WhatsApp phone number.";
+      if (invalidCalendarDate) formattedErrors.dob = "Enter a valid date of birth.";
       setErrors(formattedErrors);
-
-      // Smooth scroll to first error
-      setTimeout(() => {
-        const errorKeys = Object.keys(formattedErrors);
-        if (errorKeys.length > 0) {
-          const firstErrorField = document.getElementById(errorKeys[0]);
-          if (firstErrorField) {
-            firstErrorField.scrollIntoView({ behavior: "smooth", block: "center" });
-            firstErrorField.focus();
-          }
-        }
-      }, 50);
-
+      const field = ["fullName", "phone", "dob", "gender", "country", "stateCity", "academicStatus", "institution", "graduationYear", "fieldOfStudy", "qualification", "primaryInterest", "otherPrimaryInterest", "otherSecondaryInterest", "whyApplying", "careerGoals", "cvUrl", "portfolioUrl", "declarationConfirmed", "signature"]
+        .find((key) => formattedErrors[key]);
+      const dateField = !dobDay ? "dob-day" : !dobMonth ? "dob-month" : dobYear.length < 4 ? "dob-year" : "dob-day";
+      firstInvalidField.current = field === "dob" ? dateField : field ?? "";
       return false;
     }
 
     return true;
   };
 
-  // Check for payment=verified flag set by /verify-payment after successful polling
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const paymentFlag = params.get("payment");
 
-    if (paymentFlag === "verified") {
-      setPaymentVerified(true);
-      setLevyAcknowledged(true);
-      // Clean the query param without a reload
-      router.replace("/apply");
-    }
-  }, []);
 
-  // Check cohort capacity on mount or when payment status changes
+  // Each lookup owns its response until a retry or unmount supersedes it.
   useEffect(() => {
-    const checkCohortCap = async () => {
-      setCheckingCohortStatus(true);
-      try {
-        const data = await getRegistrationStatus();
-        setFinalizedSeats(data.count || 0);
-        setCohortCap(data.cap || 100);
-        if (data.cohortName) {
-          setCohortName(data.cohortName);
-        }
-        
-        // Cohort is full if no active cohort exists OR isFull is true (and user hasn't paid yet)
-        if (!paymentVerified) {
-          setCohortFull(!data.hasActiveCohort || data.isFull);
-        } else {
-          setCohortFull(false);
-        }
-      } catch (err) {
-        console.error("Failed to fetch cohort capacity status:", err);
-      } finally {
-        setCheckingCohortStatus(false);
+    let ignore = false;
+
+    getRegistrationStatus().then((data) => {
+      if (ignore) return;
+      if (data?.hasActiveCohort === false) {
+        setRegistrationAvailability({ status: "closed" });
+      } else if (data?.hasActiveCohort === true && typeof data.isFull === "boolean") {
+        setRegistrationAvailability({ status: data.isFull ? "full" : "open", cohortName: data.cohortName });
+      } else {
+        setRegistrationAvailability({ status: "failed" });
       }
-    };
-    checkCohortCap();
-  }, [paymentVerified]);
+    }).catch(() => {
+      if (!ignore) setRegistrationAvailability({ status: "failed" });
+    });
 
-  // Restore token from localStorage on mount and check for resume token in URL
+    return () => { ignore = true; };
+  }, [availabilityAttempt]);
+
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const urlToken = params.get("token");
-
-    if (urlToken) {
-      setResumeToken(urlToken);
-      handleResumeApplication(urlToken);
-    } else {
-      const savedToken = localStorage.getItem("applicantToken");
-      if (savedToken) {
-        setToken(savedToken);
-        fetchCurrentApplicant();
-      }
+    if (availabilityAttempt > 0 && document.activeElement === document.body) {
+      availabilityHeading.current?.focus();
     }
-  }, []);
+  }, [registrationAvailability.status, availabilityAttempt]);
 
-  // Detect user country from IP address on mount (only for fresh sessions)
   useEffect(() => {
+    if (waitlist.status === "joined" || waitlist.status === "already_joined") {
+      waitlistResultHeading.current?.focus();
+    }
+  }, [waitlist.status]);
+
+  const retryAvailability = () => {
+    if (registrationAvailability.status !== "failed") return;
+    setRegistrationAvailability({ status: "checking" });
+    setAvailabilityAttempt((attempt) => attempt + 1);
+  };
+
+  // Geolocation supplies defaults only. A saved or manually chosen value wins.
+  useEffect(() => {
+    let active = true;
     const detectCountry = async () => {
-      setGeoDetecting(true);
+      let code = "NG";
       try {
-        const res = await fetch("/api/geolocation");
-        const data = await res.json();
-        if (data && data.countryCode) {
-          const detectedCode = data.countryCode.toUpperCase();
-          
-          // Match with local DIAL_CODES list
-          const matchedCountry = DIAL_CODES.find(c => c.code === detectedCode);
-          if (matchedCountry) {
-            setCountry(matchedCountry.name);
-            setSelectedCountryCode(matchedCountry.code);
-
-            setDialCodesList(prev => {
-              const exists = prev.some(c => c.code === detectedCode);
-              if (!exists) {
-                return [...prev, matchedCountry];
-              }
-              return prev;
-            });
-          } else {
-            // Country code not in DIAL_CODES list — default to Nigeria
-            setCountry("Nigeria");
-            setSelectedCountryCode("NG");
-          }
-        } else {
-          // Detection returned no data — default to Nigeria
-          setCountry("Nigeria");
-          setSelectedCountryCode("NG");
+        const response = await fetch("/api/geolocation");
+        if (response.ok) {
+          const data = await response.json();
+          if (typeof data?.countryCode === "string") code = data.countryCode.toUpperCase();
         }
-      } catch (err) {
-        console.error("Failed to detect country by IP:", err);
-        // Default to Nigeria on error
-        setCountry("Nigeria");
-        setSelectedCountryCode("NG");
-      } finally {
-        setGeoDetecting(false);
+      } catch {
+        // Keep the existing Nigeria default when location is unavailable.
       }
+      if (!active) return;
+      const match = DIAL_CODES.find((item) => item.code === code);
+      if (!residenceChosen.current) setCountry(match?.name ?? "Nigeria");
+      if (!dialCodeChosen.current) setSelectedCountryCode(match?.code ?? "NG");
+      setGeoDetecting(false);
     };
+    void detectCountry();
+    return () => { active = false; };
+  }, []);
+  const hydrateApplicant = (applicant: Applicant, focusAfterHydration = false) => {
+    if (applicant.email) setEmail(applicant.email);
+    if (applicant.fullName) setFullName(applicant.fullName);
+    if (applicant.phone) {
+      dialCodeChosen.current = true;
+      const parsed = parsePhoneNumber(applicant.phone, dialCodesList);
+      setSelectedCountryCode(parsed.countryCode);
+      setPhone(parsed.number);
+    }
+    if (applicant.dob) {
+      const savedDate = typeof applicant.dob === "string"
+        ? applicant.dob.substring(0, 10)
+        : applicant.dob.toISOString().substring(0, 10);
+      const [year, month, day] = savedDate.split("-");
+      setDob(savedDate);
+      setDobYear(year ?? "");
+      setDobMonth(month ?? "");
+      setDobDay(day ?? "");
+    }
+    if (applicant.gender) setGender(applicant.gender);
+    if (applicant.country) {
+      residenceChosen.current = true;
+      setCountry(applicant.country);
+    }
+    if (applicant.stateCity) setStateCity(applicant.stateCity);
 
-    // Always run geolocation — gives a sensible default for fresh sessions
-    // and a fallback when the saved applicant record has no country saved.
-    // Resume/fetch will override this with the actual saved country if present.
-    detectCountry();
+    if (applicant.academicInfo) {
+      if (applicant.academicInfo.status) setAcademicStatus(applicant.academicInfo.status);
+      if (applicant.academicInfo.institution) setInstitution(applicant.academicInfo.institution);
+      if (applicant.academicInfo.gradYear) setGraduationYear(String(applicant.academicInfo.gradYear));
+      if (applicant.academicInfo.fieldOfStudy) setFieldOfStudy(applicant.academicInfo.fieldOfStudy);
+      if (applicant.academicInfo.qualification) setQualification(applicant.academicInfo.qualification);
+    }
+
+    if (applicant.programInterest) {
+      const primary = applicant.programInterest.primary ?? [];
+      const secondary = applicant.programInterest.secondary ?? "";
+      const choices = [...new Set(primary.map(interestChoice))];
+      const secondaryChoice = interestChoice(secondary);
+      setRestoredInterests({ primary: choices, secondary: secondaryChoice });
+      setPrimaryInterest(choices);
+      setSecondaryInterest(secondaryChoice);
+      setOtherPrimaryInterest(primary.find((item) => item.startsWith(otherInterestPrefix))?.slice(otherInterestPrefix.length) ?? "");
+      setOtherSecondaryInterest(secondary.startsWith(otherInterestPrefix) ? secondary.slice(otherInterestPrefix.length) : "");
+    }
+
+    if (applicant.skills) {
+      if (applicant.skills.relevantSkills) setSkillsText(applicant.skills.relevantSkills.join(", "));
+      if (applicant.skills.tools) setToolsText(applicant.skills.tools.join(", "));
+      if (applicant.skills.hasPriorInternship !== undefined) setHasPriorInternship(applicant.skills.hasPriorInternship);
+      if (applicant.skills.priorInternshipDesc) setPriorInternshipDesc(applicant.skills.priorInternshipDesc);
+      if (applicant.skills.commSkillLevel) setCommLevel(applicant.skills.commSkillLevel);
+      if (applicant.skills.availability) setAvailability(applicant.skills.availability);
+    }
+
+    if (applicant.motivation) {
+      if (applicant.motivation.whyApplying) setWhyApplying(applicant.motivation.whyApplying);
+      if (applicant.motivation.careerGoals) setCareerGoals(applicant.motivation.careerGoals);
+    }
+
+    setCvUrl(applicant.cvUrl ?? "");
+    cvNeedsConfirmation.current = false;
+    if (applicant.linkedinUrl) setLinkedinUrl(applicant.linkedinUrl);
+    if (applicant.portfolioUrl) setPortfolioUrl(applicant.portfolioUrl);
+    if (applicant.leadSource) setLeadSource(applicant.leadSource);
+    if (applicant.levyAcknowledged !== undefined) setLevyAcknowledged(applicant.levyAcknowledged);
+
+    if (applicant.declaration) {
+      if (applicant.declaration.confirmed !== undefined) setDeclarationConfirmed(applicant.declaration.confirmed);
+      if (applicant.declaration.signature) setSignature(applicant.declaration.signature);
+      if (applicant.declaration.date) {
+        const declDateVal = applicant.declaration.date;
+        const formattedDate = typeof declDateVal === "string"
+          ? declDateVal.substring(0, 10)
+          : new Date(declDateVal).toISOString().substring(0, 10);
+        setDeclarationDate(formattedDate);
+      }
+    }
+
+    setPaymentVerified(applicant.isPaid === true);
+    const savedStep = applicant.currentStep;
+    const restoredStep = Number.isInteger(savedStep) && savedStep >= 2 && savedStep <= 6 ? savedStep : 2;
+    if (focusAfterHydration) stepToFocus.current = restoredStep;
+    setStep(restoredStep);
+  };
+
+  const restoreApplication = async (linkToken?: string) => {
+    if (resumeRequest.current) return;
+    resumeRequest.current = true;
+    setResumeStatus("restoring");
+    setErrorMsg("");
+    try {
+      const result = linkToken ? await resumeApplication(linkToken) : null;
+      const applicant = result ? result.applicant : await getApplicantProfile();
+      if (!mounted.current) return;
+      const sessionToken = result?.sessionToken ?? localStorage.getItem("applicantToken");
+      if (!applicant || !sessionToken) throw new Error("Missing applicant session");
+      if (result) localStorage.setItem("applicantToken", sessionToken);
+      if (applicant.transferHoldUntil) {
+        router.replace("/apply/bank-transfer");
+        return;
+      }
+      setToken(sessionToken);
+      const returningFromPayment = paymentReturn.current;
+      if (returningFromPayment && applicant.isPaid !== true) {
+        setPaymentRecovery(true);
+      } else {
+        hydrateApplicant(applicant, returningFromPayment);
+        paymentReturn.current = false;
+        setPaymentRecovery(false);
+      }
+      setResumeStatus("idle");
+      if ((linkToken || returningFromPayment) && !paymentReturn.current) router.replace("/apply");
+    } catch (error) {
+      if (!mounted.current) return;
+      const status = error instanceof Error && "status" in error ? error.status : undefined;
+      if (!linkToken && status === 404 && localStorage.getItem("applicantToken")) {
+        const transfer = await getApplicantBankTransfer().catch(() => null);
+        if (transfer?.review === "approved" && mounted.current) {
+          router.replace("/apply/bank-transfer");
+          return;
+        }
+      }
+      if (status === 400 || status === 401 || status === 403 || status === 404) {
+        if (!linkToken) {
+          localStorage.removeItem("applicantToken");
+          setToken("");
+        }
+        if (paymentReturn.current) {
+          setPaymentRecovery(true);
+          setResumeStatus("idle");
+        } else {
+          setResumeStatus(linkToken ? "invalid_link" : "stale_session");
+          if (linkToken) router.replace("/apply");
+        }
+      } else {
+        setResumeStatus("retry");
+      }
+    } finally {
+      resumeRequest.current = false;
+    }
+  };
+
+  useEffect(() => {
+    mounted.current = true;
+    let active = true;
+    // Wait for the active mount before starting the session lookup.
+    queueMicrotask(() => {
+      if (!active) return;
+      const params = new URLSearchParams(window.location.search);
+      const linkToken = params.get("token");
+      paymentReturn.current = params.get("payment") === "verified";
+      if (linkToken) {
+        resumeToken.current = linkToken;
+        void restoreApplication(linkToken);
+      } else {
+        if (localStorage.getItem("applicantToken")) {
+          void restoreApplication();
+        } else {
+          setPaymentRecovery(paymentReturn.current);
+          setResumeStatus("idle");
+        }
+      }
+    });
+    return () => {
+      active = false;
+      mounted.current = false;
+    };
+    // The initial URL and stored session are read once per mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleResumeApplication = async (tokenToUse: string) => {
-    setIsResuming(true);
-    setIsResumeNetworkError(false);
-    setLoading(true);
-    setErrorMsg("");
-    try {
-      const data = await resumeApplication(tokenToUse);
-      const sessionToken = data.sessionToken;
-      setToken(sessionToken);
-      localStorage.setItem("applicantToken", sessionToken);
-
-      // Prepopulate form fields
-      if (data.applicant) {
-        const applicant = data.applicant;
-        if (applicant.email) setEmail(applicant.email);
-        if (applicant.fullName) setFullName(applicant.fullName);
-        if (applicant.phone) {
-          const parsed = parsePhoneNumber(applicant.phone, dialCodesList);
-          setSelectedCountryCode(parsed.countryCode);
-          setPhone(parsed.number);
-        }
-        if (applicant.dob) {
-          const dobVal = applicant.dob;
-          if (typeof dobVal === "string") {
-            setDob(dobVal.substring(0, 10));
-          } else if (dobVal instanceof Date) {
-            setDob(dobVal.toISOString().substring(0, 10));
-          }
-        }
-        if (applicant.gender) setGender(applicant.gender);
-        if (applicant.country) setCountry(applicant.country);
-        if (applicant.stateCity) setStateCity(applicant.stateCity);
-
-        if (applicant.academicInfo) {
-          if (applicant.academicInfo.status) setAcademicStatus(applicant.academicInfo.status);
-          if (applicant.academicInfo.institution) setInstitution(applicant.academicInfo.institution);
-          if (applicant.academicInfo.gradYear) setGraduationYear(String(applicant.academicInfo.gradYear));
-          if (applicant.academicInfo.fieldOfStudy) setFieldOfStudy(applicant.academicInfo.fieldOfStudy);
-          if (applicant.academicInfo.qualification) setQualification(applicant.academicInfo.qualification);
-        }
-
-        if (applicant.programInterest) {
-          if (applicant.programInterest.primary) setPrimaryInterest(applicant.programInterest.primary);
-          if (applicant.programInterest.secondary) setSecondaryInterest(applicant.programInterest.secondary);
-        }
-
-        if (applicant.skills) {
-          if (applicant.skills.relevantSkills) setSkillsText(applicant.skills.relevantSkills.join(", "));
-          if (applicant.skills.tools) setToolsText(applicant.skills.tools.join(", "));
-          if (applicant.skills.hasPriorInternship !== undefined) setHasPriorInternship(applicant.skills.hasPriorInternship);
-          if (applicant.skills.priorInternshipDesc) setPriorInternshipDesc(applicant.skills.priorInternshipDesc);
-          if (applicant.skills.commSkillLevel) setCommLevel(applicant.skills.commSkillLevel);
-          if (applicant.skills.availability) setAvailability(applicant.skills.availability);
-        }
-
-        if (applicant.motivation) {
-          if (applicant.motivation.whyApplying) setWhyApplying(applicant.motivation.whyApplying);
-          if (applicant.motivation.careerGoals) setCareerGoals(applicant.motivation.careerGoals);
-        }
-
-        if (applicant.cvUrl) setCvUrl(applicant.cvUrl);
-        if (applicant.linkedinUrl) setLinkedinUrl(applicant.linkedinUrl);
-        if (applicant.portfolioUrl) setPortfolioUrl(applicant.portfolioUrl);
-        if (applicant.leadSource) setLeadSource(applicant.leadSource);
-        if (applicant.levyAcknowledged !== undefined) setLevyAcknowledged(applicant.levyAcknowledged);
-
-        if (applicant.declaration) {
-          if (applicant.declaration.confirmed !== undefined) setDeclarationConfirmed(applicant.declaration.confirmed);
-          if (applicant.declaration.signature) setSignature(applicant.declaration.signature);
-          if (applicant.declaration.date) {
-            const declDateVal = applicant.declaration.date;
-            const formattedDate = typeof declDateVal === "string" 
-              ? declDateVal.substring(0, 10) 
-              : new Date(declDateVal).toISOString().substring(0, 10);
-            setDeclarationDate(formattedDate);
-          }
-        }
-
-        // Restore payment-verified state from server — critical for users who
-        // paid but closed the browser before clicking "Submit Application".
-        // Without this, isPaid=true applicants would see the "Pay Now" button
-        // again and risk being charged a second time.
-        if (applicant.isPaid) setPaymentVerified(true);
-
-        // Move to the step retrieved from the backend.
-        // If currentStep is 1 (default — email verified but no profile started),
-        // skip back to step 1 is wrong because the resume token already proves
-        // email ownership. Always advance to at least step 2 when resuming.
-        const savedStep = (applicant.currentStep && applicant.currentStep > 1) ? applicant.currentStep : 2;
-        setStep(savedStep);
-      }
-
-      // Clear the query parameter from the browser URL for clean state
-      router.replace("/apply");
-      setIsResuming(false);
-    } catch (err: any) {
-      if (err.isNetworkError) {
-        setIsResumeNetworkError(true);
-        setErrorMsg("Failed to connect to the server. Please check your internet connection.");
-      } else {
-        // Token expired/invalid - remove query param and exit resume screen to step 1
-        router.replace("/apply");
-        setIsResuming(false);
-        setErrorMsg(err.message || "Failed to resume application. The token might have expired.");
-      }
-    } finally {
-      setLoading(false);
-      setGeoDetecting(false);
-    }
-  };
-
-  const fetchCurrentApplicant = async () => {
-    setIsResuming(true);
-    setIsResumeNetworkError(false);
-    setLoading(true);
-    try {
-      const data = await getApplicantProfile();
-      if (data) {
-        // Pre-populate state
-        if (data.email) setEmail(data.email);
-        if (data.fullName) setFullName(data.fullName);
-        if (data.phone) {
-          const parsed = parsePhoneNumber(data.phone, dialCodesList);
-          setSelectedCountryCode(parsed.countryCode);
-          setPhone(parsed.number);
-        }
-        if (data.dob) {
-          const dobStr = typeof data.dob === "string" ? data.dob : data.dob.toISOString();
-          setDob(dobStr.substring(0, 10));
-        }
-        if (data.gender) setGender(data.gender);
-        if (data.country) setCountry(data.country);
-        if (data.stateCity) setStateCity(data.stateCity);
-
-        if (data.academicInfo) {
-          if (data.academicInfo.status) setAcademicStatus(data.academicInfo.status);
-          if (data.academicInfo.institution) setInstitution(data.academicInfo.institution);
-          if (data.academicInfo.gradYear) setGradYearString(data.academicInfo.gradYear);
-          if (data.academicInfo.fieldOfStudy) setFieldOfStudy(data.academicInfo.fieldOfStudy);
-          if (data.academicInfo.qualification) setQualification(data.academicInfo.qualification);
-        }
-
-        if (data.programInterest) {
-          if (data.programInterest.primary) setPrimaryInterest(data.programInterest.primary);
-          if (data.programInterest.secondary) setSecondaryInterest(data.programInterest.secondary);
-        }
-
-        if (data.skills) {
-          if (data.skills.relevantSkills) setSkillsText(data.skills.relevantSkills.join(", "));
-          if (data.skills.tools) setToolsText(data.skills.tools.join(", "));
-          if (data.skills.hasPriorInternship !== undefined) setHasPriorInternship(data.skills.hasPriorInternship);
-          if (data.skills.priorInternshipDesc) setPriorInternshipDesc(data.skills.priorInternshipDesc);
-          if (data.skills.commSkillLevel) setCommLevel(data.skills.commSkillLevel);
-          if (data.skills.availability) setAvailability(data.skills.availability);
-        }
-
-        if (data.motivation) {
-          if (data.motivation.whyApplying) setWhyApplying(data.motivation.whyApplying);
-          if (data.motivation.careerGoals) setCareerGoals(data.motivation.careerGoals);
-        }
-
-        if (data.cvUrl) setCvUrl(data.cvUrl);
-        if (data.linkedinUrl) setLinkedinUrl(data.linkedinUrl);
-        if (data.portfolioUrl) setPortfolioUrl(data.portfolioUrl);
-        if (data.leadSource) setLeadSource(data.leadSource);
-        if (data.levyAcknowledged !== undefined) setLevyAcknowledged(data.levyAcknowledged);
-
-        if (data.declaration) {
-          if (data.declaration.confirmed !== undefined) setDeclarationConfirmed(data.declaration.confirmed);
-          if (data.declaration.signature) setSignature(data.declaration.signature);
-          if (data.declaration.date) {
-            const declDateVal = data.declaration.date;
-            const formattedDate = typeof declDateVal === "string" 
-              ? declDateVal.substring(0, 10) 
-              : new Date(declDateVal).toISOString().substring(0, 10);
-            setDeclarationDate(formattedDate);
-          }
-        }
-
-        // Restore payment-verified state from server — same fix as handleResumeApplication.
-        // Handles the case where the applicantToken is still valid in localStorage
-        // and the page auto-loads a paid applicant's record on mount.
-        if (data.isPaid) setPaymentVerified(true);
-
-        if (data.currentStep) setStep(data.currentStep);
-      }
-      setIsResuming(false);
-    } catch (err: any) {
-      console.error("Error pre-populating form:", err);
-      if (err.isNetworkError) {
-        setIsResumeNetworkError(true);
-        setErrorMsg("Failed to connect to the server. Please check your internet connection.");
-      } else {
-        // Auth token invalid (401 handled by response interceptor which clears it)
-        setIsResuming(false);
-      }
-    } finally {
-      setLoading(false);
-      setGeoDetecting(false);
-    }
-  };
-
-  const handleRetryResume = () => {
-    if (resumeToken) {
-      handleResumeApplication(resumeToken);
+  const continueFromResumeError = () => {
+    const failedLink = resumeStatus === "invalid_link";
+    resumeToken.current = undefined;
+    if (failedLink && localStorage.getItem("applicantToken")) {
+      void restoreApplication();
     } else {
-      fetchCurrentApplicant();
+      focusEntryEmail.current = true;
+      setResumeStatus("idle");
+      router.replace("/apply");
     }
   };
 
-  const handleCancelResume = () => {
-    router.replace("/apply");
-    setIsResuming(false);
-    setIsResumeNetworkError(false);
-    setErrorMsg("");
-  };
-
-  const setGradYearString = (year: any) => {
-    setGraduationYear(String(year));
-  };
 
   // Step 1: Send OTP code to email
   const handleSendCode = async () => {
+    if (activeVerification.current || resendCooldown > 0) return;
     setErrors({});
     setErrorMsg("");
+    setRegisteredEmail(false);
+    setVerificationNotice("");
     const cleanEmail = email.trim().toLowerCase();
     const validation = step1EmailSchema.safeParse({ email: cleanEmail });
     if (!validation.success) {
       setErrors({ email: validation.error.issues[0].message });
+      entryEmailInput.current?.focus();
       return;
     }
-    setLoading(true);
+    activeVerification.current = true;
+    setVerificationRequest(otpSent ? "resending" : "sending");
     try {
       await startApplication(cleanEmail);
+      if (!mounted.current) return;
+      setEmail(cleanEmail);
+      setOtp("");
       setOtpSent(true);
-      setResendCooldown(60); // Start 60 second countdown cooldown
-    } catch (err: any) {
-      if (err.message?.toLowerCase().includes("full")) {
-        setCohortFull(true);
+      setResendCooldown(60);
+      setVerificationNotice(otpSent ? "New code sent. Use the latest email." : "Verification code sent.");
+    } catch (err) {
+      if (!mounted.current) return;
+      if (err instanceof Error && "apiCode" in err && err.apiCode === "COHORT_FULL") {
+        setRegistrationAvailability({ status: "full", cohortName: "cohortName" in registrationAvailability ? registrationAvailability.cohortName : undefined });
       } else {
-        setErrorMsg(err.message || "Failed to send verification code.");
+        setRegisteredEmail(err instanceof Error && "apiCode" in err && err.apiCode === "EMAIL_ALREADY_REGISTERED");
+        setErrorMsg(err instanceof Error ? err.message : "Failed to send verification code.");
       }
     } finally {
-      setLoading(false);
+      activeVerification.current = false;
+      if (mounted.current) setVerificationRequest("idle");
     }
   };
 
   // Step 1: Verify OTP code
   const handleVerifyOtp = async () => {
+    if (activeVerification.current) return;
     setErrors({});
     setErrorMsg("");
+    setVerificationNotice("");
     const cleanEmail = email.trim().toLowerCase();
-    const validation = step1OtpSchema.safeParse({ email: cleanEmail, otp });
+    const validation = step1OtpSchema.safeParse({ email: cleanEmail, otp: otp.trim() });
     if (!validation.success) {
       const formattedErrors: Record<string, string> = {};
       validation.error.issues.forEach((issue) => {
         formattedErrors[issue.path[0] as string] = issue.message;
       });
       setErrors(formattedErrors);
+      otpInput.current?.focus();
       return;
     }
-    setLoading(true);
+    activeVerification.current = true;
+    setVerificationRequest("verifying");
     try {
-      const data = await verifyOtp(cleanEmail, otp);
+      const data = await verifyOtp(cleanEmail, validation.data.otp);
+      if (!mounted.current) return;
       const sessionToken = data.sessionToken;
-      setToken(sessionToken);
       localStorage.setItem("applicantToken", sessionToken);
-
-      // Move to Step 2
-      setStep(2);
-      saveProgressStep(2);
-    } catch (err: any) {
-      setErrorMsg(err.message || "Invalid OTP code.");
+      setToken(sessionToken);
+      hydrateApplicant(data.applicant, true);
+      if (!data.applicant.currentStep || data.applicant.currentStep === 1) {
+        verificationStepSave.current = saveProgressStep(2);
+      }
+    } catch (err) {
+      if (!mounted.current) return;
+      const message = err instanceof Error ? err.message : "We couldn’t verify the code. Try again.";
+      if (err instanceof Error && "status" in err && err.status === 400) {
+        setErrors({ otp: message });
+        otpInput.current?.focus();
+      } else {
+        setErrorMsg(message);
+      }
     } finally {
-      setLoading(false);
+      activeVerification.current = false;
+      if (mounted.current) setVerificationRequest("idle");
     }
   };
+
+  useEffect(() => {
+    if (verificationNotice) otpInput.current?.focus();
+  }, [verificationNotice]);
+
+  const focusPaymentRecovery = (heading: HTMLHeadingElement | null) => { heading?.focus(); };
+
+  const focusStepHeading = (heading: HTMLHeadingElement | null) => {
+    if (!heading || stepToFocus.current !== step) return;
+    stepToFocus.current = null;
+    heading.focus();
+  };
+
+  useEffect(() => {
+    if (!firstInvalidField.current) return;
+    document.getElementById(firstInvalidField.current)?.focus();
+    firstInvalidField.current = "";
+  }, [errors]);
+
+  useEffect(() => {
+    if (formSaveError) saveErrorRef.current?.focus();
+  }, [formSaveError]);
+
+  const goBackToStep = (previousStep: number) => {
+    if (draftSaveRequest.current || cvUploadRequest.current || checkoutRequest.current || couponRequest.current) return;
+    setCheckout({ status: "idle" });
+    setErrors({});
+    setFormSaveError("");
+    setSaveNotice("");
+    if (previousStep === 1) {
+      stepToFocus.current = null;
+      if (otpSent) {
+        requestAnimationFrame(() => otpInput.current?.focus());
+      } else {
+        focusEntryEmail.current = true;
+      }
+    } else {
+      stepToFocus.current = previousStep;
+    }
+    setStep(previousStep);
+  };
+
+  useEffect(() => {
+    if (resumeStatus === "retry" || resumeStatus === "invalid_link" || resumeStatus === "stale_session") {
+      resumeHeading.current?.focus();
+    }
+    if (resumeStatus === "idle" && focusEntryEmail.current && registrationAvailability.status !== "checking") {
+      (entryEmailInput.current ?? availabilityHeading.current)?.focus();
+      focusEntryEmail.current = false;
+    }
+  }, [resumeStatus, registrationAvailability.status, otpSent, step]);
 
   // Save Progress step index only
   const saveProgressStep = async (nextStep: number) => {
@@ -1007,20 +1136,14 @@ export default function ApplyPage() {
   // Save all progress data
   const saveAllData = async (nextStep: number) => {
     const currentStep = nextStep - 1;
+    if (draftSaveRequest.current || cvUploadRequest.current) return;
+    setFormSaveError("");
+    setSaveNotice("");
     if (!validateStep(currentStep)) {
       return;
     }
     setErrorMsg("");
     setLoading(true);
-
-    // CV is uploaded eagerly on file selection — cvUrl is already populated.
-    // Guard: if upload is still in progress, block saving.
-    if (cvUploading) {
-      setErrorMsg("Please wait for your CV to finish uploading.");
-      setLoading(false);
-      return;
-    }
-    const currentCvUrl = cvUrl;
 
     const relevantSkills = skillsText.split(",").map(s => s.trim()).filter(Boolean);
     const tools = toolsText.split(",").map(t => t.trim()).filter(Boolean);
@@ -1048,8 +1171,8 @@ export default function ApplyPage() {
         gradYear: graduationYear ? Number(graduationYear) : undefined
       },
       programInterest: {
-        primary: primaryInterest,
-        secondary: secondaryInterest
+        primary: primaryInterest.map((choice) => saveInterest(choice, otherPrimaryInterest)),
+        secondary: saveInterest(secondaryInterest, otherSecondaryInterest)
       },
       skills: {
         relevantSkills,
@@ -1069,168 +1192,197 @@ export default function ApplyPage() {
       currentStep: nextStep
     };
 
-    // Only send cvUrl when it has a value — never overwrite an existing CV
-    // (e.g. one uploaded by an admin) with an empty string from a fresh session.
-    if (currentCvUrl) {
-      payload.cvUrl = currentCvUrl;
+    // A failed upload may have reached the server. Leave its stored URL alone.
+    if (cvUrl && !cvNeedsConfirmation.current) {
+      payload.cvUrl = cvUrl;
     }
 
+    draftSaveRequest.current = true;
     try {
+      // Let the OTP step-index write finish before saving a newer step.
+      await verificationStepSave.current;
+      if (!mounted.current) return;
       await updateApplicantProfile(payload);
+      if (!mounted.current) return;
+      stepToFocus.current = nextStep;
+      setSaveNotice("Progress saved.");
       setStep(nextStep);
-    } catch (err: any) {
-      setErrorMsg(err.message || "Failed to save progress.");
+    } catch (err) {
+      if (mounted.current) setFormSaveError(err instanceof Error && err.message ? err.message : "Failed to save progress.");
     } finally {
-      setLoading(false);
+      draftSaveRequest.current = false;
+      if (mounted.current) setLoading(false);
     }
   };
 
-  // Step 5 CV change handler — uploads immediately on file selection
-  const handleCvChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.type !== "application/pdf") {
-        setCvUploadError("Please upload a PDF file only.");
-        return;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        setCvUploadError("File size exceeds 5MB limit. Please compress your PDF resume or upload a smaller file.");
-        return;
-      }
-
-      // Guard: verify the applicant session token is still present before trying to upload.
-      // A missing token means the session has expired; we surface a clear message instead of
-      // letting the request fail with a misleading "Network error".
-      const sessionToken = typeof window !== "undefined" ? localStorage.getItem("applicantToken") : null;
-      if (!sessionToken) {
-        setCvUploadError("Your session has expired. Please refresh the page and resume your application via the link in your email.");
-        return;
-      }
-
-      // Reset previous state
-      setCvFile(file);
-      setCvUrl("");
-      setCvUploadError("");
-      setErrors((prev) => { const copy = { ...prev }; delete copy.cvUrl; return copy; });
-
-      // Upload immediately
-      setCvUploading(true);
-      try {
-        const result = await uploadCv(file);
-        setCvUrl(result.cvUrl);
-        setCvFile(null); // clear the raw file — URL is now saved server-side
-        setCvUploadError("");
-      } catch (err: any) {
-        const isSessionError = (err as any)?.status === 401 || (err as any)?.status === 403;
-        setCvUploadError(
-          isSessionError
-            ? "Your session has expired. Please refresh the page and resume your application via the link in your email."
-            : err.message || "CV upload failed. Please try again."
-        );
-        setCvUrl("");
-        // Keep cvFile so user can retry without re-selecting
-      } finally {
-        setCvUploading(false);
-      }
-    }
-  };
-
-
-  // Final submit application
-  const handleSubmitApplication = async () => {
-    if (!validateStep(6)) {
+  const uploadSelectedCv = async (file: File) => {
+    if (cvUploadRequest.current || draftSaveRequest.current) return;
+    const sessionMessage = "Your session has expired. Refresh the page and use the resume link in your email.";
+    if (!localStorage.getItem("applicantToken")) {
+      setCvUpload({ status: "failed", message: sessionMessage, sessionExpired: true });
       return;
     }
-    setErrorMsg("");
-    setLoading(true);
+
+    cvUploadRequest.current = true;
+    setCvUpload({ status: "uploading", file });
+    try {
+      const result = await uploadCv(file);
+      if (!mounted.current) return;
+      setCvUrl(result.cvUrl);
+      cvNeedsConfirmation.current = false;
+      setCvUpload({ status: "idle" });
+    } catch (error) {
+      if (!mounted.current) return;
+      cvNeedsConfirmation.current = true;
+      const status = error instanceof Error && "status" in error ? error.status : undefined;
+      const sessionExpired = status === 401 || status === 403 || status === 404;
+      setCvUpload({
+        status: "failed",
+        message: sessionExpired ? sessionMessage : "We couldn’t confirm the CV upload. Choose a PDF or retry the upload.",
+        retryFile: sessionExpired ? undefined : file,
+        sessionExpired,
+      });
+    } finally {
+      cvUploadRequest.current = false;
+    }
+  };
+
+  const retryCvUpload = () => {
+    if (cvUpload.status === "failed" && cvUpload.retryFile) void uploadSelectedCv(cvUpload.retryFile);
+  };
+
+  const handleCvChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    if (!file || cvUploadRequest.current || draftSaveRequest.current) return;
+    event.currentTarget.value = "";
+    if (file.type !== "application/pdf") {
+      setCvUpload({ status: "failed", message: "Choose a PDF file." });
+      return;
+    }
+    if (file.size > cvMaxMiB * 1024 * 1024) {
+      setCvUpload({ status: "failed", message: "Choose a PDF that is 5 MB or smaller." });
+      return;
+    }
+    setErrors((previous) => {
+      const next = { ...previous };
+      delete next.cvUrl;
+      return next;
+    });
+    void uploadSelectedCv(file);
+  };
+
+  const finishCheckout = (setupToken?: string, waiver = false) => {
+    setConfirmation({ type: waiver && !setupToken ? "waived" : "submitted", setupToken });
+    localStorage.removeItem("applicantToken");
+    stepToFocus.current = 7;
+    setCheckout({ status: "idle" });
+    setStep(7);
+  };
+
+  const handleCheckout = async () => {
+    if (checkoutRequest.current || couponRequest.current || draftSaveRequest.current) return;
+    setCheckout({ status: "idle" });
+    if (!validateStep(6)) return;
+    checkoutRequest.current = true;
+    setSaveNotice("");
+    setCheckout({ status: "saving" });
 
     const payload = {
-      levyAcknowledged: levyAcknowledged === true,
+      levyAcknowledged: paymentVerified ? levyAcknowledged === true : true,
       declaration: {
         confirmed: declarationConfirmed,
         signature,
-        date: declarationDate ? new Date(declarationDate) : new Date()
-      }
+        date: declarationDate ? new Date(declarationDate) : new Date(),
+      },
     };
 
+    let declarationSaved = false;
+    let redirecting = false;
     try {
-      // First save Step 6 confirmation parameters to Applicant
       await updateApplicantProfile(payload);
+      if (!mounted.current) return;
+      declarationSaved = true;
+      setCheckout({ status: "requesting" });
 
-      // Call Direct Submit Endpoint
-      const res = await submitApplication();
-      if (res.setPasswordToken) {
-        setCreatedPasswordToken(res.setPasswordToken);
+      if (paymentVerified) {
+        const result = await submitApplication();
+        if (mounted.current) finishCheckout(result.setPasswordToken);
+        return;
       }
 
-      // Success - clean up local token and route to success page/info screen
-      localStorage.removeItem("applicantToken");
-      setStep(7); // Show success screen
-    } catch (err: any) {
-      setErrorMsg(err.message || "Failed to submit application.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Step 6 Pay redirect handler
-  const handlePayRedirect = async () => {
-    if (!validateStep(6)) {
-      return;
-    }
-    setLoading(true);
-    setErrorMsg("");
-    try {
-      const payload = {
-        levyAcknowledged: true,
-        declaration: {
-          confirmed: declarationConfirmed,
-          signature,
-          date: declarationDate ? new Date(declarationDate) : new Date()
-        }
-      };
-      await updateApplicantProfile(payload);
-
-      const data = await initiatePayment(appliedCoupon?.code);
-      if (data.bypassPayment) {
-        // 100% Waiver applied — bypassed payment gateway completely!
-        if (data.setPasswordToken) {
-          setCreatedPasswordToken(data.setPasswordToken);
-        }
-        localStorage.removeItem("applicantToken");
-        setStep(7); // Advance directly to Success / Password Creation screen
-      } else if (data.authorizationUrl) {
-        // Persist polling credentials so /verify-payment can use them after redirect
-        localStorage.setItem("paymentReference", data.reference);
-        localStorage.setItem("paymentPollingToken", data.pollingToken || "");
-        window.location.href = data.authorizationUrl;
+      const result = await initiatePayment(appliedCoupon?.code);
+      if (!mounted.current) return;
+      if (result.bypassPayment) {
+        finishCheckout(result.setPasswordToken, true);
+      } else if (result.method === "bank_transfer") {
+        router.push("/apply/bank-transfer");
+        redirecting = true;
+      } else if (result.reference && result.pollingToken) {
+        localStorage.setItem("paymentReference", result.reference);
+        localStorage.setItem("paymentPollingToken", result.pollingToken);
+        setCheckout({ status: "redirecting" });
+        window.location.href = result.authorizationUrl || "/verify-payment";
+        redirecting = true;
+      } else if (result.authorizationUrl) {
+        localStorage.setItem("paymentReference", result.reference);
+        localStorage.setItem("paymentPollingToken", "");
+        setCheckout({ status: "redirecting" });
+        window.location.href = result.authorizationUrl;
+        redirecting = true;
       } else {
-        throw new Error("Unable to obtain checkout authorization URL.");
+        throw new Error("The checkout response did not include a payment link.");
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || "Failed to initialize payment gateway. Please try again.");
+    } catch (error) {
+      if (!mounted.current) return;
+      const status = error instanceof Error && "status" in error ? error.status : undefined;
+      const detail = error instanceof Error && error.message ? error.message + " " : "";
+      const canCheckPayment = Boolean(localStorage.getItem("paymentReference") && localStorage.getItem("paymentPollingToken"));
+      if (status === 401 || status === 403 || status === 404) {
+        setCheckout({ status: "error", title: "Your application session has expired.", message: "Open the resume link in your email to continue.", canCheckPayment });
+      } else if (!declarationSaved) {
+        setCheckout({ status: "error", title: "We couldn’t save your declaration.", message: detail + "Your entries are still here. Try again to save and continue." });
+      } else if (paymentVerified) {
+        setCheckout({
+          status: "error",
+          title: "We couldn’t confirm application submission.",
+          message: detail + (status === 402 ? "Check the existing payment before continuing." : "Check your email for application or account setup instructions. If you need help, contact IFIP support."),
+          canCheckPayment,
+        });
+      } else if (status === 400 || status === 503) {
+        setCheckout({ status: "error", title: "Checkout is unavailable.", message: detail || "Review your application details or contact IFIP support." });
+      } else {
+        setCheckout({
+          status: "error",
+          title: "We couldn’t confirm that checkout started.",
+          message: "If you already paid or see a charge, check your previous payment or contact IFIP support before trying again.",
+          canCheckPayment,
+        });
+      }
     } finally {
-      setLoading(false);
+      if (!redirecting) checkoutRequest.current = false;
     }
   };
 
   const handleJoinWaitlist = async (e: React.FormEvent) => {
     e.preventDefault();
-    setWaitlistError("");
-    setWaitlistSuccessMsg("");
-    if (!waitlistEmail) {
-      setWaitlistError("Please enter your academic or professional email address.");
+    if (waitlistRequest.current || waitlist.status === "joined" || waitlist.status === "already_joined") return;
+
+    const validation = step1EmailSchema.safeParse({ email: waitlistEmail.trim() });
+    if (!validation.success) {
+      setWaitlist({ status: "invalid", message: validation.error.issues[0].message });
+      waitlistInput.current?.focus();
       return;
     }
-    setWaitlistLoading(true);
+
+    waitlistRequest.current = true;
+    setWaitlist({ status: "submitting" });
     try {
-      const res = await joinWaitlist(waitlistEmail);
-      setWaitlistSuccessMsg(res.message || "Successfully joined the waitlist!");
-      setWaitlistJoined(true);
-    } catch (err: any) {
-      setWaitlistError(err.message || "Failed to join waitlist. Please try again.");
+      await joinWaitlist(validation.data.email);
+      setWaitlist({ status: "joined" });
+    } catch (err) {
+      setWaitlist({ status: err instanceof Error && "status" in err && err.status === 409 ? "already_joined" : "failed" });
     } finally {
-      setWaitlistLoading(false);
+      waitlistRequest.current = false;
     }
   };
 
@@ -1242,1900 +1394,1033 @@ export default function ApplyPage() {
       updated = [...primaryInterest, sector];
     }
     setPrimaryInterest(updated);
-    if (errors.primaryInterest && updated.length > 0) {
+    if (errors.primaryInterest || errors.otherPrimaryInterest) {
       setErrors((prev) => {
         const copy = { ...prev };
-        delete copy.primaryInterest;
+        if (updated.length > 0) delete copy.primaryInterest;
+        if (!updated.includes(otherInterest)) delete copy.otherPrimaryInterest;
         return copy;
       });
     }
   };
 
-  const stepsList = [
-    { num: 1, label: "Verify" },
-    { num: 2, label: "Profile" },
-    { num: 3, label: "Academic" },
-    { num: 4, label: "Interest" },
-    { num: 5, label: "Skills" },
-    { num: 6, label: "Payment" }
-  ];
+  const academicChoices = academicStatus && !statusOptions.some((option) => option.label === academicStatus)
+    ? [...statusOptions, { label: academicStatus, value: `saved:${academicStatus}` }]
+    : statusOptions;
 
-  return (
-    <div className="min-h-screen flex flex-col bg-academic-cream font-sans pb-16 md:pb-0">
-      {/* Navigation Header — mirrors landing page */}
-      <header className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-outline-variant/30">
-        <div className="max-w-[1280px] mx-auto px-4 md:px-8 h-20 flex items-center justify-between">
-          {/* Left: Logo (Mobile & Desktop) */}
-          <Link href="/" className="flex items-center gap-3">
-            <Image
-              src="/images/logos/logo-full-color.png"
-              alt="IFIP Logo"
-              width={160}
-              height={44}
-              priority
-              className="h-8 md:h-10 w-auto object-contain"
-            />
-          </Link>
+  const interestLabels = interestOptions.map(({ label, value }) => value === "other_specify" ? otherInterest : interestChoice(label));
+  const interestChoices = [...new Set([...interestLabels, ...restoredInterests.primary, ...primaryInterest])];
+  const secondaryInterestChoices = [...new Set([...interestLabels, restoredInterests.secondary, secondaryInterest].filter(Boolean))];
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-8 font-semibold text-sm">
-            <Link href="/#curriculum" className="text-on-surface/80 hover:text-primary transition-colors">Curriculum</Link>
-            <Link href="/#process" className="text-on-surface/80 hover:text-primary transition-colors">Process</Link>
-            <Link href="/#partners" className="text-on-surface/80 hover:text-primary transition-colors">Partners</Link>
-            <Link href="/#faq" className="text-on-surface/80 hover:text-primary transition-colors">FAQ</Link>
-          </nav>
-
-          {/* Desktop Actions */}
-          <div className="hidden md:flex items-center gap-4">
-            {isLoggedIn ? (
-              <Link href="/dashboard" className="text-sm font-semibold hover:text-primary transition-colors px-4 py-2">
-                Go to Dashboard
-              </Link>
-            ) : (
-              <>
-                <Link href="/login" className="text-sm font-semibold hover:text-primary transition-colors px-4 py-2">
-                  Login
-                </Link>
-                <Link
-                  href="/apply"
-                  className="bg-impact-orange hover:bg-impact-orange/90 text-white font-semibold text-sm px-6 py-2.5 rounded-[4px] shadow-sm hover-lift transition-all"
-                >
-                  Apply Now
-                </Link>
-              </>
-            )}
-          </div>
-
-          {/* Mobile-only Right: Hamburger menu button */}
-          <div className="flex md:hidden items-center">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 text-on-surface hover:text-primary"
-              aria-label="Toggle Menu"
-            >
-              {mobileMenuOpen ? <HiXMark className="w-6 h-6" /> : <HiBars3 className="w-6 h-6" />}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Mobile Drawer */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 top-20 z-45 bg-background md:hidden flex flex-col px-6 py-8 border-t border-outline-variant/30 gap-6">
-          <Link
-            href="/#curriculum"
-            onClick={() => setMobileMenuOpen(false)}
-            className="text-lg font-semibold border-b border-outline-variant/20 pb-2"
-          >
-            Curriculum
-          </Link>
-          <Link
-            href="/#process"
-            onClick={() => setMobileMenuOpen(false)}
-            className="text-lg font-semibold border-b border-outline-variant/20 pb-2"
-          >
-            Process
-          </Link>
-          <Link
-            href="/#partners"
-            onClick={() => setMobileMenuOpen(false)}
-            className="text-lg font-semibold border-b border-outline-variant/20 pb-2"
-          >
-            Partners
-          </Link>
-          <Link
-            href="/#faq"
-            onClick={() => setMobileMenuOpen(false)}
-            className="text-lg font-semibold border-b border-outline-variant/20 pb-2"
-          >
-            FAQ
-          </Link>
-          <div className="flex flex-col gap-4 mt-6">
-            {isLoggedIn ? (
-              <Link
-                href="/dashboard"
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-center font-semibold bg-primary text-white py-3 rounded-[4px]"
-              >
-                Go to Dashboard
-              </Link>
-            ) : (
-              <>
-                <Link
-                  href="/login"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-center font-semibold border border-primary/20 py-3 rounded-[4px] hover:bg-primary/5 transition-colors"
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/apply"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-center bg-impact-orange text-white font-semibold py-3 rounded-[4px]"
-                >
-                  Apply Now
-                </Link>
-              </>
-            )}
-          </div>
+  const fieldProps = (field: string, id = field, hint?: string) => ({
+    id,
+    className: formControl,
+    "aria-invalid": Boolean(errors[field]) || undefined,
+    "aria-describedby": [errors[field] && `${field}-error`, hint].filter(Boolean).join(" ") || undefined,
+  });
+  const fieldError = (field: string) => errors[field] && (
+    <p id={`${field}-error`} className="text-sm text-error">{errors[field]}</p>
+  );
+  const errorCount = Object.keys(errors).length;
+  const formFeedback = (
+    <>
+      {errorCount > 1 && (
+        <p role="alert" className="rounded-lg bg-error-container px-4 py-3 text-sm text-on-error-container">
+          Check the {errorCount} fields marked below.
+        </p>
+      )}
+      {formSaveError && (
+        <div ref={saveErrorRef} tabIndex={-1} role="alert" className="scroll-mt-28 rounded-lg border border-error bg-error-container px-4 py-3 text-sm text-on-error-container">
+          <p className="font-semibold">We couldn’t save your progress.</p>
+          <p className="mt-1">{formSaveError} Your entries are still here. Select Save and continue to retry.</p>
         </div>
       )}
+    </>
+  );
+  const formActions = (previousStep?: number, unavailable = false) => (
+    <div className="space-y-3 border-t border-outline-variant pt-4">
+      <div className={previousStep ? stepActionRow : "grid"}>
+        {previousStep && (
+          <button type="button" onClick={() => goBackToStep(previousStep)} disabled={loading || cvUploading} className={stepBackAction}>
+            <HiOutlineChevronLeft aria-hidden="true" className="size-4" />
+            Back
+          </button>
+        )}
+        <button type="submit" aria-disabled={loading || unavailable} className={`${stepForwardAction} aria-disabled:cursor-not-allowed aria-disabled:bg-surface-container-high aria-disabled:text-on-surface-variant`}>
+          {loading ? "Saving…" : "Save and continue"}
+        </button>
+      </div>
+    </div>
+  );
 
+  const stepsList = [
+    { num: 1, label: "Verify email" },
+    { num: 2, label: "Personal profile" },
+    { num: 3, label: "Academic background" },
+    { num: 4, label: "Program interest" },
+    { num: 5, label: "Skills and motivation" },
+    { num: 6, label: "Payment and declaration" }
+  ];
+  const canContinueApplication = Boolean(token) && step > 1;
+  const isResuming = resumeStatus !== "idle";
+  const editorialEntry = isResuming || paymentRecovery || step === 1 || (!canContinueApplication && registrationAvailability.status !== "open");
+  const availabilityAnnouncement = {
+    checking: "Checking registration availability.",
+    open: "Registration is open.",
+    full: "This cohort is full. You can join the waitlist.",
+    closed: "Registration is closed. You can join the waitlist.",
+    failed: "We couldn’t check registration availability. Try again.",
+  }[registrationAvailability.status];
+
+  return (
+    <div className="flex min-h-screen flex-col bg-[#eef4fa] font-sans">
+        <header className="border-b border-[#cbd8e8] bg-[#ffffff]">
+          <div className={`${entryWidth} flex min-h-16 items-center justify-between gap-2 sm:min-h-[76px]`}>
+            <Link href="/" className={`min-w-0 shrink ${entryFocus}`}>
+              <Image
+                src="/images/logos/logo-full-color.png"
+                alt="Islamic Finance Internship Program home"
+                width={190}
+                height={50}
+                priority
+                className="h-auto w-[136px] min-[360px]:w-[146px] sm:w-[170px] lg:w-[190px]"
+              />
+            </Link>
+            <div className="flex shrink-0 items-center gap-2 text-sm text-[#101f3f] sm:gap-4">
+              <details
+                className="relative"
+                onKeyDown={(event) => {
+                  if (event.key === "Escape" && event.currentTarget.open) {
+                    event.currentTarget.open = false;
+                    event.currentTarget.querySelector("summary")?.focus();
+                  }
+                }}
+              >
+                <summary aria-label="Program navigation" className={`flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center rounded-lg hover:bg-[#e1f1fb] [&::-webkit-details-marker]:hidden ${entryFocus}`}>
+                  <HiBars3 aria-hidden="true" className="size-5" />
+                </summary>
+                <nav aria-label="Program" className="absolute end-0 top-full z-20 mt-2 w-48 max-w-[calc(100vw-2rem)] rounded-xl border border-[#cbd8e8] bg-white p-2 shadow-lg">
+                  <Link className={`block rounded-md px-3 py-2.5 hover:bg-[#e1f1fb] ${entryFocus}`} href="/#curriculum">Curriculum</Link>
+                  <Link className={`block rounded-md px-3 py-2.5 hover:bg-[#e1f1fb] ${entryFocus}`} href="/#process">Process</Link>
+                  <Link className={`block rounded-md px-3 py-2.5 hover:bg-[#e1f1fb] ${entryFocus}`} href="/#partners">Partners</Link>
+                  <Link className={`block rounded-md px-3 py-2.5 hover:bg-[#e1f1fb] ${entryFocus}`} href="/#faq">FAQ</Link>
+                  {isLoggedIn && (
+                    <>
+                      <Link className={`block rounded-md px-3 py-2.5 hover:bg-[#e1f1fb] ${entryFocus}`} href="/dashboard/modules">Modules</Link>
+                      <Link className={`block rounded-md px-3 py-2.5 hover:bg-[#e1f1fb] ${entryFocus}`} href="/dashboard/settings">Profile</Link>
+                    </>
+                  )}
+                </nav>
+              </details>
+              {!isLoggedIn && <span className="hidden text-[#43536e] sm:inline">Already registered?</span>}
+              <Link href={isLoggedIn ? "/dashboard" : "/login"} className={`inline-flex min-h-11 items-center rounded-lg border border-[#7185a0] px-2.5 font-semibold whitespace-nowrap hover:bg-[#e1f1fb] sm:px-3.5 ${entryFocus}`}>
+                {isLoggedIn ? "Dashboard" : "Sign in"}
+              </Link>
+            </div>
+          </div>
+        </header>
       {/* Main Container */}
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-12 flex flex-col gap-8">
+      <main className={editorialEntry
+        ? `${entryWidth} flex-1 pt-5 min-[681px]:pt-12 [&_input]:scroll-my-6 [&_button]:scroll-my-6`
+        : `${entryWidth} flex-1 pt-5 sm:pt-10`}>
+        <p role="status" className="sr-only">{!isResuming && !canContinueApplication ? availabilityAnnouncement : ""}</p>
 
-        {checkingCohortStatus ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-            <svg className="animate-spin w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-          </div>
+        {paymentRecovery && !isResuming ? (
+          <RegistrationEntryFrame>
+            <section className="space-y-4" aria-labelledby="payment-recovery-heading">
+              <h1 id="payment-recovery-heading" ref={focusPaymentRecovery} tabIndex={-1} className={entryHeading}>We couldn’t open your application after payment</h1>
+              <p className={entryCopy}>We couldn’t open a saved application with confirmed payment in this browser. Check your email for a resume or account setup link.</p>
+              <p className={entryCopy}>If your bank shows a charge, contact IFIP support before making another payment.</p>
+              {token && <button type="button" onClick={() => void restoreApplication(resumeToken.current)} className={entryAction}>Check saved application again</button>}
+              <div className="flex flex-wrap gap-2.5">
+                <Link href="/login" className={formSecondaryAction}>Sign in</Link>
+                <a href="mailto:ifip.program@gmail.com" className={formSecondaryAction}>Email IFIP support</a>
+              </div>
+            </section>
+          </RegistrationEntryFrame>
         ) : isResuming ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4 text-center font-sans animate-fadeIn">
-            {isResumeNetworkError ? (
-              <div className="bg-white border border-outline-variant/30 rounded-[16px] shadow-md p-8 sm:p-12 max-w-md w-full mx-auto flex flex-col items-center gap-6 text-center">
-                <div className="w-16 h-16 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500 mb-2 animate-pulse">
-                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
+          <RegistrationEntryFrame>
+            <section aria-labelledby="resume-heading" className="space-y-4">
+              {resumeStatus === "restoring" ? (
+                <div role="status" className="space-y-3">
+                  <h1 id="resume-heading" className={entryHeading}>Resuming your application</h1>
+                  <p className={entryCopy}>Looking up your saved progress…</p>
                 </div>
-                <h2 className="text-2xl font-display font-bold text-primary">Connection Issue</h2>
-                <p className="text-sm text-on-surface-variant leading-relaxed font-medium">
-                  We are having trouble connecting to our server to resume your application. Your progress is safe. Please check your internet connection and try again.
-                </p>
-                <div className="w-full mt-4">
-                  <button
-                    onClick={handleRetryResume}
-                    disabled={loading}
-                    className="w-full bg-primary hover:bg-primary/95 text-white font-bold text-sm py-3.5 rounded-[6px] shadow-md hover-lift transition-all cursor-pointer flex items-center justify-center gap-2 disabled:bg-slate-300"
-                  >
-                    {loading ? (
-                      <>
-                        <svg className="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                        Connecting...
-                      </>
-                    ) : (
-                      "Retry Connection"
-                    )}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white border border-outline-variant/30 rounded-[16px] shadow-md p-12 max-w-md w-full mx-auto flex flex-col items-center gap-4 text-center">
-                <div className="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
-                <p className="text-sm font-semibold text-on-surface-variant font-medium">Resuming your application, please wait...</p>
-              </div>
-            )}
-          </div>
-        ) : cohortFull ? (
-          <div className="flex flex-col items-center text-center gap-8 max-w-3xl mx-auto py-4 font-sans animate-fadeIn">
-            {/* Admissions update badge */}
-            <div className="bg-[#FF9800]/10 border border-[#FF9800]/20 rounded-full px-4 py-1.5 flex items-center gap-2 text-xs font-bold text-[#FF9800] uppercase tracking-wider">
-              <span className="w-2 h-2 rounded-full bg-[#FF9800] animate-pulse"></span>
-              Admissions Update
-            </div>
-
-            {/* Title & Subtitle */}
-            <div className="flex flex-col gap-3">
-              <h1 className="text-2xl sm:text-4xl font-display font-black text-primary leading-tight">
-                {cohortName || "The Current Cohort"} is Now <span className="text-[#FF9800]">Full</span>
-              </h1>
-              <p className="text-sm md:text-base text-on-surface-variant max-w-2xl leading-relaxed mt-2 font-medium">
-                We are humbled by the extraordinary interest in the Islamic Finance Internship Preparatory &amp; Placement Program. We have reached our maximum capacity of finalized applications for the current cycle.
-              </p>
-            </div>
-
-            {/* Main Waitlist Info Container */}
-            <div className="w-full max-w-xl mx-auto text-left mt-4">
-              {/* Join Waitlist Form */}
-              <div className="bg-white rounded-2xl border border-outline-variant/30 shadow-level1 p-8 flex flex-col gap-5">
-                <div className="flex flex-col gap-1.5 border-b border-outline-variant/20 pb-4">
-                  <h3 className="text-lg font-bold font-display text-primary">Secure Early Access</h3>
-                  <p className="text-xs text-on-surface-variant leading-relaxed">
-                    Join our exclusive waitlist to be notified first when the Batch 2026 Fall-B26 or Fall-A27 applications open.
+              ) : (
+                <>
+                  <h1 id="resume-heading" ref={resumeHeading} tabIndex={-1} className={entryHeading}>
+                    {resumeStatus === "invalid_link" ? "Resume link unavailable" : resumeStatus === "stale_session" ? "Application session expired" : "We couldn’t load your application"}
+                  </h1>
+                  <p className={entryCopy}>
+                    {resumeStatus === "invalid_link"
+                      ? "This link is invalid or has expired. Try the latest resume link from your email."
+                      : resumeStatus === "stale_session"
+                        ? "Open the resume link in your email or verify your email again."
+                        : "Check your connection and try again to load your saved progress."}
                   </p>
+                  {resumeStatus === "retry" ? (
+                    <button type="button" className={entryAction} onClick={() => void restoreApplication(resumeToken.current)}>Try again</button>
+                  ) : (
+                    <button type="button" className={entryAction} onClick={continueFromResumeError}>Continue to application</button>
+                  )}
+                  <Link href="/login" className={`inline-block text-sm text-secondary underline underline-offset-4 ${entryFocus}`}>Already have an account? Sign in</Link>
+                </>
+              )}
+            </section>
+          </RegistrationEntryFrame>
+        ) : editorialEntry ? (
+          <RegistrationEntryFrame open={registrationAvailability.status === "open"}>
+            {registrationAvailability.status === "checking" || registrationAvailability.status === "failed" ? (
+              <section aria-labelledby="availability-heading">
+                <EntryIntake
+                  label={registrationAvailability.status === "checking" ? "Checking availability" : "Availability unavailable"}
+                  tone={registrationAvailability.status === "failed" ? "error" : "neutral"}
+                />
+                <h1 id="availability-heading" className={entryHeading}>
+                  {registrationAvailability.status === "checking" ? "Checking registration availability" : "We couldn’t check registration availability"}
+                </h1>
+                <p className={`${entryCopy} mt-3`}>
+                  {registrationAvailability.status === "checking" ? "Checking whether applications are open." : "Check your connection and try again."}
+                </p>
+                {(availabilityAttempt > 0 || registrationAvailability.status === "failed") && (
+                  <button
+                    type="button"
+                    onClick={retryAvailability}
+                    aria-disabled={registrationAvailability.status === "checking"}
+                    className={`${entryAction} mt-6`}
+                  >
+                    {registrationAvailability.status === "checking" ? "Checking…" : "Check again"}
+                    <span aria-hidden="true" className="text-xl leading-none">→</span>
+                  </button>
+                )}
+              </section>
+            ) : registrationAvailability.status === "full" || registrationAvailability.status === "closed" ? (
+              <section aria-labelledby="waitlist-heading">
+                <EntryIntake
+                  label={registrationAvailability.status === "full" ? "Cohort at capacity" : "Registration closed"}
+                  cohortName={registrationAvailability.status === "full" ? registrationAvailability.cohortName : undefined}
+                  tone="waitlist"
+                />
+                <div role="status">
+                  {(waitlist.status === "joined" || waitlist.status === "already_joined") && (
+                    <>
+                      <HiCheckCircle aria-hidden="true" className="mb-3 size-8 text-[#176448]" />
+                      <h1 id="waitlist-heading" ref={waitlistResultHeading} tabIndex={-1} className={entryHeading}>
+                        {waitlist.status === "joined" ? "You’ve joined the waitlist" : "You’re already on the waitlist"}
+                      </h1>
+                      <p className={`${entryCopy} mt-3`}>Watch your inbox for registration updates.</p>
+                    </>
+                  )}
+                  {waitlist.status === "submitting" && <p className="sr-only">Joining the waitlist.</p>}
                 </div>
-
-                {waitlistJoined ? (
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 flex flex-col items-center text-center gap-3 animate-fadeIn">
-                    <HiCheckCircle className="w-12 h-12 text-emerald-500" />
-                    <h4 className="text-sm font-bold text-emerald-900">You are on the list!</h4>
-                    <p className="text-xs text-emerald-700 leading-relaxed max-w-xs font-medium">
-                      {waitlistSuccessMsg} We will keep you updated on admissions timelines and exclusive preview contents.
+                {waitlist.status !== "joined" && waitlist.status !== "already_joined" && (
+                  <>
+                    <h1 id="waitlist-heading" ref={availabilityHeading} tabIndex={-1} className={entryHeading}>Join the waitlist</h1>
+                    <p className={`${entryCopy} mt-3 mb-5 min-[681px]:mb-6`}>
+                      {registrationAvailability.status === "full"
+                        ? "This cohort is full. Leave your email for updates about future registration."
+                        : "There is no cohort currently accepting applications. Leave your email for updates."}
                     </p>
-                  </div>
-                ) : (
-                  <form onSubmit={handleJoinWaitlist} noValidate className="flex flex-col gap-4">
-                    {waitlistError && (
-                      <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 font-medium">
-                        {waitlistError}
-                      </div>
-                    )}
-                    
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="wl-email" className="text-[10px] uppercase font-bold text-primary tracking-wide">
-                        Academic/Professional Email
-                      </label>
-                      <div className="relative">
-                        <HiEnvelope className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/50 pointer-events-none" />
+                    <form onSubmit={handleJoinWaitlist} noValidate className="space-y-3">
+                      <div className="space-y-2">
+                        <label htmlFor="wl-email" className="block text-sm font-semibold text-[#101f3f]">Email address</label>
                         <input
+                          ref={waitlistInput}
                           id="wl-email"
+                          name="email"
                           type="email"
-                          placeholder="name@university.edu"
+                          autoComplete="email"
+                          required
+                          placeholder="name@example.com"
                           value={waitlistEmail}
-                          onChange={(e) => setWaitlistEmail(e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 border border-outline-variant/40 rounded-[6px] text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 bg-slate-50/40"
+                          readOnly={waitlist.status === "submitting"}
+                          onChange={(event) => {
+                            setWaitlistEmail(event.target.value);
+                            if (waitlist.status === "invalid" || waitlist.status === "failed") setWaitlist({ status: "idle" });
+                          }}
+                          aria-invalid={waitlist.status === "invalid" || undefined}
+                          aria-describedby={waitlist.status === "invalid" ? "waitlist-email-error" : undefined}
+                          className={`${entryInput} ${waitlist.status === "invalid" ? "border-error" : "border-[#7185a0]"}`}
                         />
+                        {waitlist.status === "invalid" && (
+                          <p id="waitlist-email-error" role="alert" className="text-sm text-error">{waitlist.message}</p>
+                        )}
                       </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={waitlistLoading}
-                      className="w-full bg-[#000666] hover:bg-[#000666]/90 disabled:bg-[#000666]/40 text-white font-bold text-sm py-3.5 rounded-[6px] shadow-md hover-lift transition-all cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      {waitlistLoading ? (
-                        <>
-                          <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                          </svg>
-                          Joining Waitlist...
-                        </>
-                      ) : (
-                        "Notify Me"
+                      {waitlist.status === "failed" && (
+                        <p role="alert" className="rounded-lg bg-error-container p-3 text-sm text-on-error-container">
+                          We couldn’t join the waitlist. Check your connection and try again.
+                        </p>
                       )}
+                      <button type="submit" aria-disabled={waitlist.status === "submitting"} className={entryAction}>
+                        {waitlist.status === "submitting" ? "Joining…" : waitlist.status === "failed" ? "Try again" : "Join waitlist"}
+                        <span aria-hidden="true" className="text-xl leading-none">→</span>
+                      </button>
+                    </form>
+                  </>
+                )}
+              </section>
+            ) : (
+              <section aria-labelledby="verify-heading">
+                <EntryIntake
+                  label="Registration open"
+                  cohortName={registrationAvailability.status === "open" ? registrationAvailability.cohortName : undefined}
+                  tone="open"
+                />
+                <div aria-current="step" className="mb-4 space-y-2 text-[13px] font-semibold text-[#43536e] min-[681px]:mb-6">
+                  <p>Step 1 of {stepsList.length} · Verify email</p>
+                  <div className="grid grid-cols-6 gap-[5px]" aria-hidden="true">
+                    {stepsList.map((item) => (
+                      <span key={item.num} className={`h-1 rounded-full ${item.num === 1 ? "bg-[#12617e]" : "bg-[#dce1ec]"}`} />
+                    ))}
+                  </div>
+                </div>
+                <h1 id="verify-heading" ref={availabilityHeading} tabIndex={-1} className={entryHeading}>Verify your email</h1>
+                <p className={`${entryCopy} mt-3 mb-5 min-[681px]:mb-6`}>
+                  {otpSent ? "Enter the six-digit code sent to:" : "We’ll email you a six-digit code."}
+                </p>
+                {errorMsg && (
+                  <div role="alert" className="mb-4 rounded-lg border border-error bg-error-container px-4 py-3 text-sm text-on-error-container">
+                    <p>{errorMsg}</p>
+                    {registeredEmail && <Link href="/login" className={`mt-2 inline-block font-semibold underline ${entryFocus}`}>Sign in</Link>}
+                  </div>
+                )}
+                <p role="status" className="sr-only">{verificationNotice}</p>
+                {!otpSent ? (
+                  <form noValidate onSubmit={(event) => { event.preventDefault(); handleSendCode(); }} className="space-y-3">
+                    <div className="space-y-2">
+                      <label htmlFor="email" className="block text-sm font-semibold text-[#101f3f]">Email address</label>
+                      <input
+                        ref={entryEmailInput}
+                        id="email"
+                        name="email"
+                        type="email"
+                        autoComplete="email"
+                        spellCheck={false}
+                        required
+                        readOnly={verificationRequest !== "idle"}
+                        placeholder="name@example.com"
+                        value={email}
+                        onChange={(event) => handleInputChange("email", event.target.value, setEmail)}
+                        aria-invalid={!!errors.email || undefined}
+                        aria-describedby={errors.email ? "apply-email-error" : undefined}
+                        className={`${entryInput} ${errors.email ? "border-error" : "border-[#7185a0]"}`}
+                      />
+                      {errors.email && <p id="apply-email-error" role="alert" className="text-sm text-error">{errors.email}</p>}
+                    </div>
+                    <button type="submit" aria-disabled={verificationRequest !== "idle" || resendCooldown > 0} className={entryAction}>
+                      {verificationRequest === "sending" ? "Sending…" : resendCooldown > 0 ? `Send code in ${resendCooldown}s` : "Send code"}
+                      <span aria-hidden="true" className="text-xl leading-none">→</span>
                     </button>
                   </form>
+                ) : (
+                  <form onSubmit={(event) => { event.preventDefault(); void handleVerifyOtp(); }} className="space-y-4">
+                    <p className="break-all text-sm font-medium text-[#43536e]">{email}</p>
+                    <div className="space-y-2">
+                      <label htmlFor="otp" className="block text-sm font-semibold text-[#101f3f]">Verification code</label>
+                      <input
+                        ref={otpInput}
+                        id="otp"
+                        name="otp"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        spellCheck={false}
+                        aria-invalid={!!errors.otp || undefined}
+                        aria-describedby={errors.otp ? "apply-otp-error otp-hint" : "otp-hint"}
+                        maxLength={6}
+                        value={otp}
+                        readOnly={verificationRequest !== "idle"}
+                        onChange={(event) => handleInputChange("otp", event.target.value, setOtp)}
+                        className={`${entryInput} font-mono tracking-[0.2em] ${errors.otp ? "border-error" : "border-[#7185a0]"}`}
+                      />
+                      {errors.otp && <p id="apply-otp-error" role="alert" className="text-sm text-error">{errors.otp}</p>}
+                      <p id="otp-hint" className="text-sm text-[#43536e]">Use the six-digit code from your latest email. If it expired, request a new one.</p>
+                    </div>
+                    <button type="submit" aria-disabled={verificationRequest !== "idle"} className={entryAction}>
+                      {verificationRequest === "verifying" ? "Verifying…" : "Verify email"}
+                      <span aria-hidden="true" className="text-xl leading-none">→</span>
+                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        aria-disabled={verificationRequest !== "idle"}
+                        className={`min-h-11 rounded-lg px-2 text-sm font-semibold text-secondary underline underline-offset-4 hover:bg-surface-container-low aria-disabled:cursor-wait ${entryFocus}`}
+                        onClick={() => {
+                          if (activeVerification.current) return;
+                          setOtpSent(false);
+                          setOtp("");
+                          setErrorMsg("");
+                          setErrors({});
+                          setVerificationNotice("");
+                          focusEntryEmail.current = true;
+                        }}
+                      >
+                        Change email
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleSendCode()}
+                        aria-disabled={verificationRequest !== "idle" || resendCooldown > 0}
+                        className={`min-h-11 rounded-lg px-2 text-sm font-semibold text-secondary underline underline-offset-4 hover:bg-surface-container-low aria-disabled:cursor-not-allowed aria-disabled:text-[#43536e] ${entryFocus}`}
+                      >
+                        {verificationRequest === "resending" ? "Resending…" : resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend code"}
+                      </button>
+                    </div>
+                  </form>
                 )}
-              </div>
-            </div>
-
-            {/* Member Privileges */}
-            <div className="w-full flex flex-col gap-8 border-t border-outline-variant/30 pt-10 mt-6 text-left">
-              <h3 className="text-xl font-display font-bold text-primary text-center">Waitlist Member Privileges</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-primary/5 rounded-xl text-primary shrink-0">
-                    <HiOutlineClock className="w-6 h-6" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <h4 className="text-sm font-bold text-primary">Priority Selection</h4>
-                    <p className="text-xs text-on-surface-variant leading-relaxed">
-                      Be the first to receive invitation links 48 hours before public launch.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-primary/5 rounded-xl text-primary shrink-0">
-                    <TbBook className="w-6 h-6" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <h4 className="text-sm font-bold text-primary">Module Previews</h4>
-                    <p className="text-xs text-on-surface-variant leading-relaxed">
-                      Get exclusive access to the &apos;Ethical Frameworks&apos; introductory reading list.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-primary/5 rounded-xl text-primary shrink-0">
-                    <HiOutlineShieldCheck className="w-6 h-6" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <h4 className="text-sm font-bold text-primary">Industry Updates</h4>
-                    <p className="text-xs text-on-surface-variant leading-relaxed">
-                      Monthly insights on Shariah-compliant finance trends and placements.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer actions */}
-            <div className="w-full flex flex-col sm:flex-row items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-4">
-              <span className="text-xs text-on-surface-variant/80 font-medium">
-                Stay connected for off-cycle placement opportunities.
-              </span>
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <button
-                  type="button"
-                  className="flex-1 sm:flex-initial p-3 bg-slate-100 hover:bg-slate-200 rounded-[6px] text-primary transition-colors flex items-center justify-center gap-1.5 text-xs font-bold"
-                  aria-label="Share page"
-                >
-                  <HiShare className="w-4 h-4" />
-                </button>
-                <a
-                  href="mailto:ifip.program@gmail.com"
-                  className="flex-1 sm:flex-initial text-center border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-xs px-6 py-3 rounded-[6px] transition-colors"
-                >
-                  Contact Admissions
-                </a>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Page Title */}
-        {step < 7 && (
-          <div className="text-center flex flex-col items-center gap-2">
-            <h1 className="text-3xl font-display font-bold text-primary">Program Application</h1>
-            <p className="text-sm text-on-surface-variant max-w-lg">
-              Complete the details below to join the Batch 2026-A Islamic Finance Program.
-            </p>
-            {step < 6 && (
-              <div className="mt-2 bg-emerald-500/5 border border-emerald-500/15 px-4 py-2.5 rounded-lg text-xs text-emerald-600 font-semibold flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 max-w-xl mx-auto">
-                <span className="flex items-center gap-1.5">
-                  <HiOutlineShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-                  Progress is automatically saved.
-                </span>
-                <span className="hidden sm:inline text-emerald-300">|</span>
-                <a
-                  href="https://wa.me/2349060356610"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-emerald-700 transition-all flex items-center gap-1"
-                >
-                  <FaWhatsapp className="w-3.5 h-3.5 shrink-0" />
-                  Registration issues? WhatsApp Support
-                </a>
-              </div>
+              </section>
             )}
-          </div>
-        )}
-
-        {/* Step Progress Tracker */}
-        {step < 7 && (
-          <div className="flex items-center justify-between w-full max-w-2xl mx-auto relative px-2">
-            {/* Background progress line */}
-            <div className="absolute left-8 right-8 top-5 h-[2px] bg-slate-200 -z-10"></div>
-            {/* Active progress line */}
-            <div
-              className="absolute left-8 top-5 h-[2px] bg-primary -z-10 transition-all duration-300"
-              style={{ width: `${((step - 1) / 5) * 100}%` }}
-            ></div>
-
-            {stepsList.map((s) => (
-              <div key={s.num} className="flex flex-col items-center gap-2">
-                <button
-                  disabled={s.num > step && !token}
-                  onClick={() => s.num < step && setStep(s.num)}
-                  className={`w-10 h-10 rounded-full font-bold text-sm flex items-center justify-center border transition-all duration-300 ${s.num === step
-                    ? "bg-primary text-white border-primary ring-4 ring-primary/10"
-                    : s.num < step
-                      ? "bg-primary text-white border-primary"
-                      : "bg-white text-on-surface-variant border-outline-variant/30"
-                    }`}
-                >
-                  {s.num < step ? "✓" : s.num}
-                </button>
-                <span className={`text-[10px] uppercase font-bold tracking-wider hidden sm:block ${s.num === step ? "text-primary font-black" : "text-on-surface-variant/80"
-                  }`}>
-                  {s.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
+            <EntryRecovery />
+          </RegistrationEntryFrame>
+        ) : (
+          <div className={step < 7 ? "grid overflow-hidden rounded-[18px] border border-[#cbd8e8] bg-[#ffffff] lg:grid-cols-[232px_minmax(0,1fr)]" : "rounded-[18px] border border-[#cbd8e8] bg-[#ffffff]"}>
+            {step < 7 && (
+              <aside className="hidden bg-[#101f3f] p-7 text-[#f4f8fe] lg:block">
+                <p className="text-sm text-[#a9e2fa]">Step {step} of {stepsList.length}</p>
+                <h2 className="mb-6 mt-2 font-sans text-3xl font-semibold">Your application</h2>
+                <ol aria-label="Application progress" className="space-y-1">
+                  {stepsList.map(({ num, label }) => (
+                    <li key={num} aria-current={num === step ? "step" : undefined}>
+                      {num < step && (num !== 1 || registrationAvailability.status === "open") ? (
+                        <button type="button" aria-label={"Back to " + label} onClick={() => goBackToStep(num)}
+                          disabled={loading || cvUploading || checkoutBusy || couponBusy}
+                          className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-start text-sm text-[#e0e6f1] hover:bg-white/10 focus-visible:outline-white disabled:opacity-60">
+                          <HiCheckCircle aria-hidden="true" className="size-4 shrink-0 text-[#a9e2fa]" />{label}
+                        </button>
+                      ) : (
+                        <span className={"flex min-h-11 items-center gap-2 rounded-md px-2 text-sm " + (num === step ? "bg-white/10 font-semibold text-white" : "text-[#d1d7e3]")}>
+                          <span aria-hidden="true" className="text-[#a9e2fa]">{String(num).padStart(2, "0")}</span>{label}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              </aside>
+            )}
+            <div className="min-w-0 space-y-5 p-4 min-[360px]:p-5 sm:p-9 lg:p-12">
+              {step < 7 && (
+                <div className="mx-auto max-w-2xl space-y-2 lg:hidden">
+                  <p className="text-xs font-semibold text-on-surface-variant">Step {step} of {stepsList.length} · {stepsList[step - 1]?.label}</p>
+                  <div aria-hidden="true" className="h-[3px] overflow-hidden rounded-full bg-surface-container-high">
+                    <div className="h-full origin-left rounded-full bg-[#12617e] motion-safe:transition-transform motion-safe:duration-250" style={{ transform: "scaleX(" + step / stepsList.length + ")" }} />
+                  </div>
+                </div>
+              )}
         {/* Error Callout */}
         {errorMsg && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-6 py-4 rounded-xl shadow-sm text-left">
+          <div role="alert" className="rounded-xl border border-error bg-error-container px-4 py-3 text-sm text-on-error-container">
             <span className="font-bold block mb-1">Error processing step</span>
             <p>{errorMsg}</p>
           </div>
         )}
 
+        <div role="status" className={saveNotice && !(loading && step >= 2 && step <= 5) ? "text-sm font-semibold text-primary" : "sr-only"}>
+          {loading && step >= 2 && step <= 5 ? "Saving your progress…" : saveNotice}
+        </div>
+
         {/* Stateful Card Wrapper */}
-        <div className="bg-white border border-outline-variant/30 rounded-[16px] shadow-md p-4 sm:p-8 md:p-12 relative overflow-hidden">
+        <div className="mx-auto w-full max-w-2xl">
           <AnimatePresence mode="wait">
             <motion.div
               key={step}
-              initial={{ opacity: 0, x: 16 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -16 }}
-              transition={{ duration: 0.22, ease: "easeOut" }}
+              initial={reduceMotion ? false : { opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? undefined : { opacity: 0 }}
+              transition={{ duration: reduceMotion ? 0 : 0.22, ease: "easeOut" }}
             >
-              {/* STEP 1: VERIFY */}
-              {step === 1 && (
-            <div className="flex flex-col items-center text-center gap-6 max-w-md mx-auto">
-              <div className="w-16 h-16 rounded-full bg-primary/5 border border-primary/10 flex items-center justify-center text-primary mb-2">
-                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 19v-8.93a2 2 0 01.89-1.664l8-5.333a2 2 0 012.22 0l8 5.333A2 2 0 0122 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
-                </svg>
-              </div>
-
-              <h2 className="text-2xl font-display font-bold text-primary">Verify Your Email</h2>
-              <p className="text-sm text-on-surface-variant leading-relaxed">
-                Enter your email to receive a 6-digit verification code. No password required to apply.
-              </p>
-
-              {!otpSent ? (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleSendCode();
-                  }}
-                  className="w-full flex flex-col gap-4 text-left font-sans mt-4"
-                >
-                  <div>
-                    <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant block mb-2">
-                      Email Address
-                    </label>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <input
-                        id="email"
-                        type="email"
-                        placeholder="name@example.com"
-                        value={email}
-                        onChange={(e) => handleInputChange("email", e.target.value, setEmail)}
-                        className={`flex-1 border rounded-[6px] px-4 py-3 text-sm focus:outline-none transition-colors ${
-                          errors.email
-                            ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                            : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                        }`}
-                      />
-                      <button
-                        type="submit"
-                        disabled={loading || !email}
-                        className="bg-primary hover:bg-primary/95 text-white font-bold text-sm px-6 py-3 rounded-[6px] transition-all cursor-pointer whitespace-nowrap disabled:bg-slate-300"
-                      >
-                        {loading ? "Sending..." : "Send Code"}
-                      </button>
-                    </div>
-                    {errors.email && (
-                      <span className="text-red-500 text-xs mt-1 block">{errors.email}</span>
-                    )}
-                  </div>
-                </form>
-              ) : (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleVerifyOtp();
-                  }}
-                  className="w-full flex flex-col gap-4 text-left font-sans mt-4"
-                >
-                  <div>
-                    <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant block mb-2">
-                      Email Address
-                    </label>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <input
-                        id="email"
-                        type="email"
-                        placeholder="name@example.com"
-                        value={email}
-                        disabled
-                        className="flex-1 border border-outline-variant/40 rounded-[6px] px-4 py-3 text-sm focus:outline-none bg-slate-100 text-on-surface-variant cursor-not-allowed"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleSendCode}
-                        disabled={loading || resendCooldown > 0}
-                        className="bg-primary hover:bg-primary/95 text-white font-bold text-sm px-6 py-3 rounded-[6px] transition-all cursor-pointer whitespace-nowrap disabled:bg-slate-300 disabled:cursor-not-allowed"
-                      >
-                        {loading
-                          ? "Sending..."
-                          : resendCooldown > 0
-                            ? `Resend in ${resendCooldown}s`
-                            : "Resend Code"}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant block mb-2">
-                      6-Digit OTP Code
-                    </label>
-                    <input
-                      id="otp"
-                      type="text"
-                      maxLength={6}
-                      placeholder="* * * * * *"
-                      value={otp}
-                      onChange={(e) => handleInputChange("otp", e.target.value, setOtp)}
-                      className={`w-full text-center tracking-[1em] font-mono border rounded-[6px] px-4 py-3 text-base focus:outline-none ${
-                        errors.otp
-                          ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                          : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                      }`}
-                    />
-                    {errors.otp && (
-                      <span className="text-red-500 text-xs mt-1 block text-center tracking-normal font-sans">{errors.otp}</span>
-                    )}
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading || otp.length < 6}
-                    className="w-full bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-base py-4 rounded-[6px] shadow-md hover-lift transition-all cursor-pointer mt-2 disabled:bg-slate-300"
-                  >
-                    {loading ? "Verifying..." : "Verify & Continue"}
-                  </button>
-                </form>
-              )}
-            </div>
-          )}
-
           {/* STEP 2: PROFILE */}
           {step === 2 && (
-            <div className="flex flex-col gap-8 text-left font-sans">
-              <div className="border-b border-outline-variant/20 pb-4">
-                <span className="text-xs uppercase font-bold text-vibrant-blue tracking-widest">Step 2 of 6: Identity & Residency</span>
-                <h2 className="text-2xl font-display font-bold text-primary mt-1">Personal Profile</h2>
+            <form noValidate onSubmit={(event) => { event.preventDefault(); void saveAllData(3); }} className="space-y-7">
+              <div className="space-y-2">
+                <h1 ref={focusStepHeading} tabIndex={-1} className={formHeading}>Personal profile</h1>
+                <p className="text-sm text-on-surface-variant">Use the name on your government ID and a phone number you use for WhatsApp.</p>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2">
-                  <label className="text-xs font-bold uppercase text-primary block mb-2">Full Legal Name</label>
-                  <input
-                    id="fullName"
-                    type="text"
-                    placeholder="Enter your full legal name exactly as it appears on your government ID"
-                    value={fullName}
-                    onChange={(e) => handleInputChange("fullName", e.target.value, setFullName)}
-                    className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
-                      errors.fullName
-                        ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                        : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                    }`}
-                  />
-                  {errors.fullName && (
-                    <span className="text-red-500 text-xs mt-1 block">{errors.fullName}</span>
-                  )}
+              {formFeedback}
+              <fieldset disabled={loading} className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
+                <legend className="sr-only">Personal details</legend>
+                <div className="space-y-2 sm:col-span-2">
+                  <label htmlFor="fullName" className={formLabel}>Full legal name</label>
+                  <input type="text" autoComplete="name" required value={fullName} {...fieldProps("fullName")}
+                    onChange={(event) => handleInputChange("fullName", event.target.value, setFullName)} />
+                  {fieldError("fullName")}
                 </div>
 
-                <div className="relative" ref={phoneContainerRef}>
-                  <label className="text-xs font-bold uppercase text-primary block mb-2">Phone Number (WhatsApp Active)</label>
-                  
-                  <div className={`flex items-stretch border rounded-[6px] focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-visible ${
-                    errors.phone
-                      ? "border-red-300 bg-red-50/10"
-                      : "border-outline-variant/40 bg-slate-50/50"
-                  }`}>
-                    {/* Flag Dropdown Trigger */}
-                    <button
-                      type="button"
-                      onClick={() => setFlagDropdownOpen(!flagDropdownOpen)}
-                      className="flex items-center gap-1.5 px-3 border-r border-outline-variant/40 hover:bg-slate-100/80 active:bg-slate-200/50 transition-colors select-none cursor-pointer text-sm font-semibold text-primary"
-                    >
-                      <span className="text-lg leading-none">
-                        {dialCodesList.find(d => d.code === selectedCountryCode)?.flag || "🇳🇬"}
-                      </span>
-                      <span className="text-xs font-bold font-sans">
-                        {dialCodesList.find(d => d.code === selectedCountryCode)?.dialCode || "+234"}
-                      </span>
-                      <svg className="w-3.5 h-3.5 text-on-surface-variant/80 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-
-                    {/* Phone Input Box */}
-                    <input
-                      id="phone"
-                      type="tel"
-                      placeholder="800 000 0000"
-                      value={phone}
-                      onChange={(e) => handleInputChange("phone", e.target.value, setPhone)}
-                      className="flex-1 min-w-0 bg-transparent px-3 py-3 text-sm focus:outline-none focus:ring-0 placeholder:text-on-surface-variant/50"
-                    />
-                  </div>
-
-                  {errors.phone && (
-                    <span className="text-red-500 text-xs mt-1 block">{errors.phone}</span>
-                  )}
-
-                  {/* Flag List Dropdown Menu */}
-                  {flagDropdownOpen && (
-                    <div className="absolute top-[calc(100%+4px)] left-0 mt-1 bg-white border border-outline-variant/30 rounded-xl shadow-xl z-[999] w-[min(288px,90vw)] flex flex-col overflow-hidden">
-                      {/* Search Box */}
-                      <div className="p-2 border-b border-outline-variant/20 bg-slate-50/50">
-                        <input
-                          type="text"
-                          placeholder="Search country or code..."
-                          value={flagSearch}
-                          onChange={(e) => setFlagSearch(e.target.value)}
-                          className="w-full border border-outline-variant/40 rounded-[6px] px-3 py-1.5 text-xs focus:outline-none focus:border-primary bg-white font-sans text-primary font-medium"
-                          autoFocus
-                        />
-                      </div>
-                      
-                      {/* Scrollable list */}
-                      <div className="max-h-52 overflow-y-auto py-1 flex flex-col scrollbar-thin">
-                        {dialCodesList
-                          .filter((item) => 
-                            item.name.toLowerCase().includes(flagSearch.toLowerCase()) || 
-                            item.dialCode.includes(flagSearch) ||
-                            item.code.toLowerCase().includes(flagSearch.toLowerCase())
-                          )
-                          .map((item) => (
-                            <button
-                              key={item.code}
-                              type="button"
-                              onClick={() => {
-                                setSelectedCountryCode(item.code);
-                                setFlagDropdownOpen(false);
-                                document.getElementById("phone")?.focus();
-                              }}
-                              className={`flex items-center justify-between w-full px-4 py-2.5 text-left hover:bg-slate-50 transition-colors cursor-pointer text-sm font-sans ${
-                                selectedCountryCode === item.code ? "bg-slate-50 text-vibrant-blue font-bold" : "text-primary font-medium"
-                              }`}
-                            >
-                              <div className="flex items-center gap-3">
-                                <span className="text-lg leading-none">{item.flag}</span>
-                                <span className="truncate max-w-[150px]">{item.name}</span>
-                              </div>
-                              <span className="text-xs font-bold text-on-surface-variant/80">{item.dialCode}</span>
-                            </button>
-                          ))}
-                        {dialCodesList.filter((item) => 
-                          item.name.toLowerCase().includes(flagSearch.toLowerCase()) || 
-                          item.dialCode.includes(flagSearch) ||
-                          item.code.toLowerCase().includes(flagSearch.toLowerCase())
-                        ).length === 0 && (
-                          <span className="text-xs text-on-surface-variant/60 text-center py-4 font-sans font-medium">
-                            No countries found
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold uppercase text-primary block mb-2">Date of Birth</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-on-surface-variant/70 block mb-1">Day</span>
-                      <input
-                        id="dob-day"
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={2}
-                        placeholder="DD"
-                        value={dobDay}
-                        onChange={(e) => handleDobPartChange('day', e.target.value)}
-                        className={`w-full border rounded-[6px] px-3 py-3 text-sm focus:outline-none ${
-                          errors.dob
-                            ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                            : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                        }`}
-                      />
-                    </div>
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-on-surface-variant/70 block mb-1">Month</span>
-                      <select
-                        id="dob-month"
-                        value={dobMonth}
-                        onChange={(e) => handleDobPartChange('month', e.target.value)}
-                        className={`w-full border rounded-[6px] px-2 py-3 text-sm focus:outline-none ${
-                          errors.dob
-                            ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                            : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                        }`}
-                      >
-                        <option value="">Month</option>
-                        <option value="01">01 - Jan</option>
-                        <option value="02">02 - Feb</option>
-                        <option value="03">03 - Mar</option>
-                        <option value="04">04 - Apr</option>
-                        <option value="05">05 - May</option>
-                        <option value="06">06 - Jun</option>
-                        <option value="07">07 - Jul</option>
-                        <option value="08">08 - Aug</option>
-                        <option value="09">09 - Sep</option>
-                        <option value="10">10 - Oct</option>
-                        <option value="11">11 - Nov</option>
-                        <option value="12">12 - Dec</option>
+                <fieldset className="min-w-0 space-y-2 sm:col-span-2">
+                  <legend className={formLabel}>WhatsApp phone number</legend>
+                  <div className="grid gap-3 min-[400px]:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+                    <div className="min-w-0 space-y-1.5">
+                      <label htmlFor="dial-code" className={formPartLabel}>Dialing code</label>
+                      <select id="dial-code" autoComplete="tel-country-code" className={formControl} value={selectedCountryCode}
+                        onChange={(event) => {
+                          dialCodeChosen.current = true;
+                          handleInputChange("phone", event.target.value, setSelectedCountryCode);
+                        }}>
+                        {residenceOptions.map(({ code, name, dialCode }) => (
+                          <option key={code} value={code}>{name} ({dialCode})</option>
+                        ))}
                       </select>
                     </div>
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-on-surface-variant/70 block mb-1">Year</span>
-                      <input
-                        id="dob-year"
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={4}
-                        placeholder="YYYY"
-                        value={dobYear}
-                        onChange={(e) => handleDobPartChange('year', e.target.value)}
-                        className={`w-full border rounded-[6px] px-3 py-3 text-sm focus:outline-none ${
-                          errors.dob
-                            ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                            : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                        }`}
-                      />
+                    <div className="min-w-0 space-y-1.5">
+                      <label htmlFor="phone" className={formPartLabel}>Phone number</label>
+                      <input type="tel" autoComplete="tel-national" required value={phone} {...fieldProps("phone")}
+                        onChange={(event) => handleInputChange("phone", event.target.value, setPhone)} />
                     </div>
                   </div>
-                  {errors.dob && (
-                    <span className="text-red-500 text-xs mt-1 block">{errors.dob}</span>
-                  )}
-                </div>
+                  {fieldError("phone")}
+                </fieldset>
 
-                <div>
-                  <label className="text-xs font-bold uppercase text-primary block mb-2">Gender</label>
-                  <select
-                    id="gender"
-                    value={gender}
-                    onChange={(e) => handleInputChange("gender", e.target.value, setGender)}
-                    className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
-                      errors.gender
-                        ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                        : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                    }`}
-                  >
-                    <option value="">Select Gender</option>
+                <fieldset className="min-w-0 space-y-2 sm:col-span-2" aria-describedby={errors.dob ? "dob-error" : undefined}>
+                  <legend className={`${formLabel} mb-4`}>Date of birth</legend>
+                  <div className="grid max-w-md grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.15fr)] gap-2 sm:gap-3">
+                    <div className="space-y-1.5">
+                      <label htmlFor="dob-day" className={formPartLabel}>Day</label>
+                      <input type="text" autoComplete="bday-day" inputMode="numeric" maxLength={2} required
+                        value={dobDay} {...fieldProps("dob", "dob-day")}
+                        onChange={(event) => handleDobPartChange("day", event.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label htmlFor="dob-month" className={formPartLabel}>Month</label>
+                      <select autoComplete="bday-month" required value={dobMonth} {...fieldProps("dob", "dob-month")}
+                        onChange={(event) => handleDobPartChange("month", event.target.value)}>
+                        <option value="">Select</option>
+                        {birthMonths.map((month, index) => (
+                          <option key={month} value={String(index + 1).padStart(2, "0")}>{month}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label htmlFor="dob-year" className={formPartLabel}>Year</label>
+                      <input type="text" autoComplete="bday-year" inputMode="numeric" maxLength={4} required
+                        value={dobYear} {...fieldProps("dob", "dob-year")}
+                        onChange={(event) => handleDobPartChange("year", event.target.value)} />
+                    </div>
+                  </div>
+                  {fieldError("dob")}
+                </fieldset>
+
+                <div className="min-w-0 space-y-2">
+                  <label htmlFor="gender" className={formLabel}>Gender</label>
+                  <select required value={gender} {...fieldProps("gender")}
+                    onChange={(event) => handleInputChange("gender", event.target.value, setGender)}>
+                    <option value="">Select gender</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                   </select>
-                  {errors.gender && (
-                    <span className="text-red-500 text-xs mt-1 block">{errors.gender}</span>
-                  )}
+                  {fieldError("gender")}
                 </div>
-
-                <div ref={countryContainerRef} className="relative">
-                  <label className="text-xs font-bold uppercase text-primary block mb-2">Country of Residence</label>
-                  {/* Searchable country dropdown */}
-                  <button
-                    id="country"
-                    type="button"
-                    onClick={() => setCountryDropdownOpen(prev => !prev)}
-                    className={`w-full border rounded-[6px] px-4 py-3 text-sm text-left flex items-center justify-between focus:outline-none transition-colors ${
-                      errors.country
-                        ? "border-red-300 bg-red-50/10"
-                        : countryDropdownOpen
-                          ? "border-primary ring-1 ring-primary bg-slate-50/50"
-                          : "border-outline-variant/40 bg-slate-50/50 hover:border-primary/50"
-                    }`}
-                  >
-                    <span className={country ? "text-on-surface" : "text-on-surface-variant/50"}>
-                      {country
-                        ? (() => {
-                            const found = DIAL_CODES.find(c => c.name === country);
-                            return found ? `${found.flag} ${country}` : country;
-                          })()
-                        : geoDetecting ? "Detecting location..." : "Select Country of Residence"
-                      }
-                    </span>
-                    <svg className={`w-4 h-4 text-on-surface-variant transition-transform ${countryDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-
-                  {countryDropdownOpen && (
-                    <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-outline-variant/30 rounded-xl shadow-xl overflow-hidden">
-                      {/* Search input */}
-                      <div className="p-2 border-b border-outline-variant/20">
-                        <input
-                          autoFocus
-                          type="text"
-                          placeholder="Search country..."
-                          value={countrySearch}
-                          onChange={(e) => setCountrySearch(e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-outline-variant/30 rounded-lg focus:outline-none focus:border-primary bg-slate-50"
-                        />
-                      </div>
-                      {/* Country list */}
-                      <div className="max-h-52 overflow-y-auto">
-                        {/* Nigeria pinned first if search is empty or matches */}
-                        {["Nigeria", ...DIAL_CODES.filter(c => c.name !== "Nigeria").sort((a, b) => a.name.localeCompare(b.name)).map(c => c.name)]
-                          .filter(name => name.toLowerCase().includes(countrySearch.toLowerCase()))
-                          .map(name => {
-                            const info = DIAL_CODES.find(c => c.name === name);
-                            return (
-                              <button
-                                key={name}
-                                type="button"
-                                onClick={() => {
-                                  handleInputChange("country", name, setCountry);
-                                  setCountryDropdownOpen(false);
-                                }}
-                                className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors ${
-                                  country === name
-                                    ? "bg-primary/5 text-primary font-bold"
-                                    : "hover:bg-slate-50 text-on-surface"
-                                }`}
-                              >
-                                <span className="text-base leading-none">{info?.flag}</span>
-                                <span>{name}</span>
-                                {country === name && (
-                                  <svg className="w-4 h-4 ml-auto text-primary shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                  </svg>
-                                )}
-                              </button>
-                            );
-                          })
-                        }
-                        {["Nigeria", ...DIAL_CODES.filter(c => c.name !== "Nigeria").map(c => c.name)]
-                          .filter(name => name.toLowerCase().includes(countrySearch.toLowerCase()))
-                          .length === 0 && (
-                          <span className="text-xs text-on-surface-variant/60 text-center py-4 block font-sans font-medium">
-                            No countries found
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {errors.country && (
-                    <span className="text-red-500 text-xs mt-1 block">{errors.country}</span>
-                  )}
+                <div className="min-w-0 space-y-2">
+                  <label htmlFor="country" className={formLabel}>Country of residence</label>
+                  <select autoComplete="country-name" required value={country} {...fieldProps("country")}
+                    onChange={(event) => {
+                      residenceChosen.current = true;
+                      handleInputChange("country", event.target.value, setCountry);
+                    }}>
+                    <option value="">{geoDetecting ? "Detecting country…" : "Select country"}</option>
+                    {country && !residenceOptions.some((option) => option.name === country) && <option value={country}>{country}</option>}
+                    {residenceOptions.map(({ code, name }) => <option key={code} value={name}>{name}</option>)}
+                  </select>
+                  {fieldError("country")}
                 </div>
-
-                <div className="md:col-span-2">
-                  <label className="text-xs font-bold uppercase text-primary block mb-2">State / City</label>
-                  <input
-                    id="stateCity"
-                    type="text"
-                    placeholder="City, State"
-                    value={stateCity}
-                    onChange={(e) => handleInputChange("stateCity", e.target.value, setStateCity)}
-                    className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
-                      errors.stateCity
-                        ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                        : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                    }`}
-                  />
-                  {errors.stateCity && (
-                    <span className="text-red-500 text-xs mt-1 block">{errors.stateCity}</span>
-                  )}
+                <div className="space-y-2 sm:col-span-2">
+                  <label htmlFor="stateCity" className={formLabel}>City and state</label>
+                  <input type="text" required value={stateCity} {...fieldProps("stateCity")}
+                    onChange={(event) => handleInputChange("stateCity", event.target.value, setStateCity)} />
+                  {fieldError("stateCity")}
                 </div>
-              </div>
-
-              <div className="flex items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="flex-1 sm:flex-none justify-center border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-5 py-3 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all h-12"
-                >
-                  <HiOutlineChevronLeft className="w-4 h-4" />
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={() => saveAllData(3)}
-                  disabled={loading || !fullName || !phone || !dob || !gender || !stateCity}
-                  className="flex-1 sm:flex-none justify-center bg-primary hover:bg-primary/95 text-white font-bold text-sm px-6 sm:px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap h-12 flex items-center"
-                >
-                  {loading ? "Saving..." : "Save & Continue →"}
-                </button>
-              </div>
-            </div>
+              </fieldset>
+              {formActions(registrationAvailability.status === "open" ? 1 : undefined)}
+            </form>
           )}
 
           {/* STEP 3: ACADEMIC */}
           {step === 3 && (
-            <div className="flex flex-col gap-8 text-left font-sans">
-              <div className="border-b border-outline-variant/20 pb-4">
-                <span className="text-xs uppercase font-bold text-vibrant-blue tracking-widest">Step 3 of 6: Academic Information</span>
-                <h2 className="text-2xl font-display font-bold text-primary mt-1">Academic Background</h2>
-                <p className="text-xs text-on-surface-variant mt-2 leading-relaxed">
-                  Providing accurate educational details helps us tailor your internship matching and verify eligibility for program tracks.
-                </p>
+            <form noValidate onSubmit={(event) => { event.preventDefault(); if (academicChoices.length) void saveAllData(4); }} className="space-y-7">
+              <div className="space-y-2">
+                <h1 ref={focusStepHeading} tabIndex={-1} className={formHeading}>Academic background</h1>
+                <p className="text-sm text-on-surface-variant">Your education helps IFIP match you with suitable program tracks.</p>
               </div>
-
-              <div>
-                <label className="text-xs font-bold uppercase text-primary block mb-3">Current Academic Status</label>
-                <div id="academicStatus" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {loadingStatus ? (
-                    <div className="col-span-full py-4 text-center text-xs text-slate-400 animate-pulse font-medium">
-                      Loading academic status options...
+              {formFeedback}
+              <fieldset disabled={loading} className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
+                <legend className="sr-only">Education details</legend>
+                <fieldset className="min-w-0 space-y-2 sm:col-span-2" aria-describedby={errors.academicStatus ? "academicStatus-error" : undefined}>
+                  <legend className={formLabel}>Current academic status</legend>
+                  {loadingStatus && statusOptions.length === 0 && <p role="status" className="text-sm text-on-surface-variant">Loading academic status options…</p>}
+                  {!loadingStatus && statusOptions.length === 0 && (
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                      <p role="alert" className="text-sm text-error">
+                        {statusError ? "Academic status options couldn’t load." : "No academic status options are available."}
+                      </p>
+                      <button type="button" onClick={retryStatus} className={formSecondaryAction}>Try loading again</button>
                     </div>
-                  ) : statusError && statusOptions.length === 0 ? (
-                    <div className="col-span-full py-6 flex flex-col items-center justify-center gap-3 text-center border border-red-200/50 bg-red-50/20 rounded-xl p-4">
-                      <p className="text-xs text-red-600 font-semibold">Failed to load academic status options due to poor connection.</p>
-                      <button 
-                        type="button" 
-                        onClick={retryStatus}
-                        className="px-4 py-1.5 bg-primary text-white text-xs font-bold rounded hover:bg-primary/95 cursor-pointer shadow-sm transition-colors"
-                      >
-                        Retry Loading
-                      </button>
-                    </div>
-                  ) : (
-                    statusOptions.map((status) => {
-                      const desc = STATUS_DESCS[status.label] || "Applicant status";
+                  )}
+                  <div className="grid">
+                    {academicChoices.map((status, index) => {
+                      const description = STATUS_DESCS[status.label];
                       return (
-                        <button
-                          key={status.value}
-                          onClick={() => handleInputChange("academicStatus", status.label, setAcademicStatus)}
-                          className={`p-4 border rounded-xl text-left flex flex-col gap-1 cursor-pointer transition-all ${academicStatus === status.label
-                            ? "border-vibrant-blue bg-vibrant-blue/5 shadow-sm"
-                            : "border-outline-variant/30 bg-white hover:bg-slate-50"
-                            }`}
-                        >
-                          <span className="text-sm font-bold text-primary">{status.label}</span>
-                          <span className="text-[10px] text-on-surface-variant font-medium">({desc})</span>
-                        </button>
+                        <label key={status.value} className={`flex min-h-12 cursor-pointer items-start gap-3 border-b p-3 text-sm text-on-surface has-checked:bg-[#e1f1fb] ${errors.academicStatus ? "border-error" : "border-outline-variant"}`}>
+                          <input
+                            id={index === 0 ? "academicStatus" : `academicStatus-${index}`}
+                            name="academicStatus"
+                            aria-labelledby={`academicStatus-label-${index}`}
+                            type="radio"
+                            required
+                            checked={academicStatus === status.label}
+                            onChange={() => handleInputChange("academicStatus", status.label, setAcademicStatus)}
+                            aria-describedby={[errors.academicStatus && "academicStatus-error", description && `academicStatus-description-${index}`].filter(Boolean).join(" ") || undefined}
+                            className={`mt-0.5 size-4 shrink-0 scroll-mt-28 accent-primary ${entryFocus}`}
+                          />
+                          <span className="min-w-0 break-words font-semibold">
+                            <span id={`academicStatus-label-${index}`}>{status.label}</span>
+                            {description && <span id={`academicStatus-description-${index}`} className="mt-0.5 block text-xs font-normal text-on-surface-variant">{description}</span>}
+                          </span>
+                        </label>
                       );
-                    })
-                  )}
+                    })}
+                  </div>
+                  {fieldError("academicStatus")}
+                </fieldset>
+
+                <div className="min-w-0 space-y-2">
+                  <label htmlFor="institution" className={formLabel}>Institution name</label>
+                  <input type="text" required value={institution} {...fieldProps("institution")}
+                    onChange={(event) => handleInputChange("institution", event.target.value, setInstitution)} />
+                  {fieldError("institution")}
                 </div>
-                {errors.academicStatus && (
-                  <span className="text-red-500 text-xs mt-2 block">{errors.academicStatus}</span>
-                )}
-              </div>
- 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="text-xs font-bold uppercase text-primary block mb-2">Institution Name</label>
-                  <input
-                    id="institution"
-                    type="text"
-                    placeholder="University or College name"
-                    value={institution}
-                    onChange={(e) => handleInputChange("institution", e.target.value, setInstitution)}
-                    className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
-                      errors.institution
-                        ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                        : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                    }`}
-                  />
-                  {errors.institution && (
-                    <span className="text-red-500 text-xs mt-1 block">{errors.institution}</span>
-                  )}
-                </div>
- 
-                <div>
-                  <label className="text-xs font-bold uppercase text-primary block mb-2">Graduation Year (if applicable)</label>
-                  <select
-                    id="graduationYear"
-                    value={graduationYear}
-                    onChange={(e) => handleInputChange("graduationYear", e.target.value, setGraduationYear)}
-                    className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
-                      errors.graduationYear
-                        ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                        : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                    }`}
-                  >
-                    <option value="">Select Graduation Year (if applicable)</option>
-                    {Array.from({ length: 2035 - 2010 + 1 }, (_, i) => String(2010 + i)).map(year => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
+                <div className="min-w-0 space-y-2">
+                  <label htmlFor="graduationYear" className={formLabel}>Graduation year <span className="font-normal text-on-surface-variant">(optional)</span></label>
+                  <select value={graduationYear} {...fieldProps("graduationYear")}
+                    onChange={(event) => handleInputChange("graduationYear", event.target.value, setGraduationYear)}>
+                    <option value="">Select year</option>
+                    {graduationYear && !graduationYears.includes(graduationYear) && <option value={graduationYear}>{graduationYear}</option>}
+                    {graduationYears.map((year) => <option key={year} value={year}>{year}</option>)}
                   </select>
-                  {errors.graduationYear && (
-                    <span className="text-red-500 text-xs mt-1 block">{errors.graduationYear}</span>
-                  )}
+                  {fieldError("graduationYear")}
                 </div>
-
-                <div>
-                  <label className="text-xs font-bold uppercase text-primary block mb-2">Field of Study / Discipline</label>
-                  <input
-                    id="fieldOfStudy"
-                    type="text"
-                    placeholder="Economics, Finance, Law..."
-                    value={fieldOfStudy}
-                    onChange={(e) => handleInputChange("fieldOfStudy", e.target.value, setFieldOfStudy)}
-                    className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
-                      errors.fieldOfStudy
-                        ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                        : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                    }`}
-                  />
-                  {errors.fieldOfStudy && (
-                    <span className="text-red-500 text-xs mt-1 block">{errors.fieldOfStudy}</span>
-                  )}
+                <div className="min-w-0 space-y-2">
+                  <label htmlFor="fieldOfStudy" className={formLabel}>Field of study</label>
+                  <input type="text" required value={fieldOfStudy} {...fieldProps("fieldOfStudy")}
+                    onChange={(event) => handleInputChange("fieldOfStudy", event.target.value, setFieldOfStudy)} />
+                  {fieldError("fieldOfStudy")}
                 </div>
-
-                <div>
-                  <label className="text-xs font-bold uppercase text-primary block mb-2">Highest Qualification Obtained</label>
-                  <select
-                    id="qualification"
-                    value={qualification}
-                    onChange={(e) => handleInputChange("qualification", e.target.value, setQualification)}
-                    className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
-                      errors.qualification
-                        ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                        : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                    }`}
-                  >
-                    <option value="Undergraduate">Undergraduate Student</option>
-                    <option value="Diploma">Diploma / ND / HND</option>
-                    <option value="Bachelor's Degree">Bachelor's Degree (B.Sc, B.A, etc.)</option>
-                    <option value="Master's Degree">Master's Degree (M.Sc, MBA, etc.)</option>
-                    <option value="Doctorate">PhD / Doctorate</option>
+                <div className="min-w-0 space-y-2">
+                  <label htmlFor="qualification" className={formLabel}>Highest qualification</label>
+                  <select required value={qualification} {...fieldProps("qualification")}
+                    onChange={(event) => handleInputChange("qualification", event.target.value, setQualification)}>
+                    {qualification && !qualifications.some((option) => option.value === qualification) && <option value={qualification}>{qualification}</option>}
+                    {qualifications.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
                   </select>
-                  {errors.qualification && (
-                    <span className="text-red-500 text-xs mt-1 block">{errors.qualification}</span>
-                  )}
+                  {fieldError("qualification")}
                 </div>
-              </div>
-
-              <div className="flex items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setStep(2)}
-                  className="flex-1 sm:flex-none justify-center border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-5 py-3 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all h-12"
-                >
-                  <HiOutlineChevronLeft className="w-4 h-4" />
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={() => saveAllData(4)}
-                  disabled={loading || !academicStatus || !institution || !fieldOfStudy || !qualification}
-                  className="flex-1 sm:flex-none justify-center bg-primary hover:bg-primary/95 text-white font-bold text-sm px-6 sm:px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap h-12 flex items-center"
-                >
-                  {loading ? "Saving..." : "Save & Continue →"}
-                </button>
-              </div>
-            </div>
+              </fieldset>
+              {formActions(2, academicChoices.length === 0)}
+            </form>
           )}
 
           {/* STEP 4: INTEREST */}
           {step === 4 && (
-            <div className="flex flex-col gap-8 text-left font-sans">
-              <div className="border-b border-outline-variant/20 pb-4">
-                <span className="text-xs uppercase font-bold text-vibrant-blue tracking-widest">Step 4 of 6: Program Focus</span>
-                <h2 className="text-2xl font-display font-bold text-primary mt-1">Program Interest</h2>
-                <p className="text-xs text-on-surface-variant mt-2 leading-relaxed">
-                  To better align your internship placement, please specify which sectors of Islamic Finance resonate most with your career goals.
-                </p>
+            <form noValidate onSubmit={(event) => { event.preventDefault(); if (interestChoices.length) void saveAllData(5); }} className="space-y-7">
+              <div className="space-y-2">
+                <h1 ref={focusStepHeading} tabIndex={-1} className={formHeading}>Program interest</h1>
+                <p className="text-sm text-on-surface-variant">Choose the Islamic finance areas you want to explore during your internship.</p>
               </div>
-
-              {interestError && interestOptions.length === 0 ? (
-                <div className="col-span-full py-8 flex flex-col items-center justify-center gap-3 text-center border border-red-200/50 bg-red-50/20 rounded-xl p-6">
-                  <p className="text-sm text-red-600 font-semibold">Failed to load areas of interest due to poor connection.</p>
-                  <button 
-                    type="button" 
-                    onClick={retryInterests}
-                    className="px-6 py-2 bg-primary text-white text-xs font-bold rounded hover:bg-primary/95 cursor-pointer shadow-md transition-colors"
-                  >
-                    Retry Loading Options
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <label className="text-xs font-bold uppercase text-primary block mb-2">Primary Area of Interest (Select the one that applies to you) *</label>
-                    <select
-                      id="primaryInterest"
-                      value={primaryInterest[0] || ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        const updated = val ? [val] : [];
-                        setPrimaryInterest(updated);
-                        if (errors.primaryInterest && updated.length > 0) {
-                          setErrors((prev) => {
-                            const copy = { ...prev };
-                            delete copy.primaryInterest;
-                            return copy;
-                          });
-                        }
-                      }}
-                      className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
-                        errors.primaryInterest
-                          ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                          : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                      }`}
-                    >
-                      <option value="">
-                        {loadingInterests ? "Loading options..." : "Select Primary Area of Interest..."}
-                      </option>
-                      {!loadingInterests &&
-                        interestOptions.map((option) => (
-                          <option key={option.value} value={option.label}>
-                            {option.label}
-                          </option>
-                        ))}
-                    </select>
-                    {errors.primaryInterest && (
-                      <span className="text-red-500 text-xs mt-1 block">{errors.primaryInterest}</span>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold uppercase text-primary block mb-2">Secondary Area of Interest (Optional)</label>
-                    <select
-                      value={secondaryInterest}
-                      onChange={(e) => setSecondaryInterest(e.target.value)}
-                      className="w-full border border-outline-variant/40 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-primary bg-slate-50/50"
-                    >
-                      <option value="">
-                        {loadingInterests ? "Loading options..." : "Select an optional second focus..."}
-                      </option>
-                      {!loadingInterests &&
-                        interestOptions.map((option) => (
-                          <option key={option.value} value={option.label}>
-                            {option.label}
-                          </option>
-                        ))}
-                    </select>
-                    <span className="text-[10px] text-on-surface-variant/80 mt-1 block">Choosing a secondary area helps us understand the breadth of your profile.</span>
-                  </div>
-                </>
+              {formFeedback}
+              {loadingInterests && interestOptions.length === 0 && (
+                <p role="status" className="text-sm text-on-surface-variant">Loading program interests…</p>
               )}
-
-              <div className="flex items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setStep(3)}
-                  className="flex-1 sm:flex-none justify-center border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-5 py-3 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all h-12"
-                >
-                  <HiOutlineChevronLeft className="w-4 h-4" />
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={() => saveAllData(5)}
-                  disabled={loading || primaryInterest.length === 0}
-                  className="flex-1 sm:flex-none justify-center bg-primary hover:bg-primary/95 text-white font-bold text-sm px-6 sm:px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap h-12 flex items-center"
-                >
-                  {loading ? "Saving..." : "Save & Continue →"}
-                </button>
-              </div>
-            </div>
+              {!loadingInterests && interestOptions.length === 0 && (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <p role="alert" className="text-sm text-error">
+                    {interestError ? "Program interests couldn’t load." : "No program interests are available."}
+                    {primaryInterest.length > 0 && " You can continue with your saved choices."}
+                  </p>
+                  <button type="button" onClick={retryInterests} disabled={loading} className={formSecondaryAction}>Try loading again</button>
+                </div>
+              )}
+              <fieldset disabled={loading || interestChoices.length === 0} className="min-w-0 space-y-5">
+                <legend className="sr-only">Areas of interest</legend>
+                <fieldset aria-describedby={errors.primaryInterest ? "interest-hint primaryInterest-error" : "interest-hint"} className="@container min-w-0 space-y-2">
+                  <legend className={formLabel}>Primary areas of interest</legend>
+                  <p id="interest-hint" className="text-sm text-on-surface-variant">Select at least one. You can choose more than one.</p>
+                  <div className="grid gap-2 @min-[30rem]:grid-cols-2">
+                    {interestChoices.map((interest, index) => (
+                      <label key={interest} className={`flex min-h-12 min-w-0 cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm font-semibold text-on-surface has-checked:bg-[#e1f1fb] ${errors.primaryInterest ? "border-error" : "border-outline-variant"}`}>
+                        <input id={index === 0 ? "primaryInterest" : undefined} type="checkbox" name="primaryInterest" value={interest}
+                          aria-describedby={errors.primaryInterest ? "primaryInterest-error" : undefined}
+                          checked={primaryInterest.includes(interest)} onChange={() => togglePrimaryInterest(interest)}
+                          className={`size-4 shrink-0 scroll-mt-28 accent-primary ${entryFocus}`} />
+                        <span className="min-w-0 break-words">{interest}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {fieldError("primaryInterest")}
+                  {primaryInterest.includes(otherInterest) && (
+                    <div className="space-y-2 pt-2">
+                      <label htmlFor="otherPrimaryInterest" className={formLabel}>Specify your primary area of interest</label>
+                      <input {...fieldProps("otherPrimaryInterest")} type="text" required value={otherPrimaryInterest}
+                        onChange={(event) => handleInputChange("otherPrimaryInterest", event.target.value, setOtherPrimaryInterest)} />
+                      {fieldError("otherPrimaryInterest")}
+                    </div>
+                  )}
+                </fieldset>
+                <div className="space-y-2">
+                  <label htmlFor="secondaryInterest" className={formLabel}>Secondary area of interest <span className={optionalLabel}>(optional)</span></label>
+                  <select value={secondaryInterest} {...fieldProps("secondaryInterest")} onChange={(event) => {
+                    setSecondaryInterest(event.target.value);
+                    if (event.target.value !== otherInterest && errors.otherSecondaryInterest) {
+                      setErrors((prev) => {
+                        const remaining = { ...prev };
+                        delete remaining.otherSecondaryInterest;
+                        return remaining;
+                      });
+                    }
+                  }}>
+                    <option value="">Select an area</option>
+                    {secondaryInterestChoices.map((interest) => <option key={interest} value={interest}>{interest}</option>)}
+                  </select>
+                  {secondaryInterest === otherInterest && (
+                    <div className="space-y-2 pt-2">
+                      <label htmlFor="otherSecondaryInterest" className={formLabel}>Specify your secondary area of interest</label>
+                      <input {...fieldProps("otherSecondaryInterest")} type="text" required value={otherSecondaryInterest}
+                        onChange={(event) => handleInputChange("otherSecondaryInterest", event.target.value, setOtherSecondaryInterest)} />
+                      {fieldError("otherSecondaryInterest")}
+                    </div>
+                  )}
+                </div>
+              </fieldset>
+              {formActions(3, interestChoices.length === 0)}
+            </form>
           )}
 
           {/* STEP 5: SKILLS & MOTIVATION */}
           {step === 5 && (
-            <div className="flex flex-col gap-8 text-left font-sans">
-              <div className="border-b border-outline-variant/20 pb-4">
-                <span className="text-xs uppercase font-bold text-vibrant-blue tracking-widest">Step 5 of 6: Attributes & CV Upload</span>
-                <h2 className="text-2xl font-display font-bold text-primary mt-1">Skills & Motivation</h2>
+            <form noValidate onSubmit={(event) => { event.preventDefault(); if (!cvSessionExpired) void saveAllData(6); }} className="space-y-7">
+              <div className="space-y-2">
+                <h1 ref={focusStepHeading} tabIndex={-1} className={formHeading}>Skills and motivation</h1>
+                <p className="text-sm text-on-surface-variant">Tell us about your experience and what you hope to gain from the program.</p>
               </div>
+              {formFeedback}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="text-xs font-bold uppercase text-primary flex items-end mb-2 min-h-[32px]">Relevant Skills</label>
-                  <input
-                    type="text"
-                    placeholder="Financial Analysis, Excel, Shariah Audit"
-                    value={skillsText}
-                    onChange={(e) => setSkillsText(e.target.value)}
-                    className="w-full border border-outline-variant/40 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-primary bg-slate-50/50"
-                  />
-                  <span className="text-[9px] text-on-surface-variant/80 mt-1 block">Separate multiple skills with commas.</span>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold uppercase text-primary flex items-end mb-2 min-h-[32px]">Technical Tools You Can Use</label>
-                  <input
-                    type="text"
-                    placeholder="Excel, Power BI, Python..."
-                    value={toolsText}
-                    onChange={(e) => setToolsText(e.target.value)}
-                    className="w-full border border-outline-variant/40 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-primary bg-slate-50/50"
-                  />
-                  <span className="text-[9px] text-on-surface-variant/80 mt-1 block">List software tools you are proficient in.</span>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="text-xs font-bold uppercase text-primary block mb-3">Previous Internship Experience</label>
-                  <div className="flex items-center gap-6">
-                    <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
-                      <input
-                        type="radio"
-                        checked={hasPriorInternship === true}
-                        onChange={() => setHasPriorInternship(true)}
-                        className="w-4 h-4 text-primary"
-                      />
-                      <span>Yes</span>
-                    </label>
-                    <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
-                      <input
-                        type="radio"
-                        checked={hasPriorInternship === false}
-                        onChange={() => setHasPriorInternship(false)}
-                        className="w-4 h-4 text-primary"
-                      />
-                      <span>No</span>
-                    </label>
+              <fieldset disabled={loading} className="min-w-0 space-y-4">
+                <legend className={formSection}>Experience</legend>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div className="min-w-0 space-y-2">
+                    <label htmlFor="skills" className={formLabel}>Relevant skills <span className={optionalLabel}>(optional)</span></label>
+                    <p id="skills-hint" className="text-sm text-on-surface-variant">Separate skills with commas.</p>
+                    <input id="skills" type="text" aria-describedby="skills-hint" className={formControl}
+                      value={skillsText} onChange={(event) => setSkillsText(event.target.value)} />
                   </div>
-                </div>
-
-                {hasPriorInternship && (
-                  <div className="md:col-span-2">
-                    <label className="text-xs font-bold uppercase text-primary block mb-2">If yes, describe briefly</label>
-                    <textarea
-                      rows={3}
-                      placeholder="Outline your roles, duties, and lessons learned..."
-                      value={priorInternshipDesc}
-                      onChange={(e) => setPriorInternshipDesc(e.target.value)}
-                      className="w-full border border-outline-variant/40 rounded-[6px] p-4 text-sm focus:outline-none focus:border-primary bg-slate-50/50 font-sans"
-                    />
+                  <div className="min-w-0 space-y-2">
+                    <label htmlFor="tools" className={formLabel}>Technical tools <span className={optionalLabel}>(optional)</span></label>
+                    <p id="tools-hint" className="text-sm text-on-surface-variant">Separate tools with commas.</p>
+                    <input id="tools" type="text" aria-describedby="tools-hint" className={formControl}
+                      value={toolsText} onChange={(event) => setToolsText(event.target.value)} />
                   </div>
-                )}
-
-                <div>
-                  <label className="text-xs font-bold uppercase text-primary block mb-2">Communication Skill Level</label>
-                  <select
-                    value={commLevel}
-                    onChange={(e) => setCommLevel(e.target.value)}
-                    className="w-full border border-outline-variant/40 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-primary bg-slate-50/50"
-                  >
-                    <option value="Beginner">Beginner</option>
-                    <option value="Intermediate">Intermediate</option>
-                    <option value="Advanced">Advanced</option>
-                    <option value="Native">Native</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold uppercase text-primary block mb-2">Availability for Internship</label>
-                  <select
-                    value={availability}
-                    onChange={(e) => setAvailability(e.target.value)}
-                    className="w-full border border-outline-variant/40 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-primary bg-slate-50/50"
-                  >
-                    <option value="Immediately">Immediately (Ready to start)</option>
-                    <option value="Within 1 week">Within 1 week</option>
-                    <option value="Within 2 weeks">Within 2 weeks</option>
-                    <option value="Within 3 weeks">Within 3 weeks</option>
-                  </select>
-                </div>
-
-                 <div className="md:col-span-2 bg-[#000666]/5 rounded-2xl p-6 flex flex-col gap-4 border border-[#000666]/10">
-                  <div>
-                    <label className="text-xs font-bold uppercase text-primary block mb-2">Why are you applying for this program?</label>
-                    <textarea
-                      id="whyApplying"
-                      rows={4}
-                      placeholder="Describe your interest in Islamic Finance and how this program aligns with your ethics..."
-                      value={whyApplying}
-                      onChange={(e) => handleInputChange("whyApplying", e.target.value, setWhyApplying)}
-                      className={`w-full border rounded-[6px] p-4 text-sm focus:outline-none ${
-                        errors.whyApplying
-                          ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                          : "border-outline-variant/40 focus:border-primary bg-white"
-                      }`}
-                    />
-                    {errors.whyApplying && (
-                      <span className="text-red-500 text-xs mt-1 block">{errors.whyApplying}</span>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold uppercase text-primary block mb-2">What are your long-term career goals in Islamic finance or related fields?</label>
-                    <textarea
-                      id="careerGoals"
-                      rows={4}
-                      placeholder="Where do you see yourself in 5 years within the financial sector?"
-                      value={careerGoals}
-                      onChange={(e) => handleInputChange("careerGoals", e.target.value, setCareerGoals)}
-                      className={`w-full border rounded-[6px] p-4 text-sm focus:outline-none ${
-                        errors.careerGoals
-                          ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                          : "border-outline-variant/40 focus:border-primary bg-white"
-                      }`}
-                    />
-                    {errors.careerGoals && (
-                      <span className="text-red-500 text-xs mt-1 block">{errors.careerGoals}</span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-4">
-                  <label className="text-xs font-bold uppercase text-primary block">Upload CV (PDF required)</label>
-                  <div
-                    id="cvUrl"
-                    className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center gap-3 bg-white text-center transition-colors relative min-h-[140px] ${
-                      cvUploadError || errors.cvUrl
-                        ? "border-red-300 bg-red-50/10"
-                        : cvUrl
-                        ? "border-emerald-400 bg-emerald-50/20"
-                        : cvUploading
-                        ? "border-primary/40 bg-primary/5 cursor-wait"
-                        : "border-outline-variant/40 hover:bg-slate-50 cursor-pointer"
-                    }`}
-                  >
-                    {/* Only allow file selection when not uploading */}
-                    {!cvUploading && (
-                      <input
-                        type="file"
-                        accept=".pdf"
-                        onChange={handleCvChange}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                      />
-                    )}
-
-                    {cvUploading ? (
-                      /* Uploading state */
-                      <>
-                        <div className="flex flex-col items-center gap-3 py-1">
-                          <div className="w-10 h-10 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-                          <span className="text-sm font-semibold text-primary">Uploading CV…</span>
-                          <span className="text-xs text-on-surface-variant">{cvFile?.name}</span>
-                        </div>
-                      </>
-                    ) : cvUrl ? (
-                      /* Success state */
-                      <>
-                        <div className="p-3 bg-emerald-100 rounded-full text-emerald-600">
-                          <HiCheckCircle className="w-6 h-6" />
-                        </div>
-                        <div className="flex flex-col items-center gap-1">
-                          <span className="text-sm font-bold text-emerald-700">CV Uploaded Successfully</span>
-                          <span className="text-xs text-emerald-600/80">Click to replace</span>
-                        </div>
-                      </>
-                    ) : (
-                      /* Idle state */
-                      <>
-                        <div className="p-3 bg-primary/5 rounded-full text-primary">
-                          <HiPaperClip className="w-6 h-6" />
-                        </div>
-                        <div className="flex flex-col items-center gap-1">
-                          <span className="text-sm font-semibold text-on-surface-variant">Click to browse or drag and drop</span>
-                          <span className="text-xs text-on-surface-variant/60">PDF only · Max 10 MB</span>
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Upload error message */}
-                  {cvUploadError && (
-                    <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5">
-                      <span className="text-red-500 mt-0.5">⚠</span>
-                      <span className="text-red-600 text-xs font-semibold">{cvUploadError} — click the box above to retry.</span>
+                  <fieldset className="min-w-0 space-y-2 sm:col-span-2">
+                    <legend className={formLabel}>Have you had an internship before? <span className={optionalLabel}>(optional)</span></legend>
+                    <div className="flex flex-wrap gap-3">
+                      {[true, false].map((answer) => (
+                        <label key={String(answer)} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-outline px-4 text-sm has-checked:border-primary has-checked:bg-primary-fixed/30">
+                          <input type="radio" name="priorInternship" checked={hasPriorInternship === answer}
+                            onChange={() => setHasPriorInternship(answer)} className={`size-4 accent-primary ${entryFocus}`} />
+                          {answer ? "Yes" : "No"}
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  {hasPriorInternship && (
+                    <div className="min-w-0 space-y-2 sm:col-span-2">
+                      <label htmlFor="internship-description" className={formLabel}>What did you do in that internship? <span className={optionalLabel}>(optional)</span></label>
+                      <textarea id="internship-description" rows={3} className={formControl}
+                        value={priorInternshipDesc} onChange={(event) => setPriorInternshipDesc(event.target.value)} />
                     </div>
                   )}
-                  {errors.cvUrl && !cvUploadError && (
-                    <span className="text-red-500 text-xs mt-1 block">{errors.cvUrl}</span>
-                  )}
+                  <div className="min-w-0 space-y-2">
+                    <label htmlFor="communication" className={formLabel}>Communication skill level</label>
+                    <select id="communication" className={formControl} value={commLevel} onChange={(event) => setCommLevel(event.target.value)}>
+                      {["Beginner", "Intermediate", "Advanced", "Native"].map((level) => <option key={level}>{level}</option>)}
+                    </select>
+                  </div>
+                  <div className="min-w-0 space-y-2">
+                    <label htmlFor="internship-availability" className={formLabel}>Availability for internship</label>
+                    <select id="internship-availability" className={formControl} value={availability} onChange={(event) => setAvailability(event.target.value)}>
+                      <option value="Immediately">Immediately (ready to start)</option>
+                      {["Within 1 week", "Within 2 weeks", "Within 3 weeks"].map((option) => <option key={option}>{option}</option>)}
+                    </select>
+                  </div>
                 </div>
+              </fieldset>
 
-                <div className="flex flex-col gap-4">
-                  <div>
-                    <label className="text-xs font-bold uppercase text-primary block mb-2">LinkedIn Profile URL (optional but recommended)</label>
-                    <div className="flex">
-                      <span className="bg-slate-100 border border-r-0 border-outline-variant/40 rounded-l-[6px] px-3 py-3 text-xs font-semibold text-on-surface-variant flex items-center">
-                        linkedin.com/in/
-                      </span>
-                      <input
-                        id="linkedinUrl"
-                        type="text"
-                        placeholder="username"
-                        value={linkedinUrl}
-                        onChange={(e) => handleInputChange("linkedinUrl", e.target.value, setLinkedinUrl)}
-                        className={`flex-1 border rounded-r-[6px] px-4 py-3 text-sm focus:outline-none ${
-                          errors.linkedinUrl
-                            ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                            : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                        }`}
-                      />
+              <fieldset disabled={loading} className="min-w-0 space-y-4">
+                <legend className={formSection}>Motivation</legend>
+                <p id="motivation-hint" className="text-sm text-on-surface-variant">Write at least 10 characters for each answer.</p>
+                <div className="space-y-2">
+                  <label htmlFor="whyApplying" className={formLabel}>Why are you applying for this program?</label>
+                  <textarea rows={4} required minLength={10} value={whyApplying} {...fieldProps("whyApplying", "whyApplying", "motivation-hint")}
+                    onChange={(event) => handleInputChange("whyApplying", event.target.value, setWhyApplying)} />
+                  {fieldError("whyApplying")}
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="careerGoals" className={formLabel}>What are your long-term career goals in Islamic finance or related fields?</label>
+                  <textarea rows={4} required minLength={10} value={careerGoals} {...fieldProps("careerGoals", "careerGoals", "motivation-hint")}
+                    onChange={(event) => handleInputChange("careerGoals", event.target.value, setCareerGoals)} />
+                  {fieldError("careerGoals")}
+                </div>
+              </fieldset>
+
+              <fieldset disabled={loading} className="min-w-0 space-y-4">
+                <legend className={formSection}>CV and links</legend>
+                <div className="space-y-2 rounded-xl border border-outline-variant bg-surface-container-low p-3 sm:p-4">
+                  <label htmlFor="cvUrl" className={formLabel}>{cvUrl ? "Replace CV" : "Upload your CV (required)"}</label>
+                  <p id="cv-hint" className="text-sm text-on-surface-variant">PDF, up to {cvMaxMiB} MB.</p>
+                  <input type="file" accept=".pdf,application/pdf" aria-disabled={cvUploading}
+                    {...fieldProps("cvUrl", "cvUrl", cvUpload.status === "failed" ? "cv-hint cv-upload-error" : "cv-hint")}
+                    aria-invalid={Boolean(errors.cvUrl) || cvUpload.status === "failed" || undefined}
+                    onClick={(event) => { if (cvUploadRequest.current) event.preventDefault(); }}
+                    onChange={handleCvChange}
+                    className={`${formControl} file:me-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-on-primary`} />
+                  <p role="status" className="break-words text-sm font-semibold text-primary">
+                    {cvUpload.status === "uploading" ? `Uploading ${cvUpload.file.name}…` : cvUrl ? "A CV is saved with your application." : ""}
+                  </p>
+                  {cvUpload.status === "failed" && (
+                    <div className="space-y-2">
+                      <p id="cv-upload-error" role="alert" className="text-sm text-error">
+                        {cvUpload.message}{cvUrl && !cvUpload.sessionExpired && " You can continue using the last confirmed CV."}
+                      </p>
+                      {cvUpload.retryFile && <button type="button" className={formSecondaryAction} onClick={retryCvUpload}>Retry CV upload</button>}
                     </div>
+                  )}
+                  {fieldError("cvUrl")}
+                </div>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div className="min-w-0 space-y-2">
+                    <label htmlFor="linkedinUrl" className={formLabel}>LinkedIn username <span className={optionalLabel}>(optional)</span></label>
+                    <p id="linkedin-hint" className="text-sm text-on-surface-variant">The part after linkedin.com/in/</p>
+                    <input type="text" autoCapitalize="none" value={linkedinUrl} {...fieldProps("linkedinUrl", "linkedinUrl", "linkedin-hint")}
+                      onChange={(event) => handleInputChange("linkedinUrl", event.target.value, setLinkedinUrl)} />
                   </div>
-
-                  <div>
-                    <label className="text-xs font-bold uppercase text-primary block mb-2">Portfolio link (if applicable)</label>
-                    <input
-                      id="portfolioUrl"
-                      type="url"
-                      placeholder="https://yourportfolio.com"
-                      value={portfolioUrl}
-                      onChange={(e) => handleInputChange("portfolioUrl", e.target.value, setPortfolioUrl)}
-                      className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
-                        errors.portfolioUrl
-                          ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                          : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                      }`}
-                    />
-                    {errors.portfolioUrl && (
-                      <span className="text-red-500 text-xs mt-1 block">{errors.portfolioUrl}</span>
-                    )}
+                  <div className="min-w-0 space-y-2">
+                    <label htmlFor="portfolioUrl" className={formLabel}>Portfolio link <span className={optionalLabel}>(optional)</span></label>
+                    <p id="portfolio-hint" className="text-sm text-on-surface-variant">Include https:// or http://.</p>
+                    <input type="url" value={portfolioUrl} {...fieldProps("portfolioUrl", "portfolioUrl", "portfolio-hint")}
+                      onChange={(event) => handleInputChange("portfolioUrl", event.target.value, setPortfolioUrl)} />
+                    {fieldError("portfolioUrl")}
                   </div>
                 </div>
-
-                <div className="md:col-span-2">
-                  <label className="text-xs font-bold uppercase text-primary block mb-2">How did you hear about this program?</label>
-                  <select
-                    value={leadSource}
-                    onChange={(e) => setLeadSource(e.target.value)}
-                    className="w-full border border-outline-variant/40 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-primary bg-slate-50/50"
-                  >
+                <div className="space-y-2">
+                  <label htmlFor="lead-source" className={formLabel}>How did you hear about this program?</label>
+                  <select id="lead-source" className={formControl} value={leadSource} onChange={(event) => setLeadSource(event.target.value)}>
                     <option value="Instagram">Instagram</option>
                     <option value="LinkedIn">LinkedIn</option>
                     <option value="Twitter (X)">Twitter (X)</option>
                     <option value="Facebook">Facebook</option>
                     <option value="WhatsApp/Telegram">WhatsApp / Telegram Group</option>
-                    <option value="Referral">Referral (Friend or Colleague)</option>
+                    <option value="Referral">Referral (friend or colleague)</option>
                     <option value="Campus Ambassador">University / Campus Ambassador</option>
-                    <option value="Partner Org">Partner Organization (Stecs, Halvest, EthicalVest, etc.)</option>
+                    <option value="Partner Org">Partner organization</option>
                     <option value="Google Search">Website / Google Search</option>
                     <option value="Event/Webinar">Event / Webinar</option>
-                    <option value="Media/Content">IFIP Media / Content (blog, video, article)</option>
-                    <option value="Other">Other (Specify)</option>
+                    <option value="Media/Content">IFIP media or content</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
-              </div>
-
-              <div className="flex items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setStep(4)}
-                  className="flex-1 sm:flex-none justify-center border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-5 py-3 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all h-12"
-                >
-                  <HiOutlineChevronLeft className="w-4 h-4" />
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={() => saveAllData(6)}
-                  disabled={loading || cvUploading || !whyApplying || !careerGoals || !cvUrl}
-                  className="flex-1 sm:flex-none justify-center bg-primary hover:bg-primary/95 text-white font-bold text-sm px-6 sm:px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap h-12 flex items-center"
-                >
-                  {loading ? "Saving..." : cvUploading ? "Uploading CV…" : "Save & Continue →"}
-                </button>
-              </div>
-            </div>
+              </fieldset>
+              {formActions(4, cvUploading || cvSessionExpired)}
+            </form>
           )}
 
           {/* STEP 6: PAYMENT & DECLARATION */}
           {step === 6 && (
-            <div className="flex flex-col lg:flex-row gap-8 text-left font-sans">
-
-              {/* Fee Sidebar */}
-              <div className="w-full lg:w-72 shrink-0 flex flex-col gap-6">
-                <div className="bg-[#000666]/5 border border-[#000666]/15 rounded-2xl p-6 flex flex-col gap-6">
-                  <h3 className="text-xs uppercase font-bold text-primary tracking-widest border-b border-primary/10 pb-3">Fee Summary</h3>
-
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-on-surface-variant block mb-1">Applicant Origin</span>
-                    <span className="text-sm font-bold text-primary block">
-                      {country === "Nigeria" ? "Nigeria (West Africa)" : "International Origin"}
-                    </span>
-                  </div>
-
-                  <div className="bg-white border border-outline-variant/20 rounded-xl p-4 flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] uppercase font-bold text-on-surface-variant">Base Levy</span>
-                      <span className={`text-sm font-bold ${appliedCoupon ? "line-through text-on-surface-variant/60" : "text-primary"}`}>
-                        {country === "Nigeria" ? "₦20,000" : "$30"}
-                      </span>
-                    </div>
-
-                    {appliedCoupon && (
-                      <div className="flex flex-col gap-0.5 pt-1.5 border-t border-dashed border-outline-variant/20 text-emerald-600 text-xs font-semibold">
-                        <div className="flex items-center justify-between">
-                          <span className="truncate max-w-[150px]" title={`Discount (${appliedCoupon.code})`}>
-                            Waiver ({appliedCoupon.code})
-                          </span>
-                          <span className="whitespace-nowrap">
-                            -{country === "Nigeria" ? `₦${Math.round((20000 * appliedCoupon.discountPercent) / 100).toLocaleString()}` : `$${Math.round((30 * appliedCoupon.discountPercent) / 100)}`}
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-emerald-500 font-medium">
-                          {appliedCoupon.discountPercent}% Discount Applied
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="pt-2 border-t border-outline-variant/20 flex items-center justify-between gap-2">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] uppercase font-bold text-primary">Total Due</span>
-                        {appliedCoupon?.discountPercent === 100 && (
-                          <span className="text-[8px] uppercase font-extrabold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded w-max mt-0.5">
-                            100% Waived
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-2xl font-sans font-black text-primary whitespace-nowrap">
-                        {country === "Nigeria" 
-                          ? `₦${Math.max(0, 20000 - Math.round((20000 * (appliedCoupon?.discountPercent || 0)) / 100)).toLocaleString()}` 
-                          : `$${Math.max(0, 30 - Math.round((30 * (appliedCoupon?.discountPercent || 0)) / 100))}`}
-                      </span>
-                    </div>
-                  </div>
-
-                  <p className="text-[10px] text-on-surface-variant/85 leading-relaxed">
-                    * The Commitment Levy is a non-refundable administrative fee ensuring high-quality module delivery and program administration.
-                  </p>
-                </div>
-
-                <div className="bg-primary text-white/90 rounded-2xl p-6 flex items-start gap-3 relative overflow-hidden">
-                  <HiLockClosed className="w-5 h-5 shrink-0 text-sky-400 mt-0.5" />
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-bold text-white">Secure Application</span>
-                    <span className="text-[10px] leading-relaxed text-white/80">
-                      Direct admissions pathway is encrypted and protected.
-                    </span>
-                  </div>
-                </div>
+            <div className="space-y-7">
+              <div className="space-y-2">
+                <h1 ref={focusStepHeading} tabIndex={-1} className={formHeading}>Payment and declaration</h1>
+                <p className="text-sm text-on-surface-variant">Review the commitment levy and confirm your application details.</p>
               </div>
 
-              {/* Terms & Action Container */}
-              <div className="flex-1 flex flex-col gap-6">
-
-                {/* Coupon Code Section */}
-                {!paymentVerified && (
-                  <div className="bg-white border border-outline-variant/30 rounded-2xl p-5 flex flex-col gap-4 shadow-sm animate-fadeIn">
-                    <div
-                      onClick={() => setCouponOpen(!couponOpen)}
-                      className="flex items-center justify-between cursor-pointer select-none"
-                    >
-                      <div className="flex items-center gap-2.5 text-sm font-bold text-primary">
-                        <HiTag className="w-5 h-5 text-impact-orange shrink-0" />
-                        <span>Have a coupon or scholarship code?</span>
-                      </div>
-                      <span className="text-xs text-primary font-bold hover:underline transition-all">
-                        {couponOpen ? "Hide" : "Click to apply"}
-                      </span>
-                    </div>
-
-                    {(couponOpen || appliedCoupon || couponError) && (
-                      <div className="pt-3 border-t border-outline-variant/20 flex flex-col gap-3">
-                        {appliedCoupon ? (
-                          <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs">
-                                ✓
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="text-xs font-mono font-bold text-emerald-900 tracking-wide uppercase">
-                                  {appliedCoupon.code}
-                                </span>
-                                <span className="text-xs text-emerald-700 font-medium">
-                                  {appliedCoupon.discountPercent}% Discount Applied! ({appliedCoupon.discountPercent === 100 ? "100% Free Pass Waiver" : "Reduced Levy Rate"})
-                                </span>
-                              </div>
+              <div className="grid min-w-0 gap-7 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+                <div className="min-w-0 space-y-5">
+                  <section aria-labelledby="levy-heading" className="space-y-4 rounded-xl border border-outline-variant bg-surface-container-low p-4 sm:p-5">
+                    <h3 id="levy-heading" className="font-sans text-2xl text-primary">Commitment levy</h3>
+                    {paymentVerified ? (
+                      <p className="text-sm text-on-surface-variant"><strong className="text-primary">Payment confirmed.</strong> Submit your application after completing the declaration.</p>
+                    ) : (
+                      <>
+                        {estimatedLevy !== undefined && estimatedTotal !== undefined ? (
+                          <dl className="space-y-2 text-sm text-on-surface-variant">
+                            <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
+                              <dt>Base estimate</dt>
+                              <dd className="font-semibold tabular-nums">{formatLevyAmount(estimatedLevy, levyCurrency)}</dd>
                             </div>
-                            <button
-                              type="button"
-                              onClick={handleRemoveCoupon}
-                              className="text-xs font-semibold text-red-600 hover:text-red-800 underline cursor-pointer"
-                            >
-                              Remove
-                            </button>
+                            {appliedCoupon && (
+                              <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
+                                <dt>Coupon discount ({appliedCoupon.discountPercent}%)</dt>
+                                <dd className="font-semibold tabular-nums">−{formatLevyAmount(estimatedLevy - estimatedTotal, levyCurrency)}</dd>
+                              </div>
+                            )}
+                            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-outline-variant pt-3 text-primary">
+                              <dt className="font-semibold">Estimated total</dt>
+                              <dd className="font-sans text-2xl tabular-nums">{formatLevyAmount(estimatedTotal, levyCurrency)}</dd>
+                            </div>
+                          </dl>
+                        ) : (
+                          <p className="text-sm text-on-surface-variant" role="status">{pricingFailed ? "The levy estimate is temporarily unavailable." : "Loading levy estimate…"}</p>
+                        )}
+                        <p className="text-sm leading-relaxed text-on-surface-variant">IFIP confirms the amount and rechecks any coupon when you continue.</p>
+                      </>
+                    )}
+                    <p className="text-sm leading-relaxed text-on-surface-variant">The commitment levy is a non-refundable fee that supports program delivery and administration.</p>
+                  </section>
+
+                  {!paymentVerified && (
+                    <details open={couponOpen} onToggle={(event) => setCouponOpen(event.currentTarget.open)}
+                      className="rounded-xl border border-outline-variant px-4 sm:px-5">
+                      <summary ref={couponSummary} className={`min-h-11 cursor-pointer py-3 text-sm font-semibold text-primary ${entryFocus}`}>
+                        {appliedCoupon ? "Coupon applied" : "Have a coupon or scholarship code?"}
+                      </summary>
+                      <div className="space-y-3 border-t border-outline-variant py-4">
+                        {appliedCoupon ? (
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <p className="min-w-0 break-words text-sm text-primary"><strong>{appliedCoupon.code}</strong> · {appliedCoupon.discountPercent}% discount</p>
+                            <button type="button" disabled={checkoutBusy} onClick={handleRemoveCoupon} className={formSecondaryAction}>Remove coupon</button>
                           </div>
                         ) : (
-                          <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                            <input
-                              type="text"
-                              placeholder=""
-                              value={couponInput}
-                              onChange={(e) => {
-                                setCouponInput(e.target.value.toUpperCase());
-                                if (couponError) setCouponError("");
+                          <form onSubmit={handleApplyCoupon} className="space-y-2">
+                            <label htmlFor="couponCode" className={formLabel}>Coupon code</label>
+                            <input id="couponCode" ref={couponField} type="text" autoCapitalize="characters" autoComplete="off" spellCheck={false}
+                              value={couponInput} readOnly={checkoutBusy || couponBusy}
+                              aria-invalid={coupon.status === "error" || undefined}
+                              aria-describedby={coupon.status === "error" ? "coupon-error" : undefined}
+                              onChange={(event) => {
+                                setCouponInput(event.target.value.toUpperCase());
+                                setCoupon({ status: "idle" });
                               }}
-                              className="flex-1 border border-outline-variant/40 rounded-[6px] px-4 py-2.5 text-sm uppercase font-mono font-semibold tracking-wider focus:outline-none focus:border-primary bg-slate-50"
-                            />
-                            <button
-                              type="submit"
-                              disabled={couponLoading || !couponInput.trim()}
-                              className="bg-primary hover:bg-primary/95 text-white font-bold text-xs px-5 py-2.5 rounded-[6px] transition-all disabled:bg-slate-300 cursor-pointer whitespace-nowrap"
-                            >
-                              {couponLoading ? "Validating..." : "Apply Code"}
+                              className={formControl} />
+                            {coupon.status === "error" && <p id="coupon-error" role="alert" className="text-sm text-error">{coupon.message}</p>}
+                            <button type="submit" aria-disabled={couponBusy || checkoutBusy} className={`${formSecondaryAction} aria-disabled:opacity-60`}>
+                              {couponBusy ? "Checking code…" : "Apply code"}
                             </button>
                           </form>
                         )}
-
-                        {couponError && (
-                          <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-3.5 rounded-xl font-semibold flex items-start gap-2">
-                            <span className="mt-0.5 text-red-500">⚠</span>
-                            <span>{couponError}</span>
-                          </div>
-                        )}
-                        {couponSuccessMsg && !couponError && appliedCoupon && (
-                          <div className="text-emerald-600 text-xs font-semibold">
-                            {couponSuccessMsg}
-                          </div>
-                        )}
                       </div>
-                    )}
-                  </div>
-                )}
+                    </details>
+                  )}
+                  <p role="status" className={coupon.status === "removed" ? "text-sm font-semibold text-primary" : "sr-only"}>
+                    {coupon.status === "checking" ? "Checking coupon code…" : coupon.status === "applied" ? `${coupon.discountPercent}% discount applied.` : coupon.status === "removed" ? "Coupon removed." : ""}
+                  </p>
+                </div>
 
-                {/* 1. Payment/Declaration Info Banners */}
-                {paymentVerified ? (
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 flex items-start gap-4">
-                    <HiShieldCheck className="w-8 h-8 text-emerald-600 shrink-0 mt-0.5" />
-                    <div className="flex flex-col gap-1">
-                      <h4 className="text-sm font-bold text-emerald-900">Levy Paid & Verified</h4>
-                      <p className="text-xs text-emerald-700 font-medium">
-                        Your commitment levy has been successfully processed and verified. Please finalize your submission below.
-                      </p>
-                    </div>
-                  </div>
-                ) : declarationConfirmed && signature ? (
-                  <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-6 flex items-start gap-4 animate-fadeIn">
-                    <HiInformationCircle className="w-8 h-8 text-primary shrink-0 mt-0.5" />
-                    <div className="flex flex-col gap-1">
-                      <h4 className="text-sm font-bold text-primary">Declaration & Signature Saved</h4>
-                      <p className="text-xs text-primary/80 font-medium">
-                        Your declaration details have been saved. Please click the button below to {appliedCoupon?.discountPercent === 100 ? "complete your registration waiver" : "pay the commitment levy"} and complete your application.
-                      </p>
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* 2. Declaration & Signature Block (Always visible) */}
-                <div className="flex flex-col gap-6 animate-fadeIn">
-                  {/* Section 7. Declaration */}
-                  <div className="bg-[#e8e8ed]/35 border border-outline-variant/30 rounded-2xl p-6 flex flex-col gap-4">
-                    <h3 className="text-lg font-bold font-display text-primary">7. Declaration</h3>
-                    
-                    <ul className="list-disc pl-5 text-xs text-on-surface-variant flex flex-col gap-2 mb-4 leading-relaxed font-medium">
+                <form noValidate onSubmit={(event) => { event.preventDefault(); void handleCheckout(); }} className="min-w-0 space-y-5">
+                  {formFeedback}
+                  <fieldset disabled={checkoutBusy} className="min-w-0 space-y-4">
+                    <legend className={formSection}>Declaration</legend>
+                    <ul className="list-disc space-y-2 ps-5 text-sm leading-relaxed text-on-surface-variant">
                       <li>I confirm that the information provided is accurate and complete.</li>
                       <li>I understand that internship placement is subject to screening and matching after program completion.</li>
                       <li>I agree to participate in assessments and training.</li>
                     </ul>
-
-                    <label id="declarationConfirmed" className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={declarationConfirmed}
-                        onChange={(e) => handleInputChange("declarationConfirmed", e.target.checked, setDeclarationConfirmed)}
-                        className={`w-5 h-5 text-primary rounded mt-0.5 ${
-                          errors.declarationConfirmed ? "border-red-300" : "border-outline-variant/50"
-                        }`}
-                      />
-                      <span className="text-xs text-primary font-bold leading-relaxed">
+                    <div className="space-y-2">
+                      <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border border-outline bg-surface-container-lowest p-3 text-sm font-semibold text-on-surface has-checked:border-primary has-checked:bg-primary-fixed/30">
+                        <input id="declarationConfirmed" type="checkbox" required checked={declarationConfirmed}
+                          aria-invalid={Boolean(errors.declarationConfirmed) || undefined}
+                          aria-describedby={errors.declarationConfirmed ? "declarationConfirmed-error" : undefined}
+                          onChange={(event) => handleInputChange("declarationConfirmed", event.target.checked, setDeclarationConfirmed)}
+                          className={`mt-0.5 size-4 shrink-0 scroll-mt-28 accent-primary ${entryFocus}`} />
                         I acknowledge, declare, and confirm all statements above.
-                      </span>
-                    </label>
-                    {errors.declarationConfirmed && (
-                      <span className="text-red-500 text-xs mt-1 block">{errors.declarationConfirmed}</span>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs font-bold uppercase text-primary flex items-end mb-2 min-h-[32px]">Typed Full Name (Digital Signature)</label>
-                      <input
-                        id="signature"
-                        type="text"
-                        placeholder="Type your full legal name"
-                        value={signature}
-                        onChange={(e) => handleInputChange("signature", e.target.value, setSignature)}
-                        className={`w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none ${
-                          errors.signature
-                            ? "border-red-300 focus:border-red-500 bg-red-50/10"
-                            : "border-outline-variant/40 focus:border-primary bg-slate-50/50"
-                        }`}
-                      />
-                      {errors.signature && (
-                        <span className="text-red-500 text-xs mt-1 block">{errors.signature}</span>
-                      )}
+                      </label>
+                      {fieldError("declarationConfirmed")}
                     </div>
-
-                    <div>
-                      <label className="text-xs font-bold uppercase text-primary flex items-end mb-2 min-h-[32px]">Date</label>
-                      <input
-                        type="date"
-                        value={declarationDate}
-                        onChange={(e) => handleInputChange("declarationDate", e.target.value, setDeclarationDate)}
-                        disabled
-                        className="w-full border border-outline-variant/40 rounded-[6px] px-4 py-3 text-sm focus:outline-none focus:border-primary bg-slate-100 text-on-surface-variant font-medium cursor-not-allowed"
-                      />
+                    <div className="space-y-2">
+                      <label htmlFor="signature" className={formLabel}>Full legal name (digital signature)</label>
+                      <input type="text" autoComplete="name" required value={signature} {...fieldProps("signature")}
+                        onChange={(event) => handleInputChange("signature", event.target.value, setSignature)} />
+                      {fieldError("signature")}
                     </div>
-                  </div>
-                </div>
+                    <p className="text-sm text-on-surface-variant">Declaration date <time dateTime={declarationDate} className="font-semibold">{declarationDate}</time></p>
+                  </fieldset>
 
-                {/* Back and Action Buttons */}
-                <div className="flex items-center justify-between border-t border-outline-variant/20 pt-8 mt-6 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setStep(5)}
-                    className="flex-1 sm:flex-none justify-center border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm px-5 py-3 rounded-[6px] flex items-center gap-2 cursor-pointer transition-all h-12"
-                  >
-                    <HiOutlineChevronLeft className="w-4 h-4" />
-                    Back
-                  </button>
-                  {!paymentVerified ? (
-                    <button
-                      type="button"
-                      onClick={handlePayRedirect}
-                      disabled={loading || !declarationConfirmed || !signature}
-                      className="flex-1 sm:flex-none justify-center bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-sm px-5 sm:px-6 py-2.5 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 min-h-12 h-auto flex items-center justify-center gap-2 font-sans text-center"
-                    >
-                      {loading ? (
-                        "Processing..."
-                      ) : appliedCoupon?.discountPercent === 100 ? (
-                        <>
-                          <HiGift className="w-5 h-5 text-white shrink-0" />
-                          <span>Complete Registration (100% Waiver)</span>
-                        </>
-                      ) : (
-                        "Submit & Pay"
-                      )}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleSubmitApplication}
-                      disabled={loading || !declarationConfirmed || !signature}
-                      className="flex-1 sm:flex-none justify-center bg-impact-orange hover:bg-impact-orange/95 text-white font-bold text-sm px-6 sm:px-8 py-3 rounded-[6px] cursor-pointer shadow-md hover-lift transition-all disabled:bg-slate-300 whitespace-nowrap h-12 flex items-center font-sans"
-                    >
-                      {loading ? "Submitting..." : "Submit Application"}
-                    </button>
+                  <p role="status" className={checkoutBusy ? "text-sm font-semibold text-primary" : "sr-only"}>
+                    {checkout.status === "saving" ? "Saving your declaration…" : checkout.status === "requesting" ? paymentVerified ? "Declaration saved. Submitting your application…" : "Declaration saved. Confirming your checkout details…" : checkout.status === "redirecting" ? "Opening the payment provider…" : ""}
+                  </p>
+
+                  {checkout.status === "error" && (
+                    <div ref={checkoutError} role="alert" tabIndex={-1} className="scroll-mt-28 space-y-2 rounded-lg border border-error bg-error-container p-4 text-sm text-on-error-container">
+                      <p className="font-semibold">{checkout.title}</p>
+                      <p>{checkout.message}</p>
+                      <div className="flex flex-wrap gap-x-4 gap-y-2">
+                        {checkout.canCheckPayment && <Link href="/verify-payment" className={`underline underline-offset-4 ${entryFocus}`}>Check previous payment</Link>}
+                        <a href="mailto:ifip.program@gmail.com" className={`underline underline-offset-4 ${entryFocus}`}>Email IFIP support</a>
+                      </div>
+                    </div>
                   )}
-                </div>
-                {errorMsg && (
-                  <div className="mt-4 text-center sm:text-right">
-                    <span className="text-red-500 text-xs font-bold inline-block max-w-md">{errorMsg}</span>
+
+                  <div className="space-y-3 border-t border-outline-variant pt-4">
+                    {!paymentVerified && (
+                      <p className="text-sm text-on-surface-variant">
+                        {appliedCoupon?.discountPercent === 100
+                          ? "Continue to confirm whether the levy can be waived."
+                          : country === "Nigeria" ? "You’ll continue to the payment provider. IFIP checks the payment when you return."
+                            : "You’ll get USD bank transfer instructions and a place to submit your receipt."}
+                      </p>
+                    )}
+                    <div className={stepActionRow}>
+                      <button type="button" disabled={checkoutBusy || couponBusy} onClick={() => goBackToStep(5)} className={stepBackAction}>
+                        <HiOutlineChevronLeft aria-hidden="true" className="size-4" /> Back
+                      </button>
+                      <button type="submit" aria-disabled={checkoutBusy || couponBusy} className={`${stepForwardAction} aria-disabled:cursor-wait aria-disabled:bg-surface-container-high aria-disabled:text-on-surface-variant`}>
+                        {checkoutBusy ? "Please wait…" : paymentVerified ? "Submit application" : appliedCoupon?.discountPercent === 100 ? "Confirm waiver" : country === "Nigeria" ? "Continue to checkout" : "Pay by bank transfer"}
+                      </button>
+                    </div>
                   </div>
-                )}
+                </form>
               </div>
             </div>
           )}
 
-          {/* STEP 7: SUCCESS SCREEN */}
-          {step === 7 && (
-            <div className="flex flex-col items-center text-center gap-6 max-w-lg mx-auto py-8 font-sans animate-fadeIn">
-              <div className="w-20 h-20 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 mb-4 animate-bounce">
-                <HiShieldCheck className="w-12 h-12" />
+          {step === 7 && confirmation && (
+            <section className="mx-auto max-w-lg space-y-5 py-4" aria-labelledby="confirmation-heading">
+              <div className="flex size-11 items-center justify-center rounded-xl bg-primary-fixed text-primary">
+                <HiShieldCheck aria-hidden="true" className="size-6" />
               </div>
-
-              <h2 className="text-3xl font-display font-bold text-primary">Application Submitted!</h2>
-              <p className="text-base text-primary/80 leading-relaxed font-semibold">
-                Your application has been received successfully.
+              <h1 id="confirmation-heading" ref={focusStepHeading} tabIndex={-1} className={formHeading}>
+                {confirmation.type === "waived" ? "Commitment levy waived" : "Application submitted"}
+              </h1>
+              <p className="text-sm leading-relaxed text-on-surface-variant">
+                {confirmation.type === "waived"
+                  ? "Your waiver was applied. Check your email for instructions to finish your application or set up your account."
+                  : confirmation.setupToken
+                    ? "Set a password to access your participant account."
+                    : "Check your inbox and spam folder for instructions to set up your account."}
               </p>
-
-              {createdPasswordToken ? (
-                <>
-                  <p className="text-sm text-on-surface-variant leading-relaxed">
-                    You can now set a secure password for your participant account and access your dashboard.
-                  </p>
-
-                  <div className="w-full flex flex-col gap-3 mt-4">
-                    <Link
-                      href={`/set-password?token=${createdPasswordToken}`}
-                      className="w-full bg-primary hover:bg-primary/95 text-white font-bold text-sm py-4 rounded-[6px] shadow-md hover-lift transition-all cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      <HiLockClosed className="w-4 h-4" />
-                      Set Password &amp; Login Now
-                    </Link>
-                  </div>
-
-                  <div className="w-full bg-slate-50 border border-outline-variant/30 rounded-xl p-4 mt-4 flex items-start gap-3 text-left">
-                    <HiEnvelope className="w-5 h-5 text-vibrant-blue shrink-0 mt-0.5" />
-                    <p className="text-xs text-on-surface-variant leading-relaxed">
-                      <strong>Email Backup:</strong> We have also sent a confirmation link to your email. You can use it to set your password later if you need to close this page.
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm text-on-surface-variant leading-relaxed">
-                    We have emailed you a confirmation link. Please check your inbox (and spam folder) for instructions to <strong>set your password</strong> and log in to your cohort dashboard.
-                  </p>
-
-                  <div className="w-full bg-slate-50 border border-outline-variant/30 rounded-xl p-4 mt-4 flex items-start gap-3 text-left">
-                    <HiInformationCircle className="w-5 h-5 text-vibrant-blue shrink-0 mt-0.5" />
-                    <p className="text-xs text-on-surface-variant leading-relaxed">
-                      If you do not see the email, please check your spam folder or contact technical support.
-                    </p>
-                  </div>
-                </>
-              )}
-
-              <div className="flex flex-col sm:flex-row items-center gap-4 mt-6 w-full">
-                <Link
-                  href="/"
-                  className="flex-1 w-full border border-outline-variant/40 hover:bg-slate-50 text-primary font-bold text-sm py-4 rounded-[6px] hover-lift transition-all cursor-pointer"
-                >
-                  Return to Home
-                </Link>
-                {!createdPasswordToken && (
-                  <Link
-                    href="/login"
-                    className="flex-1 w-full bg-primary hover:bg-primary/95 text-white font-bold text-sm py-4 rounded-[6px] shadow-sm hover-lift transition-all cursor-pointer"
-                  >
-                    Go to Dashboard Login
-                  </Link>
+              <div className="flex flex-wrap gap-3">
+                {confirmation.setupToken && (
+                  <Link href={"/set-password?" + new URLSearchParams({ token: confirmation.setupToken })} className={registrationButton}>Set your password</Link>
                 )}
+                <Link href="/" className={formSecondaryAction}>Return home</Link>
               </div>
-            </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold text-secondary">
+                {!confirmation.setupToken && confirmation.type === "submitted" && (
+                  <Link href="/login" className={`inline-flex min-h-11 items-center underline underline-offset-4 ${entryFocus}`}>Sign in</Link>
+                )}
+                <a href="mailto:ifip.program@gmail.com" className={`inline-flex min-h-11 items-center underline underline-offset-4 ${entryFocus}`}>Email IFIP support</a>
+              </div>
+            </section>
           )}
             </motion.div>
           </AnimatePresence>
         </div>
-          </>
+            </div>
+          </div>
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-outline-variant/30 py-6 px-6 md:px-12 mt-auto font-sans">
-        {/* Links row — first on mobile, visible on all sizes */}
-        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-on-surface-variant mb-4">
-          <a href="#" className="hover:underline hover:text-primary transition-colors">Terms of Service</a>
-          <a href="#" className="hover:underline hover:text-primary transition-colors">Privacy Policy</a>
-          <a href="/#faq" className="hover:underline hover:text-primary transition-colors">Program FAQs</a>
-          <a
-            href="https://wa.me/2349060356610"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-emerald-600 hover:text-emerald-700 font-semibold transition-colors hover:underline"
-          >
-            <FaWhatsapp className="w-4 h-4" />
-            WhatsApp Support
-          </a>
-          <a
-            href="mailto:ifip.program@gmail.com"
-            className="inline-flex items-center gap-1.5 text-primary/70 hover:text-primary font-semibold transition-colors hover:underline"
-          >
-            <HiEnvelope className="w-4 h-4" />
-            Email Support
-          </a>
-        </div>
-        {/* Copyright — always at the very bottom, centered */}
-        <p className="text-center text-[11px] text-on-surface-variant/60">
-          © {new Date().getFullYear()} IFIP. All rights reserved.
-        </p>
-      </footer>
-      {/* Sticky Bottom Navigation for Mobile */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background border-t border-outline-variant/30 px-6 py-2 flex items-center justify-between shadow-lg font-sans">
-        <Link href="/" className="flex flex-col items-center gap-1 text-primary/70 hover:text-primary transition-colors">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-          </svg>
-          <span className="text-[10px] font-bold tracking-wider">Home</span>
-        </Link>
-        {isLoggedIn ? (
-          <Link href="/dashboard" className="flex flex-col items-center gap-1 text-primary/70 hover:text-primary transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-            </svg>
-            <span className="text-[10px] font-bold tracking-wider">Workspace</span>
-          </Link>
-        ) : (
-          <Link href="/apply" className="flex flex-col items-center gap-1 text-primary/70 hover:text-primary transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
-            <span className="text-[10px] font-bold tracking-wider">Apply</span>
-          </Link>
-        )}
-        {isLoggedIn ? (
-          <Link href="/dashboard/modules" className="flex flex-col items-center gap-1 text-primary/70 hover:text-primary transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-            <span className="text-[10px] font-bold tracking-wider">Modules</span>
-          </Link>
-        ) : (
-          <Link href="/#faq" className="flex flex-col items-center gap-1 text-primary/70 hover:text-primary transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-[10px] font-bold tracking-wider">FAQ</span>
-          </Link>
-        )}
-        {isLoggedIn ? (
-          <Link href="/dashboard/settings" className="flex flex-col items-center gap-1 text-primary/70 hover:text-primary transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span className="text-[10px] font-bold tracking-wider">Profile</span>
-          </Link>
-        ) : (
-          <Link href="/login" className="flex flex-col items-center gap-1 text-primary/70 hover:text-primary transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h5a3 3 0 013 3v1" />
-            </svg>
-            <span className="text-[10px] font-bold tracking-wider">Login</span>
-          </Link>
-        )}
-      </div>
+        <footer className={`${entryWidth} flex flex-wrap items-center justify-between gap-x-5 gap-y-1 py-4 text-sm leading-relaxed text-[#43536e] min-[681px]:py-6`}>
+          <p>Islamic Finance Internship Program</p>
+          <nav aria-label="Registration help" className="flex flex-wrap gap-x-4">
+            <Link href="/#faq" className={`inline-flex min-h-11 items-center gap-2 underline underline-offset-4 ${entryFocus}`}>Program FAQs</Link>
+            <a href="mailto:ifip.program@gmail.com" className={`inline-flex min-h-11 items-center gap-2 underline underline-offset-4 ${entryFocus}`}><TbMail aria-hidden="true" className="size-4 text-[#12617e]" />Email support</a>
+            <a href="https://wa.me/2349060356610" target="_blank" rel="noopener noreferrer" className={`inline-flex min-h-11 items-center gap-2 underline underline-offset-4 ${entryFocus}`}><TbBrandWhatsapp aria-hidden="true" className="size-4 text-[#12617e]" />WhatsApp support</a>
+          </nav>
+        </footer>
+
     </div>
   );
 }

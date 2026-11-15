@@ -1,5 +1,7 @@
 "use client";
 
+import HiringOutcomeForm from "@/components/admin/HiringOutcomeForm";
+
 import { useEffect, useState, useContext, useMemo } from "react";
 import Link from "next/link";
 import { 
@@ -34,7 +36,8 @@ import {
   AdminStats, 
   Cohort, 
   PartnerOrganization, 
-  Placement 
+  Placement,
+  type HiringOutcome,
 } from "@/lib/api/services";
 import { AdminCohortContext } from "../layout";
 
@@ -52,6 +55,10 @@ export default function AdminPlacementsPage() {
   const [applications, setApplications] = useState<any[]>([]);
   const [partners, setPartners] = useState<PartnerOrganization[]>([]);
   const [placements, setPlacements] = useState<Placement[]>([]);
+  const [interviewCheckTime, setInterviewCheckTime] = useState(0);
+  const saveOutcome = (id: string, hiringOutcome: HiringOutcome) => {
+    setPlacements(previous => previous.map(row => row._id === id ? { ...row, hiringOutcome } : row));
+  };
   const [loading, setLoading] = useState(true);
 
   // Filter & Search state
@@ -99,6 +106,7 @@ export default function AdminPlacementsPage() {
       
       setPartners(partnersData);
       setPlacements(placementsData);
+      setInterviewCheckTime(Date.now());
       setCohorts(cohortsData);
     } catch (err) {
       console.error("Failed to load placement dashboard:", err);
@@ -140,7 +148,7 @@ export default function AdminPlacementsPage() {
       } else {
         matched++;
         if (match.status === 'interviewing') interviewing++;
-        if (match.status === 'placed' || match.partnerOutcome === 'offer_extended') placed++;
+        if (match.hiringOutcome?.status === 'hire_confirmed') placed++;
       }
     });
 
@@ -166,7 +174,7 @@ export default function AdminPlacementsPage() {
       if (activeFilterTab === "matched" && !match) return false;
       if (activeFilterTab === "unmatched" && match) return false;
       if (activeFilterTab === "interviewing" && (!match || match.status !== "interviewing")) return false;
-      if (activeFilterTab === "placed" && (!match || (match.status !== "placed" && match.partnerOutcome !== "offer_extended"))) return false;
+      if (activeFilterTab === "placed" && match?.hiringOutcome?.status !== "hire_confirmed") return false;
 
       // Specific partner filter
       if (selectedPartnerFilter !== "all") {
@@ -408,11 +416,11 @@ export default function AdminPlacementsPage() {
           }`}
         >
           <div className="flex items-center justify-between text-emerald-600 mb-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Confirmed</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider">Hired</span>
             <HiOutlineCheckBadge className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-2xl font-black text-emerald-700">{counts.placed}</div>
-          <p className="text-[10px] text-emerald-600 mt-0.5">Placement Confirmed</p>
+          <p className="text-[10px] text-emerald-600 mt-0.5">Confirmed hires</p>
         </button>
 
         <button
@@ -495,7 +503,7 @@ export default function AdminPlacementsPage() {
                       : "text-emerald-700 hover:bg-emerald-50"
                   }`}
                 >
-                  <span>Placement Confirmed</span>
+                  <span>Confirmed hires</span>
                   <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-mono font-bold ${
                     activeFilterTab === "placed" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
                   }`}>
@@ -669,6 +677,9 @@ export default function AdminPlacementsPage() {
                                 In Talent Pool
                               </span>
                             )}
+                            {match && canRecordOutcome(match, interviewCheckTime) && (
+                              <HiringOutcomeForm kind="placements" id={match._id} outcome={match.hiringOutcome} onSave={outcome => saveOutcome(match._id, outcome)} />
+                            )}
                           </td>
 
                           <td className="px-6 py-4 text-right">
@@ -750,6 +761,9 @@ export default function AdminPlacementsPage() {
                         )}
                       </div>
 
+                      {match && canRecordOutcome(match, interviewCheckTime) && (
+                        <HiringOutcomeForm kind="placements" id={match._id} outcome={match.hiringOutcome} onSave={outcome => saveOutcome(match._id, outcome)} />
+                      )}
                       <div className="flex justify-end pt-1">
                         <button
                           onClick={() => {
@@ -1079,4 +1093,9 @@ export default function AdminPlacementsPage() {
       )}
     </div>
   );
+}
+
+function canRecordOutcome(match: Placement, checkedAt: number) {
+  return Boolean(match.hiringOutcome) || match.status === "placed" ||
+    (match.status === "interviewing" && (!match.interviewScheduledAt || Date.parse(match.interviewScheduledAt) <= checkedAt));
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { hiringOutcomeLabels } from "@/lib/api/services";
+
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import {
@@ -274,14 +276,16 @@ export default function MyPlacementsPage() {
                       <span className="text-slate-400 font-bold uppercase tracking-wider block text-[10px] mb-1">
                         Outcome &amp; Internal Notes
                       </span>
-                      {p.partnerOutcome ? (
+                      {p.hiringOutcome ? (
+                        <p className="text-xs font-semibold text-slate-800">{hiringOutcomeLabels[p.hiringOutcome.status]} · Recorded by IFIP</p>
+                      ) : p.partnerOutcome ? (
                         <span className={`inline-flex items-center space-x-1.5 text-xs font-semibold ${
                           p.partnerOutcome === "offer_extended"
                             ? "text-emerald-700"
                             : "text-slate-600"
                         }`}>
                           <HiOutlineCheck className="w-3.5 h-3.5" />
-                          <span>{p.partnerOutcome === "offer_extended" ? "Placement Confirmed" : "Not Selected"}</span>
+                          <span>{p.partnerOutcome === "offer_extended" ? "Offer extended" : "Not selected"}</span>
                         </span>
                       ) : (
                         <p className="text-slate-400 italic text-xs">Outcome pending interview.</p>

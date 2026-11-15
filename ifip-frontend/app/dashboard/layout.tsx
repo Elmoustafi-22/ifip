@@ -19,21 +19,32 @@ import {
   HiOutlineCalendar
 } from "react-icons/hi2";
 import { getAccessToken, clearAuth } from "@/lib/api/auth";
-import { getMyApplication, getCohortConfig } from "@/lib/api/services";
+import { getMyApplication } from "@/lib/api/services";
 import NotificationBell from "@/components/NotificationBell";
+import { DashboardContext, type DashboardProfile } from "./dashboard-context";
+
+const cohortDateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "long",
+  timeZone: "UTC",
+});
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [loading, setLoading] = useState(true);
-  const [isAuthorized, setIsAuthorized] = useState(false);
-  const [userData, setUserData] = useState<any>(null);
-  const [appStatus, setAppStatus] = useState<string | null>(null);
-  const [cohortStartDate, setCohortStartDate] = useState("2026-08-31T00:00:00.000Z");
-  const [dashboardViewOverride, setDashboardViewOverride] = useState<string>("default");
+  const [userData, setUserData] = useState<DashboardProfile | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+  const startTime = Date.parse(userData?.cohort?.startDate ?? "");
 
+  useEffect(() => {
+    if (!(startTime > currentTime)) return;
 
+    // Browser timers cannot wait more than this in a single interval.
+    const delay = Math.min(startTime - Date.now(), 2_147_483_647);
+    const timer = window.setTimeout(() => setCurrentTime(Date.now()), delay);
+    return () => window.clearTimeout(timer);
+  }, [startTime, currentTime]);
 
   // Authenticate user & check placement status
   useEffect(() => {
@@ -46,16 +57,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
 
       try {
-        const [application, config] = await Promise.all([
-          getMyApplication(),
-          getCohortConfig()
-        ]);
+        const application: DashboardProfile = await getMyApplication();
         if (application) {
+          setCurrentTime(Date.now());
           setUserData(application);
-          setAppStatus(application.status);
-          setCohortStartDate(config.cohortStartDate);
-          setDashboardViewOverride(config.dashboardViewOverride || "default");
-          setIsAuthorized(true);
 
 
           // Auto-redirect partner to partner portal
@@ -96,12 +101,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  if (!isAuthorized) {
+  if (!userData) {
     return null;
   }
 
   // Gated Status holding screen if application is withdrawn
-  if (appStatus === "withdrawn") {
+  if (userData.status === "withdrawn") {
     return (
       <div className="min-h-screen bg-[#FDFBF7] flex flex-col justify-between font-sans">
         {/* Header */}
@@ -156,15 +161,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
     );
   }
-  const getIsLaunched = () => {
-    if (userData?.role === "admin" || userData?.role === "superadmin") return true;
-    if (dashboardViewOverride === "unlocked") return true;
-    if (dashboardViewOverride === "coming_soon") return false;
-    return new Date() >= new Date(cohortStartDate);
-  };
-
-  const isLaunched = getIsLaunched();
-  const isAdmin = userData?.role === "admin" || userData?.role === "superadmin";
+  const isAdmin = userData.role === "admin" || userData.role === "superadmin";
+  const cohortName = userData.cohort?.name;
+  const cohortStartLabel = Number.isFinite(startTime) ? cohortDateFormatter.format(startTime) : null;
+  const isLaunched = isAdmin || userData.dashboardViewOverride === "unlocked"
+    || (userData.dashboardViewOverride !== "coming_soon" && currentTime >= startTime);
 
   const getDashboardTitle = () => {
     if (isAdmin) return "Candidate Workspace (Admin Preview)";
@@ -317,7 +318,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {getDashboardTitle()}
             </h1>
             <p className="text-[10px] md:text-xs text-slate-500 font-semibold tracking-wide uppercase">
-              {getDashboardSubtitle()} &bull; Batch 2026-A
+              {getDashboardSubtitle()}{cohortName && <> &bull; {cohortName}</>}
             </p>
           </div>
 
@@ -337,9 +338,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <span className="text-xs font-bold text-slate-800 group-hover:text-[#000666] transition-colors">
                     {userData?.fullName || "Candidate"}
                   </span>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">
-                    Batch 2026-A
-                  </span>
+                  {cohortName && (
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">
+                      {cohortName}
+                    </span>
+                  )}
                 </div>
                 <div className="w-9 h-9 rounded-full bg-sky-50 border border-slate-200 flex items-center justify-center text-sky-700 font-bold overflow-hidden">
                   {userData?.avatarUrl ? (
@@ -438,7 +441,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Content Body */}
         <main className="flex-1 p-3 sm:p-6 md:p-8 lg:p-12 max-w-5xl w-full mx-auto flex flex-col gap-6 md:gap-8 pb-24 md:pb-8 min-w-0 max-w-full overflow-x-hidden">
-          {children}
+          <DashboardContext.Provider value={{
+            profile: userData,
+            updateProfile: (fields) => setUserData((current) => current && { ...current, ...fields }),
+            isLaunched,
+            cohortStartLabel,
+          }}>
+            {children}
+          </DashboardContext.Provider>
         </main>
 
         {/* Platform Footer — hidden on mobile (bottom tab bar replaces) */}

@@ -1,4 +1,5 @@
 import apiClient, { authClient } from "./client";
+import type { HiringOutcome } from "./services";
 
 export const unsubscribePartner = async (
   token: string
@@ -120,6 +121,7 @@ export interface PartnerInterestItem {
 }
 
 export interface PartnerPlacementItem {
+  hiringOutcome?: HiringOutcome;
   _id: string;
   userId: string;
   partnerOrgId: string;
@@ -461,6 +463,7 @@ export interface JobOpeningItem {
 }
 
 export interface JobApplicantRecord {
+  hiringOutcome?: HiringOutcome;
   _id: string;
   jobOpeningId: string;
   userId: string;

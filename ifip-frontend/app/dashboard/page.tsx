@@ -16,28 +16,23 @@ import {
   HiOutlineBriefcase,
   HiOutlineFolderMinus
 } from "react-icons/hi2";
-import { getMyApplication, getCohortConfig, getUpcomingSessions, getLMSModules, ProgrammeSession, LMSModule } from "@/lib/api/services";
+import { getUpcomingSessions, getLMSModules, ProgrammeSession, LMSModule } from "@/lib/api/services";
+import { useDashboard } from "./dashboard-context";
 
 export default function DashboardHome() {
+  const { profile, isLaunched, cohortStartLabel } = useDashboard();
+  const cohortName = profile.cohort?.name;
   const [loading, setLoading] = useState(true);
-  const [userData, setUserData] = useState<any>(null);
-  const [cohortStartDate, setCohortStartDate] = useState("2026-08-31T00:00:00.000Z");
-  const [dashboardViewOverride, setDashboardViewOverride] = useState<string>("default");
   const [upcomingSessions, setUpcomingSessions] = useState<ProgrammeSession[]>([]);
   const [modules, setModules] = useState<LMSModule[]>([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [profile, config, sessions, mods] = await Promise.all([
-          getMyApplication(),
-          getCohortConfig(),
+        const [sessions, mods] = await Promise.all([
           getUpcomingSessions().catch(() => []),
           getLMSModules().catch(() => [])
         ]);
-        setUserData(profile);
-        setCohortStartDate(config.cohortStartDate);
-        setDashboardViewOverride(config.dashboardViewOverride || "default");
         setUpcomingSessions(sessions || []);
         setModules(mods || []);
       } catch (err) {
@@ -48,42 +43,6 @@ export default function DashboardHome() {
     };
     fetchDashboardData();
   }, []);
-
-  const formatCohortDate = (isoString: string) => {
-    try {
-      const d = new Date(isoString);
-      return d.toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      });
-    } catch {
-      return "August 31, 2026";
-    }
-  };
-
-  const getOrdinalDay = (isoString: string) => {
-    try {
-      const d = new Date(isoString);
-      const day = d.getDate();
-      const month = d.toLocaleDateString("en-US", { month: "long" });
-      const suffix = ["th", "st", "nd", "rd"];
-      const v = day % 100;
-      const ord = suffix[(v - 20) % 10] || suffix[v] || suffix[0];
-      return `${month} ${day}${ord}`;
-    } catch {
-      return "August 31st";
-    }
-  };
-
-  const getIsLaunched = () => {
-    if (userData?.role === "admin" || userData?.role === "superadmin") return true;
-    if (dashboardViewOverride === "unlocked") return true;
-    if (dashboardViewOverride === "coming_soon") return false;
-    return new Date() >= new Date(cohortStartDate);
-  };
-
-  const isLaunched = getIsLaunched();
 
   if (loading) {
     return (
@@ -129,8 +88,9 @@ export default function DashboardHome() {
 
           {/* Dynamic launch text */}
           <p className="text-sm text-slate-600 leading-relaxed max-w-lg mb-8 font-medium">
-            The program is currently in pre-launch. Full access to training modules and assessments will be granted on{" "}
-            <strong className="text-[#000666]">{getOrdinalDay(cohortStartDate)}</strong>.
+            {cohortName
+              ? `Training modules and assessments for ${cohortName} are currently locked.`
+              : "Your training details will appear here once your cohort is assigned."}
           </p>
 
           {/* Launch Date Border Box */}
@@ -139,7 +99,7 @@ export default function DashboardHome() {
               Program Launch Date
             </span>
             <span className="text-xl font-display font-black text-[#000666]">
-              {formatCohortDate(cohortStartDate)}
+              {cohortStartLabel ?? "To be announced"}
             </span>
           </div>
 
@@ -152,7 +112,7 @@ export default function DashboardHome() {
     );
   }
 
-  const cvUploaded = !!userData?.cvUrl;
+  const cvUploaded = !!profile.cvUrl;
 
   // Live module/assessment stats (Fix 3)
   const totalModules = modules.length;
@@ -173,10 +133,10 @@ export default function DashboardHome() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/60 pb-5">
         <div className="flex flex-col gap-0.5">
           <h1 className="text-xl md:text-2xl font-display font-black text-[#000666]">
-            Welcome Back, {userData?.fullName || "Candidate"}
+            Welcome Back, {profile.fullName || "Candidate"}
           </h1>
           <p className="text-xs text-slate-500 font-semibold tracking-wide uppercase">
-            Workspace Overview &bull; Batch 2026-A
+            Workspace Overview{cohortName && <> &bull; {cohortName}</>}
           </p>
         </div>
         <Link
@@ -201,9 +161,7 @@ export default function DashboardHome() {
                 <HiOutlineSparkles className="w-3.5 h-3.5 text-sky-300" />
                 {currentModule ? `Week ${currentModule.weekNumber || 1} • Active Coursework Track` : "Cohort Track"}
               </div>
-              <span className="text-[11px] text-slate-300 font-semibold">
-                Batch 2026-A
-              </span>
+              {cohortName && <span className="text-[11px] text-slate-300 font-semibold">{cohortName}</span>}
             </div>
 
             {/* Current Module Title & Context */}
@@ -238,7 +196,7 @@ export default function DashboardHome() {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Cohort Start</span>
-                  <span className="text-xs font-bold text-white">{formatCohortDate(cohortStartDate)}</span>
+                  <span className="text-xs font-bold text-white">{cohortStartLabel ?? "To be announced"}</span>
                 </div>
               </div>
             </div>
@@ -262,8 +220,8 @@ export default function DashboardHome() {
 
             <div className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
-                <span>Placement Level</span>
-                <span className="text-[#000666]">Batch 2026-A</span>
+                <span>Cohort</span>
+                <span className="text-[#000666]">{cohortName ?? "Unassigned"}</span>
               </div>
               <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
                 <span>Modules Unlocked</span>

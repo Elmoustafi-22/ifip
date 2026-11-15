@@ -36,6 +36,8 @@ export const step3AcademicSchema = z.object({
 export const step4InterestSchema = z.object({
   primaryInterest: z.array(z.string()).min(1, "Please select at least one primary area of interest"),
   secondaryInterest: z.string().optional(),
+  otherPrimaryInterest: z.string().trim().min(1, "Enter your primary area of interest.").optional(),
+  otherSecondaryInterest: z.string().trim().min(1, "Enter your secondary area of interest.").optional(),
 });
 
 export const step5SkillsSchema = z.object({

@@ -16,6 +16,7 @@ import apiClient from "@/lib/api/client";
 import { getAccessToken } from "@/lib/api/auth";
 import { motion } from "framer-motion";
 import UserAvatarMenu from "@/components/UserAvatarMenu";
+import { formatLevyAmount, useLevyPricing } from "@/lib/hooks/useLevyPricing";
 
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },
@@ -27,6 +28,8 @@ export default function AboutIfipPage() {
   const [brochureUrl, setBrochureUrl] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isNigeria, setIsNigeria] = useState<boolean | null>(null);
+  const { pricing, failed: pricingFailed } = useLevyPricing();
+  const levyCurrency = isNigeria ? "NGN" : "USD";
 
   useEffect(() => {
     setIsLoggedIn(!!getAccessToken());
@@ -321,14 +324,10 @@ export default function AboutIfipPage() {
                   <div className="h-8 bg-slate-200 rounded w-1/3"></div>
                   <div className="h-4 bg-slate-200 rounded w-2/3 mt-2"></div>
                 </div>
-              ) : isNigeria ? (
-                <>
-                  <span className="text-4xl font-display font-black text-[#000666] mb-3">₦20,000</span>
-                </>
+              ) : pricing ? (
+                <span className="text-4xl font-display font-black text-[#000666] mb-3">{formatLevyAmount(pricing[levyCurrency], levyCurrency)}</span>
               ) : (
-                <>
-                  <span className="text-4xl font-display font-black text-[#000666] mb-3">$30</span>
-                </>
+                <p className="text-sm text-slate-600" role="status">{pricingFailed ? "Levy temporarily unavailable." : "Loading levy…"}</p>
               )}
             </div>
           </div>

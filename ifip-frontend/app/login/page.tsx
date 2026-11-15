@@ -1,27 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  HiBars3,
-  HiXMark,
-  HiArrowRight,
-  HiArrowLeft,
-  HiEye,
-  HiEyeSlash,
-  HiEnvelope,
-  HiLockClosed,
-  HiShare,
-  HiGlobeAlt,
-  HiCheckCircle,
-  HiInformationCircle,
-} from "react-icons/hi2";
-import { login as loginApi, getAccessToken, loginMfaVerify, forgotPassword as forgotPasswordApi } from "@/lib/api/auth";
-import { useEffect } from "react";
+import { isAxiosError } from "axios";
+import { TbArrowRight, TbBrandWhatsapp, TbLock, TbMail } from "react-icons/tb";
+import { login as loginApi, getAccessToken, loginMfaVerify, verifyAdminMfaEmail, forgotPassword as forgotPasswordApi } from "@/lib/api/auth";
+import styles from "./login.module.css";
+
+const supportEmail = "mailto:ifip.program@gmail.com";
+
+function authErrorMessage(error: unknown, fallback: string) {
+  if (isAxiosError<{ message?: string }>(error) && error.response?.data?.message) {
+    return error.response.data.message;
+  }
+  return error instanceof Error && error.message ? error.message : fallback;
+}
 
 export default function LoginPage() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"login" | "forgot-password">("login");
   const [forgotSubmitted, setForgotSubmitted] = useState(false);
   const [email, setEmail] = useState("");
@@ -29,16 +25,15 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaStage, setMfaStage] = useState<"email-code" | "setup" | "code" | null>(null);
   const [mfaToken, setMfaToken] = useState("");
+  const [authenticator, setAuthenticator] = useState<{ secret: string; qrCode: string } | null>(null);
   const [otpCode, setOtpCode] = useState("");
   const [sessionMsg, setSessionMsg] = useState("");
 
   useEffect(() => {
     const token = getAccessToken();
     if (token) {
-      setIsLoggedIn(true);
       try {
         const payload = JSON.parse(atob(token.split(".")[1]));
         if (payload.role === "admin" || payload.role === "superadmin") {
@@ -46,12 +41,12 @@ export default function LoginPage() {
         } else {
           window.location.href = "/dashboard";
         }
-      } catch (err) {
+      } catch {
         window.location.href = "/dashboard";
       }
       return;
     }
-    if (typeof window !== "undefined") {
+    const frame = requestAnimationFrame(() => {
       const params = new URLSearchParams(window.location.search);
       const session = params.get("session");
       const view = params.get("view");
@@ -59,11 +54,14 @@ export default function LoginPage() {
         setViewMode("forgot-password");
       }
       if (session === "expired") {
-        setSessionMsg("Your session has expired. Please log in again.");
+        setSessionMsg("Your session expired. Sign in again to continue.");
       } else if (session === "idle") {
-        setSessionMsg("You have been logged out due to inactivity.");
+        setSessionMsg("You were signed out due to inactivity. Sign in again to continue.");
+      } else if (session === "password-changed") {
+        setSessionMsg("Your password was changed. Sign in with your new password and authenticator.");
       }
-    }
+    });
+    return () => cancelAnimationFrame(frame);
   }, []);
   const [error, setError] = useState("");
 
@@ -96,17 +94,17 @@ export default function LoginPage() {
     try {
       const res = await loginApi(cleanEmail, password, rememberMe);
       if (res.mfaRequired && res.mfaToken) {
-        setMfaRequired(true);
+        setMfaStage(res.mfaEnrollmentRequired ? "email-code" : "code");
         setMfaToken(res.mfaToken);
+        setPassword("");
         setLoading(false);
         return;
       }
       if (res.accessToken) {
         handlePostLoginRedirect(res.accessToken);
       }
-    } catch (err: any) {
-      const errMsg = err.response?.data?.message || err.message || "Incorrect credentials.";
-      setError(errMsg);
+    } catch (error: unknown) {
+      setError(authErrorMessage(error, "Incorrect credentials."));
       setLoading(false);
     }
   };
@@ -133,544 +131,182 @@ export default function LoginPage() {
   const handleMfaSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!otpCode) {
-      setError("Please enter the 6-digit verification code.");
+    const codeLength = mfaStage === "email-code" ? 8 : 6;
+    if (otpCode.length !== codeLength) {
+      setError(`Enter the ${codeLength}-digit verification code.`);
       return;
     }
     setLoading(true);
     try {
-      const res = await loginMfaVerify(mfaToken, otpCode, rememberMe);
+      if (mfaStage === "email-code") {
+        setAuthenticator(await verifyAdminMfaEmail(mfaToken, otpCode));
+        setOtpCode("");
+        setMfaStage("setup");
+        return;
+      }
+      const res = await loginMfaVerify(mfaToken, otpCode, rememberMe, mfaStage === "setup");
       if (res.accessToken) {
         handlePostLoginRedirect(res.accessToken);
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || "Invalid verification code. Please try again.");
+    } catch (error: unknown) {
+      setError(authErrorMessage(error, "Invalid verification code. Please try again."));
     } finally {
       setLoading(false);
     }
   };
 
+  const view = mfaStage ?? (viewMode === "login" ? "signin" : forgotSubmitted ? "sent" : "recovery");
+  const headings = {
+    signin: "Sign in to IFIP",
+    code: "Enter your security code",
+    "email-code": "Verify your admin email",
+    setup: "Set up your authenticator",
+    recovery: "Forgot your password?",
+    sent: "Check your email",
+  };
+  const heading = useRef<HTMLHeadingElement>(null);
+  const previousView = useRef(view);
+
+  useEffect(() => {
+    if (previousView.current !== view) heading.current?.focus();
+    previousView.current = view;
+  }, [view]);
+
+  function backToSignIn() {
+    setMfaStage(null);
+    setMfaToken("");
+    setAuthenticator(null);
+    setOtpCode("");
+    setViewMode("login");
+    setForgotSubmitted(false);
+    setError("");
+  }
+
+  const errorAttributes = {
+    "aria-invalid": Boolean(error),
+    "aria-describedby": error ? "login-error-alert" : undefined,
+  };
+
   return (
-    <div className="min-h-screen bg-background font-sans text-on-surface flex flex-col pb-16 md:pb-0">
-
-      {/* Navigation Header — same as landing page */}
-      <header className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-outline-variant/30">
-        <div className="max-w-[1280px] mx-auto px-4 md:px-8 h-20 flex items-center justify-between">
-          {/* Left: Logo (Mobile & Desktop) */}
-          <Link href="/" className="flex items-center gap-3">
-            <Image
-              src="/images/logos/logo-full-color.png"
-              alt="IFIP Logo"
-              width={160}
-              height={44}
-              priority
-              className="h-8 md:h-10 w-auto object-contain"
-            />
+    <div className={styles.page}>
+      <header className={styles.header}>
+        <div className={styles.bar}>
+          <Link href="/" aria-label="IFIP homepage">
+            <Image src="/images/logos/logo-full-color.png" alt="" width={160} height={44} priority className={styles.logo} />
           </Link>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-8 font-semibold text-sm">
-            <a href="/#curriculum" className="text-on-surface/80 hover:text-primary transition-colors">Curriculum</a>
-            <a href="/#process" className="text-on-surface/80 hover:text-primary transition-colors">Process</a>
-            <a href="/#partners" className="text-on-surface/80 hover:text-primary transition-colors">Partners</a>
-            <a href="/#faq" className="text-on-surface/80 hover:text-primary transition-colors">FAQ</a>
-          </nav>
-
-          {/* Desktop Actions */}
-          <div className="hidden md:flex items-center gap-4">
-            {isLoggedIn ? (
-              <Link href="/dashboard" className="text-sm font-semibold hover:text-primary transition-colors px-4 py-2">
-                Go to Dashboard
-              </Link>
-            ) : (
-              <>
-                <Link href="/login" className="text-sm font-semibold text-primary border-b border-primary/40 pb-0.5">
-                  Login
-                </Link>
-                <Link
-                  href="/apply"
-                  className="bg-impact-orange hover:bg-impact-orange/90 text-white font-semibold text-sm px-6 py-2.5 rounded-[4px] shadow-sm hover-lift transition-all"
-                >
-                  Apply Now
-                </Link>
-              </>
-            )}
-          </div>
-
-          {/* Mobile-only Right: Hamburger menu button */}
-          <div className="flex md:hidden items-center">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 text-on-surface hover:text-primary"
-              aria-label="Toggle Menu"
-            >
-              {mobileMenuOpen ? <HiXMark className="w-6 h-6" /> : <HiBars3 className="w-6 h-6" />}
-            </button>
-          </div>
+          <Link href="/">Back to homepage</Link>
         </div>
       </header>
 
-      {/* Mobile Drawer */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 top-20 z-40 bg-background md:hidden flex flex-col px-6 py-8 border-t border-outline-variant/30 gap-6">
-          <a href="/#curriculum" onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold border-b border-outline-variant/20 pb-2">Curriculum</a>
-          <a href="/#process" onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold border-b border-outline-variant/20 pb-2">Process</a>
-          <a href="/#partners" onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold border-b border-outline-variant/20 pb-2">Partners</a>
-          <a href="/#faq" onClick={() => setMobileMenuOpen(false)} className="text-lg font-semibold border-b border-outline-variant/20 pb-2">FAQ</a>
-          <div className="flex flex-col gap-4 mt-6">
-            {isLoggedIn ? (
-              <Link
-                href="/dashboard"
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-center font-semibold bg-primary text-white py-3 rounded-[4px]"
-              >
-                Go to Dashboard
-              </Link>
-            ) : (
+      <div className={styles.shell}>
+        <aside className={styles.brand}>
+          <span className={styles.brandIcon}><TbLock aria-hidden="true" /></span>
+          <p className={styles.eyebrow}>Islamic Finance Internship Program</p>
+          <p className={styles.welcome}>Welcome back to IFIP.</p>
+          <p className={styles.brandDetail}>Sign in with your IFIP account to continue.</p>
+        </aside>
+
+        <section className={styles.formArea} aria-labelledby="login-title">
+          <div key={view} className={styles.panel} data-view={view}>
+            <h1 id="login-title" ref={heading} tabIndex={-1}>{headings[view]}</h1>
+            {view === "signin" && <p className={styles.intro}>Use the email address linked to your account.</p>}
+            {view === "recovery" && <p className={styles.intro}>Enter the email you use for IFIP.</p>}
+            {view === "code" && <p className={styles.intro}>Enter the six-digit verification code from your authenticator app.</p>}
+            {view === "email-code" && <p className={styles.intro}>Enter the eight-digit setup code sent to your admin email.</p>}
+            {view === "setup" && <p className={styles.intro}>Scan the QR code in your authenticator app or enter the setup key, then enter the six-digit code it generates.</p>}
+
+            {view === "signin" && sessionMsg && !error && <p role="status" className={styles.notice}>{sessionMsg}</p>}
+            {error && <p role="alert" id="login-error-alert" className={styles.error}>{error}</p>}
+
+            {view === "signin" && (
               <>
-                <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="text-center font-semibold border border-primary/20 py-3 rounded-[4px] hover:bg-primary/5 transition-colors text-primary">Login</Link>
-                <Link href="/apply" onClick={() => setMobileMenuOpen(false)} className="text-center bg-impact-orange text-white font-semibold py-3 rounded-[4px]">Apply Now</Link>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col items-center justify-center px-4 py-12">
-
-        {/* Login Card */}
-        <div className="w-full max-w-[440px] bg-white rounded-2xl shadow-level1 border border-outline-variant/20 p-8 md:p-10">
-
-          {/* Logo — IFIP logo replacing the bank icon from the design */}
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-20 h-20 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center mb-5 shadow-sm">
-              <Image
-                src="/images/icons/icon-full-color.png"
-                alt="IFIP"
-                width={56}
-                height={56}
-                className="w-14 h-14 object-contain"
-              />
-            </div>
-            {mfaRequired ? (
-              <>
-                <h1 className="text-headline-md text-primary text-center">Two-Factor Authentication</h1>
-                <p className="text-sm text-on-surface-variant text-center mt-1">Verify your identity</p>
-              </>
-            ) : viewMode === "forgot-password" ? (
-              <>
-                <h1 className="text-headline-md text-primary text-center">Reset Your Password</h1>
-                <p className="text-sm text-on-surface-variant text-center mt-1">We&apos;ll send a reset link to your email</p>
-              </>
-            ) : (
-              <>
-                <h1 className="text-headline-md text-primary text-center">Program Platform</h1>
-                <p className="text-sm text-on-surface-variant text-center mt-1">Islamic Finance Prep &amp; Placement</p>
-              </>
-            )}
-          </div>
-
-          {/* Session message */}
-          {sessionMsg && !error && (
-            <div role="status" aria-live="polite" className="mb-5 bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg text-center font-medium">
-              ⚠️ {sessionMsg}
-            </div>
-          )}
-
-          {/* Error message */}
-          {error && (
-            <div role="alert" id="login-error-alert" className="mb-5 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg font-medium">
-              ⚠️ {error}
-            </div>
-          )}
-
-          {mfaRequired ? (
-            <form onSubmit={handleMfaSubmit} noValidate className="flex flex-col gap-5">
-              <div>
-                <label htmlFor="mfa-code" className="block text-xs font-bold uppercase text-primary mb-2 tracking-wide">
-                  6-Digit Verification Code
-                </label>
-                <div className="relative">
-                  <HiLockClosed className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/60 pointer-events-none" />
-                  <input
-                    id="mfa-code"
-                    type="text"
-                    required
-                    maxLength={6}
-                    placeholder="123456"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                    aria-invalid={!!error}
-                    aria-describedby={error ? "login-error-alert" : undefined}
-                    className="w-full pl-10 pr-4 py-3 border border-outline-variant/40 rounded-[6px] text-sm bg-slate-50/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors tracking-[0.25em] text-center font-bold"
-                  />
-                </div>
-                <p className="text-xs text-on-surface-variant/70 mt-2 leading-relaxed text-left">
-                  Enter the 6-digit verification code from your authenticator app to complete login.
-                </p>
-              </div>
-
-              {/* Submit */}
-              <button
-                id="mfa-submit"
-                type="submit"
-                disabled={loading}
-                className="w-full bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-white font-semibold text-sm py-3.5 px-6 rounded-[6px] flex items-center justify-center gap-2 shadow-sm hover-lift transition-all mt-1"
-              >
-                {loading ? (
-                  <>
-                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Verifying…
-                  </>
-                ) : (
-                  <>
-                    Verify &amp; Continue
-                    <HiArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setMfaRequired(false);
-                  setMfaToken("");
-                  setOtpCode("");
-                  setError("");
-                }}
-                className="text-xs text-center text-vibrant-blue font-semibold hover:underline cursor-pointer"
-              >
-                &larr; Back to password login
-              </button>
-            </form>
-          ) : viewMode === "forgot-password" ? (
-            forgotSubmitted ? (
-              <div className="flex flex-col items-center gap-5 text-center">
-                <div className="w-16 h-16 rounded-full bg-green-50 border border-green-200 flex items-center justify-center">
-                  <HiCheckCircle className="w-9 h-9 text-green-500" />
-                </div>
-                <h2 className="text-lg font-bold text-primary">Check Your Inbox</h2>
-                <p className="text-sm text-on-surface-variant leading-relaxed">
-                  If an account with <strong>{email}</strong> exists, we&apos;ve sent a password reset link. It expires in <strong>1 hour</strong>.
-                </p>
-                <div className="w-full bg-primary/5 border border-primary/10 rounded-xl p-4 flex items-start gap-3 text-left">
-                  <HiInformationCircle className="w-5 h-5 text-vibrant-blue shrink-0 mt-0.5" />
-                  <p className="text-xs text-on-surface-variant leading-relaxed">
-                    If you do not receive an email within 5 minutes, please check your spam folder or contact{" "}
-                    <a href="mailto:ifip.program@gmail.com" className="text-vibrant-blue hover:underline font-semibold">ifip.program@gmail.com</a>.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setViewMode("login");
-                    setForgotSubmitted(false);
-                    setError("");
-                  }}
-                  className="mt-2 flex items-center justify-center gap-2 text-sm font-semibold text-primary hover:text-primary/80 transition-colors cursor-pointer"
-                >
-                  <HiArrowLeft className="w-4 h-4" />
-                  Back to Login
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleForgotPasswordSubmit} noValidate className="flex flex-col gap-5">
-                <div>
-                  <label htmlFor="forgot-email" className="block text-xs font-bold uppercase text-primary mb-2 tracking-wide">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <HiEnvelope className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/60 pointer-events-none" />
-                    <input
-                      id="forgot-email"
-                      type="email"
-                      autoComplete="email"
-                      placeholder="name@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      aria-invalid={!!error}
-                      aria-describedby={error ? "login-error-alert" : undefined}
-                      className="w-full pl-10 pr-4 py-3 border border-outline-variant/40 rounded-[6px] text-sm bg-slate-50/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
-                    />
+                <form onSubmit={handleSubmit} noValidate>
+                  <div className={styles.field}>
+                    <label htmlFor="login-email">Email address</label>
+                    <div className={styles.control}>
+                      <TbMail aria-hidden="true" />
+                      <input id="login-email" name="email" type="email" autoComplete="email" placeholder="name@example.com" required value={email} onChange={(event) => setEmail(event.target.value)} {...errorAttributes} />
+                    </div>
                   </div>
-                  <p className="text-xs text-on-surface-variant/70 mt-2 leading-relaxed text-left">
-                    Enter the email address associated with your IFIP account to receive a reset link.
-                  </p>
-                </div>
-
-                {/* Submit */}
-                <button
-                  id="forgot-password-submit"
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-white font-semibold text-sm py-3.5 px-6 rounded-[6px] flex items-center justify-center gap-2 shadow-sm hover-lift transition-all mt-1"
-                >
-                  {loading ? (
-                    <>
-                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      Sending Link…
-                    </>
-                  ) : (
-                    <>
-                      Send Reset Link
-                      <HiArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setViewMode("login");
-                    setError("");
-                  }}
-                  className="flex items-center justify-center gap-1.5 text-xs text-on-surface-variant hover:text-primary transition-colors font-semibold cursor-pointer"
-                >
-                  <HiArrowLeft className="w-4 h-4" />
-                  Back to Login
-                </button>
-              </form>
-            )
-          ) : (
-            <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
-
-              {/* Email */}
-              <div>
-                <label htmlFor="login-email" className="block text-xs font-bold uppercase text-primary mb-2 tracking-wide">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <HiEnvelope className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/60 pointer-events-none" />
-                  <input
-                    id="login-email"
-                    type="email"
-                    autoComplete="email"
-                    placeholder="name@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    aria-invalid={!!error}
-                    aria-describedby={error ? "login-error-alert" : undefined}
-                    className="w-full pl-10 pr-4 py-3 border border-outline-variant/40 rounded-[6px] text-sm bg-slate-50/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
-                  />
-                </div>
-              </div>
-
-              {/* Password */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label htmlFor="login-password" className="text-xs font-bold uppercase text-primary tracking-wide">
-                    Password
+                  <div className={styles.field}>
+                    <div className={styles.fieldHeader}>
+                      <label htmlFor="login-password">Password</label>
+                      <button type="button" className={styles.textButton} disabled={loading} onClick={() => {
+                        setViewMode("forgot-password");
+                        setError("");
+                      }}>Forgot password?</button>
+                    </div>
+                    <div className={styles.control}>
+                      <TbLock aria-hidden="true" />
+                      <input id="login-password" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} {...errorAttributes} />
+                      <button type="button" className={styles.textButton} aria-controls="login-password" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword(!showPassword)}>
+                        {showPassword ? "Hide" : "Show"}
+                      </button>
+                    </div>
+                  </div>
+                  <label className={styles.remember}>
+                    <input id="remember-me" type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} />
+                    Remember me
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setViewMode("forgot-password");
-                      setError("");
-                    }}
-                    className="text-xs text-vibrant-blue font-semibold hover:underline cursor-pointer"
-                  >
-                    Forgot Password?
+                  <button id="login-submit" className={styles.primary} type="submit" disabled={loading}>
+                    {loading ? "Signing in…" : <>Sign in <TbArrowRight aria-hidden="true" /></>}
                   </button>
-                </div>
-                <div className="relative">
-                  <HiLockClosed className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/60 pointer-events-none" />
-                  <input
-                    id="login-password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    aria-invalid={!!error}
-                    aria-describedby={error ? "login-error-alert" : undefined}
-                    className="w-full pl-10 pr-12 py-3 border border-outline-variant/40 rounded-[6px] text-sm bg-slate-50/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant/60 hover:text-primary transition-colors"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? <HiEyeSlash className="w-5 h-5" /> : <HiEye className="w-5 h-5" />}
-                  </button>
-                </div>
-              </div>
+                </form>
+                <p className={styles.secondary}>Haven’t applied yet? <Link href="/apply">Apply to IFIP</Link></p>
+              </>
+            )}
 
-              {/* Remember me */}
-              <label className="flex items-center gap-3 cursor-pointer select-none">
-                <input
-                  id="remember-me"
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-outline-variant/40 text-primary accent-primary"
-                />
-                <span className="text-sm text-on-surface-variant">Remember me</span>
-              </label>
-
-              {/* Submit */}
-              <button
-                id="login-submit"
-                type="submit"
-                disabled={loading}
-                className="w-full bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-white font-semibold text-sm py-3.5 px-6 rounded-[6px] flex items-center justify-center gap-2 shadow-sm hover-lift transition-all mt-1"
-              >
-                {loading ? (
-                  <>
-                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Signing in…
-                  </>
-                ) : (
-                  <>
-                    Login to Dashboard
-                    <HiArrowRight className="w-4 h-4" />
-                  </>
+            {mfaStage && (
+              <form onSubmit={handleMfaSubmit} noValidate>
+                {view === "setup" && authenticator && (
+                  <div className={styles.field}>
+                    <Image src={authenticator.qrCode} alt="Authenticator setup QR code" width={160} height={160} unoptimized />
+                    <p>Setup key <code className="break-all">{authenticator.secret}</code></p>
+                  </div>
                 )}
-              </button>
-            </form>
-          )}
+                <div className={styles.field}>
+                  <label htmlFor="mfa-code">Verification code</label>
+                  <div className={styles.control}>
+                    <TbLock aria-hidden="true" />
+                    <input id="mfa-code" name="code" type="text" inputMode="numeric" autoComplete="one-time-code" required maxLength={view === "email-code" ? 8 : 6} value={otpCode} onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, ""))} {...errorAttributes} />
+                  </div>
+                </div>
+                <button id="mfa-submit" className={styles.primary} type="submit" disabled={loading}>{loading ? "Verifying…" : view === "email-code" ? "Verify email code" : "Verify and sign in"}</button>
+                <button type="button" className={styles.textButton} disabled={loading} onClick={backToSignIn}>Back to sign in</button>
+              </form>
+            )}
 
-          {/* Divider */}
-          <div className="my-6 border-t border-outline-variant/20" />
+            {view === "recovery" && (
+              <form onSubmit={handleForgotPasswordSubmit} noValidate>
+                <div className={styles.field}>
+                  <label htmlFor="forgot-email">Email address</label>
+                  <div className={styles.control}>
+                    <TbMail aria-hidden="true" />
+                    <input id="forgot-email" name="email" type="email" autoComplete="email" placeholder="name@example.com" required value={email} onChange={(event) => setEmail(event.target.value)} {...errorAttributes} />
+                  </div>
+                </div>
+                <button id="forgot-password-submit" className={styles.primary} type="submit" disabled={loading}>{loading ? "Sending link…" : "Send reset link"}</button>
+                <button type="button" className={styles.textButton} disabled={loading} onClick={backToSignIn}>Back to sign in</button>
+              </form>
+            )}
 
-          {/* Apply CTA */}
-          <div className="text-center">
-            <p className="text-sm text-on-surface-variant mb-1">Not applied yet?</p>
-            <Link
-              href="/apply"
-              className="text-sm font-bold text-impact-orange uppercase tracking-wide hover:underline"
-            >
-              Start Your Application Here
-            </Link>
+            {view === "sent" && (
+              <>
+                <p className={styles.intro}>If an account matches that email address, you’ll receive a password reset link. The link expires in one hour.</p>
+                <p className={styles.secondary}>If it doesn’t arrive, check your spam folder or contact <a href={supportEmail}>email support</a>.</p>
+                <button type="button" className={styles.primary} onClick={backToSignIn}>Back to sign in</button>
+              </>
+            )}
           </div>
-        </div>
+        </section>
+      </div>
 
-        {/* Secure badge */}
-        <p className="mt-6 text-xs text-on-surface-variant/60 flex items-center gap-1.5">
-          <HiLockClosed className="w-3.5 h-3.5" />
-          Secure Institutional Gateway
-        </p>
-      </main>
-
-      {/* Footer — same as landing page */}
-      <footer id="contact" className="bg-academic-cream border-t border-outline-variant/30 py-16 mt-auto">
-        <div className="max-w-[1280px] mx-auto px-4 md:px-8 grid grid-cols-1 md:grid-cols-12 gap-12">
-          {/* Brand Col */}
-          <div className="md:col-span-5 flex flex-col gap-4">
-            <Image
-              src="/images/logos/logo-full-color.png"
-              alt="IFIP Logo"
-              width={160}
-              height={44}
-              className="h-10 w-auto object-contain self-start"
-            />
-            <p className="text-xs text-on-surface-variant max-w-sm leading-relaxed mt-2">
-              The Islamic Finance Internship Program (IFIP) develops industry-ready talent through professional training, practical simulations, and structured internship placement across the ethical finance ecosystem.
-            </p>
-            <div className="flex items-center gap-3 mt-4 text-on-surface-variant">
-              <a href="#" className="p-2 bg-primary/5 hover:bg-primary/10 rounded-full transition-colors" aria-label="Social Share">
-                <HiShare className="w-4 h-4" />
-              </a>
-              <a href="https://ifip.nextif.org" target="_blank" rel="noopener noreferrer" className="p-2 bg-primary/5 hover:bg-primary/10 rounded-full transition-colors" aria-label="Website">
-                <HiGlobeAlt className="w-4 h-4" />
-              </a>
-            </div>
-          </div>
-
-          {/* Links Col 1 */}
-          <div className="md:col-span-3">
-            <h4 className="text-xs uppercase font-bold text-primary tracking-widest mb-4">Program</h4>
-            <ul className="flex flex-col gap-3 text-sm text-on-surface-variant">
-              <li><a href="/#curriculum" className="hover:text-primary transition-colors">Curriculum</a></li>
-              <li><a href="/#partners" className="hover:text-primary transition-colors">Placement Partners</a></li>
-              <li><a href="/#faq" className="hover:text-primary transition-colors">Program FAQs</a></li>
-            </ul>
-          </div>
-
-          {/* Links Col 2 */}
-          <div className="md:col-span-4">
-            <h4 className="text-xs uppercase font-bold text-primary tracking-widest mb-4">Legal &amp; Inquiries</h4>
-            <ul className="flex flex-col gap-3 text-sm text-on-surface-variant">
-              <li><a href="#" className="hover:text-primary transition-colors">Terms of Service</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Contact Support</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Shariah Compliance</a></li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Bottom bar */}
-        <div className="max-w-[1280px] mx-auto px-4 md:px-8 border-t border-outline-variant/30 mt-12 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-on-surface-variant">
-          <div>© {new Date().getFullYear()} IFIP. All rights reserved. Ethical Finance Education.</div>
-          <div>Headquarters: Financial District, Abuja</div>
+      <footer className={styles.footer}>
+        <div className={styles.bar}>
+          <a href="https://wa.me/2349060356610" target="_blank" rel="noopener noreferrer"><TbBrandWhatsapp aria-hidden="true" /> WhatsApp support</a>
+          <a href={supportEmail}><TbMail aria-hidden="true" /> Email support</a>
         </div>
       </footer>
-
-      {/* Sticky Mobile Bottom Nav */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background border-t border-outline-variant/30 px-6 py-2 flex items-center justify-between shadow-lg font-sans">
-        <Link href="/" className="flex flex-col items-center gap-1 text-primary/70 hover:text-primary transition-colors">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-          </svg>
-          <span className="text-[10px] font-bold tracking-wider">Home</span>
-        </Link>
-        {isLoggedIn ? (
-          <Link href="/dashboard" className="flex flex-col items-center gap-1 text-primary/70 hover:text-primary transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-            </svg>
-            <span className="text-[10px] font-bold tracking-wider">Workspace</span>
-          </Link>
-        ) : (
-          <Link href="/apply" className="flex flex-col items-center gap-1 text-primary/70 hover:text-primary transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
-            <span className="text-[10px] font-bold tracking-wider">Apply</span>
-          </Link>
-        )}
-        {isLoggedIn ? (
-          <Link href="/dashboard/modules" className="flex flex-col items-center gap-1 text-primary/70 hover:text-primary transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-            <span className="text-[10px] font-bold tracking-wider">Modules</span>
-          </Link>
-        ) : (
-          <a href="/#faq" className="flex flex-col items-center gap-1 text-primary/70 hover:text-primary transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-[10px] font-bold tracking-wider">FAQ</span>
-          </a>
-        )}
-        {isLoggedIn ? (
-          <Link href="/dashboard/settings" className="flex flex-col items-center gap-1 text-primary/70 hover:text-primary transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span className="text-[10px] font-bold tracking-wider">Profile</span>
-          </Link>
-        ) : (
-          <Link href="/login" className="flex flex-col items-center gap-1 text-primary/70 hover:text-primary transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h5a3 3 0 013 3v1" />
-            </svg>
-            <span className="text-[10px] font-bold tracking-wider">Login</span>
-          </Link>
-        )}
-      </div>
     </div>
   );
 }
