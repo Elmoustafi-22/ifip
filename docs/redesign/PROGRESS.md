@@ -1,5 +1,12 @@
 # IFIP modernization progress
 
+## Unified admin Partners desk
+
+- The Placements sidebar opens one Partners desk with Active Partners, Partner Applications, and Intern Requests. Talent pool visibility is under Active Partners. Each review queue has a pending count and its own filters. Superadmin access is required to see and load Partner Applications.
+- The Matching Desk, new dashboard notifications, and email buttons link directly to Intern Requests. The former Partner Requests route redirects to that tab for bookmarks and previously sent links. Existing Partner Applications links continue to open the application queue.
+- Frontend `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false`, backend `node node_modules/typescript/bin/tsc --noEmit --incremental false`, and `git diff --check` passed. ESLint API checks of the affected frontend files against the corresponding `HEAD` versions found no added diagnostics. Existing diagnostics remain.
+- Inline Playwright Chromium with `IFIP_ISOLATED_DEV=1` and intercepted API responses verified keyboard and history navigation, both legacy redirects, role visibility and API gating, talent pool updates, application approval, intern request approval and decline, pending counts, filters, and reflow at 320 and 375 CSS px. The dev server used fallback typography when Sora could not download. Staging, live data, and email delivery were outside the local checks.
+
 ## Cohort payment records and resolution
 
 - Without a saved selection, the admin cohort selector prefers the open registration intake, then the most recent active cohort, then the newest cohort. Payment records, pagination and status counts use the selected cohort. Revenue is shown by currency. Search, status and provider filter the records within that selection.
@@ -330,3 +337,9 @@ The later [pending applicant work queue](#pending-applicant-work-queues) builds 
 - Backend `node node_modules/typescript/bin/tsc --noEmit --incremental false` and frontend `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false` passed. The default frontend TypeScript config still reports the generated admin-layout export error. Scoped ESLint matched HEAD with 23 errors and 21 warnings. `git diff --check` passed.
 - `node --import tsx tests/partner-recruitment.mjs` and `node --import tsx tests/cohort-operations.mjs` passed against disposable MongoDB 7 with intercepted email. Verified stale write rejection, private notes, isolation between companies, hire deduplication and removal from partner interview tasks.
 - Inline Playwright Chromium with intercepted APIs passed at 375 and 1280 CSS px. It exercised saving a confirmed hire from a matched placement in Admin and checked the company dashboard count, placement status, Hired filter and removed outcome actions. Signed-in staging verification remains open. No deployment or production data change was made.
+
+### Matching Desk qualification
+
+- Matching Desk uses the same task-reward summary as the admin dashboard’s Qualified count. It joins qualified participant IDs to the selected cohort’s application list and includes participants already marked placement-ready. The application list continues to exclude withdrawn records.
+- Inline Playwright Chromium with intercepted APIs verified eligibility, search, opening the matching form, retry after a failed qualification request, and cohort switching at 375 and 1280 CSS px. Live cohort counts and staging matching remain unverified.
+- Frontend `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false` and `git diff --check` passed. Scoped ESLint found zero new diagnostics compared with HEAD. The page has three existing errors and seven existing warnings.

@@ -1234,7 +1234,7 @@ export const sendInterestExpressedAlert = async (
                 <p style="font-size: 14px; color: #64748b; margin-bottom: 20px;">
                     Please log into the Admin Portal to review, approve, or decline this request.
                 </p>
-                <a href="${env.CLIENT_URL}/admin/partner-interests" style="${partnerBtnStyle}">Review Request in Admin Portal</a>
+                <a href="${env.CLIENT_URL}/admin/partners?tab=intern-requests" style="${partnerBtnStyle}">Review Request in Admin Portal</a>
             </div>
             <div style="${partnerFooterStyle}">
                 <p style="font-size: 12px; color: #94a3b8; margin: 0;">IFIP &copy; 2026 — Islamic Finance Internship Preparatory & Placement Program</p>
@@ -1373,7 +1373,7 @@ export const sendInterviewLoggedAlert = async (
                     ${interviewLocation ? `📍 Location / Notes: <strong>${interviewLocation}</strong><br>` : ''}
                 </p>
                 <div style="margin-top: 24px;">
-                    <a href="${env.CLIENT_URL}/admin/partner-interests" style="${partnerBtnStyle}">View Pipeline on Dashboard</a>
+                    <a href="${env.CLIENT_URL}/admin/partners?tab=intern-requests" style="${partnerBtnStyle}">View Pipeline on Dashboard</a>
                 </div>
             </div>
             <div style="${partnerFooterStyle}">

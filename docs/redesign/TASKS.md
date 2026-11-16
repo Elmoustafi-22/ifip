@@ -46,7 +46,9 @@ See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and 
 
 ## Admin dashboard
 
+- **Partners desk unified locally.** Active Partners, Partner Applications, and Intern Requests share one sidebar entry. See [verification](PROGRESS.md#unified-admin-partners-desk).
 - **Company hiring override implemented locally.** Admins can confirm a hire on an existing company placement or job application. See [verification](PROGRESS.md#company-hiring-override).
+- **Qualified participants appear in Matching Desk.** The cohort-scoped candidate list uses the admin dashboard’s task-reward qualification and includes existing placement-ready participants. See [verification](PROGRESS.md#matching-desk-qualification).
 - **Cohort operations implemented locally.** All-cohort overview, cohort creation, waitlist announcements, and admin hiring outcomes passed local checks. See the [verification and staging gaps](PROGRESS.md#admin-dashboard-cohort-operations-proposal).
 - **Waitlist announcement copy updated.** The email and preview show the scheduled registration dates and link to current availability. [Verification](PROGRESS.md#waitlist-registration-copy)
 - **Pre-registration waitlist and confirmed clearing implemented locally.** Edit cohort can send or resend email, track provider acceptance, and clear confirmed recipients. The worker logs per-cohort acceptance and failure totals. See [verification](PROGRESS.md#pre-registration-waitlist-and-confirmed-clearing).

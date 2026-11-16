@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState, useContext } from "react";
+import { Suspense, useEffect, useState, useContext } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import {
+  HiOutlineArrowsRightLeft,
   HiOutlinePlus,
   HiOutlineXMark,
   HiOutlineTrash,
@@ -37,8 +39,9 @@ import {
   getNotifications,
   markNotificationRead,
 } from "@/lib/api/services";
-import { sendPartnerInvite } from "@/lib/api/partner";
+import { getAdminPartnerInterests, sendPartnerInvite, type AdminPartnerInterest } from "@/lib/api/partner";
 import { AdminCohortContext } from "../layout";
+import InternRequests from "./InternRequests";
 
 interface PartnerOrg {
   _id: string;
@@ -90,12 +93,28 @@ const APPLICATION_STATUS_STYLES: Record<string, { badge: string; dot: string; la
   },
 };
 
-type Tab = "organizations" | "applications";
+const PARTNER_TABS = [
+  { id: "organizations", label: "Active Partners", href: "/admin/partners", icon: HiOutlineBriefcase },
+  { id: "applications", label: "Partner Applications", href: "/admin/partners?tab=applications", icon: HiOutlineClipboardDocumentList },
+  { id: "intern-requests", label: "Intern Requests", href: "/admin/partners?tab=intern-requests", icon: HiOutlineArrowsRightLeft },
+] as const;
+
 type AppFilter = "all" | "pending" | "approved" | "declined";
 
 export default function AdminPartnersPage() {
-  const { selectedCohortId } = useContext(AdminCohortContext);
-  const [activeTab, setActiveTab] = useState<Tab>("organizations");
+  return (
+    <Suspense fallback={<p className="p-6 text-sm text-slate-500" role="status">Opening partners desk…</p>}>
+      <PartnersDesk />
+    </Suspense>
+  );
+}
+
+function PartnersDesk() {
+  const { selectedCohortId, adminRole } = useContext(AdminCohortContext);
+  const canReviewApplications = adminRole === "superadmin";
+  const tab = useSearchParams().get("tab");
+  const activeTab = PARTNER_TABS.find(({ id }) => id === tab)?.id ?? "organizations";
+  const [pendingRequests, setPendingRequests] = useState<AdminPartnerInterest[] | null>();
 
   // ── Organizations tab state ───────────────────────────────────────────────
   const [partners, setPartners] = useState<PartnerOrg[]>([]);
@@ -145,8 +164,7 @@ export default function AdminPartnersPage() {
   };
 
   // ── Applications tab state ────────────────────────────────────────────────
-  const [applications, setApplications] = useState<PartnerApplicationRecord[]>([]);
-  const [appLoading, setAppLoading] = useState(false);
+  const [applications, setApplications] = useState<PartnerApplicationRecord[] | null>();
   const [appFilter, setAppFilter] = useState<AppFilter>("all");
   const [reviewingApp, setReviewingApp] = useState<PartnerApplicationRecord | null>(null);
   const [reviewDrawerOpen, setReviewDrawerOpen] = useState(false);
@@ -177,15 +195,21 @@ export default function AdminPartnersPage() {
     }
   };
 
-  const fetchApplications = async (status?: string) => {
+  const fetchApplications = async () => {
     try {
-      setAppLoading(true);
-      const data = await getAdminPartnerApplications(status === "all" ? undefined : status);
-      setApplications(data);
+      setApplications(await getAdminPartnerApplications());
     } catch (err) {
       console.error("Failed to load partner applications:", err);
-    } finally {
-      setAppLoading(false);
+      setApplications(null);
+    }
+  };
+
+  const refreshPendingRequests = async () => {
+    try {
+      setPendingRequests(await getAdminPartnerInterests("pending"));
+    } catch (err) {
+      console.error("Failed to load pending intern requests:", err);
+      setPendingRequests(null);
     }
   };
 
@@ -226,22 +250,15 @@ export default function AdminPartnersPage() {
   };
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("tab") === "applications") {
-        setActiveTab("applications");
-      }
-    }
     fetchPartners();
     fetchCohorts();
     fetchVisibility();
+    refreshPendingRequests();
   }, []);
 
   useEffect(() => {
-    if (activeTab === "applications") {
-      fetchApplications(appFilter);
-    }
-  }, [activeTab, appFilter]);
+    if (canReviewApplications) fetchApplications();
+  }, [canReviewApplications]);
 
   // ── Organizations CRUD handlers ───────────────────────────────────────────
 
@@ -444,7 +461,7 @@ export default function AdminPartnersPage() {
       );
       setReviewDrawerOpen(false);
       setReviewingApp(null);
-      fetchApplications(appFilter);
+      fetchApplications();
       if (action === "approve") fetchPartners();
     } catch (err: any) {
       showToast("error", err?.response?.data?.message || "Review action failed. Please try again.");
@@ -454,21 +471,15 @@ export default function AdminPartnersPage() {
     }
   };
 
-  const pendingCount = applications.filter((a) => a.status === "pending").length;
-
-  // ── Loading state ─────────────────────────────────────────────────────────
-
-  if (orgLoading && partners.length === 0 && activeTab === "organizations") {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-center bg-[#FDFBF7] font-sans">
-        <svg className="animate-spin w-8 h-8 text-[#000666]" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-        </svg>
-        <p className="text-slate-500 font-medium text-sm">Opening partners directory...</p>
-      </div>
-    );
-  }
+  const pendingCount = applications?.filter((application) => application.status === "pending").length;
+  const visibleApplications = (applications ?? []).filter(
+    (application) => appFilter === "all" || application.status === appFilter
+  );
+  const pendingByTab = {
+    organizations: undefined,
+    applications: pendingCount,
+    "intern-requests": pendingRequests?.length,
+  };
 
   return (
     <div className="max-w-6xl mx-auto py-10 px-4 sm:px-6 lg:px-8 font-sans bg-[#FDFBF7]">
@@ -511,7 +522,35 @@ export default function AdminPartnersPage() {
         )}
       </div>
 
+      <nav aria-label="Partners desk" className="flex flex-wrap gap-1 mb-6 bg-white border border-slate-200 rounded-xl p-1 w-fit max-w-full">
+        {PARTNER_TABS.filter(({ id }) => id !== "applications" || canReviewApplications).map(({ id, label, href, icon: Icon }) => {
+          const count = pendingByTab[id];
+          return (
+            <Link
+              key={id}
+              href={href}
+              scroll={false}
+              aria-current={activeTab === id ? "page" : undefined}
+              className={`flex min-h-11 items-center gap-2 px-3 sm:px-5 py-2 rounded-lg text-sm font-bold transition-colors ${
+                activeTab === id
+                  ? "bg-[#000666] text-white shadow-sm"
+                  : "text-slate-600 hover:text-[#000666]"
+              }`}
+            >
+              <Icon aria-hidden="true" className="w-4 h-4 shrink-0" />
+              {label}
+              {count !== undefined && (
+                <span className="min-w-5 rounded-full bg-amber-100 px-1.5 text-center text-xs leading-5 text-amber-900">
+                  {count}<span className="sr-only"> pending</span>
+                </span>
+              )}
+            </Link>
+          );
+        })}
+      </nav>
+
       {/* Partner Talent Pool Visibility Card */}
+      {activeTab === "organizations" && (
       <div className="mb-6 bg-white border border-[slate-200/70] rounded-2xl p-5 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
@@ -563,41 +602,14 @@ export default function AdminPartnersPage() {
         </div>
       </div>
 
-      {/* Tab Bar */}
-      <div className="flex gap-1 mb-8 bg-white border border-[slate-200/70] rounded-xl p-1 w-fit">
-        <button
-          onClick={() => setActiveTab("organizations")}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer ${
-            activeTab === "organizations"
-              ? "bg-[#000666] text-white shadow-sm"
-              : "text-slate-500 hover:text-[#000666]"
-          }`}
-        >
-          <HiOutlineBriefcase className="w-4 h-4" />
-          Active Partners
-        </button>
-        <button
-          onClick={() => setActiveTab("applications")}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer relative ${
-            activeTab === "applications"
-              ? "bg-[#000666] text-white shadow-sm"
-              : "text-slate-500 hover:text-[#000666]"
-          }`}
-        >
-          <HiOutlineClipboardDocumentList className="w-4 h-4" />
-          Applications
-          {pendingCount > 0 && activeTab !== "applications" && (
-            <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">
-              {pendingCount > 9 ? "9+" : pendingCount}
-            </span>
-          )}
-        </button>
-      </div>
+      )}
 
       {/* ── TAB: Organizations ─────────────────────────────────────────────── */}
       {activeTab === "organizations" && (
         <>
-          {partners.length === 0 ? (
+          {orgLoading && partners.length === 0 ? (
+            <p className="py-12 text-center text-sm text-slate-500" role="status">Opening partners directory…</p>
+          ) : partners.length === 0 ? (
             <div className="bg-white border border-[slate-200/70] rounded-2xl p-12 text-center shadow-sm">
               <p className="text-slate-400 font-medium mb-2">No partner organizations registered in the database.</p>
               <p className="text-xs text-slate-400">Click &quot;Add Partner Org&quot; to begin building your ecosystem.</p>
@@ -740,14 +752,23 @@ export default function AdminPartnersPage() {
         </>
       )}
 
+      {activeTab === "intern-requests" && (
+        <InternRequests pendingRequests={pendingRequests} refreshPendingRequests={refreshPendingRequests} />
+      )}
+
       {/* ── TAB: Applications ─────────────────────────────────────────────── */}
-      {activeTab === "applications" && (
+      {activeTab === "applications" && !canReviewApplications && (
+        <p className="text-sm text-slate-600">Partner Applications is available to superadmins.</p>
+      )}
+      {activeTab === "applications" && canReviewApplications && (
         <div>
           {/* Filter bar */}
-          <div className="flex gap-2 mb-6 flex-wrap">
+          <div className="flex gap-2 mb-6 flex-wrap" role="group" aria-label="Filter partner applications">
             {(["all", "pending", "approved", "declined"] as AppFilter[]).map((f) => (
               <button
                 key={f}
+                type="button"
+                aria-pressed={appFilter === f}
                 onClick={() => setAppFilter(f)}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer capitalize border ${
                   appFilter === f
@@ -756,7 +777,7 @@ export default function AdminPartnersPage() {
                 }`}
               >
                 {f === "all" ? "All Applications" : f}
-                {f === "pending" && pendingCount > 0 && (
+                {f === "pending" && !!pendingCount && (
                   <span className="ml-1.5 bg-amber-400 text-white rounded-full px-1.5 py-0.5 text-[9px] font-black">
                     {pendingCount}
                   </span>
@@ -765,14 +786,16 @@ export default function AdminPartnersPage() {
             ))}
           </div>
 
-          {appLoading ? (
+          {applications === undefined ? (
             <div className="flex items-center justify-center py-20">
               <svg className="animate-spin w-7 h-7 text-[#000666]" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
             </div>
-          ) : applications.length === 0 ? (
+          ) : applications === null ? (
+            <p role="alert" className="text-sm text-rose-700">Could not load partner applications. Refresh the page to try again.</p>
+          ) : visibleApplications.length === 0 ? (
             <div className="bg-white border border-[slate-200/70] rounded-2xl p-12 text-center shadow-sm">
               <HiOutlineClipboardDocumentList className="w-10 h-10 text-slate-300 mx-auto mb-3" />
               <p className="text-slate-400 font-medium mb-1">No partner applications found.</p>
@@ -780,7 +803,7 @@ export default function AdminPartnersPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-4">
-              {applications.map((app) => {
+              {visibleApplications.map((app) => {
                 const styles = APPLICATION_STATUS_STYLES[app.status];
                 return (
                   <div

@@ -24,8 +24,8 @@ import {
   HiOutlineCheck,
 } from "react-icons/hi2";
 import { 
-  getAdminStats, 
   getAdminApplications, 
+  getTaskRewardSummary,
   getPartners, 
   getAdminPlacements, 
   createPlacementMatch, 
@@ -33,7 +33,6 @@ import {
   createPartner,
   getAdminCohorts,
   uploadLogo,
-  AdminStats, 
   Cohort, 
   PartnerOrganization, 
   Placement,
@@ -51,7 +50,6 @@ type FilterTab = "all" | "matched" | "unmatched" | "interviewing" | "placed";
 
 export default function AdminPlacementsPage() {
   const { selectedCohortId } = useContext(AdminCohortContext);
-  const [stats, setStats] = useState<AdminStats | null>(null);
   const [applications, setApplications] = useState<any[]>([]);
   const [partners, setPartners] = useState<PartnerOrganization[]>([]);
   const [placements, setPlacements] = useState<Placement[]>([]);
@@ -59,7 +57,9 @@ export default function AdminPlacementsPage() {
   const saveOutcome = (id: string, hiringOutcome: HiringOutcome) => {
     setPlacements(previous => previous.map(row => row._id === id ? { ...row, hiringOutcome } : row));
   };
-  const [loading, setLoading] = useState(true);
+  const [loadResult, setLoadResult] = useState<{ cohortId: string; failed: boolean } | null>(null);
+  const [refreshCount, setRefreshCount] = useState(0);
+  const refreshPlacements = () => setRefreshCount(count => count + 1);
 
   // Filter & Search state
   const [activeFilterTab, setActiveFilterTab] = useState<FilterTab>("all");
@@ -89,41 +89,49 @@ export default function AdminPlacementsPage() {
 
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  const fetchPlacementsData = async () => {
-    try {
-      const [statsData, appsData, partnersData, placementsData, cohortsData] = await Promise.all([
-        getAdminStats(selectedCohortId || undefined),
-        getAdminApplications(undefined, undefined, selectedCohortId || undefined),
-        getPartners(),
-        getAdminPlacements(),
-        getAdminCohorts()
-      ]);
-      setStats(statsData);
-      
-      // Candidates eligible for the Matching Desk are those promoted to placement_ready
-      const eligibleApps = appsData.filter(app => app.status === 'placement_ready');
-      setApplications(eligibleApps);
-      
-      setPartners(partnersData);
-      setPlacements(placementsData);
-      setInterviewCheckTime(Date.now());
-      setCohorts(cohortsData);
-    } catch (err) {
-      console.error("Failed to load placement dashboard:", err);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    let current = true;
+    const cohortId = selectedCohortId || undefined;
+
+    async function loadPlacements() {
+      try {
+        const [appsData, rewards, partnersData, placementsData, cohortsData] = await Promise.all([
+          getAdminApplications(undefined, undefined, cohortId),
+          getTaskRewardSummary(cohortId),
+          getPartners(),
+          getAdminPlacements(),
+          getAdminCohorts(),
+        ]);
+        if (!current) return;
+
+        const qualifiedUserIds = new Set(
+          rewards.summary.filter(row => row.status === "qualified").map(row => row.userId)
+        );
+        setApplications(appsData.filter(app => {
+          const userId = app.userId?._id || app.userId;
+          return userId && (app.status === "placement_ready" || qualifiedUserIds.has(userId));
+        }));
+        setPartners(partnersData);
+        setPlacements(placementsData);
+        setInterviewCheckTime(Date.now());
+        setCohorts(cohortsData);
+        setLoadResult({ cohortId: selectedCohortId, failed: false });
+      } catch (err) {
+        if (!current) return;
+        console.error("Failed to load placement dashboard:", err);
+        setLoadResult({ cohortId: selectedCohortId, failed: true });
+      }
     }
-  };
+
+    void loadPlacements();
+    return () => { current = false; };
+  }, [selectedCohortId, refreshCount]);
 
   const toggleCohort = (cohortId: string) => {
     setNewPartnerCohorts((prev) =>
       prev.includes(cohortId) ? prev.filter((id) => id !== cohortId) : [...prev, cohortId]
     );
   };
-
-  useEffect(() => {
-    fetchPlacementsData();
-  }, [selectedCohortId]);
 
   // Helper to find existing placement match for a candidate user
   const getUserPlacement = (userId: string) => {
@@ -214,7 +222,7 @@ export default function AdminPlacementsPage() {
       setMatchPartnerId("");
       setMatchArea("");
       setMatchNotes("");
-      fetchPlacementsData();
+      refreshPlacements();
     } catch (err) {
       console.error(err);
       alert("Failed to register placement match.");
@@ -229,7 +237,7 @@ export default function AdminPlacementsPage() {
     try {
       await updatePlacementStatus(placementId, status);
       alert("Placement status updated successfully.");
-      fetchPlacementsData();
+      refreshPlacements();
     } catch (err) {
       console.error(err);
       alert("Failed to update status.");
@@ -275,7 +283,7 @@ export default function AdminPlacementsPage() {
       setNewPartnerLogoFile(null);
       setNewPartnerCohorts([]);
       setPartnerModalOpen(false);
-      fetchPlacementsData();
+      refreshPlacements();
     } catch (err) {
       console.error(err);
       alert("Failed to create partner.");
@@ -310,7 +318,7 @@ export default function AdminPlacementsPage() {
     }
   };
 
-  if (loading) {
+  if (loadResult?.cohortId !== selectedCohortId) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4 text-center  font-sans">
         <svg className="animate-spin w-8 h-8 text-[#000666]" fill="none" viewBox="0 0 24 24">
@@ -318,6 +326,17 @@ export default function AdminPlacementsPage() {
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
         <p className="text-slate-500 font-medium text-sm">Opening placement dashboard...</p>
+      </div>
+    );
+  }
+
+  if (loadResult.failed) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4 text-center">
+        <p role="alert" className="text-sm text-slate-700">Couldn’t load Matching Desk candidates.</p>
+        <button type="button" onClick={refreshPlacements} className="rounded-lg bg-[#000666] px-4 py-2 text-sm font-semibold text-white">
+          Try again
+        </button>
       </div>
     );
   }
@@ -341,11 +360,11 @@ export default function AdminPlacementsPage() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Link
-            href="/admin/partner-interests"
+            href="/admin/partners?tab=intern-requests"
             className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold text-xs tracking-wider uppercase px-4 py-3 rounded-xl shadow-2xs transition-all flex items-center gap-1.5"
           >
             <HiOutlineSparkles className="w-4 h-4 text-amber-500" />
-            <span>Partner Requests</span>
+            <span>Intern Requests</span>
           </Link>
           <button
             onClick={() => setPartnerModalOpen(true)}
@@ -372,7 +391,7 @@ export default function AdminPlacementsPage() {
             <HiOutlineUserGroup className="w-4 h-4 text-[#000666]" />
           </div>
           <div className="text-2xl font-black text-[#000666]">{counts.total}</div>
-          <p className="text-[10px] text-slate-400 mt-0.5">Placement-ready interns</p>
+          <p className="text-[10px] text-slate-400 mt-0.5">Qualified or placement-ready participants</p>
         </button>
 
         <button

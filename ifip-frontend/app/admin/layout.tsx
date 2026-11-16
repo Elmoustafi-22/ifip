@@ -82,7 +82,6 @@ const NAV_GROUPS = [
     label: "Placements",
     items: [
       { href: "/admin/partners",          label: "Partners",         icon: HiOutlineBuildingOffice2 },
-      { href: "/admin/partner-interests", label: "Partner Requests", icon: HiOutlineArrowsRightLeft },
       { href: "/admin/job-openings",      label: "Job Openings",     icon: HiOutlineBriefcase },
       { href: "/admin/opportunities",     label: "Opportunities",    icon: HiOutlineBriefcase },
     ],

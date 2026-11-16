@@ -809,7 +809,7 @@ notificationEmitter.on('partner.interest_expressed', async ({
             title: 'New Partner Placement Request',
             message: `${orgName} has requested candidate ${internName}${role ? ` for ${role}` : ''}.`,
             type: 'info' as const,
-            link: '/admin/partner-interests',
+            link: '/admin/partners?tab=intern-requests',
         }));
         if (notifications.length > 0) await Notification.insertMany(notifications);
 
@@ -973,7 +973,7 @@ notificationEmitter.on('partner.interview_logged', async ({
                 ? `${orgName} has rescheduled the interview with intern ${internName} to ${interviewDate} (${format}).`
                 : `${orgName} has scheduled an interview with intern ${internName} for ${interviewDate} (${format}).`,
             type: 'info' as const,
-            link: '/admin/partner-interests',
+            link: '/admin/partners?tab=intern-requests',
         }));
         if (adminNotifications.length > 0) {
             await Notification.insertMany(adminNotifications);
