@@ -71,9 +71,10 @@ try {
  const adminEmail=adminEmails[0].payload;
  assert.equal(adminEmail.subject,'New cohort created: New & Cohort | IFIP');
  assert.match(adminEmail.htmlContent,/New &amp; Cohort/);
- assert.match(adminEmail.htmlContent,/Registration is scheduled from/);
- assert.match(adminEmail.htmlContent,/training start date has yet to be set/);
- assert.match(adminEmail.htmlContent,/\/admin"/);
+ assert.match(adminEmail.htmlContent,/Registration opens/);
+ assert.match(adminEmail.htmlContent,/Registration closes/);
+ assert.match(adminEmail.htmlContent,/To be scheduled/);
+ assert.match(adminEmail.htmlContent,/href="[^"]+\/admin"[^>]*>View cohorts in Admin/);
  assert.doesNotMatch(adminEmail.htmlContent,/registration is open/i);
  const registrationStatus=cohortRouter.stack.find(layer=>layer.route?.path==='/registration-status').route.stack[0].handle;
  assert.equal((await call(registrationStatus,{})).body.hasActiveCohort,false);
@@ -89,6 +90,8 @@ try {
  await Promise.all([processCohortWaitlist(),processCohortWaitlist()]);
  assert.deepEqual(sent.map(item=>item.email).sort(),['first@example.invalid','retry@example.invalid']);
  const formatDate = date => date.toLocaleDateString('en-NG',{dateStyle:'long',timeZone:'Africa/Lagos'});
+ assert.ok(adminEmail.htmlContent.includes(formatDate(new Date(now+day/2))));
+ assert.ok(adminEmail.htmlContent.includes(formatDate(input.registrationEndDate)));
  assert.equal(sent[0].payload.subject,'Registration dates for New & Cohort | IFIP');
  assert.ok(sent[0].payload.htmlContent.includes(`Registration is scheduled from ${formatDate(input.registrationStartDate)} to ${formatDate(input.registrationEndDate)}.`));
  assert.match(sent[0].payload.htmlContent,/Check registration availability/);
@@ -135,7 +138,7 @@ try {
  }});
  assert.equal(second.status,201);
  await waitForAdminEmails(4);
- assert.ok(adminEmails.slice(2).every(item=>item.payload.htmlContent.includes('Training is scheduled to start')));
+ assert.ok(adminEmails.slice(2).every(item=>item.payload.htmlContent.includes(formatDate(new Date(now+5*day)))));
  console.log('PASS creation emails reach other opted-in admins, independently of waitlist settings');
 } finally {
  if (mongoose.connection.readyState===1) await mongoose.connection.dropDatabase();

@@ -345,9 +345,9 @@ try{
   assert.equal(foreignQuote.status, 200);
   const now = Math.floor(Date.now() / 1000);
   const newPrices = { NGN: 2705000, USD: 4050 };
-  const asSuper = { ...asAdmin, user: { ...asAdmin.user, role: 'superadmin', mfaAt: now } };
+  const asSuper = { ...asAdmin, user: { ...asAdmin.user, role: 'superadmin' }, adminSession: { mfaAt: now } };
   assert.equal((await call(change, { ...asAdmin, body: newPrices })).status, 403);
-  assert.equal((await call(change, { ...asSuper, user: { ...asSuper.user, mfaAt: now - 601 }, body: newPrices })).status, 403);
+  assert.equal((await call(change, { ...asSuper, adminSession: { mfaAt: now - 601 }, body: newPrices })).status, 403);
   assert.equal((await call(change, { ...asSuper, body: { NGN: 1.5, USD: 0 } })).status, 400);
   assert.deepEqual((await call(change, { ...asSuper, body: newPrices })).body, newPrices);
   assert.deepEqual((await call(getLevyPricing, {})).body, newPrices);

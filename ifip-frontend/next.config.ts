@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
 
-const nextConfig: NextConfig = {
+const nextConfig = (phase: string): NextConfig => ({
   ...(process.env.IFIP_ISOLATED_DEV === "1" ? { distDir: ".next/ifip-local" } : {}),
+  ...(phase === PHASE_PRODUCTION_BUILD ? { typescript: { tsconfigPath: "tsconfig.build.json" } } : {}),
   compress: true,
   poweredByHeader: false,
   images: {
@@ -22,6 +24,6 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["react-icons"],
   },
-};
+});
 
 export default nextConfig;

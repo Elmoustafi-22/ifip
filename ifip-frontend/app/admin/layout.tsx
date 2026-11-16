@@ -34,6 +34,7 @@ import {
 import { getMyApplication, getCohorts, Cohort } from "@/lib/api/services";
 import { clearAuth, logout, startSilentRefresh, stopSilentRefresh } from "@/lib/api/auth";
 import NotificationBell from "@/components/NotificationBell";
+import AdminPasswordDialog from "@/components/admin/AdminPasswordDialog";
 
 export interface AdminCohortContextType {
   selectedCohortId: string;
@@ -550,6 +551,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </main>
         </div>
       </div>
+      <AdminPasswordDialog />
     </AdminCohortContext.Provider>
   );
 }

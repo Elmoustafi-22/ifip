@@ -151,6 +151,12 @@ export default function PartnerApplyPage() {
       return;
     }
 
+    const organizationDescription = description.trim();
+    if (!organizationDescription) {
+      setError("Describe your organization before submitting.");
+      return;
+    }
+
     if (hasOpenings) {
       if (!openings.length) {
         setError("Add at least one opening.");
@@ -191,7 +197,7 @@ export default function PartnerApplyPage() {
         contactEmail: contactEmail.trim(),
         contactPhone: contactPhone.trim(),
         website: website.trim() || undefined,
-        description: description.trim() || undefined,
+        description: organizationDescription,
         activeSlots: activeSlots !== "" ? Number(activeSlots) : undefined,
         sectorTags: selectedSectors.length > 0 ? selectedSectors : undefined,
         logoUrl,
@@ -270,8 +276,8 @@ export default function PartnerApplyPage() {
                   <input id="partner-website" name="website" autoComplete="url" type="url" placeholder="https://example.com" className={control} value={website} onChange={(e) => setWebsite(e.target.value)} />
                 </Field>
               </div>
-              <Field id="partner-description" label="About the organization" optional>
-                <textarea id="partner-description" name="description" rows={4} className={control} value={description} onChange={(e) => setDescription(e.target.value)} />
+              <Field id="partner-description" label="About the organization">
+                <textarea id="partner-description" name="description" rows={4} required className={control} value={description} onChange={(e) => setDescription(e.target.value)} />
               </Field>
               <fieldset className="min-w-0">
                 <legend className="text-sm font-semibold">Sectors and areas of focus <span className="font-normal text-[#43536e]">(optional)</span></legend>

@@ -122,7 +122,15 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         const totalPaid = await Application.countDocuments({ ...filter, status: { $in: ['payment_confirmed', 'active', 'completed', 'placement_ready'] } });
         const activeParticipants = await Application.countDocuments({ ...filter, status: { $in: ['active', 'placement_ready'] } });
         const completedCount = await Application.countDocuments({ ...filter, status: 'completed' });
-        const waitlistCount = await Waitlist.countDocuments();
+        let waitlistCount: number;
+        if (cohortId && cohortId !== 'unassigned' && Types.ObjectId.isValid(cohortId as string)) {
+            const cohortDoc = await Cohort.findById(cohortId).select('createdAt').lean();
+            waitlistCount = cohortDoc
+                ? await Waitlist.countDocuments({ createdAt: { $lt: cohortDoc.createdAt } })
+                : 0;
+        } else {
+            waitlistCount = await Waitlist.countDocuments();
+        }
 
         // Lead source aggregation breakdown
         const rawLeadSources = await Application.aggregate([
@@ -543,6 +551,19 @@ export const retryCohortWaitlistDelivery = async (req: Request, res: Response) =
         return;
     }
     res.json({ message: 'Failed sends queued for retry.' });
+};
+
+export const resendCohortWaitlistAnnouncement = async (req: Request, res: Response) => {
+    try {
+        const cohort = await Cohort.findById(req.params.id);
+        if (!cohort) { res.status(404).json({ message: 'Cohort not found.' }); return; }
+        const { forceResendCohortWaitlist } = await import('../services/cohortWaitlist.js');
+        const result = await forceResendCohortWaitlist(String(cohort._id));
+        logAction(req, 'COHORT_WAITLIST_RESEND', `Resent waitlist notice for "${cohort.name}" — ${result.queued} queued.`);
+        res.json({ message: `Waitlist notice queued for ${result.queued} recipient(s).`, queued: result.queued });
+    } catch (e: any) {
+        res.status(500).json({ message: 'Failed to resend waitlist announcement.', error: e.message });
+    }
 };
 
 export const deleteCohort = async (req: Request, res: Response) => {

@@ -571,8 +571,9 @@ export interface TaskRewardSummaryRow {
   status: 'qualified' | 'in_progress';
 }
 
-export const getTaskRewardSummary = async (): Promise<{ summary: TaskRewardSummaryRow[]; totalQualified: number; totalParticipants: number }> => {
-  const { data } = await authClient.get<{ summary: TaskRewardSummaryRow[]; totalQualified: number; totalParticipants: number }>('/admin/task-rewards/summary');
+export const getTaskRewardSummary = async (cohortId?: string): Promise<{ summary: TaskRewardSummaryRow[]; totalQualified: number; totalParticipants: number }> => {
+  const params = cohortId ? { cohortId } : {};
+  const { data } = await authClient.get<{ summary: TaskRewardSummaryRow[]; totalQualified: number; totalParticipants: number }>('/admin/task-rewards/summary', { params });
   return data;
 };
 
@@ -1051,6 +1052,11 @@ export async function retryCohortWaitlist(id: string) {
   await authClient.post(`/admin/cohorts/${id}/waitlist/retry`);
 }
 
+export async function resendCohortWaitlist(id: string): Promise<{ message: string; queued: number }> {
+  const { data } = await authClient.post<{ message: string; queued: number }>(`/admin/cohorts/${id}/waitlist/resend`);
+  return data;
+}
+
 export const hiringOutcomeLabels = {
   selected: "Selected by employer",
   offer_extended: "Offer extended",
@@ -1343,7 +1349,7 @@ export interface PartnerApplicationPayload {
   contactPerson: string;
   website?: string;
   sectorTags?: string[];
-  description?: string;
+  description: string;
   activeSlots?: number;
   logoUrl?: string;
   hasOpenings?: boolean;

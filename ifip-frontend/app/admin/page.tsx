@@ -36,6 +36,7 @@ import {
   getAdminWaitlist,
   getCohortWaitlistStatus,
   retryCohortWaitlist,
+  resendCohortWaitlist,
   AdminStats, 
   AnonApplicant,
   Cohort,
@@ -100,6 +101,9 @@ export default function AdminDashboardPage() {
   const [savedCohortId, setSavedCohortId] = useState<string | null>(null);
   const [cohortError, setCohortError] = useState("");
   const [announcement, setAnnouncement] = useState<{ cohort: Cohort; counts: Awaited<ReturnType<typeof getCohortWaitlistStatus>> } | null>(null);
+  const [resendingWaitlist, setResendingWaitlist] = useState(false);
+  const [resendStatus, setResendStatus] = useState<{ queued: number; sent: number; failed: number; sending: number } | null>(null);
+  const [resendMessage, setResendMessage] = useState("");
 
   const allMetrics = Object.values(stats?.cohortMetrics ?? {});
   const currentMetrics = selectedCohortId ? [stats?.cohortMetrics?.[selectedCohortId]] : allMetrics;
@@ -123,7 +127,7 @@ export default function AdminDashboardPage() {
       const [statsData, configData, rewardsData] = await Promise.all([
         getAdminStats(selectedCohortId || undefined),
         getCohortConfig(),
-        getTaskRewardSummary()
+        getTaskRewardSummary(selectedCohortId || undefined)
       ]);
       setStats(statsData);
       setCheckedAt(Date.now());
@@ -231,7 +235,44 @@ export default function AdminDashboardPage() {
     setNewCohortCap(cohort.cohortCap || 100);
     setNewCohortTotalWeeks(cohort.totalWeeks || 4);
     setNewCohortStatus(cohort.status);
+    // Reset resend state whenever opening a fresh edit
+    setResendingWaitlist(false);
+    setResendStatus(null);
+    setResendMessage("");
+    // Pre-load delivery status if waitlist was ever enabled
+    if (cohort.notifyWaitlist) {
+      void getCohortWaitlistStatus(cohort._id).then(counts => setResendStatus({ ...counts, queued: counts.pending })).catch(() => {});
+    }
     setModalOpen(true);
+  };
+
+  const handleResendWaitlistNotice = async () => {
+    if (!editingCohortItem || resendingWaitlist) return;
+    setResendingWaitlist(true);
+    setResendMessage("");
+    try {
+      const result = await resendCohortWaitlist(editingCohortItem._id);
+      setResendMessage(`✓ Queued for ${result.queued} recipient(s). Delivery runs in the background — refresh status below to track progress.`);
+      // Refresh delivery counts after a short delay
+      setTimeout(async () => {
+        try {
+          const counts = await getCohortWaitlistStatus(editingCohortItem._id);
+          setResendStatus({ ...counts, queued: counts.pending });
+        } catch { /* ignore */ }
+      }, 3000);
+    } catch (err: any) {
+      setResendMessage(`✗ ${err?.response?.data?.message || "Failed to resend. Try again."}`);
+    } finally {
+      setResendingWaitlist(false);
+    }
+  };
+
+  const handleRefreshResendStatus = async () => {
+    if (!editingCohortItem) return;
+    try {
+      const counts = await getCohortWaitlistStatus(editingCohortItem._id);
+      setResendStatus({ ...counts, queued: counts.pending });
+    } catch { /* ignore */ }
   };
 
   const handleSubmitCohort = async (e: React.FormEvent) => {

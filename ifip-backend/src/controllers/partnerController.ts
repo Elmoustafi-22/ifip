@@ -43,6 +43,12 @@ export const submitPartnerApplication = async (req: Request, res: Response) => {
             return;
         }
 
+        const organizationDescription = typeof description === 'string' ? description.trim() : '';
+        if (!organizationDescription) {
+            res.status(400).json({ message: 'Describe your organization before submitting.' });
+            return;
+        }
+
         let processedOpenings = [];
         if (hasOpenings) {
             if (!Array.isArray(openings) || openings.length === 0) {
@@ -88,7 +94,7 @@ export const submitPartnerApplication = async (req: Request, res: Response) => {
             contactPerson,
             website: website || undefined,
             sectorTags: Array.isArray(sectorTags) ? sectorTags : [],
-            description: description || undefined,
+            description: organizationDescription,
             activeSlots: computedSlots,
             logoUrl: logoUrl || undefined,
             status: 'pending',

@@ -23,9 +23,18 @@ const isSubmissionWindowOpen = (_module: any) => {
     return true;
 };
 
-export const getTaskRewardSummary = async (_req: Request, res: Response) => {
+export const getTaskRewardSummary = async (req: Request, res: Response) => {
     try {
-        const progressRecords = await Progress.find({}).populate('userId', 'fullName email').lean();
+        const { cohortId } = req.query;
+        let progressFilter: object = {};
+        if (cohortId && Types.ObjectId.isValid(cohortId as string)) {
+            const apps = await Application.find({ cohortId: new Types.ObjectId(cohortId as string) })
+                .select('userId')
+                .lean();
+            const userIds = apps.map((a) => a.userId);
+            progressFilter = { userId: { $in: userIds } };
+        }
+        const progressRecords = await Progress.find(progressFilter).populate('userId', 'fullName email').lean();
 
         const leaderboardMap = new Map<string, {
             userId: string;

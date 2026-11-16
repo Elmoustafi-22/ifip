@@ -3,6 +3,7 @@ import axios from "axios";
 declare module "axios" {
   interface AxiosRequestConfig {
     preserveApplicantSession?: boolean;
+    retriedAfterAdminPassword?: boolean;
   }
 }
 
@@ -97,6 +98,18 @@ export const authClient = axios.create({
   withCredentials: true,   // needed so the httpOnly refreshToken cookie is sent
 });
 
+export type AdminPasswordProof = { token: string; expiresIn: number };
+let requestAdminPassword: (() => Promise<AdminPasswordProof>) | undefined;
+let adminPasswordProof: { token: string; expiresAt: number } | undefined;
+
+export function registerAdminPasswordPrompt(prompt: () => Promise<AdminPasswordProof>) {
+  requestAdminPassword = prompt;
+  return () => {
+    requestAdminPassword = undefined;
+    adminPasswordProof = undefined;
+  };
+}
+
 authClient.interceptors.request.use((config) => {
   if (config.data instanceof FormData && config.headers) {
     if (typeof (config.headers as any).delete === "function") {
@@ -115,6 +128,14 @@ authClient.interceptors.request.use((config) => {
       localStorage.getItem("accessToken");
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  if (config.url?.startsWith("/admin/") && config.method !== "get" &&
+      config.url !== "/admin/confirm-password") {
+    if (adminPasswordProof && adminPasswordProof.expiresAt > Date.now()) {
+      config.headers.set("x-admin-password-confirmation", adminPasswordProof.token);
+    } else {
+      config.headers.delete("x-admin-password-confirmation");
     }
   }
   return config;
@@ -196,6 +217,21 @@ authClient.interceptors.response.use(
       } finally {
         isRefreshing = false;
       }
+    }
+
+    if (
+      error.response?.status === 403 &&
+      error.response.data?.code === "ADMIN_PASSWORD_CONFIRMATION_REQUIRED" &&
+      original.url?.startsWith("/admin/") &&
+      !original.retriedAfterAdminPassword &&
+      requestAdminPassword
+    ) {
+      const prompt = requestAdminPassword;
+      const proof = await prompt();
+      if (requestAdminPassword !== prompt) throw new Error("Password confirmation was canceled.");
+      adminPasswordProof = { token: proof.token, expiresAt: Date.now() + proof.expiresIn * 1000 };
+      original.retriedAfterAdminPassword = true;
+      return authClient(original);
     }
 
     let errorMessage = "An error occurred on the server.";

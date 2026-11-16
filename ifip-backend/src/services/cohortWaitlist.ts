@@ -56,3 +56,34 @@ export const retryCohortWaitlist = async (cohortId: string) => {
     await CohortWaitlistDelivery.deleteMany({ cohortId, status: 'failed' });
     return true;
 };
+
+/**
+ * Force-resend the cohort availability announcement to all previous-waitlist
+ * emails for any cohort (not restricted to the currently active one).
+ * Clears all existing delivery records then immediately delivers to all eligible
+ * addresses (created before this cohort) in the background.
+ */
+export const forceResendCohortWaitlist = async (cohortId: string): Promise<{ queued: number }> => {
+    const { Cohort } = await import('../models/Cohort.js');
+    const cohort = await Cohort.findById(cohortId).lean();
+    if (!cohort) return { queued: 0 };
+
+    // Clear previous delivery attempts so we start fresh
+    await CohortWaitlistDelivery.deleteMany({ cohortId });
+
+    // Flag cohort so status endpoint reports correctly
+    await Cohort.updateOne({ _id: cohortId }, { $set: { notifyWaitlist: true } });
+
+    // Fetch all eligible waitlist addresses (joined before this cohort was created)
+    const recipients = await Waitlist.find({ createdAt: { $lt: cohort.createdAt } })
+        .sort({ createdAt: 1 });
+
+    // Deliver in background so the HTTP response returns quickly
+    void (async () => {
+        for (const recipient of recipients) {
+            await deliverCohortAnnouncement(cohort as any, recipient);
+        }
+    })();
+
+    return { queued: recipients.length };
+};

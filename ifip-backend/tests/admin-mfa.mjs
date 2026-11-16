@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { once } from 'node:events';
 import axios from 'axios';
 import bcrypt from 'bcryptjs';
+import express from 'express';
+import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import { generateSecret, generateSync } from 'otplib';
 
@@ -40,7 +43,8 @@ const {
     login, loginMfaVerify, completeAdminMfaSetup, refresh, resetPassword, setPassword, mfaDisable, mfaEnable,
 } = await import('../src/controllers/authController.ts');
 const { adminPasswordBinding, adminSessionProof, verifyAdminEnrollmentEmail } = await import('../src/services/adminMfa.ts');
-const { authenticate, requireRecentAdminMfa } = await import('../src/middleware/auth.ts');
+const { authenticate, requireAdminConfirmation } = await import('../src/middleware/auth.ts');
+const { default: adminRoutes } = await import('../src/routes/adminRoutes.ts');
 const { signAccessToken, signRefreshToken, signResetPasswordToken, signSetPasswordToken, verifyAccessToken } =
     await import('../src/utils/jwt.ts');
 
@@ -54,7 +58,7 @@ async function call(handler, request = {}) {
         cookie(_name, value, options) { this.refreshToken = value; this.cookieOptions = options; },
         clearCookie() {},
     };
-    await handler(req, res, () => { res.passed = true; res.user = req.user; });
+    await handler(req, res, () => { res.passed = true; res.user = req.user; res.adminSession = req.adminSession; });
     return res;
 }
 
@@ -62,6 +66,81 @@ const password = 'Local fixture password 2026!';
 const credential = user => ({ body: { email: user.email, password } });
 const codeRequest = (mfaToken, code) => ({ body: { mfaToken, code } });
 const bearer = token => ({ headers: { authorization: `Bearer ${token}` } });
+
+async function verifyAdminPasswordFlow(admin, superadmin, participant) {
+    const app = express();
+    app.use(express.json());
+    app.use('/admin', adminRoutes);
+    const server = app.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    try {
+        const now = Math.floor(Date.now() / 1000);
+        const session = adminSessionProof(superadmin, now - 601);
+        const token = signAccessToken(superadmin.id, superadmin.role, session);
+        const regularToken = signAccessToken(admin.id, admin.role, adminSessionProof(admin, now - 601));
+        const url = `http://127.0.0.1:${server.address().port}/admin`;
+        const request = (path, method, accessToken, body, proof) => fetch(url + path, {
+            method,
+            headers: {
+                ...bearer(accessToken).headers,
+                ...(body && { 'content-type': 'application/json' }),
+                ...(proof && { 'x-admin-password-confirmation': proof }),
+            },
+            body: JSON.stringify(body),
+        });
+        const confirm = (accessToken, value = password) =>
+            request('/confirm-password', 'POST', accessToken, { password: value });
+        const prices = { NGN: 2705000, USD: 4050 };
+        const updatePrices = (accessToken, proof) => request('/levy-pricing', 'PATCH', accessToken, prices, proof);
+
+        for (const [method, path] of [
+            ['PATCH', '/levy-pricing'],
+            ['POST', '/pending-applicants/example/record-manual-payment'],
+            ['PATCH', '/payments/example/resolve'],
+            ['POST', '/payments/example/bank-transfer/proof'],
+            ['POST', '/payments/example/bank-transfer/approve'],
+            ['POST', '/payments/example/bank-transfer/review'],
+            ['POST', '/payments/example/bank-transfer/resend-setup'],
+            ['POST', '/cohorts/example/waitlist/resend'],
+            ['POST', '/coupons'],
+            ['PATCH', '/coupons/example'],
+            ['DELETE', '/coupons/example'],
+        ]) {
+            const response = await request(path, method, token);
+            assert.equal(response.status, 403, path);
+            assert.equal((await response.json()).code, 'ADMIN_PASSWORD_CONFIRMATION_REQUIRED', path);
+        }
+        assert.equal((await confirm(signAccessToken(participant.id, participant.role))).status, 403);
+        assert.equal((await confirm(signAccessToken(superadmin.id, superadmin.role))).status, 401);
+        assert.equal((await confirm(token, 'incorrect')).status, 403);
+        const confirmed = await confirm(token);
+        assert.equal(confirmed.status, 200);
+        assert.equal(confirmed.headers.get('cache-control'), 'no-store');
+        const { token: proof, expiresIn } = await confirmed.json();
+        assert.equal(expiresIn, 600);
+        assert.throws(() => verifyAccessToken(proof));
+        assert.equal((await updatePrices(token, proof + 'x')).status, 403);
+        const expiredProof = jwt.sign({ purpose: 'admin-password-confirmation', sub: superadmin.id, ...session },
+            process.env.JWT_ACCESS_SECRET, { expiresIn: -1 });
+        assert.equal((await updatePrices(token, expiredProof)).status, 403);
+        const otherSession = adminSessionProof(superadmin, now - 700);
+        assert.equal((await updatePrices(signAccessToken(superadmin.id, superadmin.role, otherSession), proof)).status, 403);
+        const adminProof = (await (await confirm(regularToken, 'New local fixture password!')).json()).token;
+        assert.ok(adminProof);
+        assert.equal((await updatePrices(token, adminProof)).status, 403);
+        assert.equal((await updatePrices(regularToken, adminProof)).status, 403);
+        const refreshed = await call(refresh, { cookies: { refreshToken: signRefreshToken(superadmin.id, undefined, session) } });
+        const saved = await updatePrices(refreshed.data.accessToken, proof);
+        assert.equal(saved.status, 200);
+        assert.deepEqual(await saved.json(), prices);
+        for (let attempt = 0; attempt < 4; attempt++) {
+            assert.equal((await confirm(token, 'incorrect')).status, 403);
+        }
+        assert.equal((await confirm(token)).status, 429);
+    } finally {
+        await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    }
+}
 
 try {
     await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
@@ -105,15 +184,13 @@ try {
     const mfaAt = verifyAccessToken(session.data.accessToken).mfaAt;
     assert.equal(verifyAccessToken(nextSession.data.accessToken).mfaAt, mfaAt);
     const authenticated = await call(authenticate, bearer(nextSession.data.accessToken));
-    assert.equal((await call(requireRecentAdminMfa, { user: authenticated.user })).passed, true);
-    assert.equal((await call(requireRecentAdminMfa, { user: { ...authenticated.user, mfaAt: mfaAt - 601 } })).data.code,
-        'RECENT_ADMIN_MFA_REQUIRED');
+    assert.equal((await call(requireAdminConfirmation, { user: authenticated.user, adminSession: authenticated.adminSession })).passed, true);
     const persisted = await User.findById(admin.id).select('+mfaSecret');
     const oldProof = adminSessionProof(persisted, mfaAt - 8 * 3600);
     assert.equal((await call(authenticate, bearer(signAccessToken(admin.id, admin.role, oldProof)))).code, 401);
     assert.equal((await call(mfaDisable, { user: authenticated.user, body: { code: totp } })).code, 403);
     assert.equal((await call(mfaEnable, {
-        user: authenticated.user, body: { secret: setup.data.secret, code: totp },
+        user: authenticated.user, body: { secret: setup.data.secret, code: generateSync({ secret: setup.data.secret }) },
     })).code, 403);
 
     const existingLogin = await call(login, credential(admin));
@@ -150,7 +227,8 @@ try {
     const participantSession = await call(login, credential(participant));
     assert.ok(participantSession.data.refreshToken);
     assert.equal((await call(authenticate, bearer(participantSession.data.accessToken))).passed, true);
-    assert.equal((await call(requireRecentAdminMfa, { user: { id: participant.id, role: 'participant' } })).code, 403);
+    assert.equal((await call(requireAdminConfirmation, { user: { id: participant.id, role: 'participant' } })).code, 403);
+    await verifyAdminPasswordFlow(await User.findById(admin.id).select('+mfaSecret'), superadmin, participant);
 
     const optionalMfa = await User.create({
         email: 'participant-mfa@example.invalid', role: 'participant', passwordHash, mfaEnabled: true, mfaSecret: secret,
@@ -159,7 +237,7 @@ try {
     assert.equal(optionalChallenge.data.mfaRequired, true);
     const optionalSession = await call(loginMfaVerify, codeRequest(optionalChallenge.data.mfaToken, generateSync({ secret })));
     assert.equal((await call(authenticate, bearer(optionalSession.data.accessToken))).passed, true);
-    console.log('PASS admin enrollment, login, token boundaries, replay, payment MFA freshness, password reset, invitations, and both participant sign-in paths');
+    console.log('PASS admin enrollment, login, token boundaries, replay, in-session password confirmation, password reset, invitations, and both participant sign-in paths');
 } finally {
     if (mongoose.connection.readyState === 1 && mongoose.connection.name === dbName) {
         await mongoose.connection.dropDatabase();

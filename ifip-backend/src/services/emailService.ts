@@ -676,11 +676,35 @@ export const sendAdminCohortCreatedEmail = async (
 ) => {
     const safeName = name.replace(/[&<>]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[character]!);
     const format = (date: Date) => date.toLocaleDateString('en-NG', { dateStyle: 'long', timeZone: 'Africa/Lagos' });
-    const html = `<div style="${contentContainerStyle}"><h1>New cohort created</h1>
-        <p>${safeName} has been added to IFIP.</p>
-        <p>Registration is scheduled from ${format(registrationStartDate)} to ${format(registrationEndDate)}.</p>
-        <p>${startDate ? `Training is scheduled to start on ${format(startDate)}.` : 'The training start date has yet to be set.'}</p>
-        <p><a href="${env.CLIENT_URL}/admin">View cohorts in Admin</a></p></div>`;
+    const html = `
+    <div style="${wrapperStyle}">
+        <div style="${cardStyle} border: 1px solid #e5e7eb;">
+            <div style="padding: 24px 24px 0;">
+                <img src="${LOGO_HEADER_URL}" alt="IFIP" width="144" style="display: block; height: auto; max-width: 100%;">
+            </div>
+            <div style="padding: 24px;">
+                <p style="margin: 0 0 8px; color: #475569; font-size: 14px; font-weight: bold;">New cohort created</p>
+                <h1 style="margin: 0 0 20px; color: #000666; font-family: Georgia, serif; font-size: 28px; line-height: 1.25; overflow-wrap: anywhere;">${safeName}</h1>
+                <table style="width: 100%; border-collapse: collapse; background-color: #f5f7fc; color: #1e293b; font-size: 14px;">
+                    <tr>
+                        <th scope="row" style="width: 50%; padding: 12px; text-align: left; border-bottom: 1px solid #dbe3ef;">Registration opens</th>
+                        <td style="padding: 12px; border-bottom: 1px solid #dbe3ef;">${format(registrationStartDate)}</td>
+                    </tr>
+                    <tr>
+                        <th scope="row" style="padding: 12px; text-align: left; border-bottom: 1px solid #dbe3ef;">Registration closes</th>
+                        <td style="padding: 12px; border-bottom: 1px solid #dbe3ef;">${format(registrationEndDate)}</td>
+                    </tr>
+                    <tr>
+                        <th scope="row" style="padding: 12px; text-align: left;">Training starts</th>
+                        <td style="padding: 12px;">${startDate ? format(startDate) : 'To be scheduled'}</td>
+                    </tr>
+                </table>
+                <p style="margin: 24px 0 0;">
+                    <a href="${env.CLIENT_URL}/admin" style="display: inline-block; padding: 12px 20px; border-radius: 6px; background-color: #000666; color: #ffffff; font-size: 14px; font-weight: bold; text-decoration: none;">View cohorts in Admin</a>
+                </p>
+            </div>
+        </div>
+    </div>`;
     await send(to, `New cohort created: ${name} | IFIP`, html, EMAIL_SENDERS.ADMIN, true);
 };
 

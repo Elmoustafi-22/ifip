@@ -209,8 +209,29 @@ On 15 November 2026, the user authorized the fix. The authenticated application 
 - From `ifip-frontend`, `node node_modules/typescript/bin/tsc --noEmit --incremental false` and targeted ESLint for `app/partners/apply` passed. The scoped `git diff --check` passed.
 - Inline Playwright Chromium at 320, 390, 768 and 1440 CSS px verified required-field focus, optional-opening submission, adding and removing openings, conditional location, sector retry, upload success and recovery, retained data on submission failure, and confirmation focus. Desktop and mobile captures use intercepted data. Live upload, partner submission, email and administration review remain unverified.
 
+- The public partner form and intake API require an organization description. A local Playwright run with an intercepted API verified empty-field focus, whitespace rejection and submission of a trimmed description. Partner page ESLint, backend no-emit TypeScript and frontend no-emit TypeScript with malformed generated dev route types excluded passed. The shared API service file has existing ESLint errors. The live API was outside the browser check.
+
 ### Waitlist registration copy
 
 - Changed the email and admin preview to show the scheduled registration start and close dates with a link to check current availability. The worker still sends during an eligible registration window.
 - Ran `tests/cohort-operations.mjs` through `node --import tsx --input-type=module -` with the connection redirected to a disposable database on the local replica set at port 37118 and the email API mocked. The test passed and confirmed no notification before registration starts, both dates in the sent copy, the availability link, recipient cutoff, deduplication and retry. No real email was sent.
 - `node node_modules/typescript/bin/tsc --noEmit --incremental false` passed in both apps, and the scoped `git diff --check` passed. The preview was source-checked. The local frontend was unavailable for browser verification.
+
+### Cohort creation email
+
+- Successful cohort creation triggers an email to other opted-in admins and superadmins. The email follows the IFIP layout with a schedule and a link to the admin overview. The recipient list excludes the creator and the send is independent of waitlist notification settings.
+- Ran `tests/cohort-operations.mjs` through `node --import tsx --input-type=module -` against a disposable database on the local replica set at port 37118 with mocked email delivery. Checks passed for recipients, a future registration window, optional training dates, waitlist independence, and the admin link. The backend no-emit TypeScript check and scoped `git diff --check` passed. Live email delivery remains unverified.
+- Rendered the captured email HTML in Chromium through an inline `node -` check. The heading, schedule and admin link fit without horizontal overflow at 320, 390 and 1024 CSS px.
+
+### In-session admin password confirmation
+
+- Levy pricing, manual payments, payment resolution, bank-transfer actions, fee coupons, and cohort waitlist resends use the same password prompt when the initial verification window expires. A successful confirmation retries the pending action with its original inputs. The confirmation is valid for ten minutes in the same admin session. Initial admin sign-in still requires MFA.
+- From `ifip-backend`, `node --import tsx tests/admin-mfa.mjs` passed against a disposable database on the local MongoDB container. It exercised the confirmation requirement on all eleven protected routes, successful levy updates, role checks, rate limiting, expired and tampered proofs, session binding, and token refresh. Email delivery used a test fixture.
+- Inline Playwright Chromium at 390 CSS px exercised the levy form with intercepted API responses. It verified keyboard focus, Escape, retained prices, an incorrect-password retry, successful save with the original values, and reuse on a second save. The Next dev server used the Sora fallback font.
+- Backend no-emit TypeScript and scoped frontend ESLint for the password dialog passed. Frontend no-emit TypeScript passed after excluding the pre-existing malformed generated `.next/dev/types/validator.ts`. Staging browser and API verification remains open.
+
+### Production frontend type-check
+
+- `next build` now uses `tsconfig.build.json`, which includes production route types and excludes generated development types.
+- `tsc --project tsconfig.build.json --listFilesOnly` confirmed that the partner portal source and production route validator were included and the development validator was excluded. `tsc --project tsconfig.build.json --noEmit --incremental false` passed.
+- `npm run build` passed with the malformed development validator still present. The first attempt could not reach Google Fonts for the existing Sora font. The retry with network access finished type-checking and generated all 58 static pages.

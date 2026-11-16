@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { approveBankTransfer, attachEmailedTransferProof, downloadTransferReceipt, resendTransferSetup, reviewBankTransfer, uploadTransferReceipt } from '../controllers/bankTransferController.js';
 import { recordHiringOutcome } from '../controllers/hiringOutcomeController.js';
 import multer from 'multer';
-import { authenticate, authorize, requireRecentAdminMfa } from '../middleware/auth.js';
+import { authenticate, authorize, requireAdminConfirmation } from '../middleware/auth.js';
+import { confirmAdminPassword, limitAdminPasswordConfirmation } from '../services/adminPasswordConfirmation.js';
 import { updateLevyPricing } from '../controllers/levyPricingController.js';
 import {
     getDashboardStats,
@@ -14,6 +15,7 @@ import {
     createCohort,
     getCohortWaitlistStatus,
     retryCohortWaitlistDelivery,
+    resendCohortWaitlistAnnouncement,
     updateCohort,
     deleteCohort,
     createModule,
@@ -129,6 +131,7 @@ router.use(authenticate);
 // ─── Admin + Superadmin ───────────────────────────────────────────────────────
 router.use(authorize('admin', 'superadmin'));
 
+router.post('/confirm-password', limitAdminPasswordConfirmation, confirmAdminPassword);
 router.get('/stats', getDashboardStats);
 router.patch('/hiring-outcomes/:kind/:id', recordHiringOutcome);
 router.get('/users', getAdminUsers);
@@ -171,18 +174,18 @@ router.get('/pending-applicants', getPendingApplicants);
 router.post('/pending-applicants/bulk-remind-email', sendBulkPendingApplicantReminders);
 router.post('/pending-applicants/:applicantId/remind-email', sendPendingApplicantReminder);
 router.post('/pending-applicants/:applicantId/upload-cv', handleUpload('cv'), uploadPendingApplicantCv);
-router.post('/pending-applicants/:applicantId/record-manual-payment', requireRecentAdminMfa, handleUpload('receipt'), recordManualPaymentForApplicant);
+router.post('/pending-applicants/:applicantId/record-manual-payment', requireAdminConfirmation, handleUpload('receipt'), recordManualPaymentForApplicant);
 
 // ── Payment Tracking & Resolution ────────────────────────────────────
 router.get('/payments', getAdminPayments);
-router.patch('/levy-pricing', authorize('superadmin'), requireRecentAdminMfa, updateLevyPricing);
+router.patch('/levy-pricing', authorize('superadmin'), requireAdminConfirmation, updateLevyPricing);
 router.get('/payments/:id', getAdminPaymentById);
-router.patch('/payments/:id/resolve', requireRecentAdminMfa, resolvePayment);
+router.patch('/payments/:id/resolve', requireAdminConfirmation, resolvePayment);
 router.get('/payments/:id/bank-transfer/receipt', downloadTransferReceipt);
-router.post('/payments/:id/bank-transfer/proof', requireRecentAdminMfa, uploadTransferReceipt, attachEmailedTransferProof);
-router.post('/payments/:id/bank-transfer/approve', requireRecentAdminMfa, approveBankTransfer);
-router.post('/payments/:id/bank-transfer/review', requireRecentAdminMfa, reviewBankTransfer);
-router.post('/payments/:id/bank-transfer/resend-setup', requireRecentAdminMfa, resendTransferSetup);
+router.post('/payments/:id/bank-transfer/proof', requireAdminConfirmation, uploadTransferReceipt, attachEmailedTransferProof);
+router.post('/payments/:id/bank-transfer/approve', requireAdminConfirmation, approveBankTransfer);
+router.post('/payments/:id/bank-transfer/review', requireAdminConfirmation, reviewBankTransfer);
+router.post('/payments/:id/bank-transfer/resend-setup', requireAdminConfirmation, resendTransferSetup);
 
 // ── Waitlist Management ──────────────────────────────────────────────
 router.get('/waitlist', getWaitlist);
@@ -192,6 +195,7 @@ router.get('/cohorts', getCohorts);
 router.post('/cohorts', createCohort);
 router.get('/cohorts/:id/waitlist', getCohortWaitlistStatus);
 router.post('/cohorts/:id/waitlist/retry', retryCohortWaitlistDelivery);
+router.post('/cohorts/:id/waitlist/resend', requireAdminConfirmation, resendCohortWaitlistAnnouncement);
 router.patch('/cohorts/:id', updateCohort);
 router.delete('/cohorts/:id', deleteCohort);
 
@@ -231,10 +235,10 @@ router.post('/assessments/:id/submissions/reset', resetAttempts);
 
 // ─── Superadmin Only — Coupon Code Management ─────────────────────────────────
 router.get('/coupons',          authorize('superadmin'), getAdminCoupons);
-router.post('/coupons',         authorize('superadmin'), requireRecentAdminMfa, createCoupon);
+router.post('/coupons',         authorize('superadmin'), requireAdminConfirmation, createCoupon);
 router.get('/coupons/:id',      authorize('superadmin'), getCouponById);
-router.patch('/coupons/:id',    authorize('superadmin'), requireRecentAdminMfa, updateCoupon);
-router.delete('/coupons/:id',   authorize('superadmin'), requireRecentAdminMfa, deleteCoupon);
+router.patch('/coupons/:id',    authorize('superadmin'), requireAdminConfirmation, updateCoupon);
+router.delete('/coupons/:id',   authorize('superadmin'), requireAdminConfirmation, deleteCoupon);
 
 // ─── Superadmin Only — Partner Management ─────────────────────────────────────
 // Partner Organizations (direct CRUD & Invite)
