@@ -16,6 +16,7 @@ import {
     getCohortWaitlistStatus,
     retryCohortWaitlistDelivery,
     resendCohortWaitlistAnnouncement,
+    clearConfirmedCohortWaitlist,
     updateCohort,
     deleteCohort,
     createModule,
@@ -196,6 +197,7 @@ router.post('/cohorts', createCohort);
 router.get('/cohorts/:id/waitlist', getCohortWaitlistStatus);
 router.post('/cohorts/:id/waitlist/retry', retryCohortWaitlistDelivery);
 router.post('/cohorts/:id/waitlist/resend', requireAdminConfirmation, resendCohortWaitlistAnnouncement);
+router.post('/cohorts/:id/waitlist/clear-confirmed', requireAdminConfirmation, clearConfirmedCohortWaitlist);
 router.patch('/cohorts/:id', updateCohort);
 router.delete('/cohorts/:id', deleteCohort);
 

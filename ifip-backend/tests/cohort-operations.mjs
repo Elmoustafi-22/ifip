@@ -21,7 +21,9 @@ axios.defaults.adapter = async config => {
   if (email === 'retry@example.invalid' && fail) throw new Error('Simulated provider failure');
   return {data:{messageId:'fixture'},status:201,statusText:'Created',headers:{},config};
 };
-const {createCohort,updateCohort,getDashboardStats,getCohortWaitlistStatus,retryCohortWaitlistDelivery,getPendingApplicants,exportApplicantsCSV}=await import('../src/controllers/adminController.ts');
+const {createCohort,updateCohort,getDashboardStats,getCohortWaitlistStatus,retryCohortWaitlistDelivery,
+ resendCohortWaitlistAnnouncement,clearConfirmedCohortWaitlist,getWaitlist,getPendingApplicants,exportApplicantsCSV
+}=await import('../src/controllers/adminController.ts');
 const {default:cohortRouter}=await import('../src/routes/cohortRoutes.ts');
 const {recordHiringOutcome}=await import('../src/controllers/hiringOutcomeController.ts');
 const {processCohortWaitlist}=await import('../src/services/cohortWaitlist.ts');
@@ -60,7 +62,7 @@ try {
   {email:'opt-out@example.invalid',role:'admin',emailNotificationsEnabled:false},
   {email:'partner@example.invalid',role:'partner'},
  ]);
- await Waitlist.create(['first','retry'].map(name=>({email:name+'@example.invalid',createdAt:new Date(now-10000)})));
+ await Waitlist.create(['first','retry'].map(name=>({email:name+'@example.invalid',createdAt:new Date(now-day-10000)})));
  const input={name:' New & Cohort ',registrationStartDate:new Date(now-day),registrationEndDate:new Date(now+day),cohortCap:5,notifyWaitlist:true};
  assert.equal((await call(createCohort,{body:{...input,cohortCap:0}})).status,400);
  const created=await call(createCohort,{body:{...input,registrationStartDate:new Date(now+day/2)}});
@@ -90,7 +92,8 @@ try {
  assert.equal(openIntake.body.cohortName,'New & Cohort');
  assert.equal(openIntake.body.cohortStartDate,undefined);
  assert.equal((await call(createCohort,{body:{...input,name:'Overlapping'}})).status,409);
- await Waitlist.create({email:'later@example.invalid',createdAt:new Date(now+5000)});
+ await Waitlist.create({email:'later@example.invalid',createdAt:new Date(now-5000)});
+ await Waitlist.create({email:'boundary@example.invalid',createdAt:input.registrationStartDate});
  await Promise.all([processCohortWaitlist(),processCohortWaitlist()]);
  assert.deepEqual(sent.map(item=>item.email).sort(),['first@example.invalid','retry@example.invalid']);
  const formatDate = date => date.toLocaleDateString('en-NG',{dateStyle:'long',timeZone:'Africa/Lagos'});
@@ -103,11 +106,11 @@ try {
  assert.match(sent[0].payload.htmlContent,/New &amp; Cohort/);
  assert.match(sent[0].payload.htmlContent,/\/apply/);
  assert.match(sent[0].payload.htmlContent,/training start date will be announced later/);
- assert.deepEqual((await call(getCohortWaitlistStatus,{params})).body,{pending:0,sending:0,sent:1,failed:1});
+ assert.deepEqual((await call(getCohortWaitlistStatus,{params})).body,{pending:0,queued:0,sending:0,sent:1,failed:1,readyToClear:1});
  fail=false;
  assert.equal((await call(retryCohortWaitlistDelivery,{params})).status,200);
  await processCohortWaitlist();
- assert.deepEqual((await call(getCohortWaitlistStatus,{params})).body,{pending:0,sending:0,sent:2,failed:0});
+ assert.deepEqual((await call(getCohortWaitlistStatus,{params})).body,{pending:0,queued:0,sending:0,sent:2,failed:0,readyToClear:2});
  assert.equal(sent.filter(item=>item.email==='first@example.invalid').length,1);
  const startDate=new Date(now+2*day);
  assert.equal((await call(updateCohort,{params,body:{startDate:new Date(now)}})).status,400);
@@ -144,6 +147,36 @@ try {
  await waitForAdminEmails(4);
  assert.ok(adminEmails.slice(2).every(item=>item.payload.htmlContent.includes(formatDate(new Date(now+5*day)))));
  console.log('PASS creation emails reach other opted-in admins, independently of waitlist settings');
+
+ assert.equal((await call(getWaitlist,{query:{cohortId:cohort.id}})).body.total,2);
+ assert.equal((await call(getWaitlist,{})).body.total,4);
+ assert.equal((await call(resendCohortWaitlistAnnouncement,{params})).body.queued,0);
+ const duplicateRequests = await Promise.all(Array.from({length:2},()=>call(resendCohortWaitlistAnnouncement,{
+  params,body:{includeSent:true},
+ })));
+ assert.ok(duplicateRequests.every(response=>response.status===202));
+ assert.equal(duplicateRequests.reduce((total,response)=>total+response.body.queued,0),2);
+ assert.equal((await call(getCohortWaitlistStatus,{params})).body.queued,2);
+ assert.equal((await call(clearConfirmedCohortWaitlist,{params})).body.cleared,0);
+ const baselineSends=sent.length;
+ fail=true;
+ await Promise.all([processCohortWaitlist(),processCohortWaitlist()]);
+ assert.equal(sent.length-baselineSends,2);
+ assert.equal((await call(getCohortWaitlistStatus,{params})).body.failed,1);
+ assert.equal((await call(clearConfirmedCohortWaitlist,{params})).body.cleared,1);
+ assert.equal((await call(clearConfirmedCohortWaitlist,{params})).body.cleared,0);
+ assert.equal((await call(getDashboardStats,{query:{cohortId:cohort.id}})).body.waitlistCount,1);
+ const remaining = await call(getWaitlist,{query:{cohortId:cohort.id}});
+ assert.deepEqual(remaining.body.waitlist.map(row=>row.email),['retry@example.invalid']);
+ assert.equal((await call(resendCohortWaitlistAnnouncement,{params})).body.queued,1);
+ fail=false;
+ await processCohortWaitlist();
+ assert.equal((await call(clearConfirmedCohortWaitlist,{params})).body.cleared,1);
+ assert.equal((await call(getCohortWaitlistStatus,{params})).body.sent,2);
+ assert.equal((await call(getWaitlist,{query:{cohortId:cohort.id}})).body.total,0);
+ assert.deepEqual(new Set((await call(getWaitlist,{})).body.waitlist.map(row=>row.email)),
+  new Set(['later@example.invalid','boundary@example.invalid']));
+ console.log('PASS confirmed-only clearing, durable resend, retry, and registration opening cutoff');
 
  const [current, previous, attempted, unmatched, ambiguous, paid] = await Applicant.create([
   {email:'current-draft@example.invalid',country:'Nigeria',currentStep:2,createdAt:new Date(now)},

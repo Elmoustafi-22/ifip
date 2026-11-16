@@ -261,3 +261,12 @@ On 15 November 2026, the user authorized the fix. The authenticated application 
 - Added Professional Certificate and Islamic Finance Workplace Readiness Certificate immediately before Demonstrate readiness in the homepage Program Pathway.
 - From `ifip-frontend`, `node node_modules/eslint/bin/eslint.js components/home/HeroSection.tsx` and `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false` passed.
 - Inline Playwright Chromium verified the wording, row order and wrapping at 320, 375, 768 and 1280 CSS px with API traffic intercepted. The first run timed out during dev compilation. The retry passed. Deployment remains pending.
+
+### Pre-registration waitlist and confirmed clearing
+
+- The selected cohort's overview count, Waitlist page, and email recipients use the saved registration opening timestamp. All Cohorts continues to show the program-wide active list.
+- Edit cohort shows delivery status and can queue a send or retry. Previously sent recipients still on the list can be included explicitly. The existing worker processes the stored queue. Send and clear use the existing admin password confirmation.
+- Clearing removes only active, pre-registration recipients with a recorded provider acceptance for the edited cohort. Failed, unconfirmed and later signups remain. Delivery records remain available for the cohort's sent count.
+- Backend `node node_modules/typescript/bin/tsc --noEmit --incremental false`, frontend `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false`, and targeted ESLint for `components/admin/CohortWaitlistControls.tsx` passed.
+- Backend `node --import tsx tests/cohort-operations.mjs` passed on a disposable MongoDB replica set with an intercepted email provider. It covered the opening-date boundary, concurrent enqueue and worker calls, retry, confirmed-only clearing, and preservation of later signups. The admin MFA harness passed on the same disposable replica set using a loopback URI override and verified password confirmation on both waitlist mutations.
+- Inline Chromium with intercepted APIs passed the edit modal at 375 CSS px, including password confirmation, queued-to-sent status polling, clearing one confirmed recipient while a failed send remains, and overview refresh. The linked Waitlist page requested the selected cohort. The overview fit at 375 and 1280 CSS px. Scoped `git diff --check` passed. Live provider and staging verification remain open.

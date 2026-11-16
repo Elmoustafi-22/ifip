@@ -42,6 +42,7 @@ See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and 
 
 - **Cohort operations implemented locally.** All-cohort overview, cohort creation, waitlist announcements, and admin hiring outcomes passed local checks. See the [verification and staging gaps](PROGRESS.md#admin-dashboard-cohort-operations-proposal).
 - **Waitlist announcement copy updated.** The email and preview show the scheduled registration dates and link to current availability. [Verification](PROGRESS.md#waitlist-registration-copy)
+- **Pre-registration waitlist and confirmed clearing implemented locally.** Edit cohort can send or resend email, track provider acceptance, and clear confirmed recipients. See [verification](PROGRESS.md#pre-registration-waitlist-and-confirmed-clearing).
 - **Cohort creation email implemented locally.** Other admins and superadmins with email notifications enabled receive a formatted email when a cohort is saved. [Verification](PROGRESS.md#cohort-creation-email)
 - **Optional training dates verified locally.** Registration can open before training is scheduled. Editors can add either training date later. See the [verification](PROGRESS.md#optional-cohort-training-dates).
 - **In-session admin password confirmation implemented locally.** Levy prices and other protected admin actions resume after password confirmation. See the [verification](PROGRESS.md#in-session-admin-password-confirmation).

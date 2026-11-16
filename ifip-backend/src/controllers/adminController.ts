@@ -29,7 +29,7 @@ import { logAction, logRawAction } from '../utils/auditLogger.js';
 import { executeApplicationSubmission } from './applicantController.js';
 import { validateWeekForCohort, countContentBeyondWeek, MAX_TOTAL_WEEKS } from '../utils/cohortWeeks.js';
 import { CohortWaitlistDelivery } from '../models/CohortWaitlistDelivery.js';
-import { retryCohortWaitlist } from '../services/cohortWaitlist.js';
+import { beforeCohortRegistration, queueCohortWaitlistResend, retryCohortWaitlist } from '../services/cohortWaitlist.js';
 import { updateContentVersion } from './contentVersionController.js';
 
 // Step labels for the registration funnel
@@ -124,9 +124,9 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         const completedCount = await Application.countDocuments({ ...filter, status: 'completed' });
         let waitlistCount: number;
         if (cohortId && cohortId !== 'unassigned' && Types.ObjectId.isValid(cohortId as string)) {
-            const cohortDoc = await Cohort.findById(cohortId).select('createdAt').lean();
+            const cohortDoc = await Cohort.findById(cohortId).select('createdAt registrationStartDate').lean();
             waitlistCount = cohortDoc
-                ? await Waitlist.countDocuments({ createdAt: { $lt: cohortDoc.createdAt } })
+                ? await Waitlist.countDocuments(beforeCohortRegistration(cohortDoc))
                 : 0;
         } else {
             waitlistCount = await Waitlist.countDocuments();
@@ -536,13 +536,24 @@ async function validateCohortIntake(cohort: InstanceType<typeof Cohort>, res: Re
 export const getCohortWaitlistStatus = async (req: Request, res: Response) => {
     const cohort = await Cohort.findById(req.params.id);
     if (!cohort) { res.status(404).json({ message: 'Cohort not found.' }); return; }
-    const [eligible, sending, sent, failed] = await Promise.all([
-        Waitlist.countDocuments({ createdAt: { $lt: cohort.createdAt } }),
-        CohortWaitlistDelivery.countDocuments({ cohortId: cohort._id, status: 'sending' }),
+    const [counts, sent] = await Promise.all([
+        Waitlist.aggregate<{ _id: string; count: number }>([
+            { $match: beforeCohortRegistration(cohort) },
+            { $project: { deliveryId: { $concat: [`${cohort._id}:`, { $toString: '$_id' }] } } },
+            { $lookup: { from: CohortWaitlistDelivery.collection.name, localField: 'deliveryId', foreignField: '_id', as: 'delivery' } },
+            { $group: { _id: { $ifNull: [{ $first: '$delivery.status' }, 'pending'] }, count: { $sum: 1 } } },
+        ]),
         CohortWaitlistDelivery.countDocuments({ cohortId: cohort._id, status: 'sent' }),
-        CohortWaitlistDelivery.countDocuments({ cohortId: cohort._id, status: 'failed' }),
     ]);
-    res.json({ pending: Math.max(0, eligible - sending - sent - failed), sending, sent, failed });
+    const active = Object.fromEntries(counts.map(({ _id, count }) => [_id, count]));
+    res.json({
+        pending: active.pending ?? 0,
+        queued: active.queued ?? 0,
+        sending: active.sending ?? 0,
+        sent,
+        failed: active.failed ?? 0,
+        readyToClear: active.sent ?? 0,
+    });
 };
 
 export const retryCohortWaitlistDelivery = async (req: Request, res: Response) => {
@@ -557,12 +568,24 @@ export const resendCohortWaitlistAnnouncement = async (req: Request, res: Respon
     try {
         const cohort = await Cohort.findById(req.params.id);
         if (!cohort) { res.status(404).json({ message: 'Cohort not found.' }); return; }
-        const { forceResendCohortWaitlist } = await import('../services/cohortWaitlist.js');
-        const result = await forceResendCohortWaitlist(String(cohort._id));
-        logAction(req, 'COHORT_WAITLIST_RESEND', `Resent waitlist notice for "${cohort.name}" — ${result.queued} queued.`);
-        res.json({ message: `Waitlist notice queued for ${result.queued} recipient(s).`, queued: result.queued });
+        const queued = await queueCohortWaitlistResend(cohort, req.body?.includeSent === true);
+        logAction(req, 'COHORT_WAITLIST_RESEND', `Queued ${queued} waitlist notices for "${cohort.name}".`);
+        res.status(202).json({ message: `Waitlist notice queued for ${queued} recipient(s).`, queued });
     } catch (e: any) {
         res.status(500).json({ message: 'Failed to resend waitlist announcement.', error: e.message });
+    }
+};
+
+export const clearConfirmedCohortWaitlist = async (req: Request, res: Response) => {
+    try {
+        const cohort = await Cohort.findById(req.params.id).select('name createdAt registrationStartDate').lean();
+        if (!cohort) { res.status(404).json({ message: 'Cohort not found.' }); return; }
+        const confirmed = await CohortWaitlistDelivery.distinct('waitlistId', { cohortId: cohort._id, status: 'sent' });
+        const { deletedCount } = await Waitlist.deleteMany({ ...beforeCohortRegistration(cohort), _id: { $in: confirmed } });
+        logAction(req, 'COHORT_WAITLIST_CLEAR_CONFIRMED', `Cleared ${deletedCount} confirmed waitlist recipients for "${cohort.name}".`);
+        res.json({ cleared: deletedCount });
+    } catch {
+        res.status(500).json({ message: 'Could not clear confirmed recipients. Try again.' });
     }
 };
 
@@ -1896,13 +1919,22 @@ export const recordManualPaymentForApplicant = async (req: Request, res: Respons
 // Returns paginated list of waitlisted candidates with search and sorting.
 export const getWaitlist = async (req: Request, res: Response) => {
     try {
-        const { search, page = '1', limit = '50' } = req.query;
+        const { search, cohortId, page = '1', limit = '50' } = req.query;
 
         const pageNum = Math.max(1, parseInt(page as string, 10));
         const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
         const skip = (pageNum - 1) * limitNum;
 
         const query: any = {};
+        if (cohortId && cohortId !== 'unassigned') {
+            if (typeof cohortId !== 'string' || !Types.ObjectId.isValid(cohortId)) {
+                res.status(400).json({ message: 'Invalid cohort.' });
+                return;
+            }
+            const cohort = await Cohort.findById(cohortId).select('createdAt registrationStartDate').lean();
+            if (!cohort) { res.status(404).json({ message: 'Cohort not found.' }); return; }
+            Object.assign(query, beforeCohortRegistration(cohort));
+        }
         if (search) {
             query.email = new RegExp((search as string).trim(), 'i');
         }

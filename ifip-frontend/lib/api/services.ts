@@ -1044,8 +1044,17 @@ export const createCohort = async (payload: {
   return data;
 };
 
+export interface CohortWaitlistStatus {
+  pending: number;
+  queued: number;
+  sending: number;
+  sent: number;
+  failed: number;
+  readyToClear: number;
+}
+
 export async function getCohortWaitlistStatus(id: string) {
-  const { data } = await authClient.get<{ pending: number; sending: number; sent: number; failed: number }>(`/admin/cohorts/${id}/waitlist`);
+  const { data } = await authClient.get<CohortWaitlistStatus>(`/admin/cohorts/${id}/waitlist`);
   return data;
 }
 
@@ -1053,8 +1062,13 @@ export async function retryCohortWaitlist(id: string) {
   await authClient.post(`/admin/cohorts/${id}/waitlist/retry`);
 }
 
-export async function resendCohortWaitlist(id: string): Promise<{ message: string; queued: number }> {
-  const { data } = await authClient.post<{ message: string; queued: number }>(`/admin/cohorts/${id}/waitlist/resend`);
+export async function resendCohortWaitlist(id: string, includeSent: boolean) {
+  const { data } = await authClient.post<{ message: string; queued: number }>(`/admin/cohorts/${id}/waitlist/resend`, { includeSent });
+  return data;
+}
+
+export async function clearConfirmedCohortWaitlist(id: string) {
+  const { data } = await authClient.post<{ cleared: number }>(`/admin/cohorts/${id}/waitlist/clear-confirmed`);
   return data;
 }
 
@@ -1956,6 +1970,7 @@ export interface WaitlistResponse {
 }
 
 export const getAdminWaitlist = async (params?: {
+  cohortId?: string;
   search?: string;
   page?: number;
   limit?: number;

@@ -2,15 +2,33 @@ import cron from 'node-cron';
 import { Types } from 'mongoose';
 import { CohortWaitlistDelivery } from '../models/CohortWaitlistDelivery.js';
 import { Waitlist } from '../models/Waitlist.js';
+import { Cohort, type ICohort } from '../models/Cohort.js';
 import { checkCohortCapacity, getActiveRegistrationCohort } from '../controllers/paymentController.js';
 import { sendCohortAvailabilityEmail } from './emailService.js';
 
+export const beforeCohortRegistration = (cohort: Pick<ICohort, 'registrationStartDate' | 'createdAt'>) => ({
+    createdAt: { $lt: cohort.registrationStartDate ?? cohort.createdAt },
+});
+
 export const processCohortWaitlist = async () => {
+    const queued = await CohortWaitlistDelivery.find({ status: 'queued' }).sort({ createdAt: 1 }).limit(100).lean();
+    for (const delivery of queued) {
+        const [cohort, recipient] = await Promise.all([
+            Cohort.findById(delivery.cohortId).lean(),
+            Waitlist.findById(delivery.waitlistId).lean(),
+        ]);
+        if (!cohort || !recipient) {
+            await CohortWaitlistDelivery.deleteOne({ _id: delivery._id, status: 'queued' });
+            continue;
+        }
+        await deliverCohortAnnouncement(cohort, recipient, true);
+    }
+
     const active = await getActiveRegistrationCohort();
     if (!active?.notifyWaitlist || (await checkCohortCapacity(active._id)).isFull) return;
 
     const attempted = await CohortWaitlistDelivery.find({ cohortId: active._id }).distinct('waitlistId');
-    const recipients = await Waitlist.find({ createdAt: { $lt: active.createdAt }, _id: { $nin: attempted } })
+    const recipients = await Waitlist.find({ ...beforeCohortRegistration(active), _id: { $nin: attempted } })
         .sort({ createdAt: 1 }).limit(100);
 
     for (const recipient of recipients) {
@@ -22,13 +40,19 @@ export const processCohortWaitlist = async () => {
 async function deliverCohortAnnouncement(
     cohort: { _id: Types.ObjectId; name: string; registrationStartDate: Date; registrationEndDate: Date; startDate?: Date | null },
     recipient: { _id: Types.ObjectId; email: string },
+    queued = false,
 ) {
     const id = `${cohort._id}:${recipient._id}`;
-    try {
-        await CohortWaitlistDelivery.create({ _id: id, cohortId: cohort._id, waitlistId: recipient._id, status: 'sending' });
-    } catch (error) {
-        if ((error as { code?: number }).code === 11000) return;
-        throw error;
+    if (queued) {
+        const claim = await CohortWaitlistDelivery.updateOne({ _id: id, status: 'queued' }, { $set: { status: 'sending' } });
+        if (!claim.modifiedCount) return;
+    } else {
+        try {
+            await CohortWaitlistDelivery.create({ _id: id, cohortId: cohort._id, waitlistId: recipient._id, status: 'sending' });
+        } catch (error) {
+            if ((error as { code?: number }).code === 11000) return;
+            throw error;
+        }
     }
 
     let status = 'sent';
@@ -57,33 +81,22 @@ export const retryCohortWaitlist = async (cohortId: string) => {
     return true;
 };
 
-/**
- * Force-resend the cohort availability announcement to all previous-waitlist
- * emails for any cohort (not restricted to the currently active one).
- * Clears all existing delivery records then immediately delivers to all eligible
- * addresses (created before this cohort) in the background.
- */
-export const forceResendCohortWaitlist = async (cohortId: string): Promise<{ queued: number }> => {
-    const { Cohort } = await import('../models/Cohort.js');
-    const cohort = await Cohort.findById(cohortId).lean();
-    if (!cohort) return { queued: 0 };
-
-    // Clear previous delivery attempts so we start fresh
-    await CohortWaitlistDelivery.deleteMany({ cohortId });
-
-    // Flag cohort so status endpoint reports correctly
-    await Cohort.updateOne({ _id: cohortId }, { $set: { notifyWaitlist: true } });
-
-    // Fetch all eligible waitlist addresses (joined before this cohort was created)
-    const recipients = await Waitlist.find({ createdAt: { $lt: cohort.createdAt } })
-        .sort({ createdAt: 1 });
-
-    // Deliver in background so the HTTP response returns quickly
-    void (async () => {
-        for (const recipient of recipients) {
-            await deliverCohortAnnouncement(cohort as any, recipient);
+export const queueCohortWaitlistResend = async (cohort: ICohort, includeSent: boolean) => {
+    const recipientIds = await Waitlist.distinct('_id', beforeCohortRegistration(cohort));
+    const retryable = includeSent ? ['failed', 'sent'] as const : ['failed'] as const;
+    let queued = 0;
+    for (const waitlistId of recipientIds) {
+        try {
+            const result = await CohortWaitlistDelivery.updateOne(
+                { _id: `${cohort._id}:${waitlistId}`, status: { $in: retryable } },
+                { $set: { status: 'queued' }, $setOnInsert: { cohortId: cohort._id, waitlistId } },
+                { upsert: true },
+            );
+            queued += result.modifiedCount + result.upsertedCount;
+        } catch (error) {
+            // Another request queued the recipient, or delivery already started or succeeded.
+            if ((error as { code?: number }).code !== 11000) throw error;
         }
-    })();
-
-    return { queued: recipients.length };
+    }
+    return queued;
 };

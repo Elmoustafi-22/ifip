@@ -102,6 +102,7 @@ async function verifyAdminPasswordFlow(admin, superadmin, participant) {
             ['POST', '/payments/example/bank-transfer/review'],
             ['POST', '/payments/example/bank-transfer/resend-setup'],
             ['POST', '/cohorts/example/waitlist/resend'],
+            ['POST', '/cohorts/example/waitlist/clear-confirmed'],
             ['POST', '/coupons'],
             ['PATCH', '/coupons/example'],
             ['DELETE', '/coupons/example'],

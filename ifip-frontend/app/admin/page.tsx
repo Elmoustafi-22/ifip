@@ -24,6 +24,7 @@ import { useContext } from "react";
 import { AdminCohortContext } from "./layout";
 import LevyPricingForm from "@/components/admin/LevyPricingForm";
 import ExportApplicantsModal from "@/components/admin/ExportApplicantsModal";
+import CohortWaitlistControls from "@/components/admin/CohortWaitlistControls";
 import { 
   getAdminStats, 
   getCohortConfig, 
@@ -36,7 +37,6 @@ import {
   getAdminWaitlist,
   getCohortWaitlistStatus,
   retryCohortWaitlist,
-  resendCohortWaitlist,
   AdminStats, 
   AnonApplicant,
   Cohort,
@@ -101,9 +101,7 @@ export default function AdminDashboardPage() {
   const [savedCohortId, setSavedCohortId] = useState<string | null>(null);
   const [cohortError, setCohortError] = useState("");
   const [announcement, setAnnouncement] = useState<{ cohort: Cohort; counts: Awaited<ReturnType<typeof getCohortWaitlistStatus>> } | null>(null);
-  const [resendingWaitlist, setResendingWaitlist] = useState(false);
-  const [resendStatus, setResendStatus] = useState<{ queued: number; sent: number; failed: number; sending: number } | null>(null);
-  const [resendMessage, setResendMessage] = useState("");
+  const scopedWaitlist = Boolean(selectedCohortId && selectedCohortId !== "unassigned");
 
   const allMetrics = Object.values(stats?.cohortMetrics ?? {});
   const currentMetrics = selectedCohortId ? [stats?.cohortMetrics?.[selectedCohortId]] : allMetrics;
@@ -235,44 +233,7 @@ export default function AdminDashboardPage() {
     setNewCohortCap(cohort.cohortCap || 100);
     setNewCohortTotalWeeks(cohort.totalWeeks || 4);
     setNewCohortStatus(cohort.status);
-    // Reset resend state whenever opening a fresh edit
-    setResendingWaitlist(false);
-    setResendStatus(null);
-    setResendMessage("");
-    // Pre-load delivery status if waitlist was ever enabled
-    if (cohort.notifyWaitlist) {
-      void getCohortWaitlistStatus(cohort._id).then(counts => setResendStatus({ ...counts, queued: counts.pending })).catch(() => {});
-    }
     setModalOpen(true);
-  };
-
-  const handleResendWaitlistNotice = async () => {
-    if (!editingCohortItem || resendingWaitlist) return;
-    setResendingWaitlist(true);
-    setResendMessage("");
-    try {
-      const result = await resendCohortWaitlist(editingCohortItem._id);
-      setResendMessage(`✓ Queued for ${result.queued} recipient(s). Delivery runs in the background — refresh status below to track progress.`);
-      // Refresh delivery counts after a short delay
-      setTimeout(async () => {
-        try {
-          const counts = await getCohortWaitlistStatus(editingCohortItem._id);
-          setResendStatus({ ...counts, queued: counts.pending });
-        } catch { /* ignore */ }
-      }, 3000);
-    } catch (err: any) {
-      setResendMessage(`✗ ${err?.response?.data?.message || "Failed to resend. Try again."}`);
-    } finally {
-      setResendingWaitlist(false);
-    }
-  };
-
-  const handleRefreshResendStatus = async () => {
-    if (!editingCohortItem) return;
-    try {
-      const counts = await getCohortWaitlistStatus(editingCohortItem._id);
-      setResendStatus({ ...counts, queued: counts.pending });
-    } catch { /* ignore */ }
   };
 
   const handleSubmitCohort = async (e: React.FormEvent) => {
@@ -393,7 +354,7 @@ export default function AdminDashboardPage() {
       </div>}
       {announcement && <section aria-label="Waitlist delivery" className="mb-4 space-y-2 rounded-lg border border-slate-200 bg-white p-4 text-sm">
         <h2 className="font-bold">{announcement.cohort.name} waitlist delivery</h2>
-        <p>{announcement.counts.pending} pending · {announcement.counts.sending} sending · {announcement.counts.sent} sent · {announcement.counts.failed} failed</p>
+        <p>{announcement.counts.pending} pending · {announcement.counts.queued} queued · {announcement.counts.sending} sending · {announcement.counts.sent} sent · {announcement.counts.failed} failed</p>
         <div className="flex flex-wrap gap-4 text-[#000666]">
           <button type="button" className="underline" onClick={() => showWaitlistDelivery(announcement.cohort)}>Refresh status</button>
           {announcement.counts.failed > 0 && <button type="button" className="underline" onClick={() => showWaitlistDelivery(announcement.cohort, true)}>Retry failed sends</button>}
@@ -441,7 +402,7 @@ export default function AdminDashboardPage() {
             className="bg-white border border-slate-200/80 rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-amber-300 transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between mb-3 text-slate-400">
-              <span className="text-[10px] font-bold uppercase tracking-wider group-hover:text-amber-600 transition-colors">Program-wide waitlist</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider group-hover:text-amber-600 transition-colors">{scopedWaitlist ? "Pre-registration waitlist" : "Program-wide waitlist"}</span>
               <HiOutlineInboxStack className="w-5 h-5 text-rose-500 group-hover:scale-110 transition-transform" />
             </div>
             <div className="text-2xl font-black text-[#000666]">{stats.waitlistCount}</div>
@@ -646,7 +607,7 @@ export default function AdminDashboardPage() {
               href="/admin/waitlist"
               className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-amber-300 transition-all flex flex-col justify-between cursor-pointer group"
             >
-              <span className="text-[9px] uppercase font-bold text-slate-400 group-hover:text-amber-600 transition-colors tracking-wider">Waitlist Volume</span>
+              <span className="text-[9px] uppercase font-bold text-slate-400 group-hover:text-amber-600 transition-colors tracking-wider">{scopedWaitlist ? "Pre-registration waitlist" : "Program-wide waitlist"}</span>
               <div className="mt-2">
                 <span className="text-xl font-display font-black text-amber-600">{stats?.waitlistCount || 0}</span>
                 <span className="text-[10px] text-slate-500 font-bold block mt-0.5">Inquiries &rarr;</span>
@@ -1256,7 +1217,7 @@ export default function AdminDashboardPage() {
                     Notify existing waitlist when registration opens
                   </label>
                   {notifyWaitlist && <>
-                    <p>{recipientCount === null ? "Recipients are determined when the cohort is created." : `${recipientCount} currently waitlisted. The cutoff is the time this cohort is created.`}</p>
+                    <p>{recipientCount === null ? "" : `${recipientCount} currently waitlisted. `}The email goes to recipients still on the list who joined before registration opens.</p>
                     <details><summary className="cursor-pointer font-semibold">Preview email</summary>
                       <p className="mt-2 font-semibold">Registration dates for {newCohortName.trim() || "[cohort name]"}</p>
                       <p className="mt-1">You’re receiving this because you joined the IFIP waitlist.</p>
@@ -1266,6 +1227,13 @@ export default function AdminDashboardPage() {
                     </details>
                   </>}
                 </div>
+              )}
+              {editingCohortItem && (
+                <CohortWaitlistControls
+                  key={editingCohortItem._id}
+                  cohortId={editingCohortItem._id}
+                  onCleared={() => void fetchAdminDashboard()}
+                />
               )}
               {cohortError && <p role="alert" className="text-red-700">{cohortError}</p>}
               <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">

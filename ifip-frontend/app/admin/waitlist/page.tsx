@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useContext, useEffect, useState, useCallback } from "react";
 import {
   HiOutlineInboxStack,
   HiOutlineMagnifyingGlass,
@@ -16,8 +16,15 @@ import {
   HiOutlineEnvelope,
 } from "react-icons/hi2";
 import { getAdminWaitlist, deleteWaitlistEntry, WaitlistEntry } from "@/lib/api/services";
+import { AdminCohortContext } from "../layout";
 
 export default function AdminWaitlistPage() {
+  const { selectedCohortId, cohorts } = useContext(AdminCohortContext);
+  const cohort = cohorts.find(item => item._id === selectedCohortId);
+  return <Waitlist key={cohort?._id ?? ""} cohortId={cohort?._id} cohortName={cohort?.name} />;
+}
+
+function Waitlist({ cohortId, cohortName }: { cohortId?: string; cohortName?: string }) {
   const [entries, setEntries] = useState<WaitlistEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -35,6 +42,7 @@ export default function AdminWaitlistPage() {
     setLoading(true);
     try {
       const res = await getAdminWaitlist({
+        cohortId,
         page: pageNum,
         limit,
         search: searchQuery.trim() || undefined,
@@ -49,7 +57,7 @@ export default function AdminWaitlistPage() {
     } finally {
       setLoading(false);
     }
-  }, [limit, search]);
+  }, [cohortId, limit, search]);
 
   useEffect(() => {
     fetchWaitlist(page, search);
@@ -186,7 +194,7 @@ export default function AdminWaitlistPage() {
             Waitlist Inquiries
           </h1>
           <p className="text-slate-500 text-sm">
-            Candidates who requested priority notifications when upcoming cohorts open for registration.
+            {cohortName ? `Recipients still on the waitlist who joined before registration opened for ${cohortName}.` : "Recipients still on the program-wide waitlist."}
           </p>
         </div>
 
