@@ -255,3 +255,9 @@ On 15 November 2026, the user authorized the fix. The authenticated application 
 - The second hero action reads **Apply to host interns** and links to the existing partnership application at `/partners/apply`.
 - From `ifip-frontend`, `node node_modules/eslint/bin/eslint.js components/home/HeroSection.tsx` and `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false` passed. The default type check hit the existing malformed `.next/dev/types/validator.ts`.
 - `git diff --check` passed for the edited files. Inline Playwright Chromium reached the local homepage, but the dev server refused the connection on the retry. Responsive layout and click-through remain unverified.
+
+### Homepage Professional Certificate
+
+- Added Professional Certificate and Islamic Finance Workplace Readiness Certificate immediately before Demonstrate readiness in the homepage Program Pathway.
+- From `ifip-frontend`, `node node_modules/eslint/bin/eslint.js components/home/HeroSection.tsx` and `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false` passed.
+- Inline Playwright Chromium verified the wording, row order and wrapping at 320, 375, 768 and 1280 CSS px with API traffic intercepted. The first run timed out during dev compilation. The retry passed. Deployment remains pending.

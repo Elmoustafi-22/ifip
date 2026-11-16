@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { TbArrowUpRight, TbBook, TbBriefcase, TbClipboardCheck } from "react-icons/tb";
+import { TbArrowUpRight, TbBook, TbBriefcase, TbCertificate, TbClipboardCheck } from "react-icons/tb";
 import apiClient from "@/lib/api/client";
 import type { RegistrationStatus } from "@/lib/api/services";
 
 const stages = [
   { icon: TbBook, title: "Prepare", detail: "Four weeks of virtual training." },
   { icon: TbBriefcase, title: "Practice", detail: "Workplace skills and simulations." },
+  { icon: TbCertificate, title: "Professional Certificate", detail: "Islamic Finance Workplace Readiness Certificate" },
   { icon: TbClipboardCheck, title: "Demonstrate readiness", detail: "Assessment and placement consideration." },
 ];
 
