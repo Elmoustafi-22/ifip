@@ -31,7 +31,7 @@ import {
   HiArrowLeftOnRectangle,
 } from "react-icons/hi2";
 import { getMyApplication, getCohorts, Cohort } from "@/lib/api/services";
-import { clearAuth, logout, startSilentRefresh, stopSilentRefresh } from "@/lib/api/auth";
+import { clearAuth, getAccessToken, logout, startSilentRefresh, stopSilentRefresh } from "@/lib/api/auth";
 import NotificationBell from "@/components/NotificationBell";
 import AdminPasswordDialog from "@/components/admin/AdminPasswordDialog";
 
@@ -113,6 +113,7 @@ const NAV_GROUPS = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [authorized, setAuthorized]     = useState(false);
   const [loading, setLoading]           = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [cohorts, setCohorts]           = useState<Cohort[]>([]);
   const [selectedCohortId, setSelectedCohortId] = useState("");
   const [adminRole, setAdminRole]       = useState("admin");
@@ -141,43 +142,40 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [profile, cohortsList] = await Promise.all([
-          getMyApplication(),
-          getCohorts(),
-        ]);
-        if (profile && (profile.role === "admin" || profile.role === "superadmin")) {
-          setAuthorized(true);
-          setAdminRole(profile.role);
-          setAdminName(profile.fullName || "Admin");
-          setAdminAvatarUrl(profile.avatarUrl);
-          setCohorts(cohortsList);
-          const saved = sessionStorage.getItem("adminSelectedCohortId");
-          const newestFirst = [...cohortsList].sort((a, b) =>
-            (Date.parse(b.createdAt ?? b.startDate ?? "") || 0) - (Date.parse(a.createdAt ?? a.startDate ?? "") || 0)
-          );
-          const now = Date.now();
-          const current = newestFirst.find(cohort => cohort.status === "upcoming" &&
-            Date.parse(cohort.registrationStartDate) <= now && Date.parse(cohort.registrationEndDate) >= now)
-            ?? newestFirst.find(cohort => cohort.status === "active")
-            ?? newestFirst[0];
-          const savedIsValid = saved === "" || saved === "unassigned" || cohortsList.some(cohort => cohort._id === saved);
-          setSelectedCohortId(savedIsValid ? saved ?? "" : current?._id ?? "");
-        } else {
-          router.push("/dashboard?error=unauthorized");
-        }
-      } catch {
-        router.push("/login?session=expired");
-      } finally {
-        setLoading(false);
+  const loadAdmin = useCallback(() => {
+    return Promise.all([getMyApplication(), getCohorts()]).then(([profile, cohortsList]) => {
+      if (profile && (profile.role === "admin" || profile.role === "superadmin")) {
+        setAuthorized(true);
+        setAdminRole(profile.role);
+        setAdminName(profile.fullName || "Admin");
+        setAdminAvatarUrl(profile.avatarUrl);
+        setCohorts(cohortsList);
+        const saved = sessionStorage.getItem("adminSelectedCohortId");
+        const newestFirst = [...cohortsList].sort((a, b) =>
+          (Date.parse(b.createdAt ?? b.startDate ?? "") || 0) - (Date.parse(a.createdAt ?? a.startDate ?? "") || 0)
+        );
+        const now = Date.now();
+        const current = newestFirst.find(cohort => cohort.status === "upcoming" &&
+          Date.parse(cohort.registrationStartDate) <= now && Date.parse(cohort.registrationEndDate) >= now)
+          ?? newestFirst.find(cohort => cohort.status === "active")
+          ?? newestFirst[0];
+        const savedIsValid = saved === "" || saved === "unassigned" || cohortsList.some(cohort => cohort._id === saved);
+        setSelectedCohortId(savedIsValid ? saved ?? "" : current?._id ?? "");
+      } else {
+        router.push("/dashboard?error=unauthorized");
       }
-    })();
+    }).catch(() => {
+      if (getAccessToken()) setLoadFailed(true);
+      else router.push("/login?session=expired");
+    }).finally(() => {
+      setLoading(false);
+    });
   }, [router]);
 
-  // Proactive silent token refresh — renews the access token 2 min before it
-  // expires so the admin never experiences a 401 mid-session.
+  useEffect(() => {
+    void loadAdmin();
+  }, [loadAdmin]);
+
   useEffect(() => {
     if (!authorized) return;
     startSilentRefresh();
@@ -204,6 +202,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
         <p className="text-slate-500 font-medium text-sm">Authenticating admin session...</p>
+      </div>
+    );
+  }
+
+  if (loadFailed) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#FDFBF7] px-4 text-center">
+        <p role="alert">Could not load the admin dashboard. Try again.</p>
+        <button
+          type="button"
+          onClick={() => {
+            setLoading(true);
+            setLoadFailed(false);
+            void loadAdmin();
+          }}
+          className="rounded bg-[#000666] px-4 py-2 text-sm font-medium text-white"
+        >
+          Try again
+        </button>
       </div>
     );
   }

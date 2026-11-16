@@ -5,44 +5,12 @@
  * concerns. Pages import named functions from this file instead of calling
  * fetch/axios directly.
  *
- * Token storage strategy:
- *   - "remember me" → localStorage (persists across sessions)
- *   - default       → sessionStorage (cleared when the tab closes)
- *
- * The httpOnly refreshToken cookie is managed server-side and is forwarded
- * automatically by the authClient (withCredentials: true).
  */
 
-import { authClient } from "./client";
+import { authClient, clearAuth, getAccessToken, refreshAccessToken, storeAccessToken, storeRefreshToken } from "./client";
 import type { AuthResponse, ForgotPasswordResponse } from "./types";
 
-// ── Token helpers (exported so pages can read/clear without touching storage directly) ──
-
-export const getAccessToken = (): string | null =>
-  (typeof window !== "undefined"
-    ? localStorage.getItem("accessToken") ?? sessionStorage.getItem("accessToken")
-    : null);
-
-export const storeAccessToken = (token: string, _remember = false): void => {
-  if (typeof window === "undefined") return;
-  localStorage.setItem("accessToken", token);
-  sessionStorage.removeItem("accessToken");
-};
-
-/** Store the refresh token as a fallback for environments where the
- *  httpOnly cookie isn't forwarded (e.g. cross-origin SameSite:lax in dev). */
-export const storeRefreshToken = (token: string): void => {
-  if (typeof window === "undefined" || !token) return;
-  localStorage.setItem("refreshToken", token);
-};
-
-export const clearAuth = (): void => {
-  if (typeof window === "undefined") return;
-  sessionStorage.removeItem("accessToken");
-  localStorage.removeItem("accessToken");
-  localStorage.removeItem("refreshToken");
-  sessionStorage.removeItem("adminSelectedCohortId");
-};
+export { clearAuth, getAccessToken, storeAccessToken, storeRefreshToken } from "./client";
 
 // ── Auth API calls ────────────────────────────────────────────────────────────
 
@@ -94,18 +62,6 @@ export const setPassword = async (
  */
 export const getTokenInfo = async (token: string): Promise<{ email: string; role?: string }> => {
   const { data } = await authClient.get<{ email: string; role?: string }>(`/auth/token-info?token=${encodeURIComponent(token)}`);
-  return data;
-};
-
-/**
- * POST /auth/refresh
- * Uses the httpOnly refreshToken cookie managed server-side to issue a new access token.
- */
-export const refreshAccessToken = async (): Promise<AuthResponse> => {
-  const { data } = await authClient.post<AuthResponse>("/auth/refresh", {});
-  if (data.accessToken) {
-    storeAccessToken(data.accessToken, false);
-  }
   return data;
 };
 
@@ -212,18 +168,15 @@ export const mfaDisable = async (code: string): Promise<{ message: string }> => 
 
 // ── Silent proactive token refresh ──────────────────────────────────────────
 // Decodes the JWT `exp` claim from the stored access token (no extra library
-// needed — the payload is plain Base64url), then schedules a refresh 2 minutes
-// before the token actually expires. After each successful refresh the timer is
-// rescheduled automatically. Call stopSilentRefresh() on logout / unmount.
+// needed — the payload is plain Base64url). Refresh during the last two minutes
+// or halfway to expiry for short-lived tokens, whichever comes later.
 
-const REFRESH_LEAD_MS = 2 * 60 * 1000; // refresh 2 min before expiry
-let _silentRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+const REFRESH_LEAD_MS = 2 * 60 * 1000;
+const REFRESH_RETRY_MS = 30 * 1000;
+let silentRefreshTimer: ReturnType<typeof setTimeout> | undefined;
 
 const getTokenExpMs = (): number | null => {
-  if (typeof window === "undefined") return null;
-  const token =
-    sessionStorage.getItem("accessToken") ??
-    localStorage.getItem("accessToken");
+  const token = getAccessToken();
   if (!token) return null;
   try {
     const payloadBase64 = token.split(".")[1];
@@ -236,29 +189,24 @@ const getTokenExpMs = (): number | null => {
   }
 };
 
-const scheduleNextRefresh = () => {
-  if (_silentRefreshTimer !== null) {
-    clearTimeout(_silentRefreshTimer);
-    _silentRefreshTimer = null;
-  }
-
+const scheduleNextRefresh = (minimumDelay = 0) => {
+  stopSilentRefresh();
   const expMs = getTokenExpMs();
   if (!expMs) return;
 
-  const delay = Math.max(expMs - Date.now() - REFRESH_LEAD_MS, 0);
+  const remaining = expMs - Date.now();
+  const delay = Math.max(remaining - REFRESH_LEAD_MS, remaining / 2, minimumDelay);
 
-  _silentRefreshTimer = setTimeout(async () => {
+  const timer = setTimeout(async () => {
+    let retryDelay = 0;
     try {
       await refreshAccessToken();
-      scheduleNextRefresh(); // reschedule for the new token
     } catch {
-      // Refresh failed — clear tokens and redirect
-      clearAuth();
-      if (typeof window !== "undefined") {
-        window.location.href = "/login?session=expired";
-      }
+      retryDelay = REFRESH_RETRY_MS;
     }
+    if (silentRefreshTimer === timer) scheduleNextRefresh(retryDelay);
   }, delay);
+  silentRefreshTimer = timer;
 };
 
 /**
@@ -274,10 +222,8 @@ export const startSilentRefresh = (): void => {
  * Call this on logout or when the admin layout unmounts.
  */
 export const stopSilentRefresh = (): void => {
-  if (_silentRefreshTimer !== null) {
-    clearTimeout(_silentRefreshTimer);
-    _silentRefreshTimer = null;
-  }
+  clearTimeout(silentRefreshTimer);
+  silentRefreshTimer = undefined;
 };
 
 export const updateProfile = async (

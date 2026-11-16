@@ -1,5 +1,14 @@
 # IFIP modernization progress
 
+## Session expiry investigation
+
+- Source review with `rg -n` traced the admin timer, shared API client, and Express refresh handler. Admin refresh runs two minutes before access expiry and uses the refresh cookie alone. The shared 401 recovery path also sends the stored refresh token. Both client paths redirect to the session-expired page on refresh failure.
+- An inline `node` check loaded `ifip-frontend/lib/api/auth.ts` with TypeScript transpilation, a mocked clock, storage, and API response. Successful refresh replaced the access token and rescheduled. A missing-cookie 401, HTTP 503, and timeout each cleared the stored session and redirected on the first attempt, while the fixture access token still had two minutes left.
+- Production token lifetime, refresh-cookie delivery, and the failing request from the reported session have yet to be verified.
+- Implemented shared client renewal for background refresh and protected API requests. It uses the existing refresh-cookie and stored-token support, shares one in-flight request per session, retries temporary network and server failures, and clears the session on refresh rejection with HTTP 401. Admin dashboard startup now offers retry when loading fails while a token is present. Server token lifetimes and MFA policy are unchanged.
+- An inline `node` check with an Axios test adapter passed shared renewal, concurrent request replay, the stored-token fallback, HTTP 503 recovery, timeout retention, HTTP 401 sign-out, a refresh completing after local sign-out, and background retry timing. The standard no-emit build check encountered malformed generated dev route types. An otherwise equivalent TypeScript API check passed with the existing build route types substituted in memory.
+- Playwright Chromium against the local frontend with intercepted API responses passed the admin startup retry, stored-token renewal after a 503, and redirect after a rejected refresh. Scoped ESLint added zero diagnostics across the edited files. `git diff --check` passed. Deployment and authenticated production verification remain open.
+
 ## Unified admin Partners desk
 
 - The Placements sidebar opens one Partners desk with Active Partners, Partner Applications, and Intern Requests. Talent pool visibility is under Active Partners. Each review queue has a pending count and its own filters. Superadmin access is required to see and load Partner Applications.

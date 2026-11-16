@@ -1,10 +1,12 @@
 import axios from "axios";
 import { expiredSessionLoginPath } from "../cv-request-link";
+import type { AuthResponse } from "./types";
 
 declare module "axios" {
   interface AxiosRequestConfig {
     preserveApplicantSession?: boolean;
     retriedAfterAdminPassword?: boolean;
+    retriedAfterSessionRefresh?: boolean;
   }
 }
 
@@ -89,7 +91,7 @@ export default apiClient;
 // ─────────────────────────────────────────────────────────────────────────────
 // Participant / admin auth client
 // Used for all post-payment routes (/auth/*, /applications/*, /modules/*, etc.).
-// Reads the access token from sessionStorage (or localStorage if "remember me").
+// Reads the access token from browser storage.
 // Automatically retries with a token refresh on 401.
 // ─────────────────────────────────────────────────────────────────────────────
 export const authClient = axios.create({
@@ -98,6 +100,71 @@ export const authClient = axios.create({
   headers: { "Content-Type": "application/json" },
   withCredentials: true,   // needed so the httpOnly refreshToken cookie is sent
 });
+
+export const getAccessToken = (): string | null =>
+  typeof window === "undefined" ? null :
+    localStorage.getItem("accessToken") ?? sessionStorage.getItem("accessToken");
+
+export const storeAccessToken = (token: string, _remember = false): void => {
+  if (typeof window === "undefined") return;
+  localStorage.setItem("accessToken", token);
+  sessionStorage.removeItem("accessToken");
+};
+
+export const storeRefreshToken = (token: string): void => {
+  if (typeof window !== "undefined" && token) localStorage.setItem("refreshToken", token);
+};
+
+export const clearAuth = (): void => {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem("accessToken");
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+  sessionStorage.removeItem("adminSelectedCohortId");
+};
+
+let activeRefresh: { accessToken: string; promise: Promise<string | undefined> } | undefined;
+
+async function renewSession(accessToken: string) {
+  const refreshToken = localStorage.getItem("refreshToken");
+  for (const retryDelay of [0, 1000]) {
+    if (retryDelay) await new Promise(resolve => setTimeout(resolve, retryDelay));
+    if (getAccessToken() !== accessToken) return;
+
+    try {
+      const { data } = await axios.post<AuthResponse>(`${API_BASE_URL}/auth/refresh`, { refreshToken }, {
+        timeout: 15000,
+        withCredentials: true,
+      });
+      if (getAccessToken() !== accessToken) return;
+      if (!data.accessToken) throw new Error("Session renewal did not return an access token.");
+      storeAccessToken(data.accessToken);
+      if (data.refreshToken) storeRefreshToken(data.refreshToken);
+      return data.accessToken;
+    } catch (error) {
+      if (getAccessToken() !== accessToken) return;
+      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+      if (status === 401) {
+        clearAuth();
+        window.location.href = expiredSessionLoginPath(window.location.pathname);
+      }
+      const temporary = axios.isAxiosError(error) && (status === undefined || status >= 500);
+      if (!temporary || retryDelay) throw error;
+    }
+  }
+}
+
+export function refreshAccessToken(): Promise<string | undefined> {
+  const accessToken = getAccessToken();
+  if (!accessToken) return Promise.resolve(undefined);
+  if (activeRefresh?.accessToken === accessToken) return activeRefresh.promise;
+
+  const promise = renewSession(accessToken).finally(() => {
+    if (activeRefresh?.promise === promise) activeRefresh = undefined;
+  });
+  activeRefresh = { accessToken, promise };
+  return promise;
+}
 
 export type AdminPasswordProof = { token: string; expiresIn: number };
 let requestAdminPassword: (() => Promise<AdminPasswordProof>) | undefined;
@@ -124,9 +191,7 @@ authClient.interceptors.request.use((config) => {
     }
   }
   if (typeof window !== "undefined") {
-    const token =
-      sessionStorage.getItem("accessToken") ??
-      localStorage.getItem("accessToken");
+    const token = getAccessToken();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -142,14 +207,11 @@ authClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Transparent token refresh on 401 — retries the original request once.
-let isRefreshing = false;
-let refreshQueue: Array<(token: string) => void> = [];
-
 authClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config;
+    if (!original) throw error;
 
     const isAuthRoute =
       original.url?.includes("/auth/login") ||
@@ -162,61 +224,16 @@ authClient.interceptors.response.use(
     // Only attempt a refresh on 401, once per request, and not on public auth endpoints
     if (
       error.response?.status === 401 &&
-      !original._retry &&
-      !isAuthRoute
+      !original.retriedAfterSessionRefresh &&
+      !isAuthRoute &&
+      getAccessToken()
     ) {
-      original._retry = true;
-
-      if (isRefreshing) {
-        // Queue this request while a refresh is already in-flight
-        return new Promise((resolve, reject) => {
-          refreshQueue.push((token) => {
-            original.headers.Authorization = `Bearer ${token}`;
-            resolve(authClient(original));
-          });
-        });
-      }
-
-      isRefreshing = true;
+      original.retriedAfterSessionRefresh = true;
       try {
-        const storedRefreshToken = typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null;
-        const { data } = await axios.post(
-          `${API_BASE_URL}/auth/refresh`,
-          { refreshToken: storedRefreshToken },
-          {
-            withCredentials: true,
-            headers: storedRefreshToken ? { "x-refresh-token": storedRefreshToken } : {},
-          }
-        );
-        const newToken: string = data.accessToken;
-        const newRefreshToken: string = data.refreshToken;
-
-        // Persist the new tokens in localStorage
-        if (typeof window !== "undefined") {
-          localStorage.setItem("accessToken", newToken);
-          if (newRefreshToken) {
-            localStorage.setItem("refreshToken", newRefreshToken);
-          }
-        }
-
-        // Drain the queue
-        refreshQueue.forEach((cb) => cb(newToken));
-        refreshQueue = [];
-
-        // Retry the original request
-        original.headers.Authorization = `Bearer ${newToken}`;
-        return authClient(original);
-      } catch {
-        // Refresh failed — clear tokens and redirect to login
-        if (typeof window !== "undefined") {
-          sessionStorage.removeItem("accessToken");
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
-          window.location.href = expiredSessionLoginPath(window.location.pathname);
-        }
-        return Promise.reject(error);
-      } finally {
-        isRefreshing = false;
+        const renewedToken = await refreshAccessToken();
+        if (renewedToken && getAccessToken() === renewedToken) return authClient(original);
+      } catch (refreshError) {
+        error = refreshError;
       }
     }
 
