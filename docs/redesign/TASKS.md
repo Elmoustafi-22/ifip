@@ -43,6 +43,7 @@ See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and 
 - **Cohort creation email implemented locally.** Other admins and superadmins with email notifications enabled receive a formatted email when a cohort is saved. [Verification](PROGRESS.md#cohort-creation-email)
 - **Optional training dates verified locally.** Registration can open before training is scheduled. Editors can add either training date later. See the [verification](PROGRESS.md#optional-cohort-training-dates).
 - **In-session admin password confirmation implemented locally.** Levy prices and other protected admin actions resume after password confirmation. See the [verification](PROGRESS.md#in-session-admin-password-confirmation).
+- **Cohort-scoped admin applications verified locally.** Paid applications and pending applicants share one workspace. Pending records, totals and CSVs follow the selected cohort by default. See [verification and staging coverage](PROGRESS.md#cohort-scoped-admin-applications).
 
 ## Deferred Workstreams
 - Applicant dashboard and LMS

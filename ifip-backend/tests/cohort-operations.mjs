@@ -21,7 +21,7 @@ axios.defaults.adapter = async config => {
   if (email === 'retry@example.invalid' && fail) throw new Error('Simulated provider failure');
   return {data:{messageId:'fixture'},status:201,statusText:'Created',headers:{},config};
 };
-const {createCohort,updateCohort,getDashboardStats,getCohortWaitlistStatus,retryCohortWaitlistDelivery}=await import('../src/controllers/adminController.ts');
+const {createCohort,updateCohort,getDashboardStats,getCohortWaitlistStatus,retryCohortWaitlistDelivery,getPendingApplicants,exportApplicantsCSV}=await import('../src/controllers/adminController.ts');
 const {default:cohortRouter}=await import('../src/routes/cohortRoutes.ts');
 const {recordHiringOutcome}=await import('../src/controllers/hiringOutcomeController.ts');
 const {processCohortWaitlist}=await import('../src/services/cohortWaitlist.ts');
@@ -32,13 +32,17 @@ const {Placement}=await import('../src/models/Placement.ts');
 const {JobApplication}=await import('../src/models/JobApplication.ts');
 const {Application}=await import('../src/models/Application.ts');
 const {Applicant}=await import('../src/models/Applicants.ts');
+const {Payment}=await import('../src/models/Payments.ts');
 const {AuditLog}=await import('../src/models/AuditLog.ts');
 const {User}=await import('../src/models/User.ts');
 const actor=new mongoose.Types.ObjectId();
 const participant=new mongoose.Types.ObjectId();
 async function call(fn,request){
  let status=200,body;
- await fn({headers:{},socket:{},user:{id:actor.toString(),role:'admin'},query:{},...request},{set(){return this},status(value){status=value;return this},json(value){body=value;return this}});
+ await fn({headers:{},socket:{},user:{id:actor.toString(),role:'admin'},query:{},...request},{
+  set(){return this},setHeader(){},status(value){status=value;return this},
+  json(value){body=value;return this},send(value){body=value;return this},
+ });
  return {status,body};
 }
 async function waitForAdminEmails(count) {
@@ -140,6 +144,46 @@ try {
  await waitForAdminEmails(4);
  assert.ok(adminEmails.slice(2).every(item=>item.payload.htmlContent.includes(formatDate(new Date(now+5*day)))));
  console.log('PASS creation emails reach other opted-in admins, independently of waitlist settings');
+
+ const [current, previous, attempted, unmatched, ambiguous, paid] = await Applicant.create([
+  {email:'current-draft@example.invalid',country:'Nigeria',currentStep:2,createdAt:new Date(now)},
+  {email:'previous-draft@example.invalid',country:'Ghana',currentStep:5,createdAt:new Date(now+3*day)},
+  {email:'attempted-draft@example.invalid',country:'Kenya',currentStep:7,cohortId:cohort.id,
+   createdAt:new Date(now-40*day),updatedAt:new Date(now-40*day)},
+  {email:'unmatched-draft@example.invalid',createdAt:new Date(now-40*day)},
+  {email:'ambiguous-draft@example.invalid',createdAt:new Date(now+3.5*day)},
+  {email:'paid-draft@example.invalid',isPaid:true,cohortId:cohort.id,createdAt:new Date(now)},
+ ]);
+ await Cohort.create({name:'Overlapping legacy cohort',registrationStartDate:new Date(now+3.25*day),
+  registrationEndDate:new Date(now+3.75*day)});
+ await Payment.create({applicantId:attempted._id,providerRef:'pending-cohort-fixture',amount:2500000});
+ const pending = await call(getPendingApplicants,{query:{cohortId:cohort.id,limit:'1'}});
+ assert.equal(pending.status,200);
+ assert.equal(pending.body.total,3);
+ assert.equal(pending.body.pages,3);
+ assert.equal(pending.body.applicants.length,1);
+ assert.equal(pending.body.summary.totalPending,3);
+ assert.equal(pending.body.summary.attemptedPaymentCount,1);
+ assert.equal(pending.body.summary.inactiveDays30Count,1);
+ assert.equal(pending.body.summary.neverRemindedCount,3);
+ assert.deepEqual(pending.body.summary.distinctCountries,['Kenya','Nigeria']);
+ assert.deepEqual(pending.body.summary.stepBreakdown,{2:2,7:1});
+ const filtered = await call(getPendingApplicants,{query:{cohortId:cohort.id,search:'draft',reminderStatus:'never',hasPaymentAttempt:'true'}});
+ assert.deepEqual(filtered.body.applicants.map(row=>row.email),[attempted.email]);
+ const later = await call(getPendingApplicants,{query:{cohortId:second.body.cohort.id}});
+ assert.deepEqual(later.body.applicants.map(row=>row.email),[previous.email]);
+ const unassigned = await call(getPendingApplicants,{query:{cohortId:'unassigned'}});
+ assert.deepEqual(new Set(unassigned.body.applicants.map(row=>row.email)),new Set([unmatched.email,ambiguous.email]));
+ assert.equal((await call(getPendingApplicants,{})).body.total,6);
+ assert.equal((await call(getPendingApplicants,{query:{cohortId:'invalid'}})).status,400);
+ const csv = await call(exportApplicantsCSV,{query:{type:'unpaid',cohortId:cohort.id}});
+ assert.equal(csv.status,200);
+ const csvRows = csv.body.split('\r\n').slice(1);
+ assert.equal(csvRows.length,3);
+ assert.ok(csvRows.some(row=>row.includes(current.email) && row.includes('New & Cohort')));
+ assert.ok(csvRows.some(row=>row.includes(attempted.email)));
+ assert.ok([previous,unmatched,ambiguous,paid].every(row=>!csv.body.includes(row.email)));
+ console.log('PASS cohort-scoped pending rows, summary, filters and CSV, including legacy and overlapping intakes');
 } finally {
  if (mongoose.connection.readyState===1) await mongoose.connection.dropDatabase();
  await mongoose.disconnect();

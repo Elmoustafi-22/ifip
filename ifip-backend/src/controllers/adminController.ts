@@ -1081,12 +1081,47 @@ export const getRegistrationApplicants = async (req: Request, res: Response) => 
     }
 };
 
+const loadIntakeWindows = () =>
+    Cohort.find().select('name registrationStartDate registrationEndDate').lean();
+
+function pendingCohortFilter(cohortId: string | undefined, cohorts: Awaited<ReturnType<typeof loadIntakeWindows>>) {
+    if (!cohortId) return {};
+
+    const windows = cohorts
+        .filter(cohort => cohort.registrationStartDate && cohort.registrationEndDate)
+        .map(cohort => ({
+            id: String(cohort._id),
+            dates: { $gte: cohort.registrationStartDate, $lte: cohort.registrationEndDate },
+        }));
+
+    // An unstamped draft belongs to an intake only if its creation date matches one window.
+    const uniqueWindow = (window: typeof windows[number]) => {
+        const overlaps = windows.filter(other =>
+            other.id !== window.id && other.dates.$gte <= window.dates.$lte && other.dates.$lte >= window.dates.$gte
+        );
+        return overlaps.length
+            ? { createdAt: window.dates, $nor: overlaps.map(other => ({ createdAt: other.dates })) }
+            : { createdAt: window.dates };
+    };
+
+    if (cohortId === 'unassigned') {
+        return windows.length
+            ? { cohortId: null, $nor: windows.map(uniqueWindow) }
+            : { cohortId: null };
+    }
+
+    const assigned = { cohortId: new Types.ObjectId(cohortId) };
+    const window = windows.find(item => assigned.cohortId.equals(item.id));
+    return window ? { $or: [assigned, { cohortId: null, ...uniqueWindow(window) }] } : assigned;
+}
+
 // ── GET /api/v1/admin/pending-applicants ────────────────────────────────────────
 // Paginated list of pending (unpaid) applicants with full details, payment attempts,
 // country/stage filters, and activity data.
 export const getPendingApplicants = async (req: Request, res: Response) => {
     try {
         const {
+            cohortId,
             search,
             country,
             step,
@@ -1106,7 +1141,15 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
         const cooldownMs = (parseInt(cooldownHours as string, 10) || 48) * 60 * 60 * 1000;
         const cooldownThreshold = new Date(Date.now() - cooldownMs);
 
-        const match: any = { isPaid: { $ne: true } };
+        if (cohortId !== undefined && (typeof cohortId !== 'string' || (cohortId && cohortId !== 'unassigned' && !Types.ObjectId.isValid(cohortId)))) {
+            res.status(400).json({ message: 'Invalid cohort.' });
+            return;
+        }
+        const pendingMatch = {
+            isPaid: { $ne: true },
+            ...pendingCohortFilter(cohortId, cohortId ? await loadIntakeWindows() : []),
+        };
+        const match: any = {};
 
         if (step) {
             const stepNum = parseInt(step as string, 10);
@@ -1204,27 +1247,34 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
             stepAgg,
             neverRemindedCount,
             recentlyRemindedCount,
+            inactiveDays30Count,
         ] = await Promise.all([
-            Applicant.find(match)
+            Applicant.find({ $and: [pendingMatch, match] })
                 .sort({ updatedAt: -1 })
                 .skip(skip)
                 .limit(limitNum)
                 .lean(),
-            Applicant.countDocuments(match),
-            Applicant.countDocuments({ isPaid: { $ne: true } }),
-            Payment.distinct('applicantId').then(ids => Applicant.countDocuments({ _id: { $in: ids }, isPaid: { $ne: true } })),
-            Applicant.distinct('country', { isPaid: { $ne: true }, country: { $ne: null } }),
+            Applicant.countDocuments({ $and: [pendingMatch, match] }),
+            Applicant.countDocuments(pendingMatch),
+            Payment.distinct('applicantId').then(ids => Applicant.countDocuments({ ...pendingMatch, _id: { $in: ids } })),
+            Applicant.distinct('country', { ...pendingMatch, country: { $ne: null } }),
             Applicant.aggregate([
-                { $match: { isPaid: { $ne: true } } },
+                { $match: pendingMatch },
                 { $group: { _id: '$currentStep', count: { $sum: 1 } } }
             ]),
             Applicant.countDocuments({
-                isPaid: { $ne: true },
-                $or: [{ lastReminderSentAt: { $exists: false } }, { lastReminderSentAt: null }, { reminderCount: 0 }],
+                $and: [
+                    pendingMatch,
+                    { $or: [{ lastReminderSentAt: { $exists: false } }, { lastReminderSentAt: null }, { reminderCount: 0 }] },
+                ],
             }),
             Applicant.countDocuments({
-                isPaid: { $ne: true },
+                ...pendingMatch,
                 lastReminderSentAt: { $gte: cooldownThreshold },
+            }),
+            Applicant.countDocuments({
+                ...pendingMatch,
+                updatedAt: { $lte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
             }),
         ]);
 
@@ -1283,8 +1333,6 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
             if (item._id) stepBreakdown[item._id] = item.count;
         });
 
-        // Applicants inactive for 30+ days (useful for prioritising outreach).
-        const inactiveDays30Count = enrichedApplicants.filter((a: any) => a.daysSinceActivity >= 30).length;
         const eligibleRemindedCount = allPendingCount - recentlyRemindedCount;
 
         res.json({
@@ -1917,6 +1965,11 @@ export const exportApplicantsCSV = async (req: Request, res: Response) => {
             endDate,
         } = req.query;
 
+        if (cohortId !== undefined && (typeof cohortId !== 'string' || (cohortId && cohortId !== 'unassigned' && !Types.ObjectId.isValid(cohortId)))) {
+            res.status(400).json({ message: 'Invalid cohort.' });
+            return;
+        }
+
         const escapeCsv = (val: any): string => {
             if (val === null || val === undefined) return '""';
             let str = typeof val === 'object' ? (Array.isArray(val) ? val.join(', ') : JSON.stringify(val)) : String(val).trim();
@@ -2119,15 +2172,8 @@ export const exportApplicantsCSV = async (req: Request, res: Response) => {
 
         // 2. Fetch Unpaid Applicants (Applicant collection) if type is 'unpaid' or 'all'
         if (type === 'unpaid' || type === 'all') {
+            const cohorts = await loadIntakeWindows();
             const applicantMatch: any = { isPaid: { $ne: true } };
-
-            if (cohortId) {
-                if (cohortId === 'unassigned') {
-                    applicantMatch.cohortId = null;
-                } else {
-                    applicantMatch.cohortId = new Types.ObjectId(cohortId as string);
-                }
-            }
 
             if (step) {
                 const stepNum = parseInt(step as string, 10);
@@ -2188,8 +2234,9 @@ export const exportApplicantsCSV = async (req: Request, res: Response) => {
                 }
             }
 
-            const applicants = await Applicant.find(applicantMatch)
-                .populate('cohortId', 'name')
+            const applicants = await Applicant.find({
+                $and: [applicantMatch, pendingCohortFilter(cohortId, cohorts)],
+            })
                 .sort({ updatedAt: -1 })
                 .lean();
 
@@ -2207,7 +2254,13 @@ export const exportApplicantsCSV = async (req: Request, res: Response) => {
             }
 
             for (const a of applicants) {
-                const cohort = (a.cohortId as any) || {};
+                const { createdAt } = a;
+                const intakeMatches = a.cohortId
+                    ? cohorts.filter(cohort => String(cohort._id) === String(a.cohortId))
+                    : cohorts.filter(cohort =>
+                        createdAt && createdAt >= cohort.registrationStartDate && createdAt <= cohort.registrationEndDate
+                    );
+                const cohortName = intakeMatches.length === 1 ? intakeMatches[0]?.name : undefined;
                 const p = latestPaymentByApplicant[a._id.toString()];
 
                 const academic = (a.academicInfo as any) || {};
@@ -2237,7 +2290,7 @@ export const exportApplicantsCSV = async (req: Request, res: Response) => {
                     paymentStateDesc,
                     stepLabel,
                     'In Funnel / Pre-Payment',
-                    cohort.name || 'Unassigned',
+                    cohortName || 'Unassigned',
                     primaryTracks.join(', '),
                     a.programInterest?.secondary || '',
                     academic.status || '',
@@ -2266,8 +2319,8 @@ export const exportApplicantsCSV = async (req: Request, res: Response) => {
                     p?.providerRef || '',
                     p?.paymentMethod || '',
                     '',
-                    formatDateTime((a as any).createdAt),
-                    formatDateTime((a as any).updatedAt),
+                    formatDateTime(a.createdAt),
+                    formatDateTime(a.updatedAt),
                     String(a.reminderCount || 0),
                     formatDateTime(a.lastReminderSentAt),
                 ]);

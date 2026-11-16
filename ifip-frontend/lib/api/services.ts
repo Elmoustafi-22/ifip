@@ -799,6 +799,7 @@ export interface PendingApplicantsResponse {
 }
 
 export interface GetPendingApplicantsParams {
+  cohortId?: string;
   search?: string;
   country?: string;
   step?: number;

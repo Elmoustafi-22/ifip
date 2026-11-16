@@ -47,6 +47,7 @@ export interface IApplicant extends Document {
         subject?: string;
         includeResumeLink?: boolean;
     }>;
+    createdAt?: Date;
     updatedAt: Date;
     refreshExpiry(): void;
 }

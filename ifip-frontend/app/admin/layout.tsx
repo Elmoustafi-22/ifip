@@ -23,7 +23,6 @@ import {
   HiOutlineCog6Tooth,
   HiOutlineChartBar,
   HiOutlineCreditCard,
-  HiOutlineClock,
   HiOutlineCalendar,
   HiOutlineBell,
   HiOutlineTag,
@@ -66,7 +65,6 @@ const NAV_GROUPS = [
     label: "Participants",
     items: [
       { href: "/admin/applications", label: "Applications",  icon: HiOutlineClipboardDocumentList },
-      { href: "/admin/pending-applicants", label: "Pending Applicants", icon: HiOutlineClock },
       { href: "/admin/waitlist", label: "Waitlist", icon: HiOutlineInboxStack },
       { href: "/admin/placements",   label: "Matching Desk", icon: HiOutlineArrowsRightLeft },
     ],
