@@ -35,6 +35,7 @@ See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and 
 ## Partner application
 
 - **Pathway implemented locally.** The public intake form and confirmation use the registration styling. See [local verification](PROGRESS.md#pathway-partner-application).
+- **Custom partner sector implemented locally.** Selecting Other reveals a text field and submits its value with the selected sectors. See [verification](PROGRESS.md#custom-partner-sector).
 
 ## Admin dashboard
 

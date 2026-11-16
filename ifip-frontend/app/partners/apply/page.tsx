@@ -106,6 +106,7 @@ export default function PartnerApplyPage() {
   const [description, setDescription] = useState("");
   const [activeSlots, setActiveSlots] = useState<number | "">("");
   const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
+  const [otherSector, setOtherSector] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -117,6 +118,8 @@ export default function PartnerApplyPage() {
   const successHeading = useRef<HTMLHeadingElement>(null);
   const errorMessage = useRef<HTMLParagraphElement>(null);
   const submission = useRef(false);
+  const otherSectorLabel = sectors.find(({ value }) => value === "other")?.label;
+  const showOtherSector = otherSectorLabel !== undefined && selectedSectors.includes(otherSectorLabel);
 
   useEffect(() => {
     if (submitted) successHeading.current?.focus();
@@ -156,6 +159,10 @@ export default function PartnerApplyPage() {
       setError("Describe your organization before submitting.");
       return;
     }
+
+    const sectorTags = [...new Set(selectedSectors.map((sector) =>
+      sector === otherSectorLabel ? otherSector.trim() : sector
+    ))];
 
     if (hasOpenings) {
       if (!openings.length) {
@@ -199,7 +206,7 @@ export default function PartnerApplyPage() {
         website: website.trim() || undefined,
         description: organizationDescription,
         activeSlots: activeSlots !== "" ? Number(activeSlots) : undefined,
-        sectorTags: selectedSectors.length > 0 ? selectedSectors : undefined,
+        sectorTags: sectorTags.length > 0 ? sectorTags : undefined,
         logoUrl,
         hasOpenings,
         openings: hasOpenings ? openings.map((opening) => ({
@@ -301,6 +308,22 @@ export default function PartnerApplyPage() {
                     ))}
                   </div>
                 ) : <p className="text-sm text-[#43536e]">No sectors are available.</p>}
+                {showOtherSector && (
+                  <div className="mt-3">
+                    <Field id="partner-other-sector" label="Specify your sector">
+                      <input
+                        id="partner-other-sector"
+                        name="otherSector"
+                        className={control}
+                        required
+                        pattern=".*\S.*"
+                        title="Enter a sector name."
+                        value={otherSector}
+                        onChange={(event) => setOtherSector(event.target.value)}
+                      />
+                    </Field>
+                  </div>
+                )}
               </fieldset>
               <Field id="partner-logo" label="Company logo" optional>
                 <div className="grid min-w-0 gap-3 rounded-xl border border-dashed border-[#7185a0] bg-[#f8fbfe] p-3">

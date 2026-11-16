@@ -211,6 +211,12 @@ On 15 November 2026, the user authorized the fix. The authenticated application 
 
 - The public partner form and intake API require an organization description. A local Playwright run with an intercepted API verified empty-field focus, whitespace rejection and submission of a trimmed description. Partner page ESLint, backend no-emit TypeScript and frontend no-emit TypeScript with malformed generated dev route types excluded passed. The shared API service file has existing ESLint errors. The live API was outside the browser check.
 
+### Custom partner sector
+
+- Selecting Other in `/partners/apply` reveals a required sector-name field. The existing `sectorTags` array carries the trimmed custom name alongside any standard selections. Unchecking Other hides the field and excludes its value from the submission.
+- From `ifip-frontend`, `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false` and `node node_modules/eslint/bin/eslint.js app/partners/apply/page.tsx` passed.
+- Inline Playwright Chromium with an intercepted partner API verified keyboard access, rejection of empty and whitespace-only entries, retention after a failed submit, and the trimmed value in the successful retry payload. Checked reflow at 320, 375, 768 and 1280 CSS px. Live submission and staging remain unverified.
+
 ### Waitlist registration copy
 
 - Changed the email and admin preview to show the scheduled registration start and close dates with a link to check current availability. The worker still sends during an eligible registration window.
@@ -243,3 +249,9 @@ On 15 November 2026, the user authorized the fix. The authenticated application 
 - Backend `node node_modules/typescript/bin/tsc --noEmit --incremental false` and frontend `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false` passed. The default frontend TypeScript command hit the existing malformed generated development route validator. Targeted ESLint found no new findings in the application views compared with their original files. The shared layout and services retain existing lint findings.
 - Backend `node --import tsx tests/cohort-operations.mjs` passed against a disposable loopback MongoDB replica set. It covered explicit and inferred cohorts, overlapping and unmatched records, list and summary scope, filters, full-cohort inactivity, and exported CSV rows. Email used an intercepted test provider.
 - Inline Chromium with intercepted API responses exercised the legacy redirect, both application views, cohort changes with a delayed prior response, Back, and CSV default and download. The workspace stayed within the viewport at 320, 375, 768 and 1280 CSS px. Next dev used the Sora fallback font. Authenticated staging data and live admin write actions remain unverified.
+
+### Homepage host application link
+
+- The second hero action reads **Apply to host interns** and links to the existing partnership application at `/partners/apply`.
+- From `ifip-frontend`, `node node_modules/eslint/bin/eslint.js components/home/HeroSection.tsx` and `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false` passed. The default type check hit the existing malformed `.next/dev/types/validator.ts`.
+- `git diff --check` passed for the edited files. Inline Playwright Chromium reached the local homepage, but the dev server refused the connection on the retry. Responsive layout and click-through remain unverified.

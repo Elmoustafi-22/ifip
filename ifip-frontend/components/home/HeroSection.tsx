@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { TbArrowDown, TbArrowUpRight, TbBook, TbBriefcase, TbClipboardCheck } from "react-icons/tb";
+import { TbArrowUpRight, TbBook, TbBriefcase, TbClipboardCheck } from "react-icons/tb";
 import apiClient from "@/lib/api/client";
 import type { RegistrationStatus } from "@/lib/api/services";
 
@@ -81,7 +81,9 @@ export default function HeroSection() {
               {waitingList ? "Join the waitlist" : "Apply to IFIP"}
               <TbArrowUpRight aria-hidden="true" />
             </Link>
-            <a className="ifip-home-text-link" href="#curriculum">Explore the curriculum <TbArrowDown aria-hidden="true" /></a>
+            <Link className="ifip-home-text-link" href="/partners/apply">
+              Apply to host interns <TbArrowUpRight aria-hidden="true" />
+            </Link>
           </motion.div>
           <p className="ifip-home-cohort" role="status">{status}</p>
         </div>
