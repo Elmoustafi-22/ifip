@@ -1,5 +1,14 @@
 # IFIP modernization progress
 
+## Cohort payment records and resolution
+
+- Without a saved selection, the admin cohort selector prefers the open registration intake, then the most recent active cohort, then the newest cohort. Payment records, pagination and status counts use the selected cohort. Revenue is shown by currency. Search, status and provider filter the records within that selection.
+- Bank transfers keep their recorded intake. New payments keep the intake captured at checkout or manual recording. Older records use a linked application or applicant draft where available. Records without a reliable assignment appear under Awaiting Assignment and All Cohorts.
+- Linked payment reviews switch to the record's cohort. A gateway override checks the displayed cohort on the server. The existing bank transfer review uses the transfer's recorded cohort.
+- `$env:IFIP_COHORT_TEST_MONGO_PORT='37129'; node --import tsx tests/cohort-operations.mjs` passed on a disposable loopback MongoDB replica set. It covered saved and legacy attribution, Awaiting Assignment, pagination, bank transfer filters, revenue by currency, wrong-cohort rejection, and a valid gateway resolution reflected in the summary. Email used the existing test adapter.
+- Inline Playwright Chromium with intercepted APIs verified the open intake default ahead of a future intake, separate NGN and USD totals, a late response after a cohort switch, the gateway resolution payload and updated detail, the bank transfer deep link, Awaiting Assignment, and 375 CSS px mobile reflow. Next dev used fallback typography when the Sora download failed. Staging and live payment operations remain pending.
+- Frontend `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false`, `node node_modules/eslint/bin/eslint.js app/admin/payments/page.tsx`, and scoped `git diff --check` passed. Backend `node node_modules/typescript/bin/tsc --noEmit --incremental false` initially passed. The latest run reports two TS2769 errors in the concurrently edited hiring outcome controller, outside the payment changes.
+
 ## 11 November 2026
 
 - Registration and enrollment moved ahead of homepage and dashboard implementation.
@@ -244,6 +253,8 @@ On 15 November 2026, the user authorized the fix. The authenticated application 
 
 ### Cohort-scoped admin applications
 
+The later [pending applicant work queue](#pending-applicant-work-queues) builds on this workspace.
+
 - The unified `/admin/applications` workspace defaults to Paid applications and links to Pending applicants at `?view=pending`. The old pending URL redirects there. Both views use the shared admin cohort selector. A cohort switch clears the current view's filters and applicant selection.
 - Pending rows, pagination, country and stage totals, payment-attempt and reminder totals, inactivity, and CSV use the selected cohort by default. A saved cohort ID takes precedence. For a draft without one, its creation timestamp must fall within exactly one configured registration window. Drafts with missing or ambiguous matches remain under Awaiting Assignment and All Cohorts. Inactivity counts every qualifying record in the selected cohort.
 - Backend `node node_modules/typescript/bin/tsc --noEmit --incremental false` and frontend `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false` passed. The default frontend TypeScript command hit the existing malformed generated development route validator. Targeted ESLint found no new findings in the application views compared with their original files. The shared layout and services retain existing lint findings.
@@ -262,6 +273,12 @@ On 15 November 2026, the user authorized the fix. The authenticated application 
 - From `ifip-frontend`, `node node_modules/eslint/bin/eslint.js components/home/HeroSection.tsx` and `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false` passed.
 - Inline Playwright Chromium verified the wording, row order and wrapping at 320, 375, 768 and 1280 CSS px with API traffic intercepted. The first run timed out during dev compilation. The retry passed. Deployment remains pending.
 
+### Homepage curriculum certificate card
+
+- Added the approved Professional Certificate card as the fourth item under What you’ll learn. The card uses the existing curriculum card markup, and the card and pathway share the certificate name and icon. The curriculum grid uses one column below 520 CSS px, two from 520 through 799 CSS px, and four from 800 CSS px.
+- From `ifip-frontend`, `node node_modules/eslint/bin/eslint.js app/page.tsx components/home/HeroSection.tsx components/home/program-certificate.ts` and `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false` passed. Scoped `git diff --check` passed.
+- Inline Playwright Chromium opened `/#curriculum` on the isolated Next dev server with API calls intercepted. At 320, 375, 519, 520, 768, 799, 800 and 1280 CSS px it verified all three column layouts, card order and matching styles, equal heights within each row, no horizontal overflow, matching pathway copy, and the existing guide link target. The dev server used a fallback for Sora and logged a reduced-motion hydration warning from the hero entrance. Staging and deployment remain pending.
+
 ### Pre-registration waitlist and confirmed clearing
 
 - The selected cohort's overview count, Waitlist page, and email recipients use the saved registration opening timestamp. All Cohorts continues to show the program-wide active list.
@@ -270,3 +287,46 @@ On 15 November 2026, the user authorized the fix. The authenticated application 
 - Backend `node node_modules/typescript/bin/tsc --noEmit --incremental false`, frontend `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false`, and targeted ESLint for `components/admin/CohortWaitlistControls.tsx` passed.
 - Backend `node --import tsx tests/cohort-operations.mjs` passed on a disposable MongoDB replica set with an intercepted email provider. It covered the opening-date boundary, concurrent enqueue and worker calls, retry, confirmed-only clearing, and preservation of later signups. The admin MFA harness passed on the same disposable replica set using a loopback URI override and verified password confirmation on both waitlist mutations.
 - Inline Chromium with intercepted APIs passed the edit modal at 375 CSS px, including password confirmation, queued-to-sent status polling, clearing one confirmed recipient while a failed send remains, and overview refresh. The linked Waitlist page requested the selected cohort. The overview fit at 375 and 1280 CSS px. Scoped `git diff --check` passed. Live provider and staging verification remain open.
+- The waitlist worker now logs each cohort's accepted and failed totals for completed attempts in a worker run. Backend `node node_modules/typescript/bin/tsc --noEmit --incremental false` and `node --import tsx tests/cohort-operations.mjs` passed. The disposable database run printed both acceptance and failure totals using intercepted email responses. The harness also logged an asynchronous audit insert during database teardown. Production logging remains pending deployment.
+
+### Pending applicant work queues
+
+- Added work filters, visible cohort and result status, page-scoped selection, current-results export, and direct links from pending payment rows to the existing payment review. Drawer, composer and offline payment use named dialogs with keyboard dismissal and focus return.
+- Reminder sends validate the selected scope, unpaid status and cooldown on the server. Concurrent requests claim the recipient before contacting the provider. Acceptance updates reminder history and cooldown. Failures keep the previous resume link and can be retried. CV-upload notifications use the same confirmation path.
+- Offline enrollment requires the applicant's existing signed declaration and displays the amount, evidence, and intended cohort. The transaction commits payment and enrollment together. An existing assignment takes precedence, then the currently open intake. Repeating the same payment reference reuses an already completed enrollment.
+- Backend `node node_modules/typescript/bin/tsc --noEmit --incremental false` and frontend `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false` passed. Scoped ESLint still reports existing issues in the edited pages and shared export modal. The new dialog passed lint.
+- `node --import tsx tests/cohort-operations.mjs` passed on a disposable replica set. It covered provider failure, successful retry, paid and out-of-cohort skips, concurrent reminder requests, list-to-CSV filter agreement, unsigned declaration rejection, payment rollback on a reference collision, and enrollment replay.
+- Chromium with intercepted APIs at 1280 and 375 CSS px verified reminder failure and retry, keyboard dismissal and focus return, page-scoped selection, filter pagination reset, current-results CSV, and the bank-transfer link into Payments. Staging, live email delivery, and real payment operations remain unverified.
+- `node --import tsx tests/registration-concurrency.mjs` stopped at its first provider-call assertion. The fixture expects Flutterwave for a new Nigerian checkout. The checkout implementation in HEAD already initializes those payments through Paystack.
+
+### Partner CV requests and intake job openings
+
+- Partner profiles display a **View CV** link when a document is available. Older records can use the CV on the intake linked by the participant's successful payment when the enrolled application has no CV field. The profile and request action use the current partner access and candidate status checks.
+- **Request CV** creates a dashboard notification naming the organization and linking to **Settings → Documents**. The API keeps one unread request per organization and participant, including concurrent requests. A partner can send another request after the participant reads the previous one.
+- Approving a partner application saves the organization and its submitted roles together. The roles appear for review in admin and partner Job Openings. Opening approval makes the records available in the participant dashboard and triggers the existing in-app and email announcements. Recorded selections, offers, hires and placements are excluded from both channels. Participant email preferences and the existing coursework requirement still apply.
+- Backend `node node_modules/typescript/bin/tsc --noEmit --incremental false`, frontend `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false`, and `git diff --check` passed. Scoped ESLint matched HEAD with 21 existing errors and five existing warnings across the edited frontend files.
+- `node --import tsx tests/partner-recruitment.mjs` passed on a disposable MongoDB replica set with an intercepted mail provider. It covered concurrent partner and opening approvals, status before and after publication, participant application, exclusion across both delivery channels, email preferences, request deduplication, legacy CV resolution and access denial.
+- Inline Playwright Chromium with intercepted APIs covered the CV link and missing-CV state, keyboard submission, retry, duplicate feedback, and reflow at 375 and 1280 CSS px. The participant settings link scrolled to the upload controls at 375 CSS px. Next.js used fallback typography because the Sora download failed. Staging, live email and live CV storage remain unverified.
+
+### CV request email and homepage partner jobs
+
+- A CV request also emails participants who have email notifications enabled. The email names the partner and links to the Documents panel. The dashboard notification is saved first. If the provider rejects the email, the partner can retry from the same profile and the existing dashboard notification is reused. Concurrent requests for the same unread notification share one email attempt.
+- Homepage Active Openings reads published partner jobs through the public endpoint using the same deadline and status filter as the participant dashboard. The public response contains card details only. The homepage refreshes these listings on each page load and skips its old browser cache. The legacy admin openings screen links staff to Job Openings for publication.
+- Backend and frontend no-emit TypeScript passed. The scoped ESLint comparison found zero added diagnostics in the seven edited frontend files.
+- `node --import tsx tests/partner-recruitment.mjs` passed on a disposable MongoDB replica set with intercepted email. It covered the email recipient and upload link, concurrent CV requests, preference opt-out, mail provider failure and retry, public feed publication and closure, exclusion of pending, rejected, expired and legacy manual listings, and the public field allowlist.
+- Inline Chromium with intercepted APIs passed at 375 and 1280 CSS px for published cards, partner name, keyboard access and ignoring legacy browser data. At 375 CSS px, opening error/retry/empty states and the partner's CV email retry passed. The local preview used fallback typography after the Sora download failed. Deployment and live email delivery remain unverified.
+
+### Company details on CV requests
+
+- The participant's CV request opens a page with the requesting company name, description, sectors, and website when available. The page links to the existing **Settings → Documents** upload controls. The API resolves the company from the recipient's stored notification and returns only the company fields needed for the page.
+- Existing in-app CV notifications resolve to the new page. New CV request emails include the company description and sectors when available and link to the same request. Participant sign-in preserves the CV request destination through a path allowlist.
+- Backend and frontend no-emit TypeScript passed. Scoped ESLint found zero added diagnostics. Chromium with intercepted APIs covered the signed-out email path, return after participant sign-in, company details and website, notification navigation, upload handoff, error and retry, unavailable request, and reflow at 375 and 1280 CSS px. The local preview used fallback typography after the Sora download failed. Deployment and live email remain unverified.
+- `node --import tsx tests/partner-recruitment.mjs` passed on a disposable MongoDB replica set with an intercepted email provider. It verified the recipient-only query, access after the notification is read, the public company field allowlist, the updated link for older stored notifications, and HTML escaping and destination in the request email.
+
+### Company hiring override
+
+- **Confirm hire** is available in Admin Placements and Job Openings on existing company records, including those with an interview still pending. The audited hiring outcome remains the source of truth. The company sees the participant as placed or hired and the overview counts each confirmed participant once across both paths.
+- Confirmed hires drop out of partner interview tasks, the scheduled interview count and the reminder worker's selection. The partner portal continues to use the organization-scoped records and the confirmation note stays private.
+- Backend `node node_modules/typescript/bin/tsc --noEmit --incremental false` and frontend `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false` passed. The default frontend TypeScript config still reports the generated admin-layout export error. Scoped ESLint matched HEAD with 23 errors and 21 warnings. `git diff --check` passed.
+- `node --import tsx tests/partner-recruitment.mjs` and `node --import tsx tests/cohort-operations.mjs` passed against disposable MongoDB 7 with intercepted email. Verified stale write rejection, private notes, isolation between companies, hire deduplication and removal from partner interview tasks.
+- Inline Playwright Chromium with intercepted APIs passed at 375 and 1280 CSS px. It exercised saving a confirmed hire from a matched placement in Admin and checked the company dashboard count, placement status, Hired filter and removed outcome actions. Signed-in staging verification remains open. No deployment or production data change was made.

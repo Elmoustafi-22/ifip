@@ -6,9 +6,15 @@ import Link from "next/link";
 import { isAxiosError } from "axios";
 import { TbArrowRight, TbBrandWhatsapp, TbLock, TbMail } from "react-icons/tb";
 import { login as loginApi, getAccessToken, loginMfaVerify, verifyAdminMfaEmail, forgotPassword as forgotPasswordApi } from "@/lib/api/auth";
+import { isCvRequestPath } from "@/lib/cv-request-link";
 import styles from "./login.module.css";
 
 const supportEmail = "mailto:ifip.program@gmail.com";
+
+function participantDestination(role: string) {
+  const next = new URLSearchParams(window.location.search).get("next");
+  return role === "participant" && isCvRequestPath(next) ? next : "/dashboard";
+}
 
 function authErrorMessage(error: unknown, fallback: string) {
   if (isAxiosError<{ message?: string }>(error) && error.response?.data?.message) {
@@ -39,7 +45,7 @@ export default function LoginPage() {
         if (payload.role === "admin" || payload.role === "superadmin") {
           window.location.href = "/admin";
         } else {
-          window.location.href = "/dashboard";
+          window.location.href = participantDestination(payload.role);
         }
       } catch {
         window.location.href = "/dashboard";
@@ -76,6 +82,8 @@ export default function LoginPage() {
         window.location.href = "/partner-portal";
         return;
       }
+      window.location.href = participantDestination(payload.role);
+      return;
     } catch (tokenErr) {
       console.error("Token parse failed:", tokenErr);
     }

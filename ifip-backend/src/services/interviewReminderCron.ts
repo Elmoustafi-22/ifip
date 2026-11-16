@@ -47,6 +47,7 @@ export const processInterviewReminders = async (): Promise<void> => {
         // ─── 1. FETCH SCHEDULED JOB OPENING APPLICATIONS ──────────────────────
         const jobApps = await JobApplication.find({
             status: 'interview_scheduled',
+            'hiringOutcome.status': { $ne: 'hire_confirmed' },
             interviewScheduledAt: { $exists: true, $gt: now, $lte: in24Hours },
             $or: [{ reminder24hSent: { $ne: true } }, { reminder1hSent: { $ne: true } }],
         }).lean();
@@ -54,6 +55,7 @@ export const processInterviewReminders = async (): Promise<void> => {
         // ─── 2. FETCH SCHEDULED PLACEMENTS ───────────────────────────────────
         const placements = await Placement.find({
             status: 'interviewing',
+            'hiringOutcome.status': { $ne: 'hire_confirmed' },
             partnerOutcome: { $exists: false },
             interviewScheduledAt: { $exists: true, $gt: now, $lte: in24Hours },
             $or: [{ reminder24hSent: { $ne: true } }, { reminder1hSent: { $ne: true } }],

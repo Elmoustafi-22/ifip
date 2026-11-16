@@ -20,7 +20,7 @@ const tabs = [
 export default function PlacementsSection() {
   const [activeTab, setActiveTab] = useState<"opportunities" | "openings">("opportunities");
   const opportunities = useCachedFetch("placement_opportunities", getOpportunities, "opportunities");
-  const openings = useCachedFetch("active_openings", getActiveOpenings, "openings");
+  const openings = useCachedFetch("published_partner_openings", getActiveOpenings);
 
   return (
     <section id="sectors" className="ifip-home-section ifip-home-white" aria-labelledby="sectors-title">
@@ -62,14 +62,16 @@ export default function PlacementsSection() {
                   const ModeIcon = opening.workMode === "Remote" ? Tabler.TbDeviceLaptop : opening.workMode === "Hybrid" ? Tabler.TbDevices : Tabler.TbBuilding;
                   return (
                     <HomepageReveal as="article" key={opening._id} className="ifip-home-card ifip-home-opening" delay={(index % 3) * 0.06}>
-                      <p className="ifip-home-department">{opening.department}</p>
+                      {(opening.partnerName || opening.department) && (
+                        <p className="ifip-home-department">{[opening.partnerName, opening.department].filter(Boolean).join(" · ")}</p>
+                      )}
                       <h3>{opening.title}</h3>
                       <div className="ifip-home-meta">
                         <span className="ifip-home-tag"><ModeIcon aria-hidden="true" />{opening.workMode}</span>
                         {opening.location && opening.location !== "-" && <span className="ifip-home-meta"><Tabler.TbMapPin aria-hidden="true" />{opening.location}</span>}
                       </div>
-                      <Link href="/apply" className="ifip-home-text-link" aria-label={`Apply via IFIP for ${opening.title}`}>
-                        Apply via IFIP <Tabler.TbArrowUpRight aria-hidden="true" />
+                      <Link href="/apply" className="ifip-home-text-link">
+                        Apply to IFIP <Tabler.TbArrowUpRight aria-hidden="true" />
                       </Link>
                     </HomepageReveal>
                   );

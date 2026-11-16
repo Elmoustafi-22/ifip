@@ -4,10 +4,11 @@ import { useId, useState } from "react";
 import { isAxiosError } from "axios";
 import { hiringOutcomeLabels, recordHiringOutcome, type HiringOutcome } from "@/lib/api/services";
 
-export default function HiringOutcomeForm({ kind, id, outcome, onSave }: {
+export default function HiringOutcomeForm({ kind, id, outcome, hireOnly = false, onSave }: {
   kind: "placements" | "job-applications";
   id: string;
   outcome?: HiringOutcome;
+  hireOnly?: boolean;
   onSave: (outcome: HiringOutcome) => void;
 }) {
   const fieldId = useId();
@@ -22,7 +23,11 @@ export default function HiringOutcomeForm({ kind, id, outcome, onSave }: {
     setSaving(true);
     setError("");
     try {
-      onSave(await recordHiringOutcome(kind, id, { status, note, previousRecordedAt: outcome?.recordedAt ?? null }));
+      onSave(await recordHiringOutcome(kind, id, {
+        status: hireOnly ? "hire_confirmed" : status,
+        note,
+        previousRecordedAt: outcome?.recordedAt ?? null,
+      }));
       setNote("");
       setEditing(false);
     } catch (err) {
@@ -37,11 +42,14 @@ export default function HiringOutcomeForm({ kind, id, outcome, onSave }: {
       <p role="status" className="font-semibold text-slate-700">{outcome && hiringOutcomeLabels[outcome.status]}</p>
       {editing ? (
         <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
-          <label htmlFor={`${fieldId}-status`} className="block font-medium">Hiring outcome</label>
+          {hireOnly ? <p className="font-medium">Confirm hire</p> : <>
+            <label htmlFor={`${fieldId}-status`} className="block font-medium">Hiring outcome</label>
             <select id={`${fieldId}-status`} className="mt-1 block w-full rounded border border-slate-300 p-2" value={status} disabled={saving}
               onChange={event => setStatus(event.target.value as HiringOutcome["status"])}>
               {Object.entries(hiringOutcomeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
+          </>}
+          {(hireOnly || status === "hire_confirmed") && <p>The company will see this hire confirmed in its dashboard.</p>}
           <label className="block font-medium">Confirmation note
             <textarea className="mt-1 block w-full rounded border border-slate-300 p-2" rows={2} value={note} maxLength={500}
               disabled={saving} onChange={event => setNote(event.target.value)} />
@@ -59,7 +67,7 @@ export default function HiringOutcomeForm({ kind, id, outcome, onSave }: {
           setNote("");
           setError("");
           setEditing(true);
-        }}>{outcome ? "Edit hiring outcome" : "Record hiring outcome"}</button>
+        }}>{hireOnly ? "Confirm hire" : outcome ? "Edit hiring outcome" : "Record hiring outcome"}</button>
       )}
     </div>
   );

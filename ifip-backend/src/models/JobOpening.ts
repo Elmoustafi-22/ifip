@@ -3,6 +3,14 @@ import { Schema, model, Document, Types } from 'mongoose';
 export type JobOpeningStatus = 'pending_review' | 'open' | 'closed' | 'rejected';
 export type JobWorkMode = 'Remote' | 'Hybrid' | 'On-site';
 
+export const openJobOpeningFilter = () => ({
+    status: 'open' as const,
+    $or: [
+        { applicationDeadline: null },
+        { applicationDeadline: { $gt: new Date() } },
+    ],
+});
+
 export interface IJobOpening extends Document {
     partnerOrgId: Types.ObjectId;
     createdByUserId?: Types.ObjectId;

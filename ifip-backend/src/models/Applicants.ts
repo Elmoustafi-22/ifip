@@ -40,6 +40,7 @@ export interface IApplicant extends Document {
     checkoutStartedAt?: Date;
     transferHoldUntil?: Date;
     lastReminderSentAt?: Date;
+    reminderClaimUntil?: Date;
     reminderCount?: number;
     reminderHistory?: Array<{
         sentAt: Date;
@@ -88,6 +89,7 @@ const applicantSchema = new Schema<IApplicant>(
         checkoutStartedAt: Date,
         transferHoldUntil: Date,
         lastReminderSentAt: Date,
+        reminderClaimUntil: { type: Date, select: false },
         reminderCount: { type: Number, default: 0 },
         reminderHistory: [
             {

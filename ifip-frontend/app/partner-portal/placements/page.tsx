@@ -255,7 +255,7 @@ export default function MyPlacementsPage() {
                         <p className="text-slate-400 italic text-xs">No interview scheduled yet.</p>
                       )}
                     </div>
-                    <button
+                    {p.hiringOutcome?.status !== "hire_confirmed" && <button
                       onClick={() => {
                         setActiveInterviewPlacement(p);
                         setInterviewDate(p.interviewScheduledAt ? new Date(p.interviewScheduledAt).toISOString().slice(0, 16) : "");
@@ -267,7 +267,7 @@ export default function MyPlacementsPage() {
                     >
                       <HiOutlineCalendar className="w-3.5 h-3.5" />
                       <span>{p.interviewScheduledAt ? "Reschedule / Edit Link" : "Log Interview Details"}</span>
-                    </button>
+                    </button>}
                   </div>
 
                   {/* Outcome & Private Notes */}
@@ -299,7 +299,7 @@ export default function MyPlacementsPage() {
                     </div>
 
                     <div className="flex items-center space-x-2.5 mt-3 flex-wrap gap-y-2">
-                      <button
+                      {p.hiringOutcome?.status !== "hire_confirmed" && <button
                         onClick={() => {
                           setActiveOutcomePlacement(p);
                           setOutcome(p.partnerOutcome || "offer_extended");
@@ -308,7 +308,7 @@ export default function MyPlacementsPage() {
                       >
                         <HiOutlineCheckCircle className="w-3.5 h-3.5" />
                         <span>Log Outcome</span>
-                      </button>
+                      </button>}
                       <button
                         onClick={() => {
                           setActiveNotesPlacement(p);

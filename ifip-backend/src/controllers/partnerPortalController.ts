@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import { User } from '../models/User.js';
 import { Application, ApplicationStatus } from '../models/Application.js';
+import { Applicant } from '../models/Applicants.js';
+import { Payment } from '../models/Payments.js';
 import { AssessmentSubmission } from '../models/AssessmentSubmission.js';
 import { Placement } from '../models/Placement.js';
 import { PartnerOrganization } from '../models/PartnerOrganization.js';
@@ -14,6 +16,7 @@ import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { logAction } from '../utils/auditLogger.js';
 import { env } from '../config/env.js';
 import { verifyPartnerUnsubscribeToken } from '../utils/partnerUnsubscribeToken.js';
+import { sendParticipantCvRequestedEmail } from '../services/emailService.js';
 
 /** Helper to retrieve candidate statuses that should be visible to partners */
 export const getAllowedPoolStatuses = async (): Promise<ApplicationStatus[]> => {
@@ -22,6 +25,21 @@ export const getAllowedPoolStatuses = async (): Promise<ApplicationStatus[]> => 
         return ['payment_confirmed', 'active', 'completed', 'placement_ready'];
     }
     return ['placement_ready', 'completed'];
+};
+
+const findVisibleCandidateApplication = async (userId: string) => {
+    const allowedStatuses = await getAllowedPoolStatuses();
+    return Application.findOne({ userId, status: { $in: allowedStatuses } }).lean();
+};
+
+const viewableCvUrl = (value?: string) => {
+    if (!value) return undefined;
+    try {
+        const url = new URL(value);
+        if (url.protocol === 'https:' || url.protocol === 'http:') return url.href;
+    } catch {
+        return undefined;
+    }
 };
 
 /** Helper — get the requesting partner's org, 403 if not linked */
@@ -57,26 +75,30 @@ export const getPartnerMe = async (req: Request, res: Response) => {
         const openings = await JobOpening.find({ partnerOrgId: org._id }).select('_id');
         const openingIds = openings.map((o) => o._id);
 
-        const [availableInterns, pendingRequests, confirmedPlacements, scheduledJobInterviews, scheduledPlacementInterviews] = await Promise.all([
+        const [availableInterns, pendingRequests, usedSlots, scheduledJobInterviews, scheduledPlacementInterviews, placementHires, jobHires] = await Promise.all([
             Application.countDocuments({ status: { $in: allowedStatuses } }),
             PartnerInterest.countDocuments({ partnerOrgId: org._id, status: 'pending' }),
             Placement.countDocuments({ partnerOrgId: org._id, status: { $in: ['matched', 'interviewing', 'placed'] } }),
             JobApplication.countDocuments({
                 jobOpeningId: { $in: openingIds },
                 status: 'interview_scheduled',
+                'hiringOutcome.status': { $ne: 'hire_confirmed' },
                 interviewScheduledAt: { $exists: true, $ne: null },
             }),
             Placement.countDocuments({
                 partnerOrgId: org._id,
                 status: 'interviewing',
+                'hiringOutcome.status': { $ne: 'hire_confirmed' },
                 interviewScheduledAt: { $exists: true, $ne: null },
                 partnerOutcome: { $exists: false },
             }),
+            Placement.distinct('userId', { partnerOrgId: org._id, 'hiringOutcome.status': 'hire_confirmed' }),
+            JobApplication.distinct('userId', { jobOpeningId: { $in: openingIds }, 'hiringOutcome.status': 'hire_confirmed' }),
         ]);
 
         const totalSlots = org.activeSlots;
-        const usedSlots = await Placement.countDocuments({ partnerOrgId: org._id, status: { $in: ['matched', 'interviewing', 'placed'] } });
         const scheduledInterviews = scheduledJobInterviews + scheduledPlacementInterviews;
+        const confirmedHires = new Set([...placementHires, ...jobHires].map(String)).size;
 
         res.json({
             org: {
@@ -97,7 +119,8 @@ export const getPartnerMe = async (req: Request, res: Response) => {
             stats: {
                 availableInterns,
                 pendingRequests,
-                confirmedPlacements,
+                confirmedPlacements: usedSlots,
+                confirmedHires,
                 slotsRemaining: Math.max(0, totalSlots - usedSlots),
                 scheduledInterviews,
             },
@@ -341,11 +364,13 @@ export const getInternById = async (req: Request, res: Response) => {
         if (!org) return;
 
         const userId = req.params.userId as string;
-
-        const allowedStatuses = await getAllowedPoolStatuses();
+        if (!Types.ObjectId.isValid(userId)) {
+            res.status(404).json({ message: 'Intern not found or not available in the talent pool.' });
+            return;
+        }
         const [user, app, submission] = await Promise.all([
-            User.findById(userId).lean(),
-            Application.findOne({ userId: new Types.ObjectId(userId), status: { $in: allowedStatuses } }).lean(),
+            User.findOne({ _id: userId, role: 'participant' }).lean(),
+            findVisibleCandidateApplication(userId),
             AssessmentSubmission.findOne({ userId: new Types.ObjectId(userId), status: { $in: ['submitted', 'passed', 'failed', 'pending_review'] } })
                 .sort({ submittedAt: -1 }).lean(),
         ]);
@@ -353,6 +378,15 @@ export const getInternById = async (req: Request, res: Response) => {
         if (!user || !app) {
             res.status(404).json({ message: 'Intern not found or not available in the talent pool.' });
             return;
+        }
+
+        let cvUrl = viewableCvUrl(app.cvUrl);
+        if (app.cvUrl === undefined && app.paymentId) {
+            const payment = await Payment.findOne({ _id: app.paymentId, status: 'success' }).select('applicantId').lean();
+            if (payment) {
+                const applicant = await Applicant.findById(payment.applicantId).select('cvUrl').lean();
+                cvUrl = viewableCvUrl(applicant?.cvUrl);
+            }
         }
 
         // Check if this partner has an approved placement for this intern
@@ -407,7 +441,7 @@ export const getInternById = async (req: Request, res: Response) => {
                 score: assessmentScore,
             },
             // Professional docs — visible to all partners
-            cvUrl: (app as any).cvUrl,
+            cvUrl,
             linkedinUrl: (app as any).linkedinUrl,
             portfolioUrl: (app as any).portfolioUrl,
             // Interest & placement state
@@ -425,6 +459,79 @@ export const getInternById = async (req: Request, res: Response) => {
         res.json(profile);
     } catch (err: any) {
         res.status(500).json({ message: 'Error loading intern profile.', error: err.message });
+    }
+};
+
+// ─── POST /api/v1/partners/interns/:userId/cv-request ───────────────────────────
+export const requestInternCv = async (req: Request, res: Response) => {
+    try {
+        const org = await getPartnerOrg(req, res);
+        if (!org) return;
+
+        const userId = req.params.userId as string;
+        if (!Types.ObjectId.isValid(userId)) {
+            res.status(404).json({ message: 'Intern not found or not available in the talent pool.' });
+            return;
+        }
+        const [participant, application] = await Promise.all([
+            User.findOne({ _id: userId, role: 'participant' })
+                .select('email emailNotificationsEnabled').lean(),
+            findVisibleCandidateApplication(userId),
+        ]);
+        if (!participant || !application) {
+            res.status(404).json({ message: 'Intern not found or not available in the talent pool.' });
+            return;
+        }
+
+        const filter = { userId, cvRequestOrgId: org._id, read: false };
+        const documentsPath = '/dashboard/settings#documents';
+        const result = await Notification.updateOne(filter, {
+            $setOnInsert: {
+                title: 'CV requested',
+                message: `${org.name} is requesting your CV. Open this request to see the company details and update your CV.`,
+                type: 'info',
+                link: documentsPath,
+            },
+        }, { upsert: true });
+        const alreadyRequested = result.upsertedCount === 0;
+        const statusCode = alreadyRequested ? 200 : 201;
+        if (!participant.email || participant.emailNotificationsEnabled === false) {
+            res.status(statusCode).json({ alreadyRequested, emailStatus: 'in_app' });
+            return;
+        }
+
+        // Claim the email separately so concurrent requests send once and a failed send can be retried.
+        const now = new Date();
+        const claimUntil = new Date(now.getTime() + 30_000);
+        const request = await Notification.findOneAndUpdate({
+            ...filter,
+            cvRequestEmailSentAt: { $exists: false },
+            $or: [{ cvRequestEmailClaimUntil: { $exists: false } }, { cvRequestEmailClaimUntil: { $lte: now } }],
+        }, { $set: { cvRequestEmailClaimUntil: claimUntil } });
+        if (!request) {
+            res.status(statusCode).json({ alreadyRequested, emailStatus: 'already_requested' });
+            return;
+        }
+
+        const claim = { _id: request._id, cvRequestEmailClaimUntil: claimUntil };
+        try {
+            await sendParticipantCvRequestedEmail(participant.email, org, `/dashboard/cv-requests/${request.id}`);
+        } catch {
+            await Notification.updateOne(claim, { $unset: { cvRequestEmailClaimUntil: 1 } });
+            res.status(statusCode).json({ alreadyRequested, emailStatus: 'failed' });
+            return;
+        }
+        await Notification.updateOne(claim, {
+            $set: { cvRequestEmailSentAt: new Date() },
+            $unset: { cvRequestEmailClaimUntil: 1 },
+        });
+        res.status(statusCode).json({ alreadyRequested, emailStatus: 'sent' });
+    } catch (err) {
+        if (typeof err === 'object' && err !== null && 'code' in err && err.code === 11000) {
+            res.json({ alreadyRequested: true, emailStatus: 'already_requested' });
+            return;
+        }
+        res.status(500).json({ message: 'Could not send the CV request. Please try again.' });
     }
 };
 
@@ -573,9 +680,11 @@ export const getMyPlacements = async (req: Request, res: Response) => {
 
         const enriched = placements.map(p => {
             const intern = userMap.get(p.userId.toString()) as any;
-            const isContactVisible = ['matched', 'interviewing', 'placed'].includes(p.status);
+            const status = p.hiringOutcome?.status === 'hire_confirmed' ? 'placed' : p.status;
+            const isContactVisible = ['matched', 'interviewing', 'placed'].includes(status);
             return {
                 ...p,
+                status,
                 intern: {
                     fullName: intern?.fullName,
                     avatarUrl: intern?.avatarUrl,
@@ -1170,6 +1279,7 @@ export const getJobOpeningApplications = async (req: Request, res: Response) => 
             const isContactVisible = ['shortlisted', 'interview_scheduled'].includes(app.status);
             return {
                 ...app,
+                status: app.hiringOutcome?.status === 'hire_confirmed' ? 'hired' : app.status,
                 applicant: {
                     fullName: user?.fullName,
                     avatarUrl: user?.avatarUrl,
@@ -1230,6 +1340,7 @@ export const getJobApplicationById = async (req: Request, res: Response) => {
 
         res.json({
             ...application,
+            status: application.hiringOutcome?.status === 'hire_confirmed' ? 'hired' : application.status,
             applicant: {
                 fullName: user?.fullName,
                 avatarUrl: user?.avatarUrl,
@@ -1405,6 +1516,7 @@ export const getPartnerTasks = async (req: Request, res: Response) => {
         const jobApps = await JobApplication.find({
             jobOpeningId: { $in: openingIds },
             status: 'interview_scheduled',
+            'hiringOutcome.status': { $ne: 'hire_confirmed' },
             interviewScheduledAt: { $exists: true, $ne: null },
         })
             .populate('userId', 'fullName email phone avatarUrl')
@@ -1415,6 +1527,7 @@ export const getPartnerTasks = async (req: Request, res: Response) => {
         const placements = await Placement.find({
             partnerOrgId: org._id,
             status: 'interviewing',
+            'hiringOutcome.status': { $ne: 'hire_confirmed' },
             interviewScheduledAt: { $exists: true, $ne: null },
             partnerOutcome: { $exists: false },
         })

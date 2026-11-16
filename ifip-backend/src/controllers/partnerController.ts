@@ -6,6 +6,7 @@ import { Placement } from '../models/Placement.js';
 import { Application } from '../models/Application.js';
 import { User } from '../models/User.js';
 import { Notification } from '../models/Notification.js';
+import { JobOpening } from '../models/JobOpening.js';
 import { Types } from 'mongoose';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { signSetPasswordToken } from '../utils/jwt.js';
@@ -274,23 +275,62 @@ export const reviewPartnerApplication = async (req: Request, res: Response) => {
         if (adminNotes) application.adminNotes = adminNotes;
 
         if (action === 'approve') {
-            // Create the live PartnerOrganization from the application data
-            const newOrg = await PartnerOrganization.create({
-                name:          application.companyName,
-                contactEmail:  application.contactEmail,
-                contactPerson: application.contactPerson,
-                contactPhone:  application.contactPhone,
-                website:       application.website,
-                sectorTags:    application.sectorTags,
-                description:   application.description,
-                activeSlots:   application.activeSlots || 5,
-                logoUrl:       application.logoUrl,
-                status:        'active',
-                cohorts:       [],
-                hasOpenings:   application.hasOpenings || false,
-                openings:      application.openings || [],
-                portalEnabled: true,
+            const result = await PartnerApplication.db.transaction(async session => {
+                // Claim the review and create the organization and its openings together.
+                const approved = await PartnerApplication.findOneAndUpdate(
+                    { _id: application._id, status: 'pending' },
+                    { $set: { status: 'approved', reviewedAt: application.reviewedAt, adminNotes: application.adminNotes } },
+                    { returnDocument: 'after', session },
+                );
+                if (!approved) return null;
+
+                const newOrg = new PartnerOrganization({
+                    name:          approved.companyName,
+                    contactEmail:  approved.contactEmail,
+                    contactPerson: approved.contactPerson,
+                    contactPhone:  approved.contactPhone,
+                    website:       approved.website,
+                    sectorTags:    approved.sectorTags,
+                    description:   approved.description,
+                    activeSlots:   approved.activeSlots || 5,
+                    logoUrl:       approved.logoUrl,
+                    status:        'active',
+                    cohorts:       [],
+                    hasOpenings:   approved.hasOpenings || false,
+                    openings:      approved.openings || [],
+                    portalEnabled: true,
+                });
+                await newOrg.save({ session });
+
+                const openings = await JobOpening.insertMany(
+                    newOrg.openings.map(opening => ({
+                        partnerOrgId: newOrg._id,
+                        title: opening.role,
+                        workMode: opening.mode,
+                        location: opening.location,
+                        slots: opening.count,
+                        status: 'pending_review',
+                        migratedFromOpeningId: opening._id?.toString(),
+                    })),
+                    { session },
+                );
+                return { newOrg, openings };
             });
+            if (!result) {
+                res.status(409).json({ message: 'This partner application has already been reviewed.' });
+                return;
+            }
+            const { newOrg, openings } = result;
+
+            for (const opening of openings) {
+                notificationEmitter.emit('jobOpening.created', {
+                    openingId: opening.id,
+                    orgName: newOrg.name,
+                    title: opening.title,
+                    workMode: opening.workMode,
+                    slots: opening.slots,
+                });
+            }
 
             // Automatically send the portal invite immediately on approval
             try {
@@ -298,9 +338,6 @@ export const reviewPartnerApplication = async (req: Request, res: Response) => {
             } catch (inviteErr: any) {
                 console.error(`Failed to send automated partner invite on approval:`, inviteErr.message);
             }
-
-            application.status = 'approved';
-            await application.save();
 
             notificationEmitter.emit('partner.reviewed', {
                 email: application.contactEmail,
@@ -316,9 +353,14 @@ export const reviewPartnerApplication = async (req: Request, res: Response) => {
                 partnerOrganization: newOrg,
             });
         } else {
-            // Decline
-            application.status = 'declined';
-            await application.save();
+            const declined = await PartnerApplication.updateOne(
+                { _id: application._id, status: 'pending' },
+                { $set: { status: 'declined', reviewedAt: application.reviewedAt, adminNotes: application.adminNotes } },
+            );
+            if (declined.modifiedCount === 0) {
+                res.status(409).json({ message: 'This partner application has already been reviewed.' });
+                return;
+            }
 
             notificationEmitter.emit('partner.reviewed', {
                 email: application.contactEmail,

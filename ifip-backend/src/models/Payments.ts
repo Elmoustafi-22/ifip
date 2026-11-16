@@ -19,6 +19,7 @@ export interface BankTransfer {
 
 export interface IPayment extends Document {
     applicantId: Types.ObjectId;
+    cohortId?: Types.ObjectId;
     applicationId?: Types.ObjectId;
     provider: 'paystack' | 'flutterwave' | 'manual';
     providerRef: string;
@@ -48,6 +49,7 @@ export interface IPayment extends Document {
 const paymentSchema = new Schema<IPayment>(
     {
         applicantId: { type: Schema.Types.ObjectId, ref: 'Applicant', required: true },
+        cohortId: { type: Schema.Types.ObjectId, ref: 'Cohort' },
         applicationId: { type: Schema.Types.ObjectId, ref: 'Application' },
         provider: { type: String, enum: ['paystack', 'flutterwave', 'manual'], default: 'flutterwave' },
         providerRef: { type: String, required: true, unique: true },

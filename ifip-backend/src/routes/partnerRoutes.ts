@@ -5,6 +5,7 @@ import {
     getPartnerMe,
     getInternPool,
     getInternById,
+    requestInternCv,
     expressInterest,
     getMyInterests,
     withdrawInterest,
@@ -51,6 +52,7 @@ router.get('/me',                                      ...partnerAuth, getPartne
 router.get('/tasks',                                   ...partnerAuth, getPartnerTasks);
 router.get('/interns',                                 ...partnerAuth, getInternPool);
 router.get('/interns/:userId',                         ...partnerAuth, getInternById);
+router.post('/interns/:userId/cv-request',             ...partnerAuth, requestInternCv);
 
 router.post('/interests',                              ...partnerAuth, expressInterest);
 router.get('/interests',                               ...partnerAuth, getMyInterests);

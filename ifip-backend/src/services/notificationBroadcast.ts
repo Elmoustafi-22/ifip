@@ -7,6 +7,7 @@ import { Applicant } from '../models/Applicants.js';
 import { Module } from '../models/Module.js';
 import type { ICohort } from '../models/Cohort.js';
 import { JobApplication } from '../models/JobApplication.js';
+import { Placement } from '../models/Placement.js';
 import { checkThresholdAndSendDigest } from './jobApplicationDigestCron.js';
 import {
     sendOtpEmail,
@@ -1158,7 +1159,7 @@ notificationEmitter.on('jobOpening.created', async ({ openingId, orgName, title,
  * jobOpening.opened
  * Emitted when an admin declares a job opening open/verified.
  * 1. Alerts partner (in-app + email).
- * 2. Alerts all active participants (in-app + email).
+ * 2. Alerts available active participants (in-app + email).
  */
 notificationEmitter.on('jobOpening.opened', async ({ openingId, title, orgName, partnerOrgId, createdByUserId, workMode, location, slots }) => {
     try {
@@ -1203,33 +1204,30 @@ notificationEmitter.on('jobOpening.opened', async ({ openingId, title, orgName, 
             }
         }
 
-        // 2. Notify all active participants (in-app + email)
-        const activeApps = await Application.find({
-            status: { $in: ['active', 'payment_confirmed', 'completed', 'placement_ready'] }
-        }).populate<{ userId: { _id: Types.ObjectId; email: string; fullName?: string; emailNotificationsEnabled?: boolean } }>('userId', 'email fullName emailNotificationsEnabled');
-
-        // Deduplicate participants by user ID
-        const seenUserIds = new Set<string>();
-        const validParticipants: { id: Types.ObjectId; email: string; fullName: string }[] = [];
-        for (const app of activeApps) {
-            const u = app.userId as any;
-            if (u && u._id && u.email) {
-                const uid = u._id.toString();
-                if (!seenUserIds.has(uid)) {
-                    seenUserIds.add(uid);
-                    validParticipants.push({
-                        id: u._id,
-                        email: u.email,
-                        fullName: u.fullName || 'Participant',
-                    });
-                }
-            }
-        }
+        // Include recorded hiring decisions and offers from before admin outcomes were added.
+        const selectedOutcome = { 'hiringOutcome.status': { $in: ['selected', 'offer_extended', 'hire_confirmed'] } } as const;
+        const legacyOffer = { partnerOutcome: 'offer_extended', 'hiringOutcome.status': { $exists: false } } as const;
+        const [activeUserIds, selectedPlacements, selectedJobApplicants] = await Promise.all([
+            Application.distinct('userId', {
+                status: { $in: ['active', 'payment_confirmed', 'completed', 'placement_ready'] },
+            }),
+            Placement.distinct('userId', {
+                $or: [selectedOutcome, legacyOffer, { status: 'placed' }],
+            }),
+            JobApplication.distinct('userId', {
+                $or: [selectedOutcome, legacyOffer, { status: 'offered', 'hiringOutcome.status': { $exists: false } }],
+            }),
+        ]);
+        const selectedUserIds = new Set([...selectedPlacements, ...selectedJobApplicants].map(String));
+        const validParticipants = await User.find({
+            role: 'participant',
+            _id: { $in: activeUserIds.filter(id => !selectedUserIds.has(String(id))) },
+        }).select('email fullName emailNotificationsEnabled').lean();
 
         const participantNotifications = validParticipants.map(p => ({
-            userId: p.id,
+            userId: p._id,
             title: `New Job Opening: ${title}`,
-            message: `${orgName} is now accepting applications for "${title}" (${workMode}). Complete your coursework module tasks (maximum 1 pending task allowed) to apply.`,
+            message: `${orgName} is now accepting applications for "${title}" (${workMode}). View the opening and check your eligibility on Job Openings.`,
             type: 'info' as const,
             link: '/dashboard/job-openings',
         }));
@@ -1240,10 +1238,11 @@ notificationEmitter.on('jobOpening.opened', async ({ openingId, title, orgName, 
 
         // Send email alerts to participants
         for (const p of validParticipants) {
+            if (!p.email || p.emailNotificationsEnabled === false) continue;
             try {
                 await sendParticipantJobOpeningAnnouncedEmail(
                     p.email,
-                    p.fullName,
+                    p.fullName || 'Participant',
                     title,
                     orgName,
                     workMode,

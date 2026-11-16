@@ -211,8 +211,12 @@ export const updateMyApplicant = async (req: Request, res: Response) => {
     res.json(applicant);
 };
 
-export const executeApplicationSubmission = async (applicantId: Types.ObjectId | string, paymentId: Types.ObjectId | string) => {
+export const executeApplicationSubmission = async (
+    applicantId: Types.ObjectId | string,
+    paymentSource: Types.ObjectId | string | ((session: mongoose.ClientSession) => Promise<Types.ObjectId>),
+) => {
     const result = await mongoose.connection.transaction(async (session) => {
+        const paymentId = typeof paymentSource === 'function' ? await paymentSource(session) : paymentSource;
         const payment = await Payment.findOne({ _id: paymentId, applicantId, status: 'success' }).session(session);
         if (!payment) throw new Error('Payment verification is required.');
 

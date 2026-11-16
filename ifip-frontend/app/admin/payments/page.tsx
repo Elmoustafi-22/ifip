@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useContext, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { isAxiosError } from "axios";
 import Link from "next/link";
 import * as Hi2 from "react-icons/hi2";
 import BankTransferReview from "@/components/admin/BankTransferReview";
+import { AdminCohortContext } from "../layout";
 import {
   getAdminPayments,
   getAdminPaymentById,
   resolveAdminPayment,
   AdminPayment,
   AdminPaymentsResponse,
-  getMyApplication,
 } from "@/lib/api/services";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -53,12 +54,52 @@ const PROVIDER_STYLES: Record<string, string> = {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AdminPaymentsPage() {
-  const router = useRouter();
-  const [authorized, setAuthorized] = useState(false);
-  const [authLoading, setAuthLoading] = useState(true);
+  return (
+    <Suspense fallback={<p className="p-6 text-sm text-slate-500" role="status">Loading payments…</p>}>
+      <PaymentWorkspace />
+    </Suspense>
+  );
+}
 
-  const [data, setData] = useState<AdminPaymentsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+function PaymentWorkspace() {
+  const { selectedCohortId, setSelectedCohortId, cohorts } = useContext(AdminCohortContext);
+  const linkedId = useSearchParams().get("payment");
+  const [link, setLink] = useState<{ id: string; scope?: string; payment?: AdminPayment }>();
+  useEffect(() => {
+    if (!linkedId || !/^[a-f0-9]{24}$/i.test(linkedId)) return;
+    let active = true;
+    getAdminPaymentById(linkedId).then(payment => {
+      if (!active) return;
+      const scope = payment.paymentCohortId
+        ? cohorts.find(cohort => cohort._id === payment.paymentCohortId)?._id ?? ""
+        : "unassigned";
+      setSelectedCohortId(scope);
+      setLink({ id: linkedId, scope, payment });
+    }).catch(() => {
+      if (active) setLink({ id: linkedId });
+    });
+    return () => { active = false; };
+  }, [linkedId, cohorts, setSelectedCohortId]);
+
+  const linkedPayment = link && link.id === linkedId && link.scope === selectedCohortId ? link.payment : undefined;
+  const linkFailed = Boolean(linkedId && (!/^[a-f0-9]{24}$/i.test(linkedId) || (link?.id === linkedId && !link.payment)));
+  return (
+    <PaymentRecords key={`${selectedCohortId}:${linkedPayment?._id ?? ""}`}
+      cohortId={selectedCohortId} linkedPayment={linkedPayment} linkFailed={linkFailed} />
+  );
+}
+
+function PaymentRecords({ cohortId, linkedPayment, linkFailed }: {
+  cohortId: string;
+  linkedPayment?: AdminPayment;
+  linkFailed: boolean;
+}) {
+  const { cohorts } = useContext(AdminCohortContext);
+  const cohortName = (id?: string | null) => id
+    ? cohorts.find(cohort => cohort._id === id)?.name ?? "Saved cohort unavailable"
+    : "Awaiting assignment";
+  const [response, setResponse] = useState<{ key: string; data: AdminPaymentsResponse | null }>();
+  const [refresh, setRefresh] = useState(0);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -68,9 +109,11 @@ export default function AdminPaymentsPage() {
   const [page, setPage] = useState(1);
 
   // Detail drawer state
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerPayment, setDrawerPayment] = useState<AdminPayment | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(Boolean(linkedPayment));
+  const [drawerPayment, setDrawerPayment] = useState<AdminPayment | null>(linkedPayment ?? null);
   const [drawerLoading, setDrawerLoading] = useState(false);
+  const [drawerError, setDrawerError] = useState(false);
+  const drawerRequest = useRef(0);
 
   // Resolve modal state
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
@@ -82,72 +125,69 @@ export default function AdminPaymentsPage() {
   // Copy feedback
   const [copiedRef, setCopiedRef] = useState<string | null>(null);
 
-  // ── Auth Check ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    (async () => {
-      try {
-        const profile = await getMyApplication();
-        if (profile?.role === "admin" || profile?.role === "superadmin") {
-          setAuthorized(true);
-        } else {
-          router.push("/admin?error=unauthorized");
-        }
-      } catch {
-        router.push("/login?session=expired");
-      } finally {
-        setAuthLoading(false);
-      }
-    })();
-  }, [router]);
-
   // ── Search debounce ─────────────────────────────────────────────────────────
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 350);
+    const t = setTimeout(() => {
+      setPage(1);
+      setDebouncedSearch(search);
+    }, 350);
     return () => clearTimeout(t);
   }, [search]);
 
-  useEffect(() => { setPage(1); }, [statusFilter, providerFilter, debouncedSearch]);
-
   // ── Data Fetch ──────────────────────────────────────────────────────────────
-  const fetchPayments = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await getAdminPayments({
-        status: statusFilter === "all" ? undefined : statusFilter,
-        provider: ["all", "bank_transfer"].includes(providerFilter) ? undefined : providerFilter,
-        bankTransfer: providerFilter === "bank_transfer" ? true : undefined,
-        search: debouncedSearch || undefined,
-        page,
-        limit: 50,
-      });
-      setData(result);
-    } catch (err) {
-      console.error("Failed to load payments:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFilter, providerFilter, debouncedSearch, page]);
+  const requestKey = JSON.stringify([cohortId, statusFilter, providerFilter, debouncedSearch, page, refresh]);
+  const currentResponse = response?.key === requestKey ? response : undefined;
+  const loading = !currentResponse;
+  const data = currentResponse?.data;
+  const loadError = currentResponse?.data === null;
+  const refreshPayments = () => setRefresh(value => value + 1);
 
   useEffect(() => {
-    if (authorized) fetchPayments();
-  }, [authorized, fetchPayments]);
+    let active = true;
+    getAdminPayments({
+      cohortId: cohortId || undefined,
+      status: statusFilter === "all" ? undefined : statusFilter,
+      provider: ["all", "bank_transfer"].includes(providerFilter) ? undefined : providerFilter,
+      bankTransfer: providerFilter === "bank_transfer" ? true : undefined,
+      search: debouncedSearch || undefined,
+      page,
+      limit: 50,
+    }).then(result => {
+      if (!active) return;
+      if (page > Math.max(1, result.pages)) setPage(Math.max(1, result.pages));
+      else setResponse({ key: requestKey, data: result });
+    }).catch(() => {
+      if (active) setResponse({ key: requestKey, data: null });
+    });
+    return () => { active = false; };
+  }, [cohortId, statusFilter, providerFilter, debouncedSearch, page, requestKey]);
 
   // ── Drawer open ─────────────────────────────────────────────────────────────
   const openDrawer = async (payment: AdminPayment) => {
+    const request = ++drawerRequest.current;
     setDrawerOpen(true);
     setDrawerLoading(true);
+    setDrawerError(false);
     setDrawerPayment(payment);
     try {
       const full = await getAdminPaymentById(payment._id);
+      if (request !== drawerRequest.current) return;
+      if (cohortId && (full.paymentCohortId ?? "unassigned") !== cohortId) {
+        closeDrawer();
+        refreshPayments();
+        return;
+      }
       setDrawerPayment(full);
     } catch {
-      // keep the list-level data
+      if (request === drawerRequest.current) setDrawerError(true);
     } finally {
-      setDrawerLoading(false);
+      if (request === drawerRequest.current) setDrawerLoading(false);
     }
   };
 
   const closeDrawer = () => {
+    if (resolving) return;
+    drawerRequest.current++;
     setDrawerOpen(false);
     setDrawerPayment(null);
     setResolveModalOpen(false);
@@ -171,32 +211,19 @@ export default function AdminPaymentsPage() {
       const result = await resolveAdminPayment(drawerPayment._id, {
         status: resolveStatus,
         note: resolveNote || undefined,
+        expectedCohortId: drawerPayment.paymentCohortId ?? "unassigned",
       });
-      setDrawerPayment(result.payment);
+      setDrawerPayment(current => current && { ...current, status: result.payment.status, updatedAt: result.payment.updatedAt });
       setResolveModalOpen(false);
       setResolveNote("");
-      fetchPayments(); // refresh list
-    } catch (err: any) {
-      setResolveError(err?.response?.data?.message || "Failed to resolve payment. Please try again.");
+      refreshPayments();
+    } catch (err) {
+      setResolveError((isAxiosError<{ message?: string }>(err) && err.response?.data?.message)
+        || "Failed to resolve payment. Please try again.");
     } finally {
       setResolving(false);
     }
   };
-
-  // ── Render guards ───────────────────────────────────────────────────────────
-  if (authLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4  font-sans">
-        <svg className="animate-spin w-8 h-8 text-[#000666]" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-        </svg>
-        <p className="text-slate-500 text-sm font-medium">Checking privileges…</p>
-      </div>
-    );
-  }
-
-  if (!authorized) return null;
 
   const summary = data?.summary;
 
@@ -217,10 +244,14 @@ export default function AdminPaymentsPage() {
               <Hi2.HiOutlineCreditCard className="w-7 h-7 text-[#FF9800]" />
               Payment Records
             </h1>
+            <p className="mt-1 text-sm text-slate-600">{cohortId
+              ? cohortName(cohortId === "unassigned" ? null : cohortId)
+              : "All cohorts"}</p>
+            {linkFailed && <p role="alert" className="mt-2 text-sm text-red-700">Could not open the requested payment.</p>}
           </div>
         </div>
         <button
-          onClick={fetchPayments}
+          onClick={refreshPayments}
           disabled={loading}
           className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-[#000666] border border-slate-200/80 bg-white px-4 py-2.5 rounded-xl transition-all shadow-xs"
         >
@@ -228,13 +259,17 @@ export default function AdminPaymentsPage() {
           Refresh
         </button>
       </div>
+      {loadError && <p role="alert" className="mb-4 text-sm text-red-700">Could not load payment records. Select Refresh to try again.</p>}
 
       {/* ── Stats Bar ───────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         {[
           {
             label: "Total Revenue",
-            value: summary ? `₦${(summary.totalRevenue / 100).toLocaleString("en-NG")}` : "—",
+            value: summary ? (summary.revenueByCurrency.length
+              ? summary.revenueByCurrency.map(({ amount, currency }) =>
+                  <span className="block break-words" key={currency}>{formatCurrency(amount, currency)}</span>)
+              : formatCurrency(0, "NGN")) : "—",
             icon: <Hi2.HiOutlineBanknotes className="w-5 h-5 text-emerald-500" />,
             color: "text-emerald-700",
           },
@@ -280,7 +315,8 @@ export default function AdminPaymentsPage() {
               {["all", "success", "pending", "failed"].map((s) => (
                 <button
                   key={s}
-                  onClick={() => setStatusFilter(s)}
+                  onClick={() => { setStatusFilter(s); setPage(1); }}
+                  aria-pressed={statusFilter === s}
                   className={`px-3 py-1.5 rounded-lg text-[11px] font-bold capitalize transition-all ${
                     statusFilter === s
                       ? "bg-[#000666] text-white"
@@ -296,7 +332,8 @@ export default function AdminPaymentsPage() {
               {["all", "paystack", "flutterwave", "bank_transfer"].map((p) => (
                 <button
                   key={p}
-                  onClick={() => setProviderFilter(p)}
+                  onClick={() => { setProviderFilter(p); setPage(1); }}
+                  aria-pressed={providerFilter === p}
                   className={`px-3 py-1.5 rounded-lg text-[11px] font-bold capitalize transition-all ${
                     providerFilter === p
                       ? "bg-[#FF9800] text-white"
@@ -367,9 +404,13 @@ export default function AdminPaymentsPage() {
                         {/* Reference */}
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-xs text-slate-600 font-semibold">
+                            <button
+                              type="button"
+                              className="font-mono text-xs text-slate-600 font-semibold hover:underline"
+                              onClick={(event) => { event.stopPropagation(); void openDrawer(payment); }}
+                            >
                               {shortRef(payment.providerRef)}
-                            </span>
+                            </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); copyRef(payment.providerRef); }}
                               className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-700 transition-all"
@@ -524,10 +565,10 @@ export default function AdminPaymentsPage() {
                 </div>
                 <div>
                   <h2 className="font-bold text-sm text-slate-800">Payment Detail</h2>
-                  <p className="text-[11px] text-slate-400">Full record & resolution tools</p>
+                  {drawerPayment && <p className="text-xs text-slate-600">{cohortName(drawerPayment.paymentCohortId)}</p>}
                 </div>
               </div>
-              <button onClick={closeDrawer} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+              <button onClick={closeDrawer} aria-label="Close payment detail" disabled={resolving} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
                 <Hi2.HiOutlineXMark className="w-5 h-5 text-slate-500" />
               </button>
             </div>
@@ -539,6 +580,8 @@ export default function AdminPaymentsPage() {
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
               </div>
+            ) : drawerError ? (
+              <p role="alert" className="p-6 text-sm text-red-700">Could not load payment details. Close the panel and open the payment again.</p>
             ) : drawerPayment ? (
               <div className="flex-1 overflow-y-auto">
                 {/* Status Banner */}
@@ -667,7 +710,7 @@ export default function AdminPaymentsPage() {
                       </div>
                       {drawerPayment.manualPaymentNotes && (
                         <p className="text-xs text-emerald-800 bg-white/80 p-2.5 rounded-lg border border-emerald-100 italic leading-relaxed">
-                          "{drawerPayment.manualPaymentNotes}"
+                          &ldquo;{drawerPayment.manualPaymentNotes}&rdquo;
                         </p>
                       )}
                     </div>
@@ -694,7 +737,7 @@ export default function AdminPaymentsPage() {
                   <BankTransferReview key={drawerPayment._id} payment={drawerPayment} onUpdated={async () => {
                     const updated = await getAdminPaymentById(drawerPayment._id);
                     setDrawerPayment(current => current?._id === updated._id ? updated : current);
-                    await fetchPayments();
+                    refreshPayments();
                   }} />
                 </div> : <div className="px-6 pb-6">
                   <div className="border border-dashed border-slate-300 rounded-2xl p-5 bg-slate-50/50">

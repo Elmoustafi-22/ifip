@@ -95,7 +95,8 @@ export default function JobOpeningApplicationsReviewPage() {
     const shortlisted = applications.filter((a) => a.status === "shortlisted").length;
     const interviewScheduled = applications.filter((a) => a.status === "interview_scheduled").length;
     const notSelected = applications.filter((a) => a.status === "not_selected").length;
-    return { total, submitted, shortlisted, interviewScheduled, notSelected };
+    const hired = applications.filter((a) => a.status === "hired").length;
+    return { total, submitted, shortlisted, interviewScheduled, notSelected, hired };
   }, [applications]);
 
   const handleReviewAction = async (appId: string, action: "shortlisted" | "not_selected") => {
@@ -311,6 +312,7 @@ export default function JobOpeningApplicationsReviewPage() {
           { id: "submitted", label: `Pending (${stats.submitted})` },
           { id: "shortlisted", label: `Shortlisted (${stats.shortlisted})` },
           { id: "interview_scheduled", label: `Interviews (${stats.interviewScheduled})` },
+          { id: "hired", label: `Hired (${stats.hired})` },
           { id: "not_selected", label: `Not Selected (${stats.notSelected})` },
         ].map((tab) => (
           <button
@@ -341,7 +343,7 @@ export default function JobOpeningApplicationsReviewPage() {
       ) : (
         <div className="space-y-4">
           {filteredApps.map((app) => {
-            const isContactVisible = ["shortlisted", "interview_scheduled"].includes(app.status);
+            const isContactVisible = ["shortlisted", "interview_scheduled", "hired"].includes(app.status);
             return (
               <div
                 key={app._id}
@@ -527,7 +529,7 @@ export default function JobOpeningApplicationsReviewPage() {
                   </div>
 
                   {/* Review Actions */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  {app.status !== "hired" && <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     {app.status !== "shortlisted" && app.status !== "interview_scheduled" && (
                       <button
                         onClick={() => handleReviewAction(app._id, "shortlisted")}
@@ -563,7 +565,7 @@ export default function JobOpeningApplicationsReviewPage() {
                         Not Selected
                       </button>
                     )}
-                  </div>
+                  </div>}
                 </div>
               </div>
             );
@@ -639,7 +641,7 @@ export default function JobOpeningApplicationsReviewPage() {
               </div>
 
               {/* Contact Information */}
-              {["shortlisted", "interview_scheduled"].includes(selectedApplicant.status) ? (
+              {["shortlisted", "interview_scheduled", "hired"].includes(selectedApplicant.status) ? (
                 (selectedApplicant.applicant?.email || selectedApplicant.applicant?.phone) && (
                   <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-wrap gap-4 text-xs font-medium text-slate-700">
                     {selectedApplicant.applicant?.email && (
@@ -811,7 +813,7 @@ export default function JobOpeningApplicationsReviewPage() {
                 Close
               </button>
 
-              <div className="flex items-center gap-2 flex-wrap">
+              {selectedApplicant.status !== "hired" && <div className="flex items-center gap-2 flex-wrap">
                 {selectedApplicant.status !== "shortlisted" && selectedApplicant.status !== "interview_scheduled" && (
                   <button
                     type="button"
@@ -861,7 +863,7 @@ export default function JobOpeningApplicationsReviewPage() {
                     Not Selected
                   </button>
                 )}
-              </div>
+              </div>}
             </div>
           </div>
         </div>

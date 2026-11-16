@@ -22,7 +22,7 @@ import {
   HiOutlineUserCircle,
   HiOutlineXMark,
 } from "react-icons/hi2";
-import { getInternProfile, expressInterest, getPartnerMe, InternFullProfile, PartnerOpening } from "@/lib/api/partner";
+import { getInternProfile, expressInterest, getPartnerMe, requestInternCv, InternFullProfile, PartnerOpening } from "@/lib/api/partner";
 import { useFormOptions } from "@/lib/hooks/useFormOptions";
 
 export default function InternProfileDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -33,6 +33,13 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
   const [profile, setProfile] = useState<InternFullProfile | null>(null);
   const [partnerOpenings, setPartnerOpenings] = useState<PartnerOpening[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cvRequest, setCvRequest] = useState<{
+    userId: string;
+    status: "sending" | "sent" | "in_app" | "email_failed" | "pending" | "error";
+  }>();
+  const cvRequestStatus = cvRequest?.userId === userId ? cvRequest.status : undefined;
+  const cvRequestSent = cvRequestStatus === "sent" || cvRequestStatus === "in_app" || cvRequestStatus === "pending";
+  const cvRequestDisabled = cvRequestSent || cvRequestStatus === "sending";
 
   // Request form state
   const [selectedRole, setSelectedRole] = useState("");
@@ -79,6 +86,23 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
     const matched = partnerOpenings.find((o) => o.role === val);
     if (matched && matched.mode) {
       setWorkType(matched.mode);
+    }
+  };
+
+  const handleRequestCv = async () => {
+    if (cvRequestDisabled) return;
+    setCvRequest({ userId, status: "sending" });
+    try {
+      const { emailStatus, alreadyRequested } = await requestInternCv(userId);
+      const status = {
+        sent: "sent",
+        failed: "email_failed",
+        in_app: alreadyRequested ? "pending" : "in_app",
+        already_requested: "pending",
+      } as const;
+      setCvRequest({ userId, status: status[emailStatus] });
+    } catch {
+      setCvRequest({ userId, status: "error" });
     }
   };
 
@@ -393,14 +417,35 @@ export default function InternProfileDetailPage({ params }: { params: Promise<{ 
                 >
                   <span className="flex items-center space-x-2">
                     <HiOutlineDocumentText className="w-4 h-4 text-[#000666]" />
-                    <span>Resume</span>
+                    <span>View CV <span className="sr-only">(opens in a new tab)</span></span>
                   </span>
                   <HiOutlineLink className="w-4 h-4 text-slate-400" />
                 </a>
               ) : (
-                <div className="p-3 rounded-xl bg-slate-50 text-slate-400 border border-slate-200 text-center">
-                  Resume document not attached
+                <div className="p-3 rounded-xl bg-slate-50 text-slate-600 border border-slate-200">
+                  No CV on file
                 </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleRequestCv}
+                aria-disabled={cvRequestDisabled}
+                className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-slate-300 px-3 text-left font-semibold text-[#000666] hover:bg-slate-50 aria-disabled:opacity-60"
+              >
+                <HiOutlinePaperAirplane className="size-4" aria-hidden="true" />
+                {cvRequestStatus === "sending" ? "Sending request…" : cvRequestStatus === "email_failed" ? "Retry CV email" : "Request CV"}
+              </button>
+              <div role="status" className={cvRequestSent ? "text-slate-700" : "sr-only"}>
+                {cvRequestStatus === "sent" && "CV request sent by email and in the dashboard."}
+                {cvRequestStatus === "in_app" && "CV request sent in the participant’s dashboard."}
+                {cvRequestStatus === "pending" && "The participant already has an unread CV request from your organization."}
+              </div>
+              {cvRequestStatus === "error" && (
+                <p role="alert" className="text-red-700">Could not send the CV request. Try again.</p>
+              )}
+              {cvRequestStatus === "email_failed" && (
+                <p role="alert" className="text-red-700">The dashboard request was sent. The email failed to send.</p>
               )}
 
               {profile.linkedinUrl && (

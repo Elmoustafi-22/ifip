@@ -708,6 +708,7 @@ export interface PendingPaymentAttempt {
   amount: number;
   currency: string;
   status: 'pending' | 'success' | 'failed';
+  bankTransferReview?: 'awaiting_proof' | 'under_review' | 'needs_information' | 'approved' | 'closed';
   webhookVerified: boolean;
   createdAt: string;
   updatedAt: string;
@@ -762,6 +763,7 @@ export interface PendingApplicant {
   daysSinceActivity: number;
   paymentAttemptsCount: number;
   paymentAttempts: PendingPaymentAttempt[];
+  manualPaymentCohortId?: string | null;
   reminderCount?: number;
   lastReminderSentAt?: string | null;
   reminderHistory?: Array<{
@@ -798,8 +800,11 @@ export interface PendingApplicantsResponse {
   summary: PendingApplicantsSummary;
 }
 
+export type PendingApplicantWork = "ready_for_reminder" | "payment_review" | "incomplete";
+
 export interface GetPendingApplicantsParams {
   cohortId?: string;
+  work?: PendingApplicantWork;
   search?: string;
   country?: string;
   step?: number;
@@ -821,24 +826,34 @@ export const getPendingApplicants = async (
   return data;
 };
 
+interface PendingReminderInput {
+  cohortId?: string;
+  subject?: string;
+  message?: string;
+  includeResumeLink?: boolean;
+}
+
+export interface PendingReminderResult {
+  message: string;
+  sentCount: number;
+  failCount: number;
+  skippedCount: number;
+  results: { applicantId: string; status: "accepted" | "failed" | "skipped"; reason?: string }[];
+}
+
 export const sendPendingApplicantReminder = async (
   applicantId: string,
-  payload?: { subject?: string; message?: string; includeResumeLink?: boolean }
-): Promise<{ message: string }> => {
-  const { data } = await authClient.post<{ message: string }>(
+  payload?: PendingReminderInput,
+): Promise<PendingReminderResult> => {
+  const { data } = await authClient.post<PendingReminderResult>(
     `/admin/pending-applicants/${applicantId}/remind-email`,
     payload
   );
   return data;
 };
 
-export const sendBulkPendingApplicantReminders = async (payload: {
-  applicantIds: string[];
-  subject?: string;
-  message?: string;
-  includeResumeLink?: boolean;
-}): Promise<{ message: string; sentCount: number; failCount: number }> => {
-  const { data } = await authClient.post<{ message: string; sentCount: number; failCount: number }>(
+export const sendBulkPendingApplicantReminders = async (payload: PendingReminderInput & { applicantIds: string[] }): Promise<PendingReminderResult> => {
+  const { data } = await authClient.post<PendingReminderResult>(
     `/admin/pending-applicants/bulk-remind-email`,
     payload
   );
@@ -963,6 +978,8 @@ export const getAdminApplications = async (status?: string, search?: string, coh
 export interface ExportApplicantsParams {
   type?: 'all' | 'paid' | 'unpaid';
   cohortId?: string;
+  work?: PendingApplicantWork;
+  reminderStatus?: GetPendingApplicantsParams['reminderStatus'];
   status?: string;
   step?: number;
   hasPaymentAttempt?: 'true' | 'false' | 'all';
@@ -1150,6 +1167,23 @@ export const getNotifications = async (unreadOnly?: boolean): Promise<AppNotific
   const params: any = {};
   if (unreadOnly) params.unread = "true";
   const { data } = await authClient.get<AppNotification[]>("/notifications", { params });
+  return data;
+};
+
+export interface CvRequestDetails {
+  company: {
+    name: string;
+    description?: string;
+    sectorTags?: string[];
+    website?: string;
+  } | null;
+}
+
+export const getCvRequestDetails = async (id: string, signal?: AbortSignal): Promise<CvRequestDetails> => {
+  const { data } = await authClient.get<CvRequestDetails>(
+    `/notifications/${encodeURIComponent(id)}/cv-request`,
+    { signal },
+  );
   return data;
 };
 
@@ -1539,8 +1573,17 @@ export interface ActiveOpening {
   updatedAt?: string;
 }
 
-export const getActiveOpenings = async (): Promise<ActiveOpening[]> => {
-  const { data } = await apiClient.get<{ openings: ActiveOpening[] }>("/active-openings");
+interface PublicJobOpening {
+  _id: string;
+  title: string;
+  department?: string;
+  workMode: ActiveOpening["workMode"];
+  location?: string;
+  partnerName?: string;
+}
+
+export const getActiveOpenings = async (): Promise<PublicJobOpening[]> => {
+  const { data } = await apiClient.get<{ openings: PublicJobOpening[] }>("/active-openings");
   return data.openings;
 };
 
@@ -1756,6 +1799,7 @@ export const resendAdminInvite = async (userId: string): Promise<{ message: stri
 // ─── Admin Payment Tracking ───────────────────────────────────────────────────
 
 export interface AdminPayment {
+  paymentCohortId?: string | null;
   bankTransfer?: TransferReview & { cohortId: string; bankReference?: string; proofId?: string; transferDate?: string; source?: 'upload' | 'email'; receiptType?: string; creditKey?: string; settledDate?: string };
   transferApplicant?: { fullName?: string; email?: string };
   transferCohort?: string;
@@ -1798,10 +1842,12 @@ export interface AdminPaymentsResponse {
     success: number;
     failed: number;
     totalRevenue: number;
+    revenueByCurrency: { currency: string; amount: number }[];
   };
 }
 
 export const getAdminPayments = async (params?: {
+  cohortId?: string;
   bankTransfer?: boolean;
   status?: string;
   provider?: string;
@@ -1830,7 +1876,7 @@ export async function getAdminBankTransferReceipt(id: string) {
 
 export const resolveAdminPayment = async (
   id: string,
-  payload: { status: 'success' | 'failed'; note?: string }
+  payload: { status: 'success' | 'failed'; note?: string; expectedCohortId?: string }
 ): Promise<{ message: string; payment: AdminPayment }> => {
   const { data } = await authClient.patch<{ message: string; payment: AdminPayment }>(
     `/admin/payments/${id}/resolve`,

@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { Request, Response } from 'express';
-import { Types } from 'mongoose';
+import { Types, type PipelineStage } from 'mongoose';
 import cloudinary from '../config/cloudinary.js';
 import { Application } from '../models/Application.js';
 import { Applicant } from '../models/Applicants.js';
@@ -27,6 +27,7 @@ import { generateResumeToken } from '../services/tokenService.js';
 import { sendAdminInvitationEmail, sendSetPasswordEmail, sendPendingReminderEmail } from '../services/emailService.js';
 import { logAction, logRawAction } from '../utils/auditLogger.js';
 import { executeApplicationSubmission } from './applicantController.js';
+import { getActiveRegistrationCohort } from './paymentController.js';
 import { validateWeekForCohort, countContentBeyondWeek, MAX_TOTAL_WEEKS } from '../utils/cohortWeeks.js';
 import { CohortWaitlistDelivery } from '../models/CohortWaitlistDelivery.js';
 import { beforeCohortRegistration, queueCohortWaitlistResend, retryCohortWaitlist } from '../services/cohortWaitlist.js';
@@ -1138,6 +1139,27 @@ function pendingCohortFilter(cohortId: string | undefined, cohorts: Awaited<Retu
     return window ? { $or: [assigned, { cohortId: null, ...uniqueWindow(window) }] } : assigned;
 }
 
+const REMINDER_COOLDOWN_MS = 48 * 60 * 60 * 1000;
+
+function pendingReminderFilter(status: unknown, threshold: Date) {
+    switch (status) {
+        case 'never': return { $or: [{ lastReminderSentAt: null }, { reminderCount: 0 }] };
+        case 'cooldown_active': return { lastReminderSentAt: { $gte: threshold } };
+        case 'eligible': return { $or: [{ lastReminderSentAt: null }, { lastReminderSentAt: { $lt: threshold } }] };
+        default: return {};
+    }
+}
+
+async function pendingWorkFilter(work: unknown, threshold: Date) {
+    if (work === 'incomplete') return { currentStep: { $lt: 6 } };
+    if (work !== 'payment_review' && work !== 'ready_for_reminder') return {};
+
+    const transfers = await Payment.distinct('applicantId', { status: 'pending', ...(work === 'payment_review' ? { 'bankTransfer.review': { $exists: true } } : {}) });
+    return work === 'payment_review'
+        ? { _id: { $in: transfers } }
+        : { _id: { $nin: transfers }, ...pendingReminderFilter('eligible', threshold) };
+}
+
 // ── GET /api/v1/admin/pending-applicants ────────────────────────────────────────
 // Paginated list of pending (unpaid) applicants with full details, payment attempts,
 // country/stage filters, and activity data.
@@ -1153,6 +1175,7 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
             programInterest,
             leadSource,
             reminderStatus,
+            work,
             cooldownHours = '48',
             page = '1',
             limit = '50',
@@ -1172,7 +1195,10 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
             isPaid: { $ne: true },
             ...pendingCohortFilter(cohortId, cohortId ? await loadIntakeWindows() : []),
         };
-        const match: any = {};
+        const match: any = { $and: [
+            pendingReminderFilter(reminderStatus, cooldownThreshold),
+            await pendingWorkFilter(work, cooldownThreshold),
+        ] };
 
         if (step) {
             const stepNum = parseInt(step as string, 10);
@@ -1210,36 +1236,6 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
         }
 
         // expiresAt filter removed — applicant data is now retained indefinitely.
-
-        if (reminderStatus === 'never') {
-            const neverOr = [
-                { lastReminderSentAt: { $exists: false } },
-                { lastReminderSentAt: null },
-                { reminderCount: 0 },
-            ];
-            if (match.$or) {
-                match.$and = match.$and || [];
-                match.$and.push({ $or: match.$or }, { $or: neverOr });
-                delete match.$or;
-            } else {
-                match.$or = neverOr;
-            }
-        } else if (reminderStatus === 'cooldown_active') {
-            match.lastReminderSentAt = { $gte: cooldownThreshold };
-        } else if (reminderStatus === 'eligible') {
-            const eligibleOr = [
-                { lastReminderSentAt: { $exists: false } },
-                { lastReminderSentAt: null },
-                { lastReminderSentAt: { $lt: cooldownThreshold } },
-            ];
-            if (match.$or) {
-                match.$and = match.$and || [];
-                match.$and.push({ $or: match.$or }, { $or: eligibleOr });
-                delete match.$or;
-            } else {
-                match.$or = eligibleOr;
-            }
-        }
 
         if (hasPaymentAttempt === 'true' || hasPaymentAttempt === 'false') {
             const attemptedApplicantIds = await Payment.distinct('applicantId');
@@ -1302,9 +1298,10 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
         ]);
 
         const applicantIds = applicants.map((a: any) => a._id);
-        const payments = await Payment.find({ applicantId: { $in: applicantIds } })
-            .sort({ createdAt: -1 })
-            .lean();
+        const [payments, activeCohort] = await Promise.all([
+            Payment.find({ applicantId: { $in: applicantIds } }).sort({ createdAt: -1 }).lean(),
+            applicantIds.length ? getActiveRegistrationCohort() : null,
+        ]);
 
         const paymentsByApplicant: Record<string, any[]> = {};
         payments.forEach((p: any) => {
@@ -1318,6 +1315,7 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
                 currency: p.currency,
                 status: p.status,
                 webhookVerified: p.webhookVerified,
+                bankTransferReview: p.bankTransfer?.review,
                 createdAt: p.createdAt,
                 updatedAt: p.updatedAt,
             });
@@ -1342,6 +1340,7 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
                 daysSinceActivity,
                 paymentAttemptsCount: paymentAttempts.length,
                 paymentAttempts,
+                manualPaymentCohortId: a.cohortId ?? activeCohort?._id ?? null,
                 reminderCount: a.reminderCount || 0,
                 lastReminderSentAt: a.lastReminderSentAt || null,
                 reminderHistory: a.reminderHistory || [],
@@ -1381,195 +1380,192 @@ export const getPendingApplicants = async (req: Request, res: Response) => {
     }
 };
 
-// ── POST /api/v1/admin/pending-applicants/:applicantId/remind-email ───────────
-export const sendPendingApplicantReminder = async (req: Request, res: Response) => {
-    try {
-        const { applicantId } = req.params;
-        const { subject, message, includeResumeLink } = req.body || {};
+type ReminderOutcome = { applicantId: string; status: 'accepted' | 'failed' | 'skipped'; reason?: string };
 
-        const applicant = await Applicant.findById(applicantId);
-        if (!applicant) {
-            res.status(404).json({ message: 'Applicant record not found.' });
-            return;
-        }
+type ReminderContent = { subject?: string; message?: string; includeResumeLink: boolean };
 
-        // Generate a proper opaque resume token (raw/hash pair) — NOT a JWT.
-        // The resumeApplication endpoint looks up by hash, so using a JWT here
-        // would never match and would produce "This resume link is invalid or has expired."
-        const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
-        applicant.resumeTokenHash = resumeTokenHash;
-        applicant.lastReminderSentAt = new Date();
-        applicant.reminderCount = (applicant.reminderCount || 0) + 1;
-        if (!applicant.reminderHistory) applicant.reminderHistory = [];
-        applicant.reminderHistory.push({
-            sentAt: new Date(),
-            sentBy: (req as any).user?.email || 'admin',
-            subject: subject || undefined,
-            includeResumeLink: includeResumeLink !== false,
-        });
-        await applicant.save();
-
-        await sendPendingReminderEmail(
-            applicant.email,
-            applicant.fullName,
-            applicant.currentStep,
-            resumeTokenRaw,
-            subject,
-            message,
-            includeResumeLink !== false
-        );
-
-        logRawAction({
-            userId: (req as any).user?.id || 'admin',
-            userEmail: (req as any).user?.email || 'admin',
-            userRole: (req as any).user?.role || 'admin',
-            action: 'REMINDER_EMAIL_SENT',
-            description: `Sent custom email to pending applicant "${applicant.email}" (ID: ${applicant._id})`,
-            targetId: applicant._id.toString(),
-            targetType: 'Applicant',
-        });
-
-        res.json({ message: `Email successfully sent to ${applicant.email}` });
-    } catch (e: any) {
-        res.status(500).json({ message: 'Failed to send email.', error: e.message });
+async function sendOnePendingReminder(
+    applicantId: string,
+    scope: ReturnType<typeof pendingCohortFilter>,
+    { subject, message, includeResumeLink }: ReminderContent,
+    sentBy: string,
+): Promise<ReminderOutcome> {
+    const now = new Date();
+    const claimUntil = new Date(now.getTime() + 60_000);
+    const claim = { _id: applicantId, reminderClaimUntil: claimUntil };
+    const recipient = await Applicant.findOneAndUpdate({
+        _id: applicantId,
+        isPaid: { $ne: true },
+        $and: [
+            scope,
+            pendingReminderFilter('eligible', new Date(now.getTime() - REMINDER_COOLDOWN_MS)),
+            { $or: [{ reminderClaimUntil: null }, { reminderClaimUntil: { $lte: now } }] },
+        ],
+    }, { $set: { reminderClaimUntil: claimUntil } }, { timestamps: false });
+    if (!recipient) {
+        const draft = await Applicant.findOne({ $and: [{ _id: applicantId }, scope] }).select('isPaid lastReminderSentAt');
+        const reason = !draft ? 'Applicant is no longer in this cohort or no longer has a draft.'
+            : draft.isPaid ? 'Payment has already been confirmed.'
+            : draft.lastReminderSentAt && now.getTime() - draft.lastReminderSentAt.getTime() <= REMINDER_COOLDOWN_MS
+                ? 'A reminder was accepted in the last 48 hours.'
+                : 'A reminder is already being processed.';
+        return { applicantId, status: 'skipped', reason };
     }
+
+    const token = includeResumeLink ? generateResumeToken() : undefined;
+    try {
+        await sendPendingReminderEmail(recipient.email, recipient.fullName, recipient.currentStep,
+            token?.raw, subject, message, includeResumeLink, true);
+    } catch {
+        await Applicant.updateOne(claim, { $unset: { reminderClaimUntil: 1 } }, { timestamps: false });
+        return { applicantId, status: 'failed', reason: 'The email provider did not confirm acceptance.' };
+    }
+
+    const sentAt = new Date();
+    await Applicant.updateOne(claim, {
+        $set: { lastReminderSentAt: sentAt, ...(token ? { resumeTokenHash: token.hash } : {}) },
+        $inc: { reminderCount: 1 },
+        $push: { reminderHistory: { sentAt, sentBy, subject, includeResumeLink } },
+        $unset: { reminderClaimUntil: 1 },
+    }, { timestamps: false });
+    return { applicantId, status: 'accepted' };
+}
+
+async function sendApplicantReminders(req: Request, res: Response, ids: unknown) {
+    const { cohortId, subject, message, includeResumeLink = true } = req.body ?? {};
+    if (!Array.isArray(ids) || ids.length < 1 || ids.length > 1000 ||
+        ids.some(id => typeof id !== 'string' || !Types.ObjectId.isValid(id)) ||
+        (cohortId !== undefined && (typeof cohortId !== 'string' || (cohortId && cohortId !== 'unassigned' && !Types.ObjectId.isValid(cohortId)))) ||
+        (subject !== undefined && typeof subject !== 'string') ||
+        (message !== undefined && typeof message !== 'string') || typeof includeResumeLink !== 'boolean') {
+        res.status(400).json({ message: 'Check the selected applicants, cohort and email content.' });
+        return;
+    }
+
+    const scope = pendingCohortFilter(cohortId, cohortId ? await loadIntakeWindows() : []);
+    const results: ReminderOutcome[] = [];
+    const uniqueIds = [...new Set<string>(ids.map(id => new Types.ObjectId(id).toHexString()))];
+
+    for (let i = 0; i < uniqueIds.length; i += 5) {
+        const batch = uniqueIds.slice(i, i + 5);
+        results.push(...await Promise.all(batch.map(id =>
+            sendOnePendingReminder(id, scope, { subject, message, includeResumeLink }, req.userEmail || 'admin')
+        )));
+    }
+
+    const sentCount = results.filter(result => result.status === 'accepted').length;
+    const failCount = results.filter(result => result.status === 'failed').length;
+    const skippedCount = results.length - sentCount - failCount;
+    const summary = `${sentCount} accepted by provider · ${failCount} failed · ${skippedCount} skipped`;
+    logAction(req, 'PENDING_REMINDERS_PROCESSED', summary, { targetType: 'Applicant' });
+    res.json({ message: summary, sentCount, failCount, skippedCount, results });
+}
+
+export const sendPendingApplicantReminder = async (req: Request, res: Response) => {
+    await sendApplicantReminders(req, res, [req.params.applicantId]);
 };
 
-// ── POST /api/v1/admin/pending-applicants/bulk-remind-email ──────────────────
 export const sendBulkPendingApplicantReminders = async (req: Request, res: Response) => {
-    try {
-        const { applicantIds, subject, message, includeResumeLink } = req.body || {};
-
-        if (!Array.isArray(applicantIds) || applicantIds.length === 0) {
-            res.status(400).json({ message: 'No applicant IDs provided for bulk email outreach.' });
-            return;
-        }
-
-        const applicants = await Applicant.find({ _id: { $in: applicantIds } });
-        if (!applicants.length) {
-            res.status(404).json({ message: 'No matching pending applicants found.' });
-            return;
-        }
-
-        let sentCount = 0;
-        let failCount = 0;
-
-
-        // Process in concurrent chunks of 5
-        const CHUNK_SIZE = 5;
-        for (let i = 0; i < applicants.length; i += CHUNK_SIZE) {
-            const chunk = applicants.slice(i, i + CHUNK_SIZE);
-            await Promise.all(
-                chunk.map(async (applicant) => {
-                    try {
-                        // Generate a proper opaque resume token (raw/hash pair) — NOT a JWT.
-                        // resumeApplication looks up by hash; a JWT would never match.
-                        const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
-                        applicant.resumeTokenHash = resumeTokenHash;
-                        applicant.lastReminderSentAt = new Date();
-                        applicant.reminderCount = (applicant.reminderCount || 0) + 1;
-                        if (!applicant.reminderHistory) applicant.reminderHistory = [];
-                        applicant.reminderHistory.push({
-                            sentAt: new Date(),
-                            sentBy: (req as any).user?.email || 'admin',
-                            subject: subject || undefined,
-                            includeResumeLink: includeResumeLink !== false,
-                        });
-                        await applicant.save();
-
-                        await sendPendingReminderEmail(
-                            applicant.email,
-                            applicant.fullName,
-                            applicant.currentStep,
-                            resumeTokenRaw,
-                            subject,
-                            message,
-                            includeResumeLink !== false
-                        );
-                        sentCount++;
-                    } catch (err) {
-                        console.error(`Bulk email failed for ${applicant.email}:`, err);
-                        failCount++;
-                    }
-                })
-            );
-        }
-
-        logRawAction({
-            userId: (req as any).user?.id || 'admin',
-            userEmail: (req as any).user?.email || 'admin',
-            userRole: (req as any).user?.role || 'admin',
-            action: 'BULK_REMINDER_EMAIL_SENT',
-            description: `Sent bulk email outreach to ${sentCount} pending applicants (${failCount} failed)`,
-            targetType: 'Applicant',
-        });
-
-        res.json({
-            message: `Bulk email processing complete. Successfully sent to ${sentCount} applicant(s).${failCount > 0 ? ` (${failCount} failed)` : ''}`,
-            sentCount,
-            failCount,
-        });
-    } catch (e: any) {
-        res.status(500).json({ message: 'Failed to send bulk emails.', error: e.message });
-    }
+    await sendApplicantReminders(req, res, req.body?.applicantIds);
 };
 
 // ── GET /api/v1/admin/payments ─────────────────────────────────────────────────
-// Paginated list of all payment records with optional status/provider/search filters.
+// Bank transfers and new attempts retain the original intake. Legacy payments
+// can use the enrolled application or the draft while it is still available.
+const paymentCohortStages: PipelineStage[] = [
+    {
+        $lookup: {
+            from: Application.collection.name, localField: 'applicationId', foreignField: '_id',
+            pipeline: [{ $project: { cohortId: 1 } }], as: 'linkedApplication',
+        },
+    },
+    {
+        $lookup: {
+            from: Applicant.collection.name, localField: 'applicantId', foreignField: '_id',
+            pipeline: [{ $project: { cohortId: 1 } }], as: 'linkedApplicant',
+        },
+    },
+    {
+        $set: {
+            paymentCohortId: {
+                $ifNull: [
+                    '$bankTransfer.cohortId', '$cohortId',
+                    { $first: '$linkedApplication.cohortId' }, { $first: '$linkedApplicant.cohortId' }, null,
+                ],
+            },
+        },
+    },
+];
+
+async function getPaymentCohortId(id: Types.ObjectId) {
+    const [payment] = await Payment.aggregate<{ paymentCohortId: Types.ObjectId | null }>([
+        { $match: { _id: id } }, ...paymentCohortStages, { $project: { paymentCohortId: 1 } },
+    ]);
+    return payment?.paymentCohortId ?? null;
+}
+
 export const getAdminPayments = async (req: Request, res: Response) => {
     try {
-        const { status, provider, search, page = '1', limit = '50' } = req.query;
+        const { cohortId, status, provider, search, page = '1', limit = '50' } = req.query;
+        if (cohortId !== undefined && (typeof cohortId !== 'string' ||
+            (cohortId !== '' && cohortId !== 'unassigned' && !Types.ObjectId.isValid(cohortId)))) {
+            res.status(400).json({ message: 'Invalid cohort.' });
+            return;
+        }
 
-        const pageNum = Math.max(1, parseInt(page as string, 10));
-        const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
+        const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10) || 50));
         const skip = (pageNum - 1) * limitNum;
 
-        const match: any = {};
-        if (status && status !== 'all') match.status = status;
-        if (provider && provider !== 'all') match.provider = provider;
+        const match: Record<string, unknown> = {};
+        if (typeof status === 'string' && status && status !== 'all') match.status = status;
+        if (typeof provider === 'string' && provider && provider !== 'all') match.provider = provider;
         if (req.query.bankTransfer === 'true') match['bankTransfer.review'] = { $exists: true };
 
         // Search by providerRef text
-        if (search) {
-            const regex = new RegExp(search as string, 'i');
-            match.providerRef = regex;
+        if (typeof search === 'string' && search) {
+            match.providerRef = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
         }
 
-        const [payments, total, stats] = await Promise.all([
-            Payment.find(match)
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(limitNum)
-                .populate({
-                    path: 'applicationId',
-                    select: 'fullName userId',
-                    populate: { path: 'userId', select: 'email' },
-                })
-                .lean(),
-            Payment.countDocuments(match),
-            Payment.aggregate([
-                {
-                    $group: {
-                        _id: '$status',
-                        count: { $sum: 1 },
-                        totalAmount: { $sum: '$amount' },
-                    },
+        const [{ rows, totals, stats }] = await Payment.aggregate<{
+            rows: { _id: Types.ObjectId; paymentCohortId: Types.ObjectId | null }[];
+            totals: { count: number }[];
+            stats: { _id: { status: 'success' | 'pending' | 'failed'; currency: string }; count: number; amount: number }[];
+        }>([
+            { $project: { applicantId: 1, applicationId: 1, cohortId: 1, 'bankTransfer.cohortId': 1,
+                'bankTransfer.review': 1, status: 1, provider: 1, providerRef: 1, createdAt: 1, amount: 1, currency: 1 } },
+            ...paymentCohortStages,
+            ...(cohortId ? [{ $match: { paymentCohortId: cohortId === 'unassigned' ? null : new Types.ObjectId(cohortId) } }] : []),
+            {
+                $facet: {
+                    rows: [{ $match: match }, { $sort: { createdAt: -1, _id: -1 } }, { $skip: skip }, { $limit: limitNum },
+                        { $project: { paymentCohortId: 1 } }],
+                    totals: [{ $match: match }, { $count: 'count' }],
+                    stats: [{ $group: { _id: { status: '$status', currency: { $ifNull: ['$currency', 'NGN'] } },
+                        count: { $sum: 1 }, amount: { $sum: '$amount' } } }],
                 },
-            ]),
+            },
         ]);
 
-        // Summarise stats for the UI
-        const summary: Record<string, number> = { pending: 0, success: 0, failed: 0, totalRevenue: 0 };
-        for (const s of stats) {
-            if (s._id === 'success') {
-                summary.success = s.count;
-                summary.totalRevenue = s.totalAmount;
-            } else if (s._id === 'pending') {
-                summary.pending = s.count;
-            } else if (s._id === 'failed') {
-                summary.failed = s.count;
+        const records = await Payment.find({ _id: { $in: rows.map(row => row._id) } })
+            .populate({ path: 'applicationId', select: 'fullName userId', populate: { path: 'userId', select: 'email' } })
+            .lean();
+        const byId = new Map(records.map(payment => [String(payment._id), payment]));
+        const payments = rows.flatMap(({ _id, paymentCohortId }) => {
+            const payment = byId.get(String(_id));
+            return payment ? [{ ...payment, paymentCohortId }] : [];
+        });
+        const total = totals[0]?.count ?? 0;
+        const summary = { pending: 0, success: 0, failed: 0, totalRevenue: 0,
+            revenueByCurrency: [] as { currency: string; amount: number }[] };
+        for (const { _id: { status, currency }, count, amount } of stats) {
+            summary[status] += count;
+            if (status === 'success') {
+                summary.totalRevenue += amount;
+                summary.revenueByCurrency.push({ currency, amount });
             }
         }
+        summary.revenueByCurrency.sort((a, b) => a.currency.localeCompare(b.currency));
 
         res.json({ payments, total, page: pageNum, pages: Math.ceil(total / limitNum), summary });
     } catch (e: any) {
@@ -1595,11 +1591,12 @@ export const getAdminPaymentById = async (req: Request, res: Response) => {
             return;
         }
 
-        const [transferApplicant, transferCohort] = payment.bankTransfer ? await Promise.all([
-            Applicant.findById(payment.applicantId).select('fullName email').lean(),
-            Cohort.findById(payment.bankTransfer.cohortId).select('name').lean(),
-        ]) : [];
-        res.json({ ...payment, transferApplicant, transferCohort: transferCohort?.name });
+        const [paymentCohortId, transferApplicant, transferCohort] = await Promise.all([
+            getPaymentCohortId(payment._id),
+            payment.bankTransfer ? Applicant.findById(payment.applicantId).select('fullName email').lean() : null,
+            payment.bankTransfer ? Cohort.findById(payment.bankTransfer.cohortId).select('name').lean() : null,
+        ]);
+        res.json({ ...payment, paymentCohortId, transferApplicant, transferCohort: transferCohort?.name });
     } catch (e: any) {
         res.status(500).json({ message: 'Error retrieving payment.', error: e.message });
     }
@@ -1611,7 +1608,7 @@ export const getAdminPaymentById = async (req: Request, res: Response) => {
 export const resolvePayment = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { status, note } = req.body;
+        const { status, note, expectedCohortId } = req.body;
 
         if (!status || !['success', 'failed'].includes(status)) {
             res.status(400).json({ message: "status must be 'success' or 'failed'." });
@@ -1629,6 +1626,18 @@ export const resolvePayment = async (req: Request, res: Response) => {
             res.status(409).json({ message: 'Use bank transfer review to confirm the settled credit.' });
             return;
         }
+        if (expectedCohortId !== undefined &&
+            expectedCohortId !== ((await getPaymentCohortId(payment._id))?.toString() ?? 'unassigned')) {
+            res.status(409).json({ message: 'The payment cohort changed. Reopen the payment and review its cohort before resolving it.' });
+            return;
+        }
+        if (status === 'success' && payment.cohortId) {
+            const draft = await Applicant.findById(payment.applicantId).select('cohortId').lean();
+            if (draft && !payment.cohortId.equals(draft.cohortId) && !await Application.exists({ paymentId: payment._id })) {
+                res.status(409).json({ message: 'The applicant is now assigned to a different cohort. Review the enrollment before marking this payment successful.' });
+                return;
+            }
+        }
         payment.status = status;
         await payment.save();
 
@@ -1638,7 +1647,7 @@ export const resolvePayment = async (req: Request, res: Response) => {
         // cleans up the temporary Applicant record. Identical to the webhook path.
         if (status === 'success') {
             // Check whether an Application already exists to avoid double-processing
-            const existingApp = await Application.findOne({ paymentId: payment._id });
+            const existingApp = await Application.exists({ paymentId: payment._id });
             if (!existingApp) {
                 try {
                     await executeApplicationSubmission(payment.applicantId, payment._id);
@@ -1723,39 +1732,14 @@ export const uploadPendingApplicantCv = async (req: Request, res: Response) => {
         await applicant.save();
 
         const shouldNotify = req.body.notifyApplicant !== 'false' && req.body.notifyApplicant !== false;
-        let emailSent = false;
-
-        if (shouldNotify && applicant.email) {
-            const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
-            applicant.resumeTokenHash = resumeTokenHash;
-            applicant.lastReminderSentAt = new Date();
-            applicant.reminderCount = (applicant.reminderCount || 0) + 1;
-            if (!applicant.reminderHistory) applicant.reminderHistory = [];
-            applicant.reminderHistory.push({
-                sentAt: new Date(),
-                sentBy: (req as any).user?.email || 'admin',
-                subject: 'Your CV Has Been Uploaded — Resume Your IFIP Application',
+        const notification = shouldNotify
+            ? await sendOnePendingReminder(applicant.id, {}, {
+                subject: 'Your CV has been uploaded to your IFIP application',
+                message: 'Our support team has uploaded your CV. You can resume your application to review it and complete the remaining sections.',
                 includeResumeLink: true,
-            });
-            await applicant.save();
-
-            try {
-                const subject = 'Your CV Has Been Uploaded — Resume Your IFIP Application';
-                const customMessage = `Great news! Our support team has successfully uploaded your CV to your Islamic Finance Internship Program (IFIP) application.\n\nYou are currently at Step {{currentStep}} of 7. Click the button below to resume your application with your CV attached and complete the remaining sections.`;
-                await sendPendingReminderEmail(
-                    applicant.email,
-                    applicant.fullName,
-                    applicant.currentStep,
-                    resumeTokenRaw,
-                    subject,
-                    customMessage,
-                    true
-                );
-                emailSent = true;
-            } catch (emailErr) {
-                console.error('Failed to send CV upload notification email:', emailErr);
-            }
-        }
+            }, req.userEmail || 'admin')
+            : undefined;
+        const emailSent = notification?.status === 'accepted';
 
         await logAction(req, 'ADMIN_UPLOAD_CV', `Admin uploaded CV for applicant ${applicant.email || applicant._id}${emailSent ? ' (notification email sent)' : ''}`, {
             targetId: applicant._id.toString(),
@@ -1765,11 +1749,11 @@ export const uploadPendingApplicantCv = async (req: Request, res: Response) => {
         res.json({
             message: emailSent
                 ? 'CV uploaded successfully and notification email with resume link sent to applicant'
-                : 'CV uploaded successfully for applicant',
+                : notification ? `CV uploaded. ${notification.reason}` : 'CV uploaded successfully for applicant',
             applicantId: applicant._id,
             cvUrl: applicant.cvUrl,
             emailSent,
-            applicant,
+            applicant: await Applicant.findById(applicant._id),
         });
     } catch (err: any) {
         console.error('Admin CV upload error:', err);
@@ -1780,22 +1764,30 @@ export const uploadPendingApplicantCv = async (req: Request, res: Response) => {
 
 // ── POST /api/v1/admin/pending-applicants/:applicantId/record-manual-payment ─
 // Admin action: record an offline/manual payment, upload a receipt, and complete candidate enrollment.
+class ManualPaymentConflict extends Error {}
+
 export const recordManualPaymentForApplicant = async (req: Request, res: Response) => {
     const { applicantId } = req.params;
-    const { amount, currency, paymentMethod, reference, notes, notifyApplicant } = req.body;
+    const { amount, currency, paymentMethod, reference, notes, requestId, expectedCohortId } = req.body;
+    const idempotencyKey = typeof requestId === 'string' && /^[a-f0-9-]{36}$/i.test(requestId) ? requestId : crypto.randomUUID();
+    const providerRef = (typeof reference === 'string' && reference.trim()) || `MANUAL-IFIP-${idempotencyKey}`;
+    const existingPayment = { applicantId, provider: 'manual' as const, providerRef, status: 'success' as const };
 
     try {
-        const applicant = await Applicant.findById(applicantId);
-        if (!applicant) {
-            // Check if an application already exists for this applicant's ID or email
-            res.status(404).json({ message: 'Pending applicant record not found (may have already completed registration).' });
+        const recorded = await Payment.findOne(existingPayment);
+        if (recorded?.applicationId) {
+            const application = await Application.findById(recorded.applicationId).orFail();
+            res.json({ message: 'This payment was already recorded and the applicant enrolled.', payment: recorded, application });
             return;
         }
 
-        if (await Payment.exists({ applicantId: applicant._id, status: 'pending', 'bankTransfer.review': { $exists: true } })) {
-            res.status(409).json({ message: 'Review the existing bank transfer from Admin Payments.' });
-            return;
+        const applicant = await Applicant.findById(applicantId);
+        if (!applicant || applicant.isPaid) throw new ManualPaymentConflict('This applicant is no longer pending. Refresh the list.');
+        if (!applicant.declaration?.confirmed || !applicant.declaration.signature?.trim()) {
+            throw new ManualPaymentConflict('The applicant must sign their declaration before enrollment.');
         }
+        const bankTransfer = { applicantId: applicant._id, status: 'pending' as const, 'bankTransfer.review': { $exists: true } };
+        if (await Payment.exists(bankTransfer)) throw new ManualPaymentConflict('Review the existing bank transfer from Admin Payments.');
 
         const selectedCurrency: unknown = currency || (applicant.country === 'Nigeria' ? 'NGN' : 'USD');
         if (selectedCurrency !== 'NGN' && selectedCurrency !== 'USD') {
@@ -1844,74 +1836,55 @@ export const recordManualPaymentForApplicant = async (req: Request, res: Respons
             });
         }
 
-        // Ensure declaration is populated on applicant
-        if (!applicant.declaration?.confirmed || !applicant.declaration?.signature) {
-            applicant.declaration = {
-                confirmed: true,
-                signature: applicant.fullName || 'Admin Offline Payment',
-                date: new Date(),
-            };
-        }
+        const submission = await executeApplicationSubmission(applicant._id, async session => {
+            const previous = await Payment.findOne(existingPayment).session(session);
+            if (previous?.applicationId) return previous._id;
 
-        // Assign active cohort if missing
-        if (!applicant.cohortId) {
-            const currentDate = new Date();
-            const activeCohort = await Cohort.findOne({
-                registrationStartDate: { $lte: currentDate },
-                registrationEndDate: { $gte: currentDate },
-                status: 'upcoming',
-            });
-            if (activeCohort) {
-                applicant.cohortId = activeCohort._id as any;
+            const current = await Applicant.findById(applicant._id).session(session);
+            if (!current || current.isPaid || await Payment.exists({ applicantId, status: 'success' }).session(session)) {
+                throw new ManualPaymentConflict('This applicant already has a verified payment or enrollment. Refresh the list.');
             }
-        }
+            if (!current.declaration?.confirmed || !current.declaration.signature?.trim()) {
+                throw new ManualPaymentConflict('The applicant must sign their declaration before enrollment.');
+            }
+            if (await Payment.exists({ applicantId, status: 'pending' }).session(session)) {
+                throw new ManualPaymentConflict('Resolve the existing pending payment from Admin Payments before recording another.');
+            }
 
-        applicant.isPaid = true;
-        await applicant.save();
+            current.cohortId ??= (await getActiveRegistrationCohort(session))?._id;
+            if (expectedCohortId !== undefined && expectedCohortId !== (current.cohortId?.toString() ?? 'unassigned')) {
+                throw new ManualPaymentConflict('The enrollment cohort changed. Refresh the list and review the destination again.');
+            }
+            current.isPaid = true;
+            await current.save({ session });
 
-        const providerRef = reference && reference.trim().length > 0
-            ? reference.trim()
-            : `MANUAL-IFIP-${crypto.randomUUID().substring(0, 8).toUpperCase()}`;
-
-        // Create manual payment record
-        const payment = await Payment.create({
-            applicantId: applicant._id,
-            provider: 'manual',
-            providerRef,
-            amount: amountInSubunits,
-            currency: selectedCurrency,
-            status: 'success',
-            type: 'commitment_levy',
-            webhookVerified: true,
-            receiptUrl,
-            paymentMethod: paymentMethod || 'Bank Transfer',
-            manualPaymentNotes: notes || undefined,
-            recordedByAdminId: (req as any).user?.id,
+            const [payment] = await Payment.create([{
+                applicantId: current._id, provider: 'manual', providerRef,
+                cohortId: current.cohortId,
+                amount: amountInSubunits, currency: selectedCurrency, status: 'success',
+                type: 'commitment_levy', webhookVerified: true, receiptUrl,
+                paymentMethod: paymentMethod || 'Bank Transfer',
+                manualPaymentNotes: notes || undefined,
+                recordedByAdminId: req.user?.id,
+            }], { session, ordered: true });
+            return payment._id;
         });
 
-        // Execute application submission (creates User + Application, sends password email, cleans up Applicant)
-        const submission = await executeApplicationSubmission(applicant._id, payment._id);
-
-        const adminUser = await User.findById((req as any).user?.id);
-        await logRawAction({
-            userId: (req as any).user?.id,
-            userEmail: adminUser?.email || 'admin',
-            userRole: (req as any).user?.role || 'admin',
-            action: 'ADMIN_MANUAL_PAYMENT_RECORDED',
-            description: `Admin recorded manual payment of ${amountInSubunits / 100} ${selectedCurrency} for applicant ${applicant.email} (ref: ${providerRef})${receiptUrl ? ' with receipt upload' : ''}`,
-            targetId: payment.id,
-            targetType: 'Payment',
+        const payment = await Payment.findById(submission.application.paymentId).orFail();
+        await logAction(req, 'ADMIN_MANUAL_PAYMENT_RECORDED', 'Recorded an offline payment and completed enrollment.', {
+            targetId: payment.id, targetType: 'Payment',
         });
-
         res.json({
-            message: 'Manual payment recorded successfully and applicant enrolled.',
-            payment,
-            application: submission.application,
-            setPasswordToken: submission.setPasswordToken,
+            message: 'Manual payment recorded and applicant enrolled.',
+            payment, application: submission.application, setPasswordToken: submission.setPasswordToken,
         });
-    } catch (err: any) {
-        console.error('Admin record manual payment error:', err);
-        res.status(500).json({ message: err.message || 'Failed to record manual payment for applicant.' });
+    } catch (error) {
+        if (error instanceof ManualPaymentConflict || (error as { code?: number }).code === 11000) {
+            res.status(409).json({ message: error instanceof ManualPaymentConflict ? error.message : 'This payment reference is already in use. Check Admin Payments.' });
+            return;
+        }
+        console.error('Admin manual payment could not be recorded.');
+        res.status(500).json({ message: 'Could not record the manual payment. Retry with the same reference.' });
     }
 };
 
@@ -1989,6 +1962,8 @@ export const exportApplicantsCSV = async (req: Request, res: Response) => {
             step,
             hasPaymentAttempt,
             paymentStatus,
+            reminderStatus,
+            work,
             country,
             programInterest,
             leadSource,
@@ -2266,8 +2241,14 @@ export const exportApplicantsCSV = async (req: Request, res: Response) => {
                 }
             }
 
+            const reminderThreshold = new Date(Date.now() - REMINDER_COOLDOWN_MS);
             const applicants = await Applicant.find({
-                $and: [applicantMatch, pendingCohortFilter(cohortId, cohorts)],
+                $and: [
+                    applicantMatch,
+                    pendingCohortFilter(cohortId, cohorts),
+                    pendingReminderFilter(reminderStatus, reminderThreshold),
+                    await pendingWorkFilter(work, reminderThreshold),
+                ],
             })
                 .sort({ updatedAt: -1 })
                 .lean();
@@ -2670,34 +2651,34 @@ export const getAllAdminJobApplications = async (req: Request, res: Response) =>
 // ─── PATCH /api/v1/admin/job-openings/:id/review ──────────────────────────────
 export const reviewJobOpening = async (req: Request, res: Response) => {
     try {
-        const opening = await JobOpening.findById(req.params.id);
-        if (!opening) {
-            res.status(404).json({ message: 'Job opening not found.' });
-            return;
-        }
-        if (opening.status !== 'pending_review') {
-            res.status(409).json({ message: 'Only openings with status "pending_review" can be reviewed.' });
-            return;
-        }
-
         const { action, adminNotes, adminRequirements } = req.body;
         if (!action || !['approve', 'reject'].includes(action)) {
             res.status(400).json({ message: 'Action must be "approve" or "reject".' });
             return;
         }
 
-        if (adminNotes !== undefined) opening.adminNotes = adminNotes;
-        if (Array.isArray(adminRequirements)) {
-            opening.adminRequirements = adminRequirements.filter((r: string) => r.trim());
+        const opening = await JobOpening.findOneAndUpdate(
+            { _id: req.params.id, status: 'pending_review' },
+            { $set: {
+                status: action === 'approve' ? 'open' : 'rejected',
+                ...(action === 'approve' && { openedAt: new Date() }),
+                ...(adminNotes !== undefined && { adminNotes }),
+                ...(Array.isArray(adminRequirements) && { adminRequirements: adminRequirements.filter((r: string) => r.trim()) }),
+            } },
+            { returnDocument: 'after', runValidators: true },
+        );
+        if (!opening) {
+            if (await JobOpening.exists({ _id: req.params.id })) {
+                res.status(409).json({ message: 'Only openings with status "pending_review" can be reviewed.' });
+            } else {
+                res.status(404).json({ message: 'Job opening not found.' });
+            }
+            return;
         }
 
         const org = await PartnerOrganization.findById(opening.partnerOrgId).select('name').lean();
 
         if (action === 'approve') {
-            opening.status = 'open';
-            opening.openedAt = new Date();
-            await opening.save();
-
             // Notify participants + partner
             notificationEmitter.emit('jobOpening.opened', {
                 openingId: opening._id.toString(),
@@ -2719,9 +2700,6 @@ export const reviewJobOpening = async (req: Request, res: Response) => {
 
             res.json({ message: 'Job opening approved and now open.', opening });
         } else {
-            opening.status = 'rejected';
-            await opening.save();
-
             notificationEmitter.emit('jobOpening.rejected', {
                 openingId: opening._id.toString(),
                 title: opening.title,

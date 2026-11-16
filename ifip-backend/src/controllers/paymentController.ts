@@ -19,13 +19,13 @@ import { getLevyAmounts } from '../models/LevyPricing.js';
 import { executeApplicationSubmission } from './applicantController.js';
 import { logRawAction } from '../utils/auditLogger.js';
 
-export const getActiveRegistrationCohort = async (): Promise<any> => {
+export const getActiveRegistrationCohort = async (session: ClientSession | null = null) => {
     const currentDate = new Date();
     const cohort = await Cohort.findOne({
         registrationStartDate: { $lte: currentDate },
         registrationEndDate: { $gte: currentDate },
         status: 'upcoming'
-    });
+    }).session(session);
     return cohort;
 };
 
@@ -80,7 +80,7 @@ async function replaceRejectedPaystackAttempt(payment: IPayment) {
         if (!retired.modifiedCount) return null;
 
         const [replacement] = await Payment.create([{
-            applicantId: payment.applicantId, type: payment.type,
+            applicantId: payment.applicantId, cohortId: payment.cohortId, type: payment.type,
             provider: 'flutterwave', providerRef: `IFIP-${crypto.randomUUID()}`,
             amount: payment.amount, currency: payment.currency, originalAmount: payment.originalAmount,
             couponId: payment.couponId, discountPercent: payment.discountPercent,
@@ -207,6 +207,7 @@ export const initiatePayment = async (req: Request, res: Response) => {
 
         const [createdPayment] = await Payment.create([{
             applicantId,
+            cohortId: cohort._id,
             provider: waived || transfer ? 'manual' : 'paystack',
             providerRef: (waived ? 'COUPON-' : 'IFIP-') + crypto.randomUUID(),
             amount,

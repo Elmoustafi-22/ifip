@@ -10,7 +10,20 @@ export const beforeCohortRegistration = (cohort: Pick<ICohort, 'registrationStar
     createdAt: { $lt: cohort.registrationStartDate ?? cohort.createdAt },
 });
 
+type DeliveryTotals = Map<string, { accepted: number; failed: number }>;
+
 export const processCohortWaitlist = async () => {
+    const totals: DeliveryTotals = new Map();
+    try {
+        await processWaitlistDeliveries(totals);
+    } finally {
+        for (const [cohortId, counts] of totals) {
+            console.info(`[Cohort waitlist] cohort=${cohortId} accepted=${counts.accepted} failed=${counts.failed}`);
+        }
+    }
+};
+
+async function processWaitlistDeliveries(totals: DeliveryTotals) {
     const queued = await CohortWaitlistDelivery.find({ status: 'queued' }).sort({ createdAt: 1 }).limit(100).lean();
     for (const delivery of queued) {
         const [cohort, recipient] = await Promise.all([
@@ -21,7 +34,7 @@ export const processCohortWaitlist = async () => {
             await CohortWaitlistDelivery.deleteOne({ _id: delivery._id, status: 'queued' });
             continue;
         }
-        await deliverCohortAnnouncement(cohort, recipient, true);
+        await deliverCohortAnnouncement(cohort, recipient, totals, true);
     }
 
     const active = await getActiveRegistrationCohort();
@@ -33,13 +46,14 @@ export const processCohortWaitlist = async () => {
 
     for (const recipient of recipients) {
         if (Date.now() > active.registrationEndDate.getTime()) break;
-        await deliverCohortAnnouncement(active, recipient);
+        await deliverCohortAnnouncement(active, recipient, totals);
     }
-};
+}
 
 async function deliverCohortAnnouncement(
     cohort: { _id: Types.ObjectId; name: string; registrationStartDate: Date; registrationEndDate: Date; startDate?: Date | null },
     recipient: { _id: Types.ObjectId; email: string },
+    totals: DeliveryTotals,
     queued = false,
 ) {
     const id = `${cohort._id}:${recipient._id}`;
@@ -62,6 +76,10 @@ async function deliverCohortAnnouncement(
         status = 'failed';
     }
     await CohortWaitlistDelivery.updateOne({ _id: id }, { $set: { status } });
+    const cohortId = String(cohort._id);
+    const counts = totals.get(cohortId) ?? { accepted: 0, failed: 0 };
+    counts[status === 'sent' ? 'accepted' : 'failed']++;
+    totals.set(cohortId, counts);
 }
 
 export const startCohortWaitlistCron = () => {

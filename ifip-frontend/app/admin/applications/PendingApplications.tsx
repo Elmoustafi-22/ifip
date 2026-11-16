@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import PendingDialog from "./PendingDialog";
 import {
   HiOutlineMagnifyingGlass,
   HiOutlineFunnel,
   HiOutlineArrowPath,
-  HiOutlineClock,
   HiOutlineExclamationTriangle,
   HiOutlinePhone,
   HiOutlineEnvelope,
@@ -16,14 +16,9 @@ import {
   HiOutlineCreditCard,
   HiOutlineSparkles,
   HiOutlineXMark,
-  HiOutlineArrowTopRightOnSquare,
   HiOutlineCheckCircle,
   HiOutlineXCircle,
   HiOutlinePaperClip,
-  HiOutlineShare,
-  HiOutlineBuildingLibrary,
-  HiOutlineMapPin,
-  HiOutlineChatBubbleLeftEllipsis,
   HiOutlinePaperAirplane,
   HiOutlineArrowDownTray,
 } from "react-icons/hi2";
@@ -38,21 +33,35 @@ import {
   sendBulkPendingApplicantReminders,
   uploadPendingApplicantCv,
   recordManualPayment,
-  getRegistrationStatus,
+  downloadApplicantsCSV,
+  type PendingApplicantWork,
+  type PendingReminderResult,
   PendingApplicant,
   PendingApplicantsSummary,
   GetPendingApplicantsParams,
 } from "@/lib/api/services";
 
 const STEP_LABELS: Record<number, string> = {
-  1: "Email Verified",
+  1: "Email verification",
   2: "Personal Profile",
   3: "Academic Background",
   4: "Program Interest",
-  5: "Skills & Experience",
-  6: "Motivation & Goals",
-  7: "Levy & Review",
+  5: "Skills and motivation",
+  6: "Payment and declaration",
+  7: "Payment and review (older applications)",
 };
+
+const WORK_OPTIONS: { value: PendingApplicantWork | ""; label: string }[] = [
+  { value: "", label: "All pending" },
+  { value: "ready_for_reminder", label: "Ready for reminder" },
+  { value: "payment_review", label: "Bank transfer needs review" },
+  { value: "incomplete", label: "Application incomplete" },
+];
+
+function pendingPayment(applicant: PendingApplicant) {
+  return applicant.paymentAttempts.find(payment => payment.status === "pending" && payment.bankTransferReview)
+    ?? applicant.paymentAttempts.find(payment => payment.status === "pending");
+}
 
 export default function PendingApplications() {
   const { selectedCohortId, cohorts } = useContext(AdminCohortContext);
@@ -64,12 +73,17 @@ export default function PendingApplications() {
   const [pages, setPages] = useState(1);
   const [limit, setLimit] = useState(25);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const latestRequest = useRef(0);
-  const [activeCohortName, setActiveCohortName] = useState("the upcoming cohort");
+  const cohortScope = selectedCohortId === "unassigned" ? "Awaiting assignment" :
+    cohorts.find(cohort => cohort._id === selectedCohortId)?.name ?? "All cohorts";
 
   // Filters State
   const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [work, setWork] = useState<PendingApplicantWork | "">("");
   const [country, setCountry] = useState("");
   const [step, setStep] = useState<string>("");
   const [hasPaymentAttempt, setHasPaymentAttempt] = useState<"all" | "true" | "false">("all");
@@ -95,6 +109,8 @@ export default function PendingApplications() {
   const [emailBody, setEmailBody] = useState("");
   const [includeResumeLink, setIncludeResumeLink] = useState(true);
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [reminderResult, setReminderResult] = useState<PendingReminderResult | null>(null);
+  const [composeError, setComposeError] = useState("");
 
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
@@ -110,8 +126,10 @@ export default function PendingApplications() {
   const [manualReceiptPreview, setManualReceiptPreview] = useState<string | null>(null);
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [manualError, setManualError] = useState("");
+  const manualRequestId = useRef("");
 
   const openManualPaymentModal = (applicant: PendingApplicant) => {
+    manualRequestId.current = crypto.randomUUID();
     setManualPaymentApplicant(applicant);
     const curr = applicant.country === "Nigeria" ? "NGN" : "USD";
     setManualCurrency(curr);
@@ -144,7 +162,7 @@ export default function PendingApplications() {
 
   const handleSubmitManualPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!manualPaymentApplicant) return;
+    if (!manualPaymentApplicant || manualSubmitting) return;
     setManualSubmitting(true);
     setManualError("");
 
@@ -158,6 +176,8 @@ export default function PendingApplications() {
       formData.append("paymentMethod", manualMethod);
       formData.append("reference", manualRef);
       formData.append("notes", manualNotes);
+      formData.append("requestId", manualRequestId.current);
+      formData.append("expectedCohortId", manualPaymentApplicant.manualPaymentCohortId ?? "unassigned");
 
       const res = await recordManualPayment(manualPaymentApplicant._id, formData);
       showToast(res.message || "Manual payment recorded successfully!", "success");
@@ -168,34 +188,36 @@ export default function PendingApplications() {
         setSelectedApplicant(null);
       }
       fetchApplicants();
-    } catch (err: any) {
-      console.error("Manual payment submission error:", err);
-      setManualError(err.response?.data?.message || err.message || "Failed to record manual payment.");
+    } catch (error) {
+      setManualError(error instanceof Error ? error.message : "Failed to record manual payment.");
     } finally {
       setManualSubmitting(false);
     }
   };
 
-  const fetchApplicants = async (overrideParams: Partial<GetPendingApplicantsParams> = {}) => {
+  const filters: GetPendingApplicantsParams = {
+    cohortId: selectedCohortId || undefined,
+    search: appliedSearch || undefined,
+    country: country || undefined,
+    step: step ? Number(step) : undefined,
+    hasPaymentAttempt: hasPaymentAttempt === "all" ? undefined : hasPaymentAttempt,
+    reminderStatus: reminderStatus === "all" ? undefined : reminderStatus,
+    work: work || undefined,
+  };
+
+  const fetchApplicants = async () => {
     const request = ++latestRequest.current;
     setLoading(true);
     try {
-      const params: GetPendingApplicantsParams = {
-        cohortId: selectedCohortId || undefined,
-        page,
-        limit,
-        search: search.trim() || undefined,
-        country: country || undefined,
-        step: step ? parseInt(step, 10) : undefined,
-        hasPaymentAttempt: hasPaymentAttempt !== "all" ? hasPaymentAttempt : undefined,
-
-        reminderStatus: reminderStatus !== "all" ? reminderStatus : undefined,
-        ...overrideParams,
-      };
-
-      const data = await getPendingApplicants(params);
+      const data = await getPendingApplicants({ ...filters, page, limit });
       if (request !== latestRequest.current) return;
+      setLoadError(false);
+      if (page > Math.max(1, data.pages)) {
+        setPage(Math.max(1, data.pages));
+        return;
+      }
       setApplicants(data.applicants);
+      setSelectedApplicantIds(ids => ids.filter(id => data.applicants.some(applicant => applicant._id === id)));
       setSummary(data.summary);
       setTotal(data.total);
       setPages(data.pages);
@@ -204,117 +226,80 @@ export default function PendingApplications() {
     } catch (err) {
       if (request !== latestRequest.current) return;
       console.error("Failed to load pending applicants:", err);
-      showToast("Failed to fetch pending applicants.", "error");
+      setLoadError(true);
+      setSelectedApplicantIds([]);
     } finally {
       if (request === latestRequest.current) setLoading(false);
     }
   };
 
   useEffect(() => {
-    (async () => {
-      try {
-        const regStatus = await getRegistrationStatus();
-        if (regStatus && regStatus.cohortName) {
-          setActiveCohortName(regStatus.cohortName);
-        }
-      } catch (err) {
-        console.error("Failed to load registration status:", err);
-      }
-    })();
-  }, []);
-
-  useEffect(() => {
     fetchApplicants();
-  }, [page, limit, country, step, hasPaymentAttempt, reminderStatus]);
+  }, [page, limit, appliedSearch, country, step, hasPaymentAttempt, reminderStatus, work]);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPage(1);
-    fetchApplicants({ page: 1 });
+  function changePage(nextPage = 1) {
+    setSelectedApplicantIds([]);
+    setPage(nextPage);
+  }
+
+  const handleSearchSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const query = search.trim();
+    if (query === appliedSearch && page === 1) {
+      void fetchApplicants();
+      return;
+    }
+    changePage();
+    setAppliedSearch(query);
   };
 
   const handleClearFilters = () => {
+    changePage();
     setSearch("");
+    setAppliedSearch("");
     setCountry("");
     setStep("");
     setHasPaymentAttempt("all");
-
     setReminderStatus("all");
-    setPage(1);
-    fetchApplicants({
-      search: undefined,
-      country: undefined,
-      step: undefined,
-      hasPaymentAttempt: undefined,
-
-      reminderStatus: undefined,
-      page: 1,
-    });
+    setWork("");
   };
+
+  async function exportCurrentResults() {
+    setExporting(true);
+    try {
+      await downloadApplicantsCSV({ ...filters, type: "unpaid" });
+    } catch {
+      showToast("Could not export the current results. Try again.", "error");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const showToast = (text: string, type: "success" | "error" = "success") => {
     setToastMessage({ text, type });
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Helper to load templates into Email Modal (Single Applicant)
-  const loadEmailTemplate = (key: string, applicant: PendingApplicant) => {
+  function loadEmailTemplate(key: string, applicant?: PendingApplicant) {
     setEmailTemplateKey(key);
-    const firstName = applicant.fullName ? applicant.fullName.trim().split(" ")[0] : "Applicant";
-    const stageName = STEP_LABELS[applicant.currentStep] || "Registration";
+    const name = applicant ? applicant.fullName?.trim().split(/\s+/)[0] || "Applicant" : "{{firstName}}";
+    const greeting = `Hello ${name},\n\n`;
+    setIncludeResumeLink(true);
 
-    if (key === "expiration_reminder") {
-      setEmailSubject(`Don't Miss Out — Complete Your IFIP Application`);
-      setEmailBody(
-        `Hello ${firstName},\n\nWe noticed you started your application for the Islamic Finance Internship Program (IFIP) and reached Step ${applicant.currentStep} (${stageName}).\n\nSpots in ${activeCohortName} are limited and filling up fast. Your progress is saved — complete your application before the cohort reaches capacity.\n\nPlease resume your registration to secure your spot.`
-      );
-      setIncludeResumeLink(true);
-    } else if (key === "assistance_inquiry") {
-      setEmailSubject(`IFIP Admissions: Do you need assistance completing your application?`);
-      setEmailBody(
-        `Hello ${firstName},\n\nThank you for your interest in the Islamic Finance Internship Program (IFIP).\n\nWe noticed that you paused your application at Step ${applicant.currentStep} (${stageName}). We wanted to check in and see if you encountered any technical difficulties or have questions regarding the program tracks or application process.\n\nPlease reply directly to this email or contact support at +234 906 035 6610 if you need any support from our admissions team.`
-      );
-      setIncludeResumeLink(true);
+    if (key === "assistance_inquiry") {
+      setEmailSubject("Do you need help with your IFIP application?");
+      setEmailBody(greeting + "Do you have any questions about your application? Reply to this email and our admissions team can help.");
     } else if (key === "payment_assistance") {
-      setEmailSubject(`IFIP Admissions: Commitment Levy Payment Support`);
-      setEmailBody(
-        `Hello ${firstName},\n\nWe noticed you reached Step 7 (Levy Payment & Final Review) for the Islamic Finance Internship Program (IFIP).\n\nSpots in ${activeCohortName} are filling up fast. Please complete your payment to secure your place in the cohort.\n\nIf you are experiencing any issues with your payment transaction or have questions regarding commitment levy payment options, please reach out to our team at +234 906 035 6610 or reply directly to this email so we can assist you.`
-      );
-      setIncludeResumeLink(true);
+      setEmailSubject("IFIP commitment levy support");
+      setEmailBody(greeting + "If you need help with the IFIP commitment levy or have a question about a previous payment, reply to this email so we can help.");
     } else if (key === "custom") {
-      setEmailSubject(`Update regarding your IFIP Application`);
-      setEmailBody(`Hello ${firstName},\n\n`);
-      setIncludeResumeLink(true);
+      setEmailSubject("Update on your IFIP application");
+      setEmailBody(greeting);
+    } else {
+      setEmailSubject("Resume your IFIP application");
+      setEmailBody(greeting + "Your IFIP application is saved. Return to IFIP to review your progress and check current registration availability. Reply to this email if you need help.");
     }
-  };
-
-  // Helper to load templates into Bulk Email Modal (Uses placeholders)
-  const loadBulkEmailTemplate = (key: string) => {
-    setEmailTemplateKey(key);
-    if (key === "expiration_reminder") {
-      setEmailSubject(`Don't Miss Out — Complete Your IFIP Application`);
-      setEmailBody(
-        `Hello {{firstName}},\n\nWe noticed you started your application for the Islamic Finance Internship Program (IFIP) and reached Step {{currentStep}}.\n\nSpots in ${activeCohortName} are limited and filling up fast. Your progress is saved — complete your application before the cohort reaches capacity.\n\nPlease resume your registration to secure your spot.`
-      );
-      setIncludeResumeLink(true);
-    } else if (key === "assistance_inquiry") {
-      setEmailSubject(`IFIP Admissions: Do you need assistance completing your application?`);
-      setEmailBody(
-        `Hello {{firstName}},\n\nThank you for your interest in the Islamic Finance Internship Program (IFIP).\n\nWe noticed that you paused your application at Step {{currentStep}}. We wanted to check in and see if you encountered any technical difficulties or have questions regarding the program tracks or application process.\n\nPlease reply directly to this email or contact support at +234 906 035 6610 if you need any support from our admissions team.`
-      );
-      setIncludeResumeLink(true);
-    } else if (key === "payment_assistance") {
-      setEmailSubject(`IFIP Admissions: Commitment Levy Payment Support`);
-      setEmailBody(
-        `Hello {{firstName}},\n\nWe noticed you reached Step 7 (Levy Payment & Final Review) for the Islamic Finance Internship Program (IFIP).\n\nSpots in ${activeCohortName} are filling up fast. Please complete your payment to secure your place in the cohort.\n\nIf you are experiencing any issues with your payment transaction or have questions regarding commitment levy payment options, please reach out to our team at +234 906 035 6610 or reply directly to this email so we can assist you.`
-      );
-      setIncludeResumeLink(true);
-    } else if (key === "custom") {
-      setEmailSubject(`Update regarding your IFIP Application`);
-      setEmailBody(`Hello {{firstName}},\n\n`);
-      setIncludeResumeLink(true);
-    }
-  };
+  }
 
   // Selection Handlers
   const toggleSelectApplicant = (id: string) => {
@@ -336,7 +321,7 @@ export default function PendingApplications() {
     }
   };
 
-  const selectAllFilteredApplicants = () => {
+  const selectThisPage = () => {
     const allIds = applicants.map((a) => a._id);
     setSelectedApplicantIds(allIds);
   };
@@ -372,7 +357,7 @@ export default function PendingApplications() {
           className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 shrink-0"
           title={`Reminded ${applicant.hoursSinceLastReminder !== null && applicant.hoursSinceLastReminder !== undefined ? `${applicant.hoursSinceLastReminder}h ago` : "recently"} (${applicant.reminderCount} total). Cooldown active.`}
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 motion-safe:animate-pulse" />
           Reminded {applicant.hoursSinceLastReminder && applicant.hoursSinceLastReminder > 0 ? `${applicant.hoursSinceLastReminder}h ago` : "recently"} ({applicant.reminderCount}x)
         </span>
       );
@@ -394,6 +379,8 @@ export default function PendingApplications() {
   };
 
   const openEmailModal = (applicant: PendingApplicant) => {
+    setReminderResult(null);
+    setComposeError("");
     setEmailModalApplicant(applicant);
     setIsBulkEmailModalOpen(false);
     loadEmailTemplate("expiration_reminder", applicant);
@@ -404,64 +391,40 @@ export default function PendingApplications() {
       showToast("Please select at least one applicant.", "error");
       return;
     }
+    setReminderResult(null);
+    setComposeError("");
     setEmailModalApplicant(null);
     setIsBulkEmailModalOpen(true);
-    loadBulkEmailTemplate("payment_assistance");
+    loadEmailTemplate("expiration_reminder");
   };
 
-  const handleSendCustomEmail = async () => {
-    if (!emailModalApplicant || sendingEmail) return;
-    if (!emailSubject.trim()) {
-      showToast("Please enter an email subject line.", "error");
-      return;
-    }
-    if (!emailBody.trim()) {
-      showToast("Please enter an email message body.", "error");
+  const retryIds = reminderResult?.results.filter(result => result.status === "failed").map(result => result.applicantId);
+  const composerRecipientCount = retryIds?.length ?? (isBulkEmailModalOpen ? selectedApplicantIds.length : 1);
+
+  const handleSendEmail = async () => {
+    if (sendingEmail || composerRecipientCount === 0) return;
+    if (!emailSubject.trim() || !emailBody.trim()) {
+      setComposeError("Enter an email subject and message.");
       return;
     }
 
+    setComposeError("");
     setSendingEmail(true);
     try {
-      const res = await sendPendingApplicantReminder(emailModalApplicant._id, {
-        subject: emailSubject,
-        message: emailBody,
-        includeResumeLink,
-      });
-      showToast(res.message || `Email sent successfully to ${emailModalApplicant.email}`, "success");
-      setEmailModalApplicant(null);
-    } catch (err: any) {
-      console.error("Send custom email error:", err);
-      showToast(err.response?.data?.message || "Failed to send email.", "error");
-    } finally {
-      setSendingEmail(false);
-    }
-  };
-
-  const handleSendBulkEmail = async () => {
-    if (selectedApplicantIds.length === 0 || sendingEmail) return;
-    if (!emailSubject.trim()) {
-      showToast("Please enter an email subject line.", "error");
-      return;
-    }
-    if (!emailBody.trim()) {
-      showToast("Please enter an email message body.", "error");
-      return;
-    }
-
-    setSendingEmail(true);
-    try {
-      const res = await sendBulkPendingApplicantReminders({
-        applicantIds: selectedApplicantIds,
-        subject: emailSubject,
-        message: emailBody,
-        includeResumeLink,
-      });
-      showToast(res.message || `Bulk email dispatched successfully!`, "success");
-      setIsBulkEmailModalOpen(false);
-      setSelectedApplicantIds([]);
-    } catch (err: any) {
-      console.error("Send bulk email error:", err);
-      showToast(err.response?.data?.message || "Failed to send bulk email.", "error");
+      const payload = { cohortId: selectedCohortId || undefined, subject: emailSubject, message: emailBody, includeResumeLink };
+      const result = emailModalApplicant
+        ? await sendPendingApplicantReminder(emailModalApplicant._id, payload)
+        : await sendBulkPendingApplicantReminders({ ...payload, applicantIds: retryIds ?? selectedApplicantIds });
+      setReminderResult(result);
+      if (!result.failCount && !result.skippedCount) {
+        setEmailModalApplicant(null);
+        setIsBulkEmailModalOpen(false);
+        setSelectedApplicantIds([]);
+        showToast(result.message);
+      }
+      void fetchApplicants();
+    } catch (error) {
+      setComposeError(error instanceof Error ? error.message : "Could not send the email. Try again.");
     } finally {
       setSendingEmail(false);
     }
@@ -481,7 +444,7 @@ export default function PendingApplications() {
     if (days >= 14) {
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500 motion-safe:animate-pulse" />
           Inactive {days}d
         </span>
       );
@@ -502,11 +465,29 @@ export default function PendingApplications() {
     );
   };
 
+  function renderApplicantActions(applicant: PendingApplicant) {
+    const payment = pendingPayment(applicant);
+    const style = "rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50";
+    return (
+      <div className="flex flex-wrap gap-2 md:justify-end">
+        {payment ? (
+          <Link className={style} href={`/admin/payments?payment=${payment._id}`}>
+            {payment.bankTransferReview ? "Review bank transfer" : "Review pending payment"}
+          </Link>
+        ) : !applicant.cooldownActive && (
+          <button type="button" className={style} onClick={() => openEmailModal(applicant)}>Send reminder</button>
+        )}
+        <button type="button" className={style} onClick={() => { setSelectedApplicant(applicant); setActiveTab("details"); }}>View application</button>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 md:space-y-8">
+    <div className="space-y-5">
       {/* Toast Notification */}
       {toastMessage && (
         <div
+          role={toastMessage.type === "error" ? "alert" : "status"}
           className={`fixed bottom-6 right-6 z-50 px-5 py-3.5 rounded-xl shadow-xl border text-sm font-medium transition-all duration-300 flex items-center gap-3 ${
             toastMessage.type === "success"
               ? "bg-slate-900 text-white border-slate-800"
@@ -522,13 +503,19 @@ export default function PendingApplications() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2.5 sm:justify-end">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="me-auto text-sm text-slate-700"><strong>Pending applicants</strong> · {cohortScope}</p>
+        <button type="button" disabled={loading || loadError || exporting || !total} onClick={() => void exportCurrentResults()}
+          className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold disabled:opacity-50">
+          {exporting ? "Exporting…" : "Export current results"}
+        </button>
+
           <button
             onClick={() => setExportModalOpen(true)}
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition shadow-xs cursor-pointer"
             title="Configure filters and download applicants insights in CSV format"
           >
-            <HiOutlineArrowDownTray className="w-4 h-4 text-slate-500" /> Export CSV
+            <HiOutlineArrowDownTray className="w-4 h-4 text-slate-500" /> Custom export
           </button>
           <button
             onClick={() => fetchApplicants()}
@@ -539,63 +526,30 @@ export default function PendingApplications() {
           </button>
       </div>
 
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 font-bold text-lg sm:text-xl shrink-0">
-            <HiOutlineUser className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-          <div>
-            <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Pending</div>
-            <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5">{summary?.totalPending ?? total}</div>
-            <div className="text-[11px] sm:text-xs text-slate-500 mt-0.5">Unpaid applicant records</div>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-lg sm:text-xl shrink-0">
-            <HiOutlineSparkles className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-          <div>
-            <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Never Reminded</div>
-            <div className="text-xl sm:text-2xl font-bold text-emerald-600 mt-0.5">{summary?.neverRemindedCount ?? 0}</div>
-            <div className="text-[11px] sm:text-xs text-slate-500 mt-0.5">Fresh outreach list</div>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 font-bold text-lg sm:text-xl shrink-0">
-            <HiOutlineClock className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-          <div>
-            <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Cooldown Active</div>
-            <div className="text-xl sm:text-2xl font-bold text-amber-600 mt-0.5">{summary?.recentlyRemindedCount ?? 0}</div>
-            <div className="text-[11px] sm:text-xs text-slate-500 mt-0.5">Reminded &lt; 48h ago</div>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 font-bold text-lg sm:text-xl shrink-0">
-            <HiOutlineCreditCard className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-          <div>
-            <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Attempted Payment</div>
-            <div className="text-xl sm:text-2xl font-bold text-amber-600 mt-0.5">{summary?.attemptedPaymentCount ?? 0}</div>
-            <div className="text-[11px] sm:text-xs text-slate-500 mt-0.5">{summary?.noAttemptCount ?? 0} never attempted</div>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-600 font-bold text-lg sm:text-xl shrink-0">
-            <HiOutlineExclamationTriangle className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-          <div>
-            <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Inactive 30d+</div>
-            <div className="text-xl sm:text-2xl font-bold text-orange-600 mt-0.5">{summary?.inactiveDays30Count ?? 0}</div>
-            <div className="text-[11px] sm:text-xs text-slate-500 mt-0.5">Prioritise for outreach</div>
-          </div>
-        </div>
+      {summary && !loadError && (
+        <dl aria-label="Cohort totals" className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+          <div className="flex gap-2"><dt>Pending</dt><dd className="font-bold tabular-nums">{summary.totalPending}</dd></div>
+          <div className="flex gap-2"><dt>Never reminded</dt><dd className="font-bold tabular-nums">{summary.neverRemindedCount ?? 0}</dd></div>
+          <div className="flex gap-2"><dt>Attempted payment</dt><dd className="font-bold tabular-nums">{summary.attemptedPaymentCount}</dd></div>
+        </dl>
+      )}
+      <div role="group" aria-label="Work queues" className="flex flex-wrap gap-2">
+        {WORK_OPTIONS.map(option => (
+          <button key={option.value} type="button" aria-pressed={work === option.value}
+            onClick={() => { changePage(); setWork(option.value); }}
+            className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold aria-pressed:bg-primary aria-pressed:text-white">
+            {option.label}
+          </button>
+        ))}
       </div>
+      {!loadError && !loading && (
+        <p role="status" className="text-sm text-slate-600">
+          {total} matching {total === 1 ? "applicant" : "applicants"}
+          {appliedSearch && ` for “${appliedSearch}”`}{country && ` · ${country}`}{step && ` · Step ${step}`}
+          {reminderStatus !== "all" && ` · ${{ never: "Never reminded", eligible: "Eligible for reminder", cooldown_active: "In cooldown" }[reminderStatus]}`}
+          {hasPaymentAttempt !== "all" && ` · ${hasPaymentAttempt === "true" ? "Attempted payment" : "No payment attempt"}`}
+        </p>
+      )}
 
       {/* Filter Bar */}
       <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
@@ -606,7 +560,7 @@ export default function PendingApplications() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search applicants..."
+              aria-label="Search by name, email or phone" placeholder="Name, email or phone"
               className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white text-slate-900 transition"
             />
           </div>
@@ -626,8 +580,8 @@ export default function PendingApplications() {
             </div>
 
             <select
-              value={reminderStatus}
-              onChange={(e) => setReminderStatus(e.target.value as any)}
+              aria-label="Reminder status" value={reminderStatus}
+              onChange={(e) => { changePage(); setReminderStatus(e.target.value as typeof reminderStatus); }}
               className="w-full sm:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500"
             >
               <option value="all">All Reminder Statuses</option>
@@ -637,8 +591,8 @@ export default function PendingApplications() {
             </select>
 
             <select
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
+              aria-label="Country" value={country}
+              onChange={(e) => { changePage(); setCountry(e.target.value); }}
               className="w-full sm:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
             >
               <option value="">All Countries ({summary?.distinctCountries?.length || 0})</option>
@@ -650,8 +604,8 @@ export default function PendingApplications() {
             </select>
 
             <select
-              value={step}
-              onChange={(e) => setStep(e.target.value)}
+              aria-label="Current form step" value={step}
+              onChange={(e) => { changePage(); setStep(e.target.value); }}
               className="w-full sm:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
             >
               <option value="">All Form Steps (1-7)</option>
@@ -666,8 +620,8 @@ export default function PendingApplications() {
             </select>
 
             <select
-              value={hasPaymentAttempt}
-              onChange={(e) => setHasPaymentAttempt(e.target.value as any)}
+              aria-label="Payment attempts" value={hasPaymentAttempt}
+              onChange={(e) => { changePage(); setHasPaymentAttempt(e.target.value as typeof hasPaymentAttempt); }}
               className="w-full sm:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
             >
               <option value="all">All Payment Attempts</option>
@@ -676,10 +630,10 @@ export default function PendingApplications() {
             </select>
 
             <select
-              value={limit}
+              aria-label="Applicants per page" value={limit}
               onChange={(e) => {
                 setLimit(parseInt(e.target.value, 10));
-                setPage(1);
+                changePage();
               }}
               className="w-full sm:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-sky-800 bg-sky-50/60 border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-500"
               title="Select number of records to fetch per page"
@@ -695,7 +649,7 @@ export default function PendingApplications() {
 
           </div>
 
-          {(search || country || step || hasPaymentAttempt !== "all" || reminderStatus !== "all") && (
+          {(search || work || country || step || hasPaymentAttempt !== "all" || reminderStatus !== "all") && (
             <button
               onClick={handleClearFilters}
               className="text-xs font-semibold text-rose-600 hover:text-rose-700 transition flex items-center gap-1 self-end sm:self-auto"
@@ -708,7 +662,7 @@ export default function PendingApplications() {
 
       {/* SELECTION BATCH ACTION TOOLBAR */}
       {selectedApplicantIds.length > 0 && (
-        <div className="bg-gradient-to-r from-slate-900 via-sky-950 to-slate-900 text-white p-4 rounded-2xl shadow-xl border border-sky-800/40 flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in zoom-in-95 duration-200">
+        <div className="bg-gradient-to-r from-slate-900 via-sky-950 to-slate-900 text-white p-4 rounded-2xl shadow-xl border border-sky-800/40 flex flex-col sm:flex-row items-center justify-between gap-3 motion-safe:animate-in fade-in zoom-in-95 duration-200">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-300 flex items-center justify-center font-bold text-sm border border-sky-400/30 shrink-0">
               {selectedApplicantIds.length}
@@ -735,10 +689,10 @@ export default function PendingApplications() {
               <HiOutlineCheckCircle className="w-4 h-4 text-emerald-400" /> Select Eligible Only
             </button>
             <button
-              onClick={selectAllFilteredApplicants}
+              onClick={selectThisPage}
               className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition border border-slate-700"
             >
-              Select All Page ({applicants.length})
+              Select this page ({applicants.length})
             </button>
             <button
               onClick={clearSelection}
@@ -758,9 +712,14 @@ export default function PendingApplications() {
 
       {/* Main Applicants Container */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        {loading ? (
+        {loadError && !loading ? (
+          <div className="p-8 text-center" role="alert">
+            <p>Could not load pending applicants.</p>
+            <button type="button" onClick={() => void fetchApplicants()} className="mt-2 rounded-lg border px-3 py-2">Try again</button>
+          </div>
+        ) : loading ? (
           <div className="p-12 text-center text-slate-500 space-y-3">
-            <HiOutlineArrowPath className="w-8 h-8 animate-spin mx-auto text-sky-600" />
+            <HiOutlineArrowPath className="w-8 h-8 motion-safe:animate-spin mx-auto text-sky-600" />
             <p className="text-sm font-medium">Loading pending applicants data...</p>
           </div>
         ) : applicants.length === 0 ? (
@@ -794,32 +753,27 @@ export default function PendingApplications() {
                         checked={isAllCurrentPageSelected}
                         onChange={toggleSelectAllCurrentPage}
                         className="w-4 h-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500 cursor-pointer"
-                        title="Select all applicants on this page"
+                        aria-label="Select all applicants on this page"
                       />
                     </th>
                     <th className="py-3.5 px-4">Applicant Name & Email</th>
                     <th className="py-3.5 px-4">Country & Phone</th>
-                    <th className="py-3.5 px-4">Form Stage Completed</th>
+                    <th className="py-3.5 px-4">Current form step</th>
                     <th className="py-3.5 px-4">Reminder Status</th>
                     <th className="py-3.5 px-4">Activity</th>
-                    <th className="py-3.5 px-4">Payment Attempts</th>
-                    <th className="py-3.5 px-4 pr-6 text-right">Direct Outreach</th>
+                    <th className="py-3.5 px-4 text-right">Next action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
                   {applicants.map((applicant) => (
                     <tr
                       key={applicant._id}
-                      className="hover:bg-slate-50/60 transition group cursor-pointer"
-                      onClick={() => {
-                        setSelectedApplicant(applicant);
-                        setActiveTab("details");
-                      }}
+                      className="hover:bg-slate-50/60 transition group"
                     >
                       <td className="py-4 px-4 pl-6 w-10" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
-                          checked={selectedApplicantIds.includes(applicant._id)}
+                          aria-label={`Select ${applicant.fullName || applicant.email}`} checked={selectedApplicantIds.includes(applicant._id)}
                           onChange={() => toggleSelectApplicant(applicant._id)}
                           className="w-4 h-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500 cursor-pointer"
                         />
@@ -856,7 +810,7 @@ export default function PendingApplications() {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">
-                              Step {applicant.currentStep}/7
+                              Step {applicant.currentStep}
                             </span>
                             <span className="text-xs text-slate-600 font-medium">
                               {STEP_LABELS[applicant.currentStep] || "Registration"}
@@ -875,68 +829,7 @@ export default function PendingApplications() {
 
                       <td className="py-4 px-4">{getActivityBadge(applicant)}</td>
 
-                      <td className="py-4 px-4">
-                        {applicant.paymentAttemptsCount > 0 ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                            <HiOutlineCreditCard className="w-3.5 h-3.5 text-amber-600" />
-                            {applicant.paymentAttemptsCount} Attempt
-                            {applicant.paymentAttemptsCount > 1 ? "s" : ""}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-500">
-                            No attempts
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="py-4 px-4 pr-6 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1.5">
-                          {applicant.phone && (
-                            <a
-                              href={`tel:${applicant.phone}`}
-                              title="Call Phone Number"
-                              className="p-2 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition"
-                            >
-                              <HiOutlinePhone className="w-4.5 h-4.5" />
-                            </a>
-                          )}
-                          {applicant.phone && (
-                            <a
-                              href={formatWhatsAppUrl(applicant)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title="Open WhatsApp Reminder"
-                              className="p-2 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
-                            >
-                              <FaWhatsapp className="w-4.5 h-4.5 text-emerald-600" />
-                            </a>
-                          )}
-                          <button
-                            onClick={() => openEmailModal(applicant)}
-                            title="Compose Custom Email / Select Template"
-                            className="p-2 text-slate-600 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition"
-                          >
-                            <HiOutlineEnvelope className="w-4.5 h-4.5 text-sky-700" />
-                          </button>
-                          <button
-                            onClick={() => openManualPaymentModal(applicant)}
-                            title="Record Offline Payment & Upload Receipt"
-                            className="px-2.5 py-1.5 text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded-lg transition ml-1 flex items-center gap-1 shadow-2xs"
-                          >
-                            <HiOutlineCreditCard className="w-3.5 h-3.5 text-emerald-600" />
-                            Record Payment
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedApplicant(applicant);
-                              setActiveTab("details");
-                            }}
-                            className="px-2.5 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition ml-1"
-                          >
-                            Inspect
-                          </button>
-                        </div>
-                      </td>
+                      <td className="py-4 px-4 text-right">{renderApplicantActions(applicant)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -949,10 +842,6 @@ export default function PendingApplications() {
                 <div
                   key={applicant._id}
                   className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md hover:border-sky-300 transition-all space-y-3 relative overflow-hidden"
-                  onClick={() => {
-                    setSelectedApplicant(applicant);
-                    setActiveTab("details");
-                  }}
                 >
                   {/* Top Color Accent Strip Demarcating Card Boundary */}
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-sky-500 via-indigo-500 to-sky-400 opacity-90" />
@@ -963,7 +852,7 @@ export default function PendingApplications() {
                       <div className="pt-2" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
-                          checked={selectedApplicantIds.includes(applicant._id)}
+                          aria-label={`Select ${applicant.fullName || applicant.email}`} checked={selectedApplicantIds.includes(applicant._id)}
                           onChange={() => toggleSelectApplicant(applicant._id)}
                           className="w-4 h-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500 cursor-pointer"
                         />
@@ -999,67 +888,14 @@ export default function PendingApplications() {
 
                     <div className="flex items-center gap-1.5">
                       <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-200/80">
-                        Step {applicant.currentStep}/7
+                        Step {applicant.currentStep}
                       </span>
 
-                      {applicant.paymentAttemptsCount > 0 ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/80">
-                          <HiOutlineCreditCard className="w-3 h-3 text-amber-600" />
-                          {applicant.paymentAttemptsCount} Attempt{applicant.paymentAttemptsCount > 1 ? "s" : ""}
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-500">
-                          No attempts
-                        </span>
-                      )}
+                      <span className="text-xs text-slate-600">{STEP_LABELS[applicant.currentStep]}</span>
                     </div>
                   </div>
 
-                  {/* Bottom Row: Outreach Toolbar & Inspect Profile */}
-                  <div
-                    className="flex items-center justify-between gap-2 pt-2.5 border-t border-slate-100"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      {applicant.phone && (
-                        <a
-                          href={`tel:${applicant.phone}`}
-                          title="Call Phone Number"
-                          className="p-2 text-slate-600 hover:text-emerald-700 bg-slate-50 hover:bg-emerald-50 rounded-xl border border-slate-200/80 transition"
-                        >
-                          <HiOutlinePhone className="w-4 h-4" />
-                        </a>
-                      )}
-                      {applicant.phone && (
-                        <a
-                          href={formatWhatsAppUrl(applicant)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="WhatsApp Reminder"
-                          className="p-2 text-slate-600 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 rounded-xl border border-slate-200/80 transition"
-                        >
-                          <FaWhatsapp className="w-4 h-4 text-emerald-600" />
-                        </a>
-                      )}
-                      <button
-                        onClick={() => openEmailModal(applicant)}
-                        title="Compose Email"
-                        className="p-2 text-slate-600 hover:text-sky-700 bg-slate-50 hover:bg-sky-50 rounded-xl border border-slate-200/80 transition"
-                      >
-                        <HiOutlineEnvelope className="w-4 h-4 text-sky-700" />
-                      </button>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        setSelectedApplicant(applicant);
-                        setActiveTab("details");
-                      }}
-                      className="px-3.5 py-1.5 text-xs font-semibold bg-slate-900 hover:bg-sky-900 text-white rounded-xl shadow-xs transition"
-                    >
-                      Inspect Profile
-                    </button>
-                  </div>
+                  <div className="border-t border-slate-100 pt-2.5">{renderApplicantActions(applicant)}</div>
                 </div>
               ))}
             </div>
@@ -1067,7 +903,7 @@ export default function PendingApplications() {
         )}
 
         {/* Pagination Footer */}
-        {total > 0 && (
+        {!loadError && total > 0 && (
           <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium">
             <div className="flex flex-wrap items-center gap-3">
               <div>
@@ -1076,10 +912,10 @@ export default function PendingApplications() {
               <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
                 <span className="text-slate-400">Items per page:</span>
                 <select
-                  value={limit}
+                  aria-label="Applicants per page" value={limit}
                   onChange={(e) => {
                     setLimit(parseInt(e.target.value, 10));
-                    setPage(1);
+                    changePage();
                   }}
                   className="px-2 py-1 bg-white border border-slate-200 rounded-lg font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-sky-500"
                 >
@@ -1096,14 +932,14 @@ export default function PendingApplications() {
               <div className="flex items-center gap-2">
                 <button
                   disabled={page <= 1}
-                  onClick={() => setPage(page - 1)}
+                  onClick={() => changePage(page - 1)}
                   className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
                   Previous
                 </button>
                 <button
                   disabled={page >= pages}
-                  onClick={() => setPage(page + 1)}
+                  onClick={() => changePage(page + 1)}
                   className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
                   Next
@@ -1116,8 +952,8 @@ export default function PendingApplications() {
 
       {/* CUSTOM EMAIL COMPOSER MODAL (SINGLE OR BULK) */}
       {(emailModalApplicant || isBulkEmailModalOpen) && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <PendingDialog labelledBy="pending-email-title" busy={sendingEmail} onDismiss={() => { setEmailModalApplicant(null); setIsBulkEmailModalOpen(false); }}>
+          <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden motion-safe:animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -1125,7 +961,7 @@ export default function PendingApplications() {
                   <HiOutlineEnvelope className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm sm:text-base">
+                  <h3 id="pending-email-title" className="font-bold text-sm sm:text-base">
                     {isBulkEmailModalOpen ? `Compose Bulk Email (${selectedApplicantIds.length} Recipients)` : "Compose Email to Candidate"}
                   </h3>
                   <p className="text-[11px] sm:text-xs text-slate-400 font-mono truncate max-w-[200px] sm:max-w-[320px]">
@@ -1136,6 +972,8 @@ export default function PendingApplications() {
                 </div>
               </div>
               <button
+                aria-label="Close reminder composer"
+                disabled={sendingEmail}
                 onClick={() => {
                   setEmailModalApplicant(null);
                   setIsBulkEmailModalOpen(false);
@@ -1148,6 +986,19 @@ export default function PendingApplications() {
 
             {/* Modal Body */}
             <div className="p-4 sm:p-6 space-y-4 text-xs">
+              <p className="text-sm text-slate-700">Recipient scope: {cohortScope}. The email is about each recipient’s saved IFIP application.</p>
+              {composeError && <p role="alert" className="text-red-700">{composeError}</p>}
+              {reminderResult && (
+                <div role="status" className="space-y-2 rounded-lg border border-slate-300 p-3 text-sm">
+                  <p className="font-semibold">{reminderResult.message}</p>
+                  <ul className="space-y-1">
+                    {reminderResult.results.filter(result => result.status !== "accepted").map(result => {
+                      const applicant = applicants.find(item => item._id === result.applicantId) ?? (emailModalApplicant?._id === result.applicantId ? emailModalApplicant : null);
+                      return <li key={result.applicantId}>{applicant?.fullName || applicant?.email || "Applicant no longer on this page"}: {result.reason}</li>;
+                    })}
+                  </ul>
+                </div>
+              )}
               {/* Cooldown Warning for Bulk Dispatch */}
               {isBulkEmailModalOpen &&
                 applicants.filter((a) => selectedApplicantIds.includes(a._id) && a.cooldownActive).length > 0 && (
@@ -1156,7 +1007,7 @@ export default function PendingApplications() {
                     <div>
                       <strong>Cooldown Notice:</strong>{" "}
                       {applicants.filter((a) => selectedApplicantIds.includes(a._id) && a.cooldownActive).length} of your selected{" "}
-                      {selectedApplicantIds.length} applicants received a reminder within the last 48 hours. Consider clicking &quot;Select Eligible Only&quot; to avoid sending repeated reminders.
+                      {selectedApplicantIds.length} applicants received a reminder within the last 48 hours. The server skips applicants in cooldown.
                     </div>
                   </div>
                 )}
@@ -1174,20 +1025,20 @@ export default function PendingApplications() {
                   Select Email Template / Purpose
                 </label>
                 <select
-                  value={emailTemplateKey}
+                  aria-label="Email template" value={emailTemplateKey}
                   onChange={(e) => {
                     if (isBulkEmailModalOpen) {
-                      loadBulkEmailTemplate(e.target.value);
+                      loadEmailTemplate(e.target.value);
                     } else if (emailModalApplicant) {
                       loadEmailTemplate(e.target.value, emailModalApplicant);
                     }
                   }}
                   className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 text-xs"
                 >
-                  <option value="expiration_reminder">⏰ 1. Expiration Notice & Registration Reminder</option>
-                  <option value="assistance_inquiry">❓ 2. Registration Assistance / Issue Check-in</option>
-                  <option value="payment_assistance">💳 3. Commitment Levy Payment Support</option>
-                  <option value="custom">✏️ 4. Custom Message (Blank Canvas)</option>
+                  <option value="expiration_reminder">Resume application</option>
+                  <option value="assistance_inquiry">Application assistance</option>
+                  <option value="payment_assistance">Payment support</option>
+                  <option value="custom">Custom message</option>
                 </select>
               </div>
 
@@ -1198,7 +1049,7 @@ export default function PendingApplications() {
                 </label>
                 <input
                   type="text"
-                  value={emailSubject}
+                  aria-label="Subject" value={emailSubject}
                   onChange={(e) => setEmailSubject(e.target.value)}
                   placeholder=""
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 text-xs"
@@ -1212,7 +1063,7 @@ export default function PendingApplications() {
                 </label>
                 <textarea
                   rows={7}
-                  value={emailBody}
+                  aria-label="Message" value={emailBody}
                   onChange={(e) => setEmailBody(e.target.value)}
                   placeholder=""
                   className="w-full p-3 bg-white border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 text-xs leading-relaxed"
@@ -1246,43 +1097,43 @@ export default function PendingApplications() {
                 Cancel
               </button>
               <button
-                onClick={isBulkEmailModalOpen ? handleSendBulkEmail : handleSendCustomEmail}
-                disabled={sendingEmail}
+                onClick={handleSendEmail}
+                disabled={sendingEmail || composerRecipientCount === 0}
                 className="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-semibold transition shadow-sm flex items-center gap-2 text-xs"
               >
                 {sendingEmail ? (
                   <>
-                    <HiOutlineArrowPath className="w-4 h-4 animate-spin" /> {isBulkEmailModalOpen ? "Sending Bulk Emails..." : "Sending Email..."}
+                    <HiOutlineArrowPath className="w-4 h-4 motion-safe:animate-spin" /> {isBulkEmailModalOpen ? "Sending Bulk Emails..." : "Sending Email..."}
                   </>
                 ) : (
                   <>
-                    <HiOutlinePaperAirplane className="w-4 h-4" /> {isBulkEmailModalOpen ? `Send to ${selectedApplicantIds.length} Applicants` : "Send Email"}
+                    <HiOutlinePaperAirplane className="w-4 h-4" /> {retryIds ? `Retry failed (${retryIds.length})` : `Send reminder (${composerRecipientCount})`}
                   </>
                 )}
               </button>
             </div>
           </div>
-        </div>
+        </PendingDialog>
       )}
 
       {/* APPLICANT FULL DETAILS SLIDE-OVER DRAWER */}
       {selectedApplicant && (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-sm flex justify-end transition-opacity">
-          <div className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
+        <PendingDialog labelledBy="pending-applicant-title" drawer onDismiss={() => setSelectedApplicant(null)}>
+          <div className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col overflow-hidden motion-safe:animate-in slide-in-from-right duration-300">
             {/* Drawer Header */}
             <div className="bg-slate-900 text-white p-5 sm:p-6 flex items-start justify-between border-b border-slate-800">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 rounded text-[11px] font-bold bg-sky-500/20 text-sky-300 border border-sky-400/30 uppercase">
-                    Step {selectedApplicant.currentStep}/7 Completed
+                    Step {selectedApplicant.currentStep}
                   </span>
                   {getActivityBadge(selectedApplicant)}
                 </div>
-                <h2 className="text-lg sm:text-xl font-bold font-serif">{selectedApplicant.fullName || "Unnamed Applicant"}</h2>
+                <h2 id="pending-applicant-title" className="text-lg sm:text-xl font-bold font-serif">{selectedApplicant.fullName || "Unnamed Applicant"}</h2>
                 <p className="text-xs text-slate-400 font-mono truncate max-w-[280px] sm:max-w-none">{selectedApplicant.email}</p>
               </div>
               <button
-                onClick={() => setSelectedApplicant(null)}
+                aria-label="Close applicant details" onClick={() => setSelectedApplicant(null)}
                 className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition"
               >
                 <HiOutlineXMark className="w-6 h-6" />
@@ -1319,12 +1170,15 @@ export default function PendingApplications() {
                 >
                   <HiOutlineEnvelope className="w-3.5 h-3.5" /> Compose Email
                 </button>
-                <button
-                  onClick={() => openManualPaymentModal(selectedApplicant)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-sm"
-                >
-                  <HiOutlineCreditCard className="w-3.5 h-3.5" /> Record Payment &amp; Verify
-                </button>
+                  {pendingPayment(selectedApplicant) ? (
+                    <Link href={`/admin/payments?payment=${pendingPayment(selectedApplicant)!._id}`}
+                      className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-[#000666]">
+                      {pendingPayment(selectedApplicant)?.bankTransferReview ? "Review bank transfer" : "Review pending payment"}
+                    </Link>
+                  ) : selectedApplicant.declaration?.confirmed && selectedApplicant.declaration.signature?.trim() ? (
+                    <button onClick={() => openManualPaymentModal(selectedApplicant)}
+                      className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-[#000666]">Record offline payment</button>
+                  ) : <p className="text-xs text-slate-600">Offline enrollment requires the applicant’s signed declaration.</p>}
               </div>
             </div>
 
@@ -1521,7 +1375,7 @@ export default function PendingApplications() {
                     <div className="pt-3 border-t border-slate-200/80 space-y-2">
                       <div className="text-xs font-semibold text-slate-800 flex items-center justify-between">
                         <span>Admin Action: Upload / Replace CV</span>
-                        {uploadingCv && <span className="text-xs text-sky-600 animate-pulse font-medium">Uploading & Notifying...</span>}
+                        {uploadingCv && <span className="text-xs text-sky-600 motion-safe:animate-pulse font-medium">Uploading & Notifying...</span>}
                       </div>
 
                       <label className="flex items-center gap-2 text-[11px] font-medium text-slate-700 cursor-pointer select-none bg-sky-50/60 p-2 rounded-lg border border-sky-100">
@@ -1739,12 +1593,12 @@ export default function PendingApplications() {
               )}
             </div>
           </div>
-        </div>
+        </PendingDialog>
       )}
       {/* ── Record Manual Payment Modal ─────────────────────────────────────── */}
       {manualPaymentModalOpen && manualPaymentApplicant && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
-          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-200 animate-scaleUp">
+        <PendingDialog labelledBy="pending-payment-title" busy={manualSubmitting} onDismiss={() => setManualPaymentModalOpen(false)}>
+          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-200 motion-safe:animate-scaleUp">
             {/* Modal Header */}
             <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -1752,12 +1606,12 @@ export default function PendingApplications() {
                   <HiOutlineCreditCard className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-white">Record Manual Payment</h3>
+                  <h3 id="pending-payment-title" className="font-bold text-sm text-white">Record offline payment</h3>
                   <p className="text-[11px] text-slate-300">Upload receipt &amp; confirm offline payment</p>
                 </div>
               </div>
               <button
-                onClick={() => setManualPaymentModalOpen(false)}
+                aria-label="Close offline payment" disabled={manualSubmitting} onClick={() => setManualPaymentModalOpen(false)}
                 className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors"
               >
                 <HiOutlineXMark className="w-5 h-5" />
@@ -1773,7 +1627,7 @@ export default function PendingApplications() {
                 </div>
                 <div className="text-right">
                   <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 block">
-                    Step {manualPaymentApplicant.currentStep}/7
+                    Step {manualPaymentApplicant.currentStep}
                   </span>
                   <span className="text-[10px] text-slate-400 font-medium mt-0.5 block">{manualPaymentApplicant.country || "Nigeria"}</span>
                 </div>
@@ -1857,7 +1711,7 @@ export default function PendingApplications() {
                   </label>
                   <input
                     type="number"
-                    value={manualAmount}
+                    required value={manualAmount}
                     onChange={(e) => setManualAmount(e.target.value)}
                     placeholder="Amount"
                     className="w-full text-xs font-medium px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
@@ -1899,8 +1753,16 @@ export default function PendingApplications() {
                 </span>
               </div>
 
+              <div className="space-y-2 rounded-lg bg-slate-50 p-3 text-sm">
+                <p>Records <strong>{manualCurrency} {manualAmount || "—"}</strong> and enrolls the applicant.</p>
+                <p>Destination: {manualPaymentApplicant.manualPaymentCohortId
+                  ? cohorts.find(cohort => cohort._id === manualPaymentApplicant.manualPaymentCohortId)?.name ?? "Assigned cohort"
+                  : "Awaiting cohort assignment"}</p>
+                <p>Evidence: {manualReceiptFile?.name || manualRef.trim() || "No receipt or reference entered"}</p>
+                <label className="flex items-start gap-2"><input type="checkbox" required /> I confirmed the funds were received.</label>
+              </div>
               {manualError && (
-                <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs font-semibold text-red-700">
+                <div role="alert" className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs font-semibold text-red-700">
                   {manualError}
                 </div>
               )}
@@ -1938,7 +1800,7 @@ export default function PendingApplications() {
               </div>
             </form>
           </div>
-        </div>
+        </PendingDialog>
       )}
 
       {/* Export Applicants Modal */}
@@ -1952,9 +1814,9 @@ export default function PendingApplications() {
           step: step ? parseInt(step, 10) : undefined,
           country: country || undefined,
           hasPaymentAttempt: hasPaymentAttempt !== "all" ? hasPaymentAttempt : undefined,
-          search: search || undefined,
+          search: appliedSearch || undefined,
         }}
-        title="Export Unpaid / Funnel Applicants Insights (CSV)"
+        title="Custom applicant export"
       />
     </div>
   );

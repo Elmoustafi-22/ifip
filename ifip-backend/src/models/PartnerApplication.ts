@@ -1,6 +1,7 @@
-import { Schema, model, Document } from 'mongoose';
+import { Schema, model, Document, Types } from 'mongoose';
 
 export interface IPartnerOpening {
+    _id?: Types.ObjectId;
     role: string;
     mode: 'Remote' | 'Hybrid' | 'On-site';
     location?: string;

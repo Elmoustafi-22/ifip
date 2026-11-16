@@ -64,14 +64,15 @@ async function fetchWithRetry<T>(
 export function useCachedFetch<T>(
   key: string,
   fetchFn: () => Promise<T>,
-  groupKey: string
+  groupKey?: string
 ) {
-  const cacheKey = `cache:${key}`;
+  // Listings with time-sensitive status can use the same retries without persisting browser data.
+  const cacheKey = groupKey ? `cache:${key}` : null;
   const versionKey = `version:${groupKey}`;
 
   // Synchronous client-side cache initializer for 0ms initial render
   const [data, setData] = useState<T | null>(() => {
-    if (typeof window === "undefined") return null;
+    if (!cacheKey || typeof window === "undefined") return null;
     try {
       const cachedStr = localStorage.getItem(cacheKey);
       if (cachedStr) {
@@ -87,7 +88,7 @@ export function useCachedFetch<T>(
   });
 
   const [loading, setLoading] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
+    if (!cacheKey || typeof window === "undefined") return true;
     try {
       const cachedStr = localStorage.getItem(cacheKey);
       if (cachedStr) {
@@ -122,7 +123,7 @@ export function useCachedFetch<T>(
       // Read current cache status from localStorage
       let cachedData: T | null = null;
       try {
-        const raw = localStorage.getItem(cacheKey);
+        const raw = cacheKey && localStorage.getItem(cacheKey);
         if (raw) {
           const parsed = JSON.parse(raw);
           if (isValidCachedData<T>(parsed)) {
@@ -134,7 +135,7 @@ export function useCachedFetch<T>(
       }
 
       // If we don't have valid cache, fetch immediately (do NOT wait for /content-versions)
-      if (!cachedData) {
+      if (!cacheKey || !groupKey || !cachedData) {
         setLoading(true);
         try {
           const fresh = await executeFetch();
@@ -143,7 +144,7 @@ export function useCachedFetch<T>(
           setError(null);
           setLoading(false);
 
-          if (isValidCachedData(fresh)) {
+          if (cacheKey && isValidCachedData(fresh)) {
             try {
               localStorage.setItem(cacheKey, JSON.stringify(fresh));
             } catch (e) {

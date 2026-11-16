@@ -13,6 +13,7 @@ import PricingSection from "@/components/home/PricingSection";
 import PartnersSection from "@/components/home/PartnersSection";
 import FaqSection from "@/components/home/FaqSection";
 import MobileBottomNav from "@/components/home/MobileBottomNav";
+import { programCertificate } from "@/components/home/program-certificate";
 import "@/components/home/homepage.css";
 
 const guide = "/docs/IFIPP_Program_Pamphlet.pdf";
@@ -33,6 +34,11 @@ const curriculum = [
     title: "Practical execution",
     icon: TbBriefcase,
     topics: ["Research and analytical thinking in finance", "Project execution and real-world simulations", "Industry tools, digital skills and productivity", "Internship orientation and expectations"],
+  },
+  {
+    title: programCertificate.title,
+    icon: programCertificate.icon,
+    topics: [programCertificate.detail],
   },
 ];
 
@@ -81,7 +87,7 @@ export default function Home() {
             <p>The core training combines Islamic finance, professional development and workplace practice.</p>
             <ProgramGuide />
           </HomepageReveal>
-          <div className="ifip-home-cards">
+          <div className="ifip-home-cards ifip-home-curriculum-cards">
             {curriculum.map(({ icon: Icon, title, topics }, index) => (
               <HomepageReveal as="article" className="ifip-home-card" key={title} delay={index * 0.06}>
                 <span className="ifip-home-icon"><Icon aria-hidden="true" /></span>

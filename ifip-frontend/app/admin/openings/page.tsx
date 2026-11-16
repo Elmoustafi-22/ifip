@@ -188,9 +188,14 @@ export default function AdminOpeningsPage() {
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-[#000666] tracking-tight mb-1 flex items-center gap-2">
-            <HiOutlineCog6Tooth className="w-8 h-8 text-[#FF9800]" /> Active Openings Manager
+            <HiOutlineCog6Tooth className="w-8 h-8 text-[#FF9800]" /> Legacy Openings
           </h1>
-
+          <p className="text-sm text-slate-600">
+            Manage the openings shown on the homepage in{" "}
+            <Link href="/admin/job-openings" className="font-semibold text-[#000666] underline">
+              Job Openings
+            </Link>.
+          </p>
         </div>
         <button
           onClick={openCreateModal}

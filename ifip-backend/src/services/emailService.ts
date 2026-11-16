@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { env } from '../config/env.js';
 import { Cohort, type ICohort } from '../models/Cohort.js';
+import type { IPartnerOrganization } from '../models/PartnerOrganization.js';
 
 const brevoApi = axios.create({
     baseURL: 'https://api.brevo.com/v3',
@@ -1067,7 +1068,8 @@ export const sendPendingReminderEmail = async (
     resumeToken?: string,
     customSubject?: string,
     customMessage?: string,
-    includeResumeLink: boolean = true
+    includeResumeLink: boolean = true,
+    reportFailure = false,
 ) => {
     const resumeUrl = resumeToken ? `${env.CLIENT_URL}/apply?token=${resumeToken}` : `${env.CLIENT_URL}/apply`;
     const firstName = fullName ? fullName.trim().split(' ')[0] : 'Applicant';
@@ -1152,7 +1154,7 @@ export const sendPendingReminderEmail = async (
     </div>
     `;
 
-    await send(to, subject, html, EMAIL_SENDERS.ADMISSIONS);
+    await send(to, subject, html, EMAIL_SENDERS.ADMISSIONS, reportFailure);
 };
 
 // ─── Partner Portal Emails ─────────────────────────────────────────────────────
@@ -2234,6 +2236,30 @@ export const sendPartnerJobOpeningRejectedEmail = async (
     </div>`;
 
     await send(partnerEmail, `Update Regarding Job Opening: ${openingTitle}`, html, EMAIL_SENDERS.PLACEMENT);
+};
+
+export const sendParticipantCvRequestedEmail = async (
+    to: string,
+    company: Pick<IPartnerOrganization, 'name' | 'description' | 'sectorTags'>,
+    requestPath: string,
+) => {
+    const escapeText = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+    const requestUrl = new URL(requestPath, env.CLIENT_URL);
+    const sectors = company.sectorTags?.join(', ');
+    const html = `
+    <div style="${wrapperStyle}">
+        <div style="${cardStyle}">
+            <div style="${contentContainerStyle}">
+                <h1 style="font-family: Georgia, serif; color: #000666;">A partner requested your CV</h1>
+                <p><strong>${escapeText(company.name)}</strong> is requesting your CV.</p>
+                ${company.description ? `<p>${escapeText(company.description)}</p>` : ''}
+                ${sectors ? `<p><strong>Sectors:</strong> ${escapeText(sectors)}</p>` : ''}
+                <p>Sign in to review the request and upload or update your CV under Settings → Documents.</p>
+                <p><a href="${requestUrl.href}" style="display: inline-block; background-color: #000666; color: #ffffff; padding: 12px 20px; border-radius: 6px; text-decoration: none;">View CV request</a></p>
+            </div>
+        </div>
+    </div>`;
+    await send(to, 'A partner requested your CV — IFIP', html, EMAIL_SENDERS.PLACEMENT, true);
 };
 
 /**

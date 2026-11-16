@@ -1,4 +1,5 @@
 import axios from "axios";
+import { expiredSessionLoginPath } from "../cv-request-link";
 
 declare module "axios" {
   interface AxiosRequestConfig {
@@ -211,7 +212,7 @@ authClient.interceptors.response.use(
           sessionStorage.removeItem("accessToken");
           localStorage.removeItem("accessToken");
           localStorage.removeItem("refreshToken");
-          window.location.href = "/login?session=expired";
+          window.location.href = expiredSessionLoginPath(window.location.pathname);
         }
         return Promise.reject(error);
       } finally {

@@ -75,6 +75,13 @@
 .ifip-home-section-intro .ifip-home-eyebrow { color: var(--accent); margin: 0 0 10px; }
 
 .ifip-home-cards, .ifip-home-partners-grid, .ifip-home-eligibility { display: grid; gap: clamp(12px, 1.7vw, 24px); grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 23px; }
+.ifip-home-cards.ifip-home-curriculum-cards { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 520px) {
+  .ifip-home-cards.ifip-home-curriculum-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 800px) {
+  .ifip-home-cards.ifip-home-curriculum-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
 .ifip-home-card { min-width: 0; overflow-wrap: anywhere; background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: clamp(16px, 2vw, 25px); }
 .ifip-home-card > .ifip-home-icon { margin-bottom: 12px; }
 .ifip-home-card p, .ifip-home-card ul { margin-top: 8px; color: var(--muted); }

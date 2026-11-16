@@ -355,6 +355,8 @@ export default function AdminJobOpeningsPage() {
     showOpeningInfo: boolean = false
   ) => {
     const isExpanded = expandedAppIds.has(app._id);
+    const canRecordOutcome = Boolean(app.hiringOutcome) || ["interview_completed", "offered"].includes(app.status) ||
+      (app.status === "interview_scheduled" && !!app.interviewScheduledAt && Date.parse(app.interviewScheduledAt) <= interviewCheckTime);
     const initials = (app.applicant?.fullName || "A")
       .split(" ")
       .map((n) => n[0])
@@ -375,9 +377,8 @@ export default function AdminJobOpeningsPage() {
         key={app._id}
         className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-xs hover:border-slate-300 transition space-y-3"
       >
-        {(app.hiringOutcome || ["interview_completed", "offered"].includes(app.status) ||
-          (app.status === "interview_scheduled" && app.interviewScheduledAt && new Date(app.interviewScheduledAt).getTime() <= interviewCheckTime)) && (
-          <HiringOutcomeForm kind="job-applications" id={app._id} outcome={app.hiringOutcome} onSave={hiringOutcome => {
+        {(app.status !== "not_selected" || app.hiringOutcome) && (
+          <HiringOutcomeForm kind="job-applications" id={app._id} outcome={app.hiringOutcome} hireOnly={!canRecordOutcome} onSave={hiringOutcome => {
             const update = (row: AdminJobApplicationItem) => row._id === app._id ? { ...row, hiringOutcome } : row;
             setAllApps(rows => rows.map(update));
             setSelectedOpening(opening => opening && { ...opening, applications: opening.applications?.map(update) });

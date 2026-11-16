@@ -20,6 +20,7 @@ import {
 } from "react-icons/hi2";
 import { getAccessToken, clearAuth } from "@/lib/api/auth";
 import { getMyApplication } from "@/lib/api/services";
+import { expiredSessionLoginPath } from "@/lib/cv-request-link";
 import NotificationBell from "@/components/NotificationBell";
 import { DashboardContext, type DashboardProfile } from "./dashboard-context";
 
@@ -48,11 +49,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Authenticate user & check placement status
   useEffect(() => {
+    const expireSession = () => {
+      clearAuth();
+      router.push(expiredSessionLoginPath(window.location.pathname));
+    };
     const checkAuth = async () => {
       const token = getAccessToken();
       if (!token) {
-        clearAuth();
-        router.push("/login?session=expired");
+        expireSession();
         return;
       }
 
@@ -74,8 +78,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
       } catch (err) {
         console.error("Auth check failed:", err);
-        clearAuth();
-        router.push("/login?session=expired");
+        expireSession();
       } finally {
         setLoading(false);
       }

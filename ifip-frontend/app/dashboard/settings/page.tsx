@@ -488,6 +488,12 @@ export default function SettingsPage() {
     window.location.reload();
   };
 
+  useEffect(() => {
+    if (!loading && window.location.hash === "#documents") {
+      document.getElementById("documents")?.scrollIntoView();
+    }
+  }, [loading]);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4 text-center font-sans">
@@ -841,7 +847,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Documents Upload Card */}
-          <div className="bg-white rounded-2xl border border-slate-200/60 shadow-level1 p-6 flex flex-col justify-between">
+          <div id="documents" className="scroll-mt-24 bg-white rounded-2xl border border-slate-200/60 shadow-level1 p-6 flex flex-col justify-between">
             <div className="flex flex-col gap-5">
               <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
                 <div className="text-[#0E1B5D]">

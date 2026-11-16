@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useEffect, useState } from "react";
+import { createContext, useCallback, useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -91,7 +91,7 @@ const NAV_GROUPS = [
     label: "Content",
     items: [
       { href: "/admin/form-options", label: "Form Options",    icon: HiOutlineListBullet },
-      { href: "/admin/openings",     label: "Active Openings", icon: HiOutlineMegaphone },
+      { href: "/admin/openings",     label: "Legacy Openings", icon: HiOutlineMegaphone },
     ],
   },
   {
@@ -156,11 +156,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           setAdminAvatarUrl(profile.avatarUrl);
           setCohorts(cohortsList);
           const saved = sessionStorage.getItem("adminSelectedCohortId");
-          const newest = [...cohortsList].sort((a, b) =>
+          const newestFirst = [...cohortsList].sort((a, b) =>
             (Date.parse(b.createdAt ?? b.startDate ?? "") || 0) - (Date.parse(a.createdAt ?? a.startDate ?? "") || 0)
-          )[0];
+          );
+          const now = Date.now();
+          const current = newestFirst.find(cohort => cohort.status === "upcoming" &&
+            Date.parse(cohort.registrationStartDate) <= now && Date.parse(cohort.registrationEndDate) >= now)
+            ?? newestFirst.find(cohort => cohort.status === "active")
+            ?? newestFirst[0];
           const savedIsValid = saved === "" || saved === "unassigned" || cohortsList.some(cohort => cohort._id === saved);
-          setSelectedCohortId(savedIsValid ? saved ?? "" : newest?._id ?? "");
+          setSelectedCohortId(savedIsValid ? saved ?? "" : current?._id ?? "");
         } else {
           router.push("/dashboard?error=unauthorized");
         }
@@ -180,10 +185,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => stopSilentRefresh();
   }, [authorized]);
 
-  const handleSetCohort = (id: string) => {
+  const handleSetCohort = useCallback((id: string) => {
     setSelectedCohortId(id);
     sessionStorage.setItem("adminSelectedCohortId", id);
-  };
+  }, []);
 
   const upsertCohort = (updated: Cohort) => {
     setCohorts(prev => {

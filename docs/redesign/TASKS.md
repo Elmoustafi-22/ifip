@@ -22,6 +22,8 @@ See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and 
 
 ## Payments
 
+**Cohort payment records and resolution implemented locally.** The shared selector scopes the payment list, counts and currency totals. Payment details and resolution carry the record's cohort. See [cohort payment verification](PROGRESS.md#cohort-payment-records-and-resolution).
+
 **Paystack-first checkout implemented locally.** See the [implementation plan and staging configuration](registration/PAYSTACK_IMPLEMENTATION_PLAN.md). Hosted provider checks and live routing remain pending.
 
 **International bank transfer implemented locally.** The [implementation and configuration](registration/INTERNATIONAL_BANK_TRANSFER_PLAN.md) cover transfer-only USD payments, private receipts, reconciliation, and password setup after approval. Staging verification remains pending.
@@ -32,21 +34,27 @@ See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and 
 
 - **Pathway approved and implemented locally.** See [progress and verification](PROGRESS.md#homepage-pathway-implementation). The [earlier homepage report](homepage/HOMEPAGE_HERO_VERIFICATION.md) is retained as historical evidence.
 - **Professional Certificate added to the homepage pathway.** See [verification](PROGRESS.md#homepage-professional-certificate).
+- **Professional Certificate added to the homepage curriculum.** The approved fourth card uses the shared curriculum styling. See [local verification](PROGRESS.md#homepage-curriculum-certificate-card).
+- **Active openings use published partner jobs.** The homepage uses the same status and deadline rules as participant Job Openings. See [verification](PROGRESS.md#cv-request-email-and-homepage-partner-jobs).
 
 ## Partner application
 
 - **Pathway implemented locally.** The public intake form and confirmation use the registration styling. See [local verification](PROGRESS.md#pathway-partner-application).
 - **Custom partner sector implemented locally.** Selecting Other reveals a text field and submits its value with the selected sectors. See [verification](PROGRESS.md#custom-partner-sector).
+- **Partner CV access, requests, and intake openings implemented locally.** Partners can view the CV on eligible profiles and request an upload or update by dashboard notification and email. Roles from approved partner applications enter Job Openings for review. Publication alerts exclude participants with a recorded selection, offer, hire or placement. See [recruitment verification](PROGRESS.md#partner-cv-requests-and-intake-job-openings) and [email verification](PROGRESS.md#cv-request-email-and-homepage-partner-jobs).
+- **CV requests identify the requesting company.** Recipients can review company details from the dashboard notification or email link, then open their existing CV upload controls. See [verification](PROGRESS.md#company-details-on-cv-requests).
 
 ## Admin dashboard
 
+- **Company hiring override implemented locally.** Admins can confirm a hire on an existing company placement or job application. See [verification](PROGRESS.md#company-hiring-override).
 - **Cohort operations implemented locally.** All-cohort overview, cohort creation, waitlist announcements, and admin hiring outcomes passed local checks. See the [verification and staging gaps](PROGRESS.md#admin-dashboard-cohort-operations-proposal).
 - **Waitlist announcement copy updated.** The email and preview show the scheduled registration dates and link to current availability. [Verification](PROGRESS.md#waitlist-registration-copy)
-- **Pre-registration waitlist and confirmed clearing implemented locally.** Edit cohort can send or resend email, track provider acceptance, and clear confirmed recipients. See [verification](PROGRESS.md#pre-registration-waitlist-and-confirmed-clearing).
+- **Pre-registration waitlist and confirmed clearing implemented locally.** Edit cohort can send or resend email, track provider acceptance, and clear confirmed recipients. The worker logs per-cohort acceptance and failure totals. See [verification](PROGRESS.md#pre-registration-waitlist-and-confirmed-clearing).
 - **Cohort creation email implemented locally.** Other admins and superadmins with email notifications enabled receive a formatted email when a cohort is saved. [Verification](PROGRESS.md#cohort-creation-email)
 - **Optional training dates verified locally.** Registration can open before training is scheduled. Editors can add either training date later. See the [verification](PROGRESS.md#optional-cohort-training-dates).
 - **In-session admin password confirmation implemented locally.** Levy prices and other protected admin actions resume after password confirmation. See the [verification](PROGRESS.md#in-session-admin-password-confirmation).
 - **Cohort-scoped admin applications verified locally.** Paid applications and pending applicants share one workspace. Pending records, totals and CSVs follow the selected cohort by default. See [verification and staging coverage](PROGRESS.md#cohort-scoped-admin-applications).
+- **Pending applicant work queues implemented locally.** The admin view verifies reminder outcomes, routes pending payments to review, and exports the current filters. See [verification](PROGRESS.md#pending-applicant-work-queues).
 
 ## Deferred Workstreams
 - Applicant dashboard and LMS

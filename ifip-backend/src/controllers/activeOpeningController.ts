@@ -1,18 +1,33 @@
 import { Request, Response } from 'express';
 import { ActiveOpening } from '../models/ActiveOpening.js';
+import { JobOpening, openJobOpeningFilter } from '../models/JobOpening.js';
+import { PartnerOrganization } from '../models/PartnerOrganization.js';
 import { updateContentVersion } from './contentVersionController.js';
 
 // ─── Public Handlers ──────────────────────────────────────────────────────────
 
 /**
  * GET /api/v1/active-openings
- * Returns all active vacancies, sorted by order weight, then creation date.
+ * Returns public card details for published partner jobs accepting applications.
  */
 export const getPublicOpenings = async (req: Request, res: Response) => {
     try {
-        res.set('Cache-Control', 'public, max-age=120, stale-while-revalidate=600');
-        const openings = await ActiveOpening.find({ isActive: true })
-            .sort({ order: 1, createdAt: -1 });
+        const jobs = await JobOpening.find(openJobOpeningFilter())
+            .select('title department workMode location partnerOrgId')
+            .sort({ openedAt: -1, _id: -1 })
+            .lean();
+        const partners = await PartnerOrganization.find({ _id: { $in: jobs.map(job => job.partnerOrgId) } })
+            .select('name').lean();
+        const partnerNames = new Map(partners.map(partner => [String(partner._id), partner.name]));
+        const openings = jobs.map(job => ({
+            _id: job._id,
+            title: job.title,
+            department: job.department,
+            workMode: job.workMode,
+            location: job.location,
+            partnerName: partnerNames.get(String(job.partnerOrgId)),
+        }));
+        res.set('Cache-Control', 'no-store');
         res.json({ openings });
     } catch (err) {
         res.status(500).json({ message: 'Failed to fetch active openings.' });

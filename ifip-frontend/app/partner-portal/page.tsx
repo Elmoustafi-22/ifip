@@ -150,7 +150,7 @@ export default function PartnerOverviewPage() {
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Candidate Pool</span>
@@ -171,6 +171,17 @@ export default function PartnerOverviewPage() {
           </div>
           <p className="text-2xl font-bold text-[#000666] mt-2">{stats?.scheduledInterviews ?? tasks.length}</p>
           <p className="text-[11px] text-slate-400 mt-0.5">Pending completion / outcome</p>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Confirmed Hires</span>
+            <div className="w-8 h-8 rounded bg-slate-50 text-emerald-700 border border-slate-200 flex items-center justify-center">
+              <HiOutlineCheck className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-[#000666] mt-2">{stats?.confirmedHires ?? 0}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Recorded by IFIP</p>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">

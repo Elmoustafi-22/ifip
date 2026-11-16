@@ -30,6 +30,7 @@ export interface PartnerStats {
   availableInterns: number;
   pendingRequests: number;
   confirmedPlacements: number;
+  confirmedHires?: number;
   slotsRemaining: number;
   scheduledInterviews?: number;
 }
@@ -184,6 +185,16 @@ export const getInternPool = async (params?: {
 
 export const getInternProfile = async (userId: string): Promise<InternFullProfile> => {
   const { data } = await authClient.get<InternFullProfile>(`/partners/interns/${userId}`);
+  return data;
+};
+
+interface CvRequestResult {
+  alreadyRequested: boolean;
+  emailStatus: "sent" | "failed" | "in_app" | "already_requested";
+}
+
+export const requestInternCv = async (userId: string): Promise<CvRequestResult> => {
+  const { data } = await authClient.post<CvRequestResult>(`/partners/interns/${userId}/cv-request`);
   return data;
 };
 
@@ -470,7 +481,7 @@ export interface JobApplicantRecord {
   cvUrl: string;
   coverNote?: string;
   responses: Array<{ requirement: string; answer: string }>;
-  status: 'submitted' | 'under_review' | 'shortlisted' | 'interview_scheduled' | 'not_selected';
+  status: 'submitted' | 'under_review' | 'shortlisted' | 'interview_scheduled' | 'interview_completed' | 'offered' | 'not_selected' | 'hired';
   partnerNotes?: string;
   interviewScheduledAt?: string;
   interviewFormat?: 'Video' | 'Call' | 'In-person';

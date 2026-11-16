@@ -43,6 +43,7 @@ const STEP_OPTIONS = [
   { num: 4, label: "Step 4: Program Interest" },
   { num: 5, label: "Step 5: Skills & Availability" },
   { num: 6, label: "Step 6: Review & Checkout" },
+  { num: 7, label: "Step 7: Payment and review (older applications)" },
 ];
 
 export default function ExportApplicantsModal({
@@ -124,7 +125,7 @@ export default function ExportApplicantsModal({
   };
 
   const handleResetFilters = () => {
-    setCohortId("");
+    setCohortId(initialParams.cohortId || "");
     setStatus("");
     setStep("");
     setHasPaymentAttempt("all");
@@ -298,7 +299,7 @@ export default function ExportApplicantsModal({
                     onChange={(e) => setStep(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500"
                   >
-                    <option value="">All Funnel Steps (1-6)</option>
+                    <option value="">All funnel steps</option>
                     {STEP_OPTIONS.map((s) => (
                       <option key={s.num} value={s.num}>
                         {s.label}

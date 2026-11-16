@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { Types } from 'mongoose';
-import { JobOpening } from '../models/JobOpening.js';
+import { JobOpening, openJobOpeningFilter } from '../models/JobOpening.js';
 import { JobApplication } from '../models/JobApplication.js';
 import { Module } from '../models/Module.js';
 import { ModuleTaskSubmission } from '../models/ModuleTaskSubmission.js';
@@ -95,18 +95,7 @@ const checkTaskEligibility = async (userId: string) => {
 // List all open job openings (not past deadline)
 export const getOpenJobOpenings = async (req: Request, res: Response) => {
     try {
-        const now = new Date();
-
-        const filter: any = {
-            status: 'open',
-            $or: [
-                { applicationDeadline: null },
-                { applicationDeadline: { $exists: false } },
-                { applicationDeadline: { $gt: now } },
-            ],
-        };
-
-        const openings = await JobOpening.find(filter)
+        const openings = await JobOpening.find(openJobOpeningFilter())
             .sort({ openedAt: -1 })
             .lean();
 

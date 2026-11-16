@@ -677,8 +677,8 @@ export default function AdminPlacementsPage() {
                                 In Talent Pool
                               </span>
                             )}
-                            {match && canRecordOutcome(match, interviewCheckTime) && (
-                              <HiringOutcomeForm kind="placements" id={match._id} outcome={match.hiringOutcome} onSave={outcome => saveOutcome(match._id, outcome)} />
+                            {match && (match.status !== "declined" || match.hiringOutcome) && (
+                              <HiringOutcomeForm kind="placements" id={match._id} outcome={match.hiringOutcome} hireOnly={!canRecordOutcome(match, interviewCheckTime)} onSave={outcome => saveOutcome(match._id, outcome)} />
                             )}
                           </td>
 
@@ -761,8 +761,8 @@ export default function AdminPlacementsPage() {
                         )}
                       </div>
 
-                      {match && canRecordOutcome(match, interviewCheckTime) && (
-                        <HiringOutcomeForm kind="placements" id={match._id} outcome={match.hiringOutcome} onSave={outcome => saveOutcome(match._id, outcome)} />
+                      {match && (match.status !== "declined" || match.hiringOutcome) && (
+                        <HiringOutcomeForm kind="placements" id={match._id} outcome={match.hiringOutcome} hireOnly={!canRecordOutcome(match, interviewCheckTime)} onSave={outcome => saveOutcome(match._id, outcome)} />
                       )}
                       <div className="flex justify-end pt-1">
                         <button

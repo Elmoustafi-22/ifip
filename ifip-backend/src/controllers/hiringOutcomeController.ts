@@ -26,14 +26,17 @@ export const recordHiringOutcome = async (req: Request, res: Response) => {
         _id: id,
         'hiringOutcome.recordedAt': previousRecordedAt ? new Date(previousRecordedAt) : null,
     };
+    const confirmingHire = status === 'hire_confirmed';
     const saved = kind === 'placements'
         ? await Placement.findOneAndUpdate({ ...filter, $or: [
             { status: 'interviewing', $or: [{ interviewScheduledAt: { $lte: new Date() } }, { interviewScheduledAt: null }] },
-            { status: 'placed' },
+            { status: { $in: confirmingHire ? ['placed', 'matched', 'interviewing'] : ['placed'] } },
             { 'hiringOutcome.status': { $exists: true } },
         ] }, { $set: { hiringOutcome } }, { returnDocument: 'after', runValidators: true }).select('hiringOutcome.status hiringOutcome.recordedAt')
         : await JobApplication.findOneAndUpdate({ ...filter, $or: [
-            { status: { $in: ['interview_completed', 'offered'] } },
+            { status: { $in: confirmingHire
+                ? ['interview_completed', 'offered', 'submitted', 'under_review', 'shortlisted', 'interview_scheduled']
+                : ['interview_completed', 'offered'] } },
             { status: 'interview_scheduled', interviewScheduledAt: { $lte: new Date() } },
             { 'hiringOutcome.status': { $exists: true } },
         ] }, { $set: { hiringOutcome } }, { returnDocument: 'after', runValidators: true }).select('hiringOutcome.status hiringOutcome.recordedAt');

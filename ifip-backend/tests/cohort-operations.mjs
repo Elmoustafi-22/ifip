@@ -5,7 +5,9 @@ import axios from 'axios';
 
 // This harness only uses the disposable replica set documented in REGISTRATION_UNIFIED_VERIFICATION.md.
 const database = 'ifip_cohort_test_' + process.pid;
-const uri = 'mongodb://127.0.0.1:37117/' + database + '?directConnection=true&replicaSet=ifiptest';
+const port = Number(process.env.IFIP_COHORT_TEST_MONGO_PORT ?? 37117);
+assert.ok(Number.isInteger(port) && port > 0 && port <= 65535);
+const uri = `mongodb://127.0.0.1:${port}/${database}?directConnection=true&replicaSet=ifiptest`;
 Object.assign(process.env,{NODE_ENV:'test',MONGO_URI:uri,JWT_ACCESS_SECRET:'x'.repeat(32),JWT_REFRESH_SECRET:'y'.repeat(32),APPLICANT_SESSION_SECRET:'a'.repeat(32),SET_PASSWORD_TOKEN_SECRET:'s'.repeat(32),RESET_PASSWORD_TOKEN_SECRET:'r'.repeat(32),CLOUDINARY_CLOUD_NAME:'fixture',CLOUDINARY_API_KEY:'fixture',CLOUDINARY_API_SECRET:'fixture',CLIENT_URL:'http://127.0.0.1:3217',REDIS_URL:'redis://127.0.0.1:1',BREVO_API_KEY:'fixture',EMAIL_FROM:'fixture@example.invalid',FLUTTERWAVE_SECRET_KEY:'fixture',FLUTTERWAVE_CALLBACK_URL:'http://127.0.0.1:3217/verify-payment',FLUTTERWAVE_WEBHOOK_HASH:'fixture-hash',PAYSTACK_SECRET_KEY:'fixture',PAYSTACK_CALLBACK_URL:'http://127.0.0.1:3217/verify-payment',LEVY_AMOUNT_NGN:'20000',LEVY_AMOUNT_USD:'30'});
 
 const sent = [];
@@ -22,7 +24,8 @@ axios.defaults.adapter = async config => {
   return {data:{messageId:'fixture'},status:201,statusText:'Created',headers:{},config};
 };
 const {createCohort,updateCohort,getDashboardStats,getCohortWaitlistStatus,retryCohortWaitlistDelivery,
- resendCohortWaitlistAnnouncement,clearConfirmedCohortWaitlist,getWaitlist,getPendingApplicants,exportApplicantsCSV
+ resendCohortWaitlistAnnouncement,clearConfirmedCohortWaitlist,getWaitlist,getPendingApplicants,exportApplicantsCSV,
+ sendBulkPendingApplicantReminders,recordManualPaymentForApplicant,getAdminPayments,getAdminPaymentById,resolvePayment
 }=await import('../src/controllers/adminController.ts');
 const {default:cohortRouter}=await import('../src/routes/cohortRoutes.ts');
 const {recordHiringOutcome}=await import('../src/controllers/hiringOutcomeController.ts');
@@ -217,6 +220,92 @@ try {
  assert.ok(csvRows.some(row=>row.includes(attempted.email)));
  assert.ok([previous,unmatched,ambiguous,paid].every(row=>!csv.body.includes(row.email)));
  console.log('PASS cohort-scoped pending rows, summary, filters and CSV, including legacy and overlapping intakes');
+
+ const reminderDraft = await Applicant.create({
+  email:'retry@example.invalid',cohortId:cohort.id,currentStep:4,resumeTokenHash:'existing-link',
+ });
+ const remind = ids => call(sendBulkPendingApplicantReminders,{body:{
+  applicantIds:ids.map(String),cohortId:cohort.id,subject:'Test reminder',message:'Resume your application.',
+ }});
+ fail=true;
+ const firstReminder = await remind([reminderDraft._id,previous._id,paid._id]);
+ assert.deepEqual(firstReminder.body.results.map(result=>result.status),['failed','skipped','skipped']);
+ const failedDraft = await Applicant.findById(reminderDraft._id).select('+reminderClaimUntil');
+ assert.equal(failedDraft.lastReminderSentAt,undefined);
+ assert.equal(failedDraft.reminderClaimUntil,undefined);
+ assert.equal(failedDraft.resumeTokenHash,'existing-link');
+ fail=false;
+ const duplicateReminders = await Promise.all([remind([reminderDraft._id]),remind([reminderDraft._id])]);
+ assert.deepEqual(duplicateReminders.map(response=>response.body.results[0].status).sort(),['accepted','skipped']);
+ assert.equal((await Applicant.findById(reminderDraft._id)).reminderCount,1);
+ assert.equal((await remind([reminderDraft._id])).body.skippedCount,1);
+ const outreachQuery = {cohortId:cohort.id,work:'incomplete',reminderStatus:'cooldown_active'};
+ assert.deepEqual((await call(getPendingApplicants,{query:outreachQuery})).body.applicants.map(row=>row.email),[reminderDraft.email]);
+ assert.match((await call(exportApplicantsCSV,{query:{...outreachQuery,type:'unpaid'}})).body,/retry@example.invalid/);
+ console.log('PASS provider failure preserves resume link and eligibility, accepted-only cooldown, duplicate-send claim, and CSV scope');
+
+ const offline = await Applicant.create({
+  email:'offline-payment@example.invalid',cohortId:cohort.id,country:'Nigeria',currentStep:6,
+ });
+ const record = reference => call(recordManualPaymentForApplicant,{
+  params:{applicantId:offline.id},body:{amount:'25000',currency:'NGN',reference,expectedCohortId:cohort.id},
+ });
+ assert.equal((await record('UNSIGNED')).status,409);
+ assert.equal(await Payment.countDocuments({applicantId:offline._id}),0);
+ await Applicant.updateOne({_id:offline._id},{$set:{declaration:{confirmed:true,signature:'Fixture signature',date:new Date()}}});
+ assert.equal((await record('pending-cohort-fixture')).status,409);
+ assert.equal((await Applicant.findById(offline._id)).isPaid,false);
+ assert.equal(await Payment.countDocuments({applicantId:offline._id}),0);
+ const enrolled = await record('OFFLINE-FIXTURE');
+ assert.equal(enrolled.status,200);
+ assert.equal(enrolled.body.application.declaration.signature,'Fixture signature');
+ assert.equal((await record('OFFLINE-FIXTURE')).status,200);
+ assert.equal(await Payment.countDocuments({applicantId:offline._id}),1);
+ assert.equal(await Application.countDocuments({paymentId:enrolled.body.payment._id}),1);
+ console.log('PASS signed declaration, transactional payment rollback, and idempotent offline enrollment');
+
+ const otherCohort = second.body.cohort.id;
+ assert.equal(String(enrolled.body.payment.cohortId),cohort.id);
+ await Payment.updateOne({_id:enrolled.body.payment._id},{$unset:{cohortId:1}});
+ const [transfer, savedAttempt, unassignedPayment] = await Payment.create([
+  {applicantId:previous._id,cohortId:otherCohort,providerRef:'BANK-FIXTURE',provider:'manual',
+   amount:3500,currency:'USD',status:'success',bankTransfer:{
+    cohortId:cohort.id,account:{name:'Fixture'},holdUntil:new Date(now+day),review:'approved',
+   }},
+  {applicantId:attempted._id,cohortId:otherCohort,providerRef:'OTHER-FIXTURE',amount:100},
+  {applicantId:unmatched._id,providerRef:'UNASSIGNED-FIXTURE',amount:100},
+ ]);
+ const paymentsFor = (scope, filters={}) => call(getAdminPayments,{query:{cohortId:scope,...filters}});
+ const cohortPayments = await paymentsFor(cohort.id,{limit:'1'});
+ assert.equal(cohortPayments.status,200);
+ assert.equal(cohortPayments.body.total,3);
+ assert.equal(cohortPayments.body.pages,3);
+ assert.equal(cohortPayments.body.payments.length,1);
+ assert.equal(cohortPayments.body.summary.success,2);
+ assert.deepEqual(cohortPayments.body.summary.revenueByCurrency,[
+  {currency:'NGN',amount:2500000},{currency:'USD',amount:3500},
+ ]);
+ const bankQueue = await paymentsFor(cohort.id,{bankTransfer:'true',status:'success',search:'bank-fixture'});
+ assert.deepEqual(bankQueue.body.payments.map(payment=>payment.providerRef),['BANK-FIXTURE']);
+ assert.equal(bankQueue.body.summary.pending,1);
+ assert.equal((await paymentsFor(cohort.id,{search:'['})).body.total,0);
+ assert.deepEqual((await paymentsFor(otherCohort)).body.payments.map(payment=>payment.providerRef),['OTHER-FIXTURE']);
+ assert.equal((await paymentsFor('unassigned')).body.payments[0]._id.toString(),unassignedPayment.id);
+ assert.equal((await paymentsFor(undefined)).body.total,5);
+ assert.equal((await paymentsFor('invalid')).status,400);
+ for (const [id, scope] of [[transfer.id,cohort.id],[savedAttempt.id,otherCohort],[unassignedPayment.id,null]]) {
+  const detail = await call(getAdminPaymentById,{params:{id}});
+  assert.equal(detail.status,200);
+  assert.equal(detail.body.paymentCohortId?.toString() ?? null,scope);
+ }
+ const resolve = (id,status,expectedCohortId) => call(resolvePayment,{params:{id},body:{status,expectedCohortId}});
+ assert.equal((await resolve(savedAttempt.id,'failed',cohort.id)).status,409);
+ assert.equal((await resolve(savedAttempt.id,'success',otherCohort)).status,409);
+ assert.equal((await Payment.findById(savedAttempt.id)).status,'pending');
+ assert.equal((await resolve(savedAttempt.id,'failed',otherCohort)).status,200);
+ assert.equal((await resolve(transfer.id,'failed',cohort.id)).status,409);
+ assert.equal((await paymentsFor(otherCohort)).body.summary.failed,1);
+ console.log('PASS payment attribution, paging, bank transfer filters, currency totals, and cohort-checked resolution');
 } finally {
  if (mongoose.connection.readyState===1) await mongoose.connection.dropDatabase();
  await mongoose.disconnect();
