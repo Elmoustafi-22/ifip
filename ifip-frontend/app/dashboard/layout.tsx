@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
@@ -8,21 +8,50 @@ import {
   HiOutlineSquares2X2,
   HiOutlineBookOpen,
   HiOutlineClipboardDocumentList,
-  HiOutlineFolderMinus,
+  HiOutlineFolderOpen,
   HiOutlineBriefcase,
   HiOutlineCog6Tooth,
   HiArrowLeftOnRectangle,
-  HiOutlineUserCircle,
   HiOutlineShieldCheck,
   HiOutlineExclamationTriangle,
-  HiOutlineBell,
-  HiOutlineCalendar
+  HiOutlineCalendar,
+  HiOutlineChevronDown,
+  HiOutlineLockClosed,
 } from "react-icons/hi2";
 import { getAccessToken, clearAuth } from "@/lib/api/auth";
 import { getMyApplication } from "@/lib/api/services";
 import { expiredSessionLoginPath } from "@/lib/cv-request-link";
 import NotificationBell from "@/components/NotificationBell";
 import { DashboardContext, type DashboardProfile } from "./dashboard-context";
+
+const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#12617e]";
+const navyFocus = "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white";
+const accountItem = `flex min-h-11 w-full items-center gap-2 rounded-lg px-2.5 text-start text-sm font-medium hover:bg-[#eef4fa] ${focus}`;
+
+const navigation = [
+  { label: "Learning", items: [
+    { label: "Dashboard", href: "/dashboard", icon: HiOutlineSquares2X2 },
+    { label: "Schedule", href: "/dashboard/schedule", icon: HiOutlineCalendar },
+    { label: "Modules", href: "/dashboard/modules", icon: HiOutlineBookOpen },
+    { label: "Assessments", href: "/dashboard/assessments", icon: HiOutlineClipboardDocumentList, requiresLaunch: true },
+    { label: "Resources", href: "/dashboard/resources", icon: HiOutlineFolderOpen, requiresLaunch: true },
+  ] },
+  { label: "Career", items: [
+    { label: "Placement", href: "/dashboard/placement", icon: HiOutlineBriefcase, requiresLaunch: true },
+    { label: "Job openings", href: "/dashboard/job-openings", icon: HiOutlineBriefcase, requiresLaunch: true },
+  ] },
+  { label: "Account", items: [
+    { label: "Settings", href: "/dashboard/settings", icon: HiOutlineCog6Tooth },
+  ] },
+];
+
+const tabs = ["/dashboard", "/dashboard/schedule", "/dashboard/modules", "/dashboard/job-openings", "/dashboard/resources"]
+  .map((href) => navigation.flatMap((group) => group.items).find((item) => item.href === href)!);
+
+function isCurrent(pathname: string, href: string) {
+  return pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`));
+}
+
 
 const cohortDateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "long",
@@ -35,6 +64,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<DashboardProfile | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const accountButton = useRef<HTMLButtonElement>(null);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const startTime = Date.parse(userData?.cohort?.startDate ?? "");
 
@@ -93,348 +123,133 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-4 text-center font-sans">
-        <svg className="animate-spin w-10 h-10 text-[#000666]" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-        </svg>
-        <p className="text-sm font-semibold text-slate-500">Loading your candidate workspace...</p>
-      </div>
-    );
+    return <div role="status" className="grid min-h-dvh place-items-center bg-[#eef4fa] px-4 text-sm font-medium text-[#101f3f]">Loading your workspace…</div>;
   }
 
-  if (!userData) {
-    return null;
-  }
+  if (!userData) return null;
 
-  // Gated Status holding screen if application is withdrawn
   if (userData.status === "withdrawn") {
     return (
-      <div className="min-h-screen bg-[#FDFBF7] flex flex-col justify-between font-sans">
-        {/* Header */}
-        <header className="bg-white border-b border-slate-100 py-3 md:py-5 px-4 md:px-8 flex items-center justify-between">
-          <Image
-            src="/images/logos/logo-full-color.png"
-            alt="IFIP Logo"
-            width={120}
-            height={33}
-            priority
-            className="h-8 w-auto object-contain"
-          />
-          <button
-            onClick={handleLogout}
-            className="text-slate-600 hover:text-red-600 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <HiArrowLeftOnRectangle className="w-4 h-4" />
-            Sign Out
-          </button>
+      <div className="min-h-dvh bg-[#eef4fa] font-sans text-[#101f3f]">
+        <header className="flex items-center justify-between gap-3 border-b border-[#cbd8e8] bg-white px-4 py-3 sm:px-8">
+          <Image src="/images/logos/logo-full-color.png" alt="IFIP" width={120} height={33} className="h-8 w-auto object-contain" />
+          <button type="button" onClick={handleLogout} className={`${accountItem} w-auto`}><HiArrowLeftOnRectangle aria-hidden="true" className="size-4" /> Sign out</button>
         </header>
-
-        {/* Content body */}
-        <main className="flex-1 max-w-xl w-full mx-auto px-4 md:px-6 py-10 md:py-16 flex flex-col items-center text-center justify-center gap-8">
-          <div className="w-20 h-20 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-red-600 mb-2">
-            <HiOutlineExclamationTriangle className="w-12 h-12" />
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <h1 className="text-2xl md:text-3xl font-display font-black text-[#000666]">Access Blocked</h1>
-            <h2 className="text-sm font-bold text-red-700 uppercase tracking-widest bg-red-50 border border-red-100 rounded-full px-4 py-1.5 inline-block mx-auto mt-2">
-              Application Withdrawn
-            </h2>
-            <p className="text-sm text-slate-600 leading-relaxed max-w-md mt-4 font-medium">
-              Your application has been marked as withdrawn from the current Islamic Finance cohort.
-            </p>
-          </div>
-
-          <div className="w-full border-t border-slate-150/60 pt-6 mt-2 flex flex-col gap-3 text-left bg-slate-50 rounded-2xl border border-slate-200/50 p-6">
-            <a
-              href="mailto:ifip.program@gmail.com"
-              className="text-xs text-[#FF9800] font-bold hover:underline mt-1"
-            >
-              Questions? Contact Admissions &rarr;
-            </a>
-          </div>
+        <main className="mx-auto max-w-xl px-4 py-12 sm:py-20">
+          <section aria-labelledby="withdrawn-title" className="rounded-2xl border border-[#cbd8e8] bg-white p-5 sm:p-8">
+            <span className="mb-4 grid size-12 place-items-center rounded-xl bg-rose-50 text-rose-700"><HiOutlineExclamationTriangle aria-hidden="true" className="size-6" /></span>
+            <h1 id="withdrawn-title" className="font-display text-3xl">Application withdrawn</h1>
+            <p className="mt-2 text-sm leading-relaxed text-[#465a74]">Your application has been marked as withdrawn from the current Islamic Finance cohort.</p>
+            <a href="mailto:ifip.program@gmail.com" className={`mt-4 inline-flex min-h-11 items-center rounded-lg border border-[#aebdd0] px-3 text-sm font-semibold hover:bg-[#eef4fa] ${focus}`}>Contact admissions</a>
+          </section>
         </main>
-
-        {/* Footer */}
-        <footer className="hidden md:block bg-white border-t border-slate-100 py-6 text-center text-[10px] text-slate-400">
-          © {new Date().getFullYear()} IFIP. All rights reserved. Ethical Finance Education.
-        </footer>
       </div>
     );
   }
+
   const isAdmin = userData.role === "admin" || userData.role === "superadmin";
   const cohortName = userData.cohort?.name;
   const cohortStartLabel = Number.isFinite(startTime) ? cohortDateFormatter.format(startTime) : null;
   const isLaunched = isAdmin || userData.dashboardViewOverride === "unlocked"
     || (userData.dashboardViewOverride !== "coming_soon" && currentTime >= startTime);
-
-  const getDashboardTitle = () => {
-    if (isAdmin) return "Candidate Workspace (Admin Preview)";
-    if (userData?.role === "applicant") return "Applicant Dashboard";
-    return "Participant Dashboard";
-  };
-
-  const getDashboardSubtitle = () => {
-    if (isAdmin) return "Previewing as Administrator";
-    return "Islamic Finance Internship Program";
-  };
-
-  // Sidebar Layout Navigation Structure matching screen-7.png (desktop)
-  const menuItems = [
-    { name: "Dashboard", href: "/dashboard", icon: HiOutlineSquares2X2, disabled: false },
-    { name: "Schedule", href: "/dashboard/schedule", icon: HiOutlineCalendar, disabled: false },
-    { name: "Modules", href: "/dashboard/modules", icon: HiOutlineBookOpen, disabled: false },
-    { name: "Assessments", href: "/dashboard/assessments", icon: HiOutlineClipboardDocumentList, disabled: !isLaunched },
-    { name: "Resources", href: "/dashboard/resources", icon: HiOutlineFolderMinus, disabled: !isLaunched },
-    { name: "Placement", href: "/dashboard/placement", icon: HiOutlineBriefcase, disabled: !isLaunched },
-    { name: "Job Openings", href: "/dashboard/job-openings", icon: HiOutlineBriefcase, disabled: !isLaunched },
-    { name: "Settings", href: "/dashboard/settings", icon: HiOutlineCog6Tooth, disabled: false }
-  ];
-
-  // Mobile Bottom Navigation: 5 core items including Job Openings
-  const mobileMenuItems = [
-    { name: "Dashboard", href: "/dashboard", icon: HiOutlineSquares2X2, disabled: false },
-    { name: "Schedule", href: "/dashboard/schedule", icon: HiOutlineCalendar, disabled: false },
-    { name: "Modules", href: "/dashboard/modules", icon: HiOutlineBookOpen, disabled: false },
-    { name: "Openings", href: "/dashboard/job-openings", icon: HiOutlineBriefcase, disabled: !isLaunched },
-    { name: "Resources", href: "/dashboard/resources", icon: HiOutlineFolderMinus, disabled: !isLaunched }
-  ];
-
-
+  const workspace = userData.role === "applicant" ? "Applicant dashboard" : "Participant dashboard";
+  const initials = userData.fullName?.trim().split(/\s+/).slice(0, 2).map((name) => name.charAt(0)).join("").toUpperCase() || "IF";
 
   return (
-    <div className="min-h-screen flex font-sans bg-[#FDFBF7] w-full max-w-full">
-      {/* Sidebar Shell — hidden on mobile, visible on md+ */}
-      <aside className="hidden md:flex w-64 bg-[#0E1B5D] text-white flex-col justify-between shrink-0 select-none border-r border-[#000666]/10 sticky top-0 h-screen z-40 overflow-hidden">
-        {/* Header Logo */}
-        <div className="p-5 border-b border-white/5 flex flex-col gap-1.5 shrink-0">
-          <Image
-            src="/images/logos/logo-white-wordmark.png"
-            alt="IFIP Logo"
-            width={130}
-            height={36}
-            priority
-            className="h-8 w-auto object-contain"
-          />
+    <div className="flex min-h-dvh w-full max-w-full bg-[#eef4fa] font-sans text-[#101f3f]">
+      <a href="#participant-main" className="sr-only z-[60] rounded-lg bg-white px-4 py-3 text-[#101f3f] focus:not-sr-only focus:fixed focus:start-4 focus:top-3">Skip to main content</a>
+      <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col bg-[#101f3f] text-white lg:flex xl:w-60">
+        <div className="border-b border-white/15 px-5 py-4">
+          <Image src="/images/logos/logo-white-wordmark.png" alt="IFIP" width={110} height={30} className="h-7 w-auto object-contain" />
+          <p className="mt-1.5 text-xs font-medium text-[#c7dfef]">{workspace}</p>
         </div>
 
-        {/* Navigation Menu */}
-        <nav className="p-4 flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-1.5 sidebar-scroll">
-          {menuItems.map((item) => {
-            const active = pathname === item.href;
-            const Icon = item.icon;
-
-            if (item.disabled) {
-              return (
-                <div
-                  key={item.name}
-                  className="flex items-center gap-3.5 px-4 py-3 rounded-lg text-white/40 cursor-not-allowed text-sm font-semibold select-none group relative"
-                >
-                  <Icon className="w-5 h-5 shrink-0" />
-                  <span>{item.name}</span>
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] uppercase tracking-wider font-bold bg-white/10 text-white/50 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                    Soon
-                  </span>
-                </div>
-              );
-            }
-
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`flex items-center gap-3.5 px-4 py-3 rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer ${
-                  active
-                    ? "bg-sky-400 text-[#0E1B5D] shadow-sm font-bold"
-                    : "text-white/80 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                <Icon className="w-5 h-5 shrink-0" />
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
+        <nav aria-label="Participant dashboard" className="sidebar-scroll min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-2.5 py-4">
+          {navigation.map(({ label, items }) => (
+            <div key={label}>
+              <p className="mb-1 px-3 text-xs font-medium text-[#a9c4dc]">{label}</p>
+              <ul className="space-y-1">
+                {items.map(({ label: name, href, icon: Icon, requiresLaunch }) => {
+                  const active = isCurrent(pathname, href);
+                  const itemClass = "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium";
+                  return (
+                    <li key={href}>
+                      {requiresLaunch && !isLaunched ? (
+                        <span className={`${itemClass} text-[#bfd1e2]`}><Icon aria-hidden="true" className="size-[18px] shrink-0" /> {name}<HiOutlineLockClosed aria-hidden="true" className="ms-auto size-4 shrink-0" /><span className="sr-only"> available when training opens</span></span>
+                      ) : (
+                        <Link href={href} aria-current={active ? "page" : undefined} className={`${itemClass} ${navyFocus} motion-safe:transition-colors ${active ? "bg-[#e1f1fb] text-[#101f3f] focus-visible:outline-[#12617e]" : "text-[#e0ecfa] hover:bg-white/10"}`}>
+                          <Icon aria-hidden="true" className="size-[18px] shrink-0" /> {name}
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </nav>
 
-        {/* Sidebar Footer */}
-        <div className="p-4 border-t border-white/5 flex flex-col gap-2 bg-black/10 shrink-0">
-          {isAdmin && (
-            <Link
-              href="/admin"
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold bg-white/10 hover:bg-white/20 text-sky-300 hover:text-white transition-colors border border-sky-400/20 cursor-pointer"
-            >
-              <HiOutlineShieldCheck className="w-4 h-4 text-sky-400" />
-              Admin Control Panel
-            </Link>
-          )}
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-xs font-bold hover:bg-red-900/10 text-red-400 hover:text-red-300 transition-colors border border-red-900/20 cursor-pointer"
-          >
-            <HiArrowLeftOnRectangle className="w-4 h-4" />
-            Sign Out
-          </button>
+        <div className="space-y-1 border-t border-white/15 px-2.5 py-3">
+          {isAdmin && <Link href="/admin" className={`flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-[#e0ecfa] hover:bg-white/10 ${navyFocus}`}><HiOutlineShieldCheck aria-hidden="true" className="size-[18px]" /> Admin dashboard</Link>}
+          <button type="button" onClick={handleLogout} className={`flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm text-[#e0ecfa] hover:bg-white/10 ${navyFocus}`}><HiArrowLeftOnRectangle aria-hidden="true" className="size-[18px]" /> Sign out</button>
         </div>
       </aside>
 
-      {/* Main Workspace Frame */}
-      <div className="flex-1 flex flex-col min-h-screen w-full min-w-0 max-w-full">
-        {/* Admin Preview Mode Top Banner */}
+      <div className="flex min-w-0 flex-1 flex-col">
         {isAdmin && (
-          <div className="bg-gradient-to-r from-[#000666] via-slate-900 to-[#0E1B5D] text-white px-4 md:px-8 py-2.5 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-md border-b border-sky-500/30 shrink-0 select-none w-full max-w-full">
-            <div className="flex items-center gap-2 flex-wrap min-w-0">
-              <span className="bg-sky-400 text-slate-950 font-black text-[10px] uppercase px-2 py-0.5 rounded shadow-xs tracking-wider shrink-0">
-                Admin Preview Mode
-              </span>
-              <span className="text-slate-200 text-[11px] leading-snug">
-                You are currently viewing the candidate workspace as an administrator.
-              </span>
-            </div>
-            <Link
-              href="/admin"
-              className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 hover:bg-white/20 text-sky-300 hover:text-white rounded-lg text-xs font-bold transition border border-white/10 self-start sm:self-auto shrink-0"
-            >
-              &larr; Return to Admin Dashboard
-            </Link>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#bdd8e9] bg-[#e1f1fb] px-4 py-2 text-sm sm:px-6">
+            <p className="flex items-center gap-2 font-semibold"><HiOutlineShieldCheck aria-hidden="true" className="size-4" /> Admin preview</p>
+            <Link href="/admin" className={`inline-flex min-h-9 items-center rounded-lg px-2 font-medium underline underline-offset-2 ${focus}`}>Back to admin dashboard</Link>
           </div>
         )}
 
-        {/* Top Header Navbar */}
-        <header className="sticky top-0 z-40 bg-white border-b border-slate-200/50 py-3 md:py-5 px-4 md:px-12 flex items-center justify-between shadow-sm select-none shrink-0">
-          {/* Logo — shown only on mobile (sidebar hidden) */}
-          <div className="flex md:hidden items-center">
-            <Link href="/">
-              <Image
-                src="/images/logos/logo-full-color.png"
-                alt="IFIP Logo"
-                width={110}
-                height={30}
-                className="h-7 w-auto object-contain"
-              />
-            </Link>
-          </div>
-          {/* Title — shown only on desktop */}
-          <div className="hidden md:flex flex-col gap-0.5">
-            <h1 className="text-xl md:text-2xl font-display font-black text-[#000666]">
-              {getDashboardTitle()}
-            </h1>
-            <p className="text-[10px] md:text-xs text-slate-500 font-semibold tracking-wide uppercase">
-              {getDashboardSubtitle()}{cohortName && <> &bull; {cohortName}</>}
-            </p>
+        <header className="sticky top-0 z-40 flex min-h-16 shrink-0 items-center justify-between gap-2 border-b border-[#cbd8e8] bg-white px-3 sm:px-6">
+          <Link href="/" className={`flex min-h-11 items-center rounded-lg lg:hidden ${focus}`}>
+            <Image src="/images/logos/logo-full-color.png" alt="IFIP home" width={110} height={30} className="h-7 w-auto object-contain" />
+          </Link>
+          <div className="hidden min-w-0 lg:block">
+            <p className="text-sm font-semibold">{workspace}</p>
+            {cohortName && <p className="truncate text-xs text-[#465a74]" title={cohortName}>{cohortName}</p>}
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <NotificationBell />
-
-            {/* Vertical separator */}
-            <div className="w-px h-8 bg-slate-200"></div>
-
-            {/* Profile Dropdown Menu */}
-            <div className="relative">
-              <button
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-3 hover:opacity-85 transition-opacity cursor-pointer focus:outline-none group select-none"
-              >
-                <div className="flex flex-col text-right hidden sm:flex">
-                  <span className="text-xs font-bold text-slate-800 group-hover:text-[#000666] transition-colors">
-                    {userData?.fullName || "Candidate"}
-                  </span>
-                  {cohortName && (
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">
-                      {cohortName}
-                    </span>
-                  )}
-                </div>
-                <div className="w-9 h-9 rounded-full bg-sky-50 border border-slate-200 flex items-center justify-center text-sky-700 font-bold overflow-hidden">
-                  {userData?.avatarUrl ? (
-                    <img src={userData.avatarUrl} alt={userData?.fullName || "User Avatar"} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-xs font-black text-[#000666]">
-                      {userData?.fullName ? userData.fullName.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase() : "US"}
-                    </span>
-                  )}
-                </div>
+            <div className="relative" onKeyDown={(event) => {
+              if (event.key === "Escape" && dropdownOpen) {
+                setDropdownOpen(false);
+                accountButton.current?.focus();
+              }
+            }}>
+              <button type="button" ref={accountButton} onClick={() => setDropdownOpen(!dropdownOpen)}
+                aria-label="Account options" aria-expanded={dropdownOpen} aria-controls={dropdownOpen ? "participant-account-options" : undefined}
+                className={`flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg hover:bg-[#eef4fa] sm:px-2 ${focus}`}>
+                <span aria-hidden="true" className="grid size-8 place-items-center overflow-hidden rounded-full bg-[#101f3f] text-xs font-bold text-white">
+                  {userData.avatarUrl ? (
+                    // Participant-uploaded avatars may use URLs outside the Next.js image allowlist.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={userData.avatarUrl} alt="" className="size-full object-cover" />
+                  ) : initials}
+                </span>
+                <HiOutlineChevronDown aria-hidden="true" className="hidden size-3 sm:block" />
               </button>
 
               {dropdownOpen && (
                 <>
-                  {/* Backdrop to close click */}
-                  <div
-                    className="fixed inset-0 z-40 cursor-default"
-                    onClick={() => setDropdownOpen(false)}
-                  ></div>
-
-                  <div className="absolute right-0 mt-2 w-52 bg-white border border-slate-200/80 rounded-xl shadow-lg py-1.5 z-50 animate-fadeIn font-sans">
-                    <Link
-                      href="/dashboard"
-                      onClick={() => setDropdownOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-                    >
-                      <HiOutlineSquares2X2 className="w-4 h-4 text-slate-400" />
-                      Dashboard Overview
-                    </Link>
-
-                    {/* Mobile-only shortcuts to secondary sections */}
-                    <div className="md:hidden border-t border-slate-100 my-1 pt-1">
-                      <Link
-                        href="/dashboard/job-openings"
-                        onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-                      >
-                        <HiOutlineBriefcase className="w-4 h-4 text-sky-600" />
-                        <span className="font-bold text-[#000666]">Job Openings</span>
-                      </Link>
-                      <Link
-                        href="/dashboard/assessments"
-                        onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-                      >
-                        <HiOutlineClipboardDocumentList className="w-4 h-4 text-slate-400" />
-                        Assessments
-                      </Link>
-                      <Link
-                        href="/dashboard/placement"
-                        onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-                      >
-                        <HiOutlineBriefcase className="w-4 h-4 text-slate-400" />
-                        Placement Hub
-                      </Link>
+                  <div aria-hidden="true" className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
+                  <div id="participant-account-options" className="absolute end-0 z-50 mt-2 max-h-[calc(100dvh-9rem)] w-64 max-w-[calc(100vw-1.5rem)] overflow-y-auto overscroll-contain rounded-xl border border-[#cbd8e8] bg-white p-2 shadow-lg">
+                    <div className="border-b border-[#dce5ef] px-2.5 py-2 wrap-anywhere">
+                      <p className="text-sm font-semibold">{userData.fullName || "Participant"}</p>
+                      {cohortName && <p className="mt-1 text-xs text-[#465a74]">{cohortName}</p>}
                     </div>
-
-                    {(userData?.role === "admin" || userData?.role === "superadmin") && (
-                      <>
-                        <Link
-                          href="/admin"
-                          onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors border-t border-slate-100 mt-1"
-                        >
-                          <HiOutlineShieldCheck className="w-4 h-4 text-slate-400" />
-                          Admin Workspace
-                        </Link>
-                      </>
-                    )}
-                    <div className="border-t border-slate-100 my-1"></div>
-                    <Link
-                      href="/dashboard/settings"
-                      onClick={() => setDropdownOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-                    >
-                      <HiOutlineCog6Tooth className="w-4 h-4 text-slate-400" />
-                      Account Settings
-                    </Link>
-                    <button
-                      onClick={() => {
-                        setDropdownOpen(false);
-                        handleLogout();
-                      }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-red-650 hover:bg-red-50/50 transition-colors text-left cursor-pointer"
-                    >
-                      <HiArrowLeftOnRectangle className="w-4 h-4 text-red-500" />
-                      Sign Out
-                    </button>
+                    <Link href="/dashboard" onClick={() => setDropdownOpen(false)} className={accountItem}><HiOutlineSquares2X2 aria-hidden="true" className="size-4" /> Dashboard overview</Link>
+                    <div className="lg:hidden">
+                      <Link href="/dashboard/job-openings" onClick={() => setDropdownOpen(false)} className={accountItem}><HiOutlineBriefcase aria-hidden="true" className="size-4" /> Job openings</Link>
+                      <Link href="/dashboard/assessments" onClick={() => setDropdownOpen(false)} className={accountItem}><HiOutlineClipboardDocumentList aria-hidden="true" className="size-4" /> Assessments</Link>
+                      <Link href="/dashboard/placement" onClick={() => setDropdownOpen(false)} className={accountItem}><HiOutlineBriefcase aria-hidden="true" className="size-4" /> Placement</Link>
+                    </div>
+                    {isAdmin && <Link href="/admin" onClick={() => setDropdownOpen(false)} className={accountItem}><HiOutlineShieldCheck aria-hidden="true" className="size-4" /> Admin dashboard</Link>}
+                    <Link href="/dashboard/settings" onClick={() => setDropdownOpen(false)} className={accountItem}><HiOutlineCog6Tooth aria-hidden="true" className="size-4" /> Account settings</Link>
+                    <button type="button" onClick={() => { setDropdownOpen(false); handleLogout(); }} className={accountItem}><HiArrowLeftOnRectangle aria-hidden="true" className="size-4" /> Sign out</button>
                   </div>
                 </>
               )}
@@ -442,8 +257,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        {/* Content Body */}
-        <main className="flex-1 p-3 sm:p-6 md:p-8 lg:p-12 max-w-5xl w-full mx-auto flex flex-col gap-6 md:gap-8 pb-24 md:pb-8 min-w-0 max-w-full overflow-x-hidden">
+        <main id="participant-main" tabIndex={-1} className={`mx-auto flex w-full min-w-0 flex-1 scroll-mt-16 flex-col gap-6 overflow-x-hidden p-4 pb-[calc(5.75rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 lg:p-8 ${pathname === "/dashboard" ? "max-w-7xl" : "max-w-5xl"}`}>
           <DashboardContext.Provider value={{
             profile: userData,
             updateProfile: (fields) => setUserData((current) => current && { ...current, ...fields }),
@@ -454,50 +268,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </DashboardContext.Provider>
         </main>
 
-        {/* Platform Footer — hidden on mobile (bottom tab bar replaces) */}
-        <footer className="hidden md:flex bg-white border-t border-slate-200/50 py-6 px-12 text-xs text-slate-400 items-center justify-between font-sans shrink-0">
-          <span>© {new Date().getFullYear()} IFIP. All rights reserved. Ethical Finance Education.</span>
-          <div className="flex gap-4">
-            <a href="#" className="hover:underline">Terms of Service</a>
-            <a href="#" className="hover:underline">Privacy Policy</a>
-            <a href="#" className="hover:underline">Program FAQs</a>
-          </div>
+        <footer className="hidden border-t border-[#cbd8e8] bg-white px-6 py-4 text-xs text-[#465a74] lg:block">
+          © {new Date().getFullYear()} IFIP
         </footer>
       </div>
 
-      {/* Mobile Bottom Tab Bar */}
-      <nav aria-label="Mobile Navigation" className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#0E1B5D] border-t border-white/10 px-1 py-1 shadow-2xl backdrop-blur-md">
-        <div className="flex items-center justify-between w-full max-w-md mx-auto">
-          {mobileMenuItems.map((item) => {
-            const Icon = item.icon;
-            const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
-            if (item.disabled) {
-              return (
-                <div
-                  key={item.name}
-                  className="flex-1 flex flex-col items-center justify-center gap-0.5 py-1 px-0.5 text-white/30 cursor-not-allowed select-none min-w-0 text-center"
-                >
-                  <Icon className="w-5 h-5 shrink-0" />
-                  <span className="text-[10px] font-medium tracking-tight truncate max-w-full text-center">{item.name}</span>
-                </div>
-              );
-            }
+      <nav aria-label="Mobile dashboard" className="fixed inset-x-0 bottom-0 z-50 border-t border-white/15 bg-[#101f3f] px-1 pt-1 pb-[calc(0.25rem+env(safe-area-inset-bottom))] text-white lg:hidden">
+        <ul className="mx-auto grid max-w-lg grid-cols-5 gap-0.5">
+          {tabs.map(({ label, href, icon: Icon, requiresLaunch }) => {
+            const active = isCurrent(pathname, href);
+            const displayLabel = href === "/dashboard/job-openings" ? "Openings" : label;
+            const tab = "flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-0.5 text-center text-[11px] font-medium";
             return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-1 px-0.5 rounded-lg transition-all duration-200 min-w-0 text-center ${
-                  active
-                    ? "text-sky-300 font-bold bg-white/10 shadow-xs"
-                    : "text-white/70 hover:text-white"
-                }`}
-              >
-                <Icon className={`w-5 h-5 shrink-0 ${active ? "text-sky-300 stroke-[2.2]" : ""}`} />
-                <span className="text-[10px] font-medium tracking-tight truncate max-w-full text-center">{item.name}</span>
-              </Link>
+              <li key={href} className="min-w-0">
+                {requiresLaunch && !isLaunched ? (
+                  <span className={`${tab} text-[#bfd1e2]`}><HiOutlineLockClosed aria-hidden="true" className="size-[18px]" /> {displayLabel}<span className="sr-only"> available when training opens</span></span>
+                ) : (
+                  <Link href={href} aria-current={active ? "page" : undefined} className={`${tab} ${navyFocus} ${active ? "bg-[#e1f1fb] font-semibold text-[#101f3f] focus-visible:outline-[#12617e]" : "text-[#e0ecfa] hover:bg-white/10"}`}>
+                    <Icon aria-hidden="true" className="size-[18px] shrink-0" /> {displayLabel}
+                  </Link>
+                )}
+              </li>
             );
           })}
-        </div>
+        </ul>
       </nav>
     </div>
   );

@@ -1,472 +1,246 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  HiOutlineSparkles,
+  HiOutlineArrowRight,
+  HiOutlineArrowTopRightOnSquare,
+  HiOutlineBookOpen,
+  HiOutlineBriefcase,
   HiOutlineCalendar,
   HiOutlineClipboardDocumentCheck,
-  HiOutlineShieldCheck,
+  HiOutlineDocumentArrowUp,
+  HiOutlineFolderOpen,
+  HiOutlineLockClosed,
   HiOutlineUser,
-  HiOutlineBookOpen,
-  HiOutlineChevronRight,
-  HiOutlineArrowRight,
-  HiOutlineClock,
   HiOutlineVideoCamera,
-  HiOutlineBriefcase,
-  HiOutlineFolderMinus
 } from "react-icons/hi2";
-import { getUpcomingSessions, getLMSModules, ProgrammeSession, LMSModule } from "@/lib/api/services";
+import { getUpcomingSessions, getLMSModules, type ProgrammeSession, type LMSModule } from "@/lib/api/services";
 import { useDashboard } from "./dashboard-context";
+
+const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#12617e]";
+const button = `inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold motion-safe:transition-colors ${focus}`;
+const outline = `${button} border border-[#aebdd0] bg-white text-[#101f3f] hover:bg-[#eef4fa] disabled:opacity-60`;
+const heroAction = `${button} bg-[#e1f1fb] text-[#101f3f] hover:bg-white focus-visible:outline-white`;
+const panel = "min-w-0 rounded-2xl border border-[#cbd8e8] bg-white";
+const hero = "relative isolate overflow-hidden rounded-2xl bg-[#101f3f] p-5 text-white sm:p-7";
+const links = [
+  { href: "/dashboard/assessments", label: "Assessments", detail: "Quizzes, simulations, and module checkpoints.", icon: HiOutlineClipboardDocumentCheck },
+  { href: "/dashboard/placement", label: "Placement", detail: "Track your placement and interview activity.", icon: HiOutlineBriefcase },
+  { href: "/dashboard/resources", label: "Resources", detail: "Find reference materials and reading packs.", icon: HiOutlineFolderOpen },
+];
+
+function HeroPattern() {
+  return <div aria-hidden="true" className="pointer-events-none absolute -end-48 -top-64 -z-10 hidden size-[34rem] rounded-full border border-[#5eabcf]/25 shadow-[0_0_0_28px_#5eabcf12,0_0_0_60px_#5eabcf0d] sm:block" />;
+}
+
+function Retry({ message, busy, onRetry }: { message: string; busy: boolean; onRetry: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-950">
+      <p role="alert">{message}</p>
+      <button className={outline} type="button" disabled={busy} onClick={onRetry}>{busy ? "Retrying…" : "Try again"}</button>
+    </div>
+  );
+}
+
+function UpcomingSessions({ sessions, failed, loading, onRetry }: {
+  sessions: ProgrammeSession[] | null;
+  failed: boolean;
+  loading: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <section aria-labelledby="participant-sessions" className={panel}>
+      <header className="flex flex-wrap items-start justify-between gap-3 p-4 sm:p-6">
+        <div>
+          <h2 id="participant-sessions" className="font-display text-2xl">Upcoming sessions</h2>
+          <p className="mt-1 text-sm text-[#465a74]">Live sessions from your cohort timetable.</p>
+        </div>
+        <Link href="/dashboard/schedule" className={outline}>
+          Full timetable <HiOutlineArrowRight aria-hidden="true" className="size-4" />
+        </Link>
+      </header>
+
+      {failed && <div className="px-4 pb-4 sm:px-6"><Retry message={sessions ? "Could not refresh sessions. Showing the previous list." : "Could not load upcoming sessions."} busy={loading} onRetry={onRetry} /></div>}
+      {sessions === null && !failed && <p role="status" className="border-t border-[#dce5ef] px-4 py-5 text-sm text-[#465a74] sm:px-6">Loading upcoming sessions…</p>}
+      {sessions?.length === 0 && !failed && (
+        <div className="flex items-start gap-3 border-t border-[#dce5ef] px-4 py-5 sm:px-6">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#e1f1fb] text-[#12617e]"><HiOutlineCalendar aria-hidden="true" className="size-5" /></span>
+          <div><p className="text-sm font-semibold">No upcoming sessions</p><p className="mt-1 text-sm text-[#465a74]">Check the full timetable for later dates.</p></div>
+        </div>
+      )}
+      {sessions && sessions.length > 0 && (
+        <ul className="divide-y divide-[#dce5ef] border-t border-[#dce5ef]">
+          {sessions.map((session) => {
+            const date = new Date(session.sessionDate);
+            const dateLabel = date.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+            const timeLabel = date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
+            return (
+              <li key={session._id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-4 sm:px-6">
+                <div className="flex min-w-0 flex-[1_1_12rem] items-start gap-3">
+                  <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#e1f1fb] text-[#12617e]"><HiOutlineCalendar className="size-5" /></span>
+                  <div className="min-w-0 wrap-anywhere">
+                    <h3 className="font-sans text-sm font-bold">{session.title}</h3>
+                    <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-xs leading-relaxed text-[#465a74]">
+                      <time dateTime={session.sessionDate}>{dateLabel} · {timeLabel}</time>
+                      <span>{session.durationMinutes || 60} min</span>
+                    </div>
+                  </div>
+                </div>
+                {session.meetingUrl ? (
+                  <a href={session.meetingUrl} target="_blank" rel="noopener noreferrer" className={outline} aria-label={`Join ${session.title} (opens in a new tab)`}>
+                    <HiOutlineVideoCamera aria-hidden="true" className="size-4" /> Join <HiOutlineArrowTopRightOnSquare aria-hidden="true" className="size-3" />
+                  </a>
+                ) : (
+                  <span className="rounded-md bg-[#eef4fa] px-2 py-1 text-xs font-medium text-[#394d69]">Scheduled</span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
 
 export default function DashboardHome() {
   const { profile, isLaunched, cohortStartLabel } = useDashboard();
   const cohortName = profile.cohort?.name;
+  const [modules, setModules] = useState<LMSModule[] | null>(null);
+  const [sessions, setSessions] = useState<ProgrammeSession[] | null>(null);
+  const [modulesError, setModulesError] = useState(false);
+  const [sessionsError, setSessionsError] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [upcomingSessions, setUpcomingSessions] = useState<ProgrammeSession[]>([]);
-  const [modules, setModules] = useState<LMSModule[]>([]);
+  const requestId = useRef(0);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const [sessions, mods] = await Promise.all([
-          getUpcomingSessions().catch(() => []),
-          getLMSModules().catch(() => [])
-        ]);
-        setUpcomingSessions(sessions || []);
-        setModules(mods || []);
-      } catch (err) {
-        console.error("Failed to load dashboard parameters:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDashboardData();
-  }, []);
+  function loadOverview() {
+    const request = ++requestId.current;
+    return Promise.allSettled([getLMSModules(), getUpcomingSessions()]).then(([coursework, schedule]) => {
+      if (request !== requestId.current) return;
+      if (coursework.status === "fulfilled") setModules(coursework.value);
+      if (schedule.status === "fulfilled") setSessions(schedule.value);
+      setModulesError(coursework.status === "rejected");
+      setSessionsError(schedule.status === "rejected");
+      setLoading(false);
+    });
+  }
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4 text-center font-sans">
-        <svg className="animate-spin w-8 h-8 text-[#000666]" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-        </svg>
-        <p className="text-xs text-slate-400 font-semibold">Loading dashboard parameters...</p>
-      </div>
-    );
+  useEffect(() => { if (isLaunched) void loadOverview(); }, [isLaunched]);
+
+  function retryOverview() {
+    setLoading(true);
+    void loadOverview();
   }
 
   if (!isLaunched) {
     return (
-      <div className="flex-grow flex flex-col items-center justify-center py-10 px-4">
-        <div className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200/50 p-6 md:p-12 lg:p-16 flex flex-col items-center text-center mx-auto shadow-sm select-none">
-          {/* Hourglass Icon */}
-          <svg
-            className="w-16 h-16 text-sky-400/70 mb-6"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M6 2h12M6 22h12M6 2c0 4 3 6 3 10s-3 6-3 10M18 2c0 4-3 6-3 10s3 6 3 10M9 8h6M10 16h4"
-            />
-          </svg>
-
-          {/* COMING SOON Badge */}
-          <div className="bg-[#000666] text-white rounded-full px-4 py-1.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest select-none mb-6">
-            <HiOutlineClock className="w-3.5 h-3.5" />
-            Coming Soon
-          </div>
-
-          {/* Welcome Heading */}
-          <h1 className="text-3xl md:text-4xl font-display font-black text-[#000666] mb-4">
-            Welcome to IFIP
-          </h1>
-
-          {/* Dynamic launch text */}
-          <p className="text-sm text-slate-600 leading-relaxed max-w-lg mb-8 font-medium">
-            {cohortName
-              ? `Training modules and assessments for ${cohortName} are currently locked.`
-              : "Your training details will appear here once your cohort is assigned."}
-          </p>
-
-          {/* Launch Date Border Box */}
-          <div className="border border-[#000666]/30 rounded-xl px-8 py-5 max-w-xs w-full mx-auto bg-slate-50/50">
-            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest block mb-1">
-              Program Launch Date
-            </span>
-            <span className="text-xl font-display font-black text-[#000666]">
-              {cohortStartLabel ?? "To be announced"}
-            </span>
-          </div>
-
-          {/* Quote Footer */}
-          <p className="text-xs text-slate-450 italic mt-12 font-medium max-w-md leading-relaxed">
-            "Preparation is the foundation of excellence. We look forward to beginning this journey with you."
-          </p>
+      <section aria-labelledby="training-welcome" className={`${hero} mx-auto w-full max-w-3xl sm:p-9`}>
+        <HeroPattern />
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-[#d1e0f1]">
+          <HiOutlineLockClosed aria-hidden="true" className="size-4" /> Training access pending
         </div>
-      </div>
+        <h1 id="training-welcome" className="font-display text-[clamp(2rem,5vw,3rem)] leading-tight text-white">Welcome to IFIP</h1>
+        <p className="mt-3 max-w-[55ch] wrap-anywhere text-sm leading-relaxed text-[#d1e0f1]">
+          {cohortName ? `Training modules and assessments for ${cohortName} are currently locked.` : "Your training details will appear here once your cohort is assigned."}
+        </p>
+        <div className="mt-6 flex items-start gap-3 rounded-xl border border-white/20 bg-white/5 p-4 sm:max-w-sm">
+          <HiOutlineCalendar aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-[#cce9fa]" />
+          <div><p className="text-xs text-[#d1e0f1]">Training start</p><p className="mt-1 text-lg font-semibold">{cohortStartLabel ?? "To be announced"}</p></div>
+        </div>
+      </section>
     );
   }
 
-  const cvUploaded = !!profile.cvUrl;
-
-  // Live module/assessment stats (Fix 3)
-  const totalModules = modules.length;
-  const completedModules = modules.filter(m => m.status === 'completed').length;
-  const totalAssessments = modules.filter(m => m.assessmentId).length;
-  const passedAssessments = modules.filter(m => m.assessmentId && m.assessmentStatus === 'passed').length;
-  const modulesLabel = totalModules > 0 ? `${totalModules} Coursework Track Unit${totalModules === 1 ? '' : 's'}` : 'Modules loading...';
-  const modulesUnlocked = modules.filter(m => m.status !== 'locked').length;
-
-  // Active module: first in_progress or unlocked module, or first module
-  const currentModule = modules.find(m => m.status === 'in_progress') 
-    || modules.find(m => m.status === 'unlocked') 
-    || modules[0];
+  const currentModule = modules?.find((module) => module.status === "in_progress" && !module.isLocked)
+    ?? modules?.find((module) => (module.status === "not_started" || module.status === "unlocked") && !module.isLocked);
+  const completed = modules?.filter((module) => module.status === "completed").length ?? 0;
+  const assessments = modules?.filter((module) => module.assessmentId) ?? [];
+  const passed = assessments.filter((module) => module.assessmentStatus === "passed").length;
+  const total = modules?.length ?? 0;
+  const available = modules?.filter((module) => module.status !== "locked" && !module.isLocked).length ?? 0;
+  const courseworkAction = currentModule
+    ? currentModule.status === "in_progress" ? "Continue learning" : "Start module"
+    : "View modules";
 
   return (
-    <div className="flex flex-col gap-8 animate-fadeIn font-sans">
-      {/* Header Greeting */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/60 pb-5">
-        <div className="flex flex-col gap-0.5">
-          <h1 className="text-xl md:text-2xl font-display font-black text-[#000666]">
-            Welcome Back, {profile.fullName || "Candidate"}
-          </h1>
-          <p className="text-xs text-slate-500 font-semibold tracking-wide uppercase">
-            Workspace Overview{cohortName && <> &bull; {cohortName}</>}
+    <div className="space-y-5 text-[#101f3f] sm:space-y-6">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="mb-1 text-xs font-semibold text-[#12617e]">{cohortName ?? "Learning overview"}</p>
+          <h1 className="wrap-anywhere font-display text-[clamp(1.875rem,4vw,2.65rem)] leading-tight tracking-tight">Welcome, {profile.fullName || "participant"}</h1>
+        </div>
+        <Link href="/dashboard/settings" className={`${outline} max-lg:hidden`}><HiOutlineUser aria-hidden="true" className="size-4" /> Profile</Link>
+      </header>
+
+      <div className="grid min-w-0 gap-4 md:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
+        <section aria-labelledby="participant-coursework" className={hero}>
+          <HeroPattern />
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-xs font-semibold text-[#cce9fa]">
+            <HiOutlineBookOpen aria-hidden="true" className="size-4" />
+            {currentModule?.weekNumber ? `Coursework · Week ${currentModule.weekNumber}` : "Coursework"}
+          </div>
+          <h2 id="participant-coursework" className="wrap-anywhere font-display text-2xl leading-tight text-white sm:text-3xl">
+            {currentModule?.title ?? (total > 0 && completed === total ? "Coursework complete" : "Your learning modules")}
+          </h2>
+          <p className="mt-2 max-w-[60ch] wrap-anywhere text-sm leading-relaxed text-[#d1e0f1]">
+            {currentModule?.description || (modules?.length === 0 ? "No modules are available for your cohort yet." : "Open the module list to see your coursework and materials.")}
           </p>
-        </div>
-        <Link
-          href="/dashboard/settings"
-          className="hidden md:inline-flex bg-sky-400 hover:bg-sky-500 text-[#000666] font-bold text-xs px-4 py-2 rounded-lg shadow-xs transition-all hover-lift items-center gap-1.5 self-start cursor-pointer"
-        >
-          <HiOutlineUser className="w-4 h-4" />
-          Update Profile
-        </Link>
-      </div>
-
-      {/* Grid Content */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Active Learning Hub / Resume Coursework (Spans 2 columns) */}
-        <div className="md:col-span-2 bg-gradient-to-br from-[#0E1B5D] via-[#091342] to-[#000666] text-white rounded-2xl p-6 sm:p-7 shadow-xl flex flex-col justify-between border border-[#000666]/20 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-sky-400/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
-
-          <div className="flex flex-col gap-4 relative z-10">
-            {/* Status / Track Badge */}
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="bg-sky-400/20 border border-sky-400/30 rounded-full px-3 py-1 flex items-center gap-2 text-[10px] font-bold text-sky-300 uppercase tracking-wider self-start select-none">
-                <HiOutlineSparkles className="w-3.5 h-3.5 text-sky-300" />
-                {currentModule ? `Week ${currentModule.weekNumber || 1} • Active Coursework Track` : "Cohort Track"}
-              </div>
-              {cohortName && <span className="text-[11px] text-slate-300 font-semibold">{cohortName}</span>}
-            </div>
-
-            {/* Current Module Title & Context */}
-            <div className="flex flex-col gap-1.5">
-              <h2 className="text-xl sm:text-2xl font-bold font-display text-white tracking-tight">
-                {currentModule?.title || "Islamic Finance Professional Modules"}
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal max-w-xl">
-                {currentModule?.description || "Master industry-standard Islamic banking principles, Sukuk structuring, and Shariah governance frameworks."}
-              </p>
-            </div>
-          </div>
-
-          {/* Quick Metrics & CTA */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-t border-white/10 pt-5 mt-6 gap-4 relative z-10">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-sky-300 shrink-0">
-                  <HiOutlineBookOpen className="w-4 h-4" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Coursework</span>
-                  <span className="text-xs font-bold text-white">
-                    {completedModules} of {totalModules} Completed
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-sky-300 shrink-0">
-                  <HiOutlineCalendar className="w-4 h-4" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Cohort Start</span>
-                  <span className="text-xs font-bold text-white">{cohortStartLabel ?? "To be announced"}</span>
-                </div>
-              </div>
-            </div>
-
-            <Link
-              href={currentModule ? `/dashboard/modules/${currentModule._id}` : "/dashboard/modules"}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-sky-400 hover:bg-sky-300 text-[#000666] font-bold text-xs shadow-md transition-all hover-lift shrink-0 cursor-pointer"
-            >
-              <span>{completedModules > 0 ? "Continue Learning" : "Start Coursework"}</span>
-              <HiOutlineArrowRight className="w-4 h-4" />
+          <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3">
+            <Link href={currentModule ? `/dashboard/modules/${currentModule._id}` : "/dashboard/modules"} className={heroAction}>
+              {courseworkAction} <HiOutlineArrowRight aria-hidden="true" className="size-4" />
             </Link>
+            {cohortStartLabel && <p className="flex items-center gap-2 text-xs text-[#d1e0f1]"><HiOutlineCalendar aria-hidden="true" className="size-4" /> Cohort start · {cohortStartLabel}</p>}
           </div>
-        </div>
+        </section>
 
-        {/* Quick Progress Sidebar Card */}
-        <div className="bg-white rounded-2xl border border-slate-200/60 shadow-level1 p-6 flex flex-col justify-between">
-          <div className="flex flex-col gap-4">
-            <h3 className="text-sm font-bold text-[#000666] uppercase tracking-wide border-b border-slate-100 pb-3">
-              LMS Status
-            </h3>
-
-            <div className="flex flex-col gap-2.5">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
-                <span>Cohort</span>
-                <span className="text-[#000666]">{cohortName ?? "Unassigned"}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
-                <span>Modules Unlocked</span>
-                {/* Fix 3: live module count */}
-                <span className="text-slate-500">{modulesUnlocked} of {totalModules || '—'}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
-                <span>Assessments Completed</span>
-                {/* Fix 3: live assessment count */}
-                <span className="text-slate-500">{passedAssessments} of {totalAssessments || '—'}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
-                <span>Profile Completion</span>
-                <span className={`font-bold ${cvUploaded ? "text-emerald-600" : "text-amber-500"}`}>
-                  {cvUploaded ? "100% Completed" : "80% (Upload Resume)"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-8">
-            <div className="flex items-center justify-between text-xs font-bold mb-1.5">
-              <span className="text-slate-600">Overall Progress</span>
-              <span className="text-[#000666]">{totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0}%</span>
-            </div>
-            <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden mb-3">
-              <div
-                className="h-full bg-gradient-to-r from-[#0E1B5D] to-[#FF9800] rounded-full transition-all duration-500"
-                style={{ width: `${totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0}%` }}
-              ></div>
-            </div>
-            <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5 select-none">
-              <span className={`w-1.5 h-1.5 rounded-full ${completedModules > 0 ? "bg-emerald-500" : "bg-amber-500"}`}></span>
-              {completedModules > 0 ? `${completedModules} of ${totalModules} completed` : "Awaiting Commencement Kickoff"}
-            </span>
-          </div>
-        </div>
+        <section aria-labelledby="participant-progress" className={`${panel} p-4 sm:p-6`}>
+          <h2 id="participant-progress" className="font-display text-2xl">Learning progress</h2>
+          {modulesError && <div className="mt-3"><Retry message={modules ? "Could not refresh progress. Showing the previous totals." : "Could not load learning progress."} busy={loading} onRetry={retryOverview} /></div>}
+          {modules === null && !modulesError && <p role="status" className="mt-3 text-sm text-[#465a74]">Loading coursework…</p>}
+          {modules && (
+            <>
+              <label htmlFor="participant-module-progress" className="mt-4 flex flex-wrap items-baseline justify-between gap-1 text-sm font-semibold">
+                Modules completed <span className="tabular-nums">{completed} of {total}</span>
+              </label>
+              <progress id="participant-module-progress" value={completed} max={total || 1}
+                className="mt-2 block h-2.5 w-full overflow-hidden rounded-full bg-[#e1eaf4] accent-[#12617e] [&::-webkit-progress-bar]:bg-[#e1eaf4] [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-[#12617e] [&::-moz-progress-bar]:bg-[#12617e]" />
+              <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-[#dce5ef] pt-3">
+                <div><dt className="text-xs text-[#465a74]">Modules unlocked</dt><dd className="mt-1 text-base font-semibold tabular-nums">{available} of {total}</dd></div>
+                <div><dt className="text-xs text-[#465a74]">Assessments passed</dt><dd className="mt-1 text-base font-semibold tabular-nums">{passed} of {assessments.length}</dd></div>
+              </dl>
+            </>
+          )}
+        </section>
       </div>
 
-      {/* Upcoming Timetable Sessions Widget */}
-      <div className="bg-white rounded-2xl border border-slate-200/60 shadow-level1 p-6 flex flex-col gap-5 mt-2">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
-          <div>
-            <h3 className="text-base font-bold text-[#000666] font-display flex items-center gap-2">
-              <HiOutlineCalendar className="w-5 h-5 text-[#FF9800]" />
-              <span>Upcoming Live Sessions &amp; Calendar</span>
-            </h3>
-            <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-              Live lectures, group breakouts, and timetable checkpoints for your cohort.
-            </p>
+      {!profile.cvUrl && (
+        <section aria-labelledby="participant-documents" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-amber-100"><HiOutlineDocumentArrowUp aria-hidden="true" className="size-5" /></span>
+            <div><h2 id="participant-documents" className="font-sans text-sm font-bold">Upload your CV</h2><p className="mt-1 text-sm">Add your latest CV to your participant profile as a PDF.</p></div>
           </div>
-          <Link
-            href="/dashboard/schedule"
-            className="text-xs font-bold text-[#000666] hover:text-[#FF9800] inline-flex items-center gap-1 shrink-0"
-          >
-            <span>View Full Timetable</span>
-            <HiOutlineArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        {upcomingSessions.length === 0 ? (
-          <div className="p-6 text-center text-slate-400 text-xs bg-slate-50 rounded-xl border border-slate-100">
-            <p>No upcoming live sessions in the next few days.</p>
-            <Link
-              href="/dashboard/schedule"
-              className="mt-2 inline-block text-xs font-bold text-sky-600 hover:underline"
-            >
-              Check the full timetable &rarr;
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {upcomingSessions.map((sess) => {
-              const dateObj = new Date(sess.sessionDate);
-              return (
-                <div
-                  key={sess._id}
-                  className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 flex flex-col justify-between gap-3 transition-colors"
-                >
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono font-bold text-[#000666] bg-white border border-slate-200 px-2 py-0.5 rounded">
-                        Week {sess.weekNumber}
-                      </span>
-                      <span className="text-[10px] uppercase font-bold text-slate-400">
-                        {dateObj.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
-                      </span>
-                    </div>
-
-                    <h4 className="font-bold text-xs text-[#000666] line-clamp-2">
-                      {sess.title}
-                    </h4>
-
-                    <div className="text-[11px] text-slate-500 flex items-center gap-2">
-                      <span className="flex items-center gap-1">
-                        <HiOutlineClock className="w-3 h-3 text-slate-400" />
-                        {dateObj.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                      <span>•</span>
-                      <span>{sess.durationMinutes || 60}m</span>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
-                    {sess.meetingUrl ? (
-                      <a
-                        href={sess.meetingUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[11px] font-bold text-sky-600 hover:underline flex items-center gap-1"
-                      >
-                        <HiOutlineVideoCamera className="w-3.5 h-3.5" />
-                        Join Meeting
-                      </a>
-                    ) : (
-                      <span className="text-[11px] text-slate-400">Scheduled</span>
-                    )}
-
-                    <Link
-                      href="/dashboard/schedule"
-                      className="text-[11px] font-semibold text-[#000666] hover:underline"
-                    >
-                      Details &rarr;
-                    </Link>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Action Required Alert Banner (Only shown if CV is still missing) */}
-      {!cvUploaded && (
-        <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-2">
-          <div>
-            <h4 className="text-sm font-semibold text-slate-900">
-              Action Required: Upload Resume &amp; Qualifications
-            </h4>
-            <p className="text-xs text-slate-500 mt-1">
-              Upload your latest resume in PDF format to complete your admissions file.
-            </p>
-          </div>
-          <Link
-            href="/dashboard/settings"
-            className="inline-flex items-center justify-center px-4 py-2 bg-[#000666] hover:bg-[#000666]/90 text-white font-semibold text-xs rounded-lg transition self-start sm:self-auto shrink-0 cursor-pointer"
-          >
-            Upload Now
-          </Link>
-        </div>
+          <Link href="/dashboard/settings#documents" className={outline}>Open documents <HiOutlineArrowRight aria-hidden="true" className="size-4" /></Link>
+        </section>
       )}
 
-      {/* Weekly Milestones & Program Hub */}
-      <div className="bg-white rounded-2xl border border-slate-200/60 shadow-level1 p-6 flex flex-col gap-5 mt-2">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
-          <div>
-            <h3 className="text-base font-bold text-[#000666] font-display">
-              Weekly Milestones &amp; Program Hub
-            </h3>
-            <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-              Key checkpoint tracks and resources for your current cohort progression.
-            </p>
-          </div>
-        </div>
+      <UpcomingSessions sessions={sessions} failed={sessionsError} loading={loading} onRetry={retryOverview} />
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Card 1: Assessments */}
-          <Link
-            href="/dashboard/assessments"
-            className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 transition-all flex flex-col justify-between gap-3 group"
-          >
-            <div className="flex items-start justify-between">
-              <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#000666] shrink-0">
-                <HiOutlineClipboardDocumentCheck className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-200/60 text-slate-600">
-                {passedAssessments > 0 ? `${passedAssessments} Passed` : "Assessments"}
-              </span>
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-[#000666] group-hover:text-sky-600 transition-colors">
-                Module Assessments
-              </h4>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Unit test checkpoints, quizzes, and simulations.
-              </p>
-            </div>
-            <span className="text-xs font-bold text-sky-600 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all">
-              View Tasks &rarr;
-            </span>
-          </Link>
-
-          {/* Card 2: Placement */}
-          <Link
-            href="/dashboard/placement"
-            className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 transition-all flex flex-col justify-between gap-3 group"
-          >
-            <div className="flex items-start justify-between">
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
-                <HiOutlineBriefcase className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
-                {cvUploaded ? "Profile On File" : "Resume Required"}
-              </span>
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-[#000666] group-hover:text-emerald-700 transition-colors">
-                Placement &amp; Careers
-              </h4>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Subject to coursework completion and company review.
-              </p>
-            </div>
-            <span className="text-xs font-bold text-emerald-700 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all">
-              Placement Hub &rarr;
-            </span>
-          </Link>
-
-          {/* Card 3: Resources */}
-          <Link
-            href="/dashboard/resources"
-            className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 transition-all flex flex-col justify-between gap-3 group"
-          >
-            <div className="flex items-start justify-between">
-              <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 shrink-0">
-                <HiOutlineFolderMinus className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-200/60 text-slate-600">
-                Library
-              </span>
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-[#000666] group-hover:text-indigo-700 transition-colors">
-                Knowledge Resources
-              </h4>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Shariah standards, contract templates, and reading packs.
-              </p>
-            </div>
-            <span className="text-xs font-bold text-indigo-700 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all">
-              Open Library &rarr;
-            </span>
-          </Link>
-        </div>
-      </div>
+      <section aria-labelledby="participant-shortcuts">
+        <h2 id="participant-shortcuts" className="mb-3 font-display text-2xl">Program tools</h2>
+        <ul className={`${panel} grid divide-y divide-[#dce5ef] sm:grid-cols-3 sm:divide-x sm:divide-y-0`}>
+          {links.map(({ href, label, detail, icon: Icon }) => (
+            <li key={href} className="min-w-0">
+              <Link href={href} className={`group flex h-full min-w-0 items-start gap-3 rounded-xl p-4 hover:bg-[#f8fbfe] sm:flex-col ${focus}`}>
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#e1f1fb] text-[#12617e]"><Icon aria-hidden="true" className="size-5" /></span>
+                <div className="min-w-0">
+                  <h3 className="flex items-center gap-2 font-sans text-sm font-bold">{label} <HiOutlineArrowRight aria-hidden="true" className="size-4 shrink-0 text-[#12617e]" /></h3>
+                  <p className="mt-1 text-sm leading-relaxed text-[#465a74]">{detail}</p>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

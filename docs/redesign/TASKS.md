@@ -44,6 +44,14 @@ See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and 
 - **Partner CV access, requests, and intake openings implemented locally.** Partners can view the CV on eligible profiles and request an upload or update by dashboard notification and email. Roles from approved partner applications enter Job Openings for review. Publication alerts exclude participants with a recorded selection, offer, hire or placement. See [recruitment verification](PROGRESS.md#partner-cv-requests-and-intake-job-openings) and [email verification](PROGRESS.md#cv-request-email-and-homepage-partner-jobs).
 - **CV requests identify the requesting company.** Recipients can review company details from the dashboard notification or email link, then open their existing CV upload controls. See [verification](PROGRESS.md#company-details-on-cv-requests).
 
+## Participant dashboard
+
+- **Pathway overview and shared navigation implemented locally.** The overview highlights the next available module, shows coursework progress, and links to the timetable and documents. See [local verification](PROGRESS.md#pathway-participant-dashboard). Staging enrollment coverage remains open under REG-08.
+
+## Partner dashboard
+
+- **Pathway overview and shared navigation implemented locally.** Interview decisions have a direct entry point, and the outcome dialog supports keyboard use and retry. See [verification and follow-up ideas](PROGRESS.md#pathway-partner-dashboard).
+
 ## Admin dashboard
 
 - **Partners desk unified locally.** Active Partners, Partner Applications, and Intern Requests share one sidebar entry. See [verification](PROGRESS.md#unified-admin-partners-desk).
@@ -59,8 +67,8 @@ See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and 
 - **Pending applicant work queues implemented locally.** The admin view verifies reminder outcomes, routes pending payments to review, and exports the current filters. See [verification](PROGRESS.md#pending-applicant-work-queues).
 
 ## Deferred Workstreams
-- Applicant dashboard and LMS
-- Partner dashboard
+- Participant workflow pages and LMS
+- Partner portal workflow pages
 - Platform-wide QA
 
 ## Approval Policy

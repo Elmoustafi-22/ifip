@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
@@ -15,40 +15,85 @@ import {
   HiArrowLeftOnRectangle,
   HiOutlineBars3,
   HiOutlineXMark,
-  HiOutlineBuildingOffice2,
   HiOutlineChevronLeft,
   HiOutlineChevronRight,
   HiOutlineChevronDown,
   HiOutlineArrowTopRightOnSquare,
 } from "react-icons/hi2";
 import { getAccessToken, clearAuth } from "@/lib/api/auth";
-import { getPartnerMe, PartnerMeResponse } from "@/lib/api/partner";
+import { getPartnerMe, type PartnerMeResponse } from "@/lib/api/partner";
 import NotificationBell from "@/components/NotificationBell";
+
+const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#12617e]";
+const onNavy = "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white";
+const navItem = `flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium motion-safe:transition-colors ${onNavy}`;
 
 const NAV_GROUPS = [
   {
-    label: "Main",
+    label: "Workspace",
     items: [
       { href: "/partner-portal", label: "Overview", icon: HiOutlineSquares2X2 },
       { href: "/partner-portal/notifications", label: "Notifications", icon: HiOutlineBell },
     ],
   },
   {
-    label: "Talent & Matching",
+    label: "Recruitment",
     items: [
-      { href: "/partner-portal/interns", label: "Intern Pool", icon: HiOutlineUsers },
-      { href: "/partner-portal/requests", label: "My Requests", icon: HiOutlineClipboardDocumentList },
-      { href: "/partner-portal/placements", label: "My Placements", icon: HiOutlineArrowsRightLeft },
+      { href: "/partner-portal/interns", label: "Intern pool", icon: HiOutlineUsers },
+      { href: "/partner-portal/requests", label: "My requests", icon: HiOutlineClipboardDocumentList },
+      { href: "/partner-portal/placements", label: "My placements", icon: HiOutlineArrowsRightLeft },
+      { href: "/partner-portal/openings", label: "Job openings", icon: HiOutlineBriefcase },
     ],
   },
   {
     label: "Organization",
     items: [
-      { href: "/partner-portal/openings", label: "Job Openings", icon: HiOutlineBriefcase },
       { href: "/partner-portal/settings", label: "Settings", icon: HiOutlineCog6Tooth },
     ],
   },
 ];
+
+function PortalBrand({ collapsed = false }: { collapsed?: boolean }) {
+  return collapsed ? (
+    <span className="grid size-9 place-items-center rounded-lg bg-white/10 text-xs font-bold text-white">IFIP</span>
+  ) : (
+    <div>
+      <Image src="/images/logos/logo-white-wordmark.png" alt="IFIP" width={110} height={30} className="h-7 w-auto object-contain" />
+      <p className="mt-1.5 text-xs font-medium text-[#c7dfef]">Partner portal</p>
+    </div>
+  );
+}
+
+function PortalNavigation({ pathname, collapsed = false, onNavigate }: {
+  pathname: string;
+  collapsed?: boolean;
+  onNavigate?: () => void;
+}) {
+  return (
+    <nav aria-label="Partner portal" className="sidebar-scroll min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-2.5 py-4">
+      {NAV_GROUPS.map((group) => (
+        <div key={group.label}>
+          {!collapsed && <p className="mb-1 px-3 text-xs font-medium text-[#a9c4dc]">{group.label}</p>}
+          <ul className="space-y-1">
+            {group.items.map(({ href, label, icon: Icon }) => {
+              const active = href === pathname || (href !== "/partner-portal" && pathname.startsWith(`${href}/`));
+              return (
+                <li key={href}>
+                  <Link href={href} onClick={onNavigate} aria-current={active ? "page" : undefined}
+                    title={collapsed ? label : undefined}
+                    className={`${navItem} ${collapsed ? "justify-center" : ""} ${active ? "bg-[#e1f1fb] text-[#101f3f] focus-visible:outline-[#12617e]" : "text-[#e0ecfa] hover:bg-white/10 hover:text-white"}`}>
+                    <Icon aria-hidden="true" className="size-[18px] shrink-0" />
+                    <span className={collapsed ? "sr-only" : ""}>{label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </nav>
+  );
+}
 
 export default function PartnerPortalLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -56,34 +101,30 @@ export default function PartnerPortalLayout({ children }: { children: React.Reac
   const [loading, setLoading] = useState(true);
   const [partnerData, setPartnerData] = useState<PartnerMeResponse | null>(null);
   const [collapsed, setCollapsed] = useState(false);
-  const [hovered, setHovered] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-
-  const isExpanded = !collapsed || hovered;
+  const mobileNav = useRef<HTMLDialogElement>(null);
+  const accountButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem("partnerSidebarCollapsed");
-    if (saved === "true") setCollapsed(true);
+    const frame = window.requestAnimationFrame(() => {
+      setCollapsed(localStorage.getItem("partnerSidebarCollapsed") === "true");
+    });
+    const desktop = window.matchMedia("(min-width: 64rem)");
+    function closeMobileNavigation(event: MediaQueryListEvent) {
+      if (event.matches) mobileNav.current?.close();
+    }
+    desktop.addEventListener("change", closeMobileNavigation);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      desktop.removeEventListener("change", closeMobileNavigation);
+    };
   }, []);
 
-  const toggleCollapsed = () => {
-    const next = !collapsed;
-    setCollapsed(next);
-    localStorage.setItem("partnerSidebarCollapsed", String(next));
-  };
-
   useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
+    if (pathname === "/partner-portal/unsubscribe") return;
 
-  useEffect(() => {
-    if (pathname === "/partner-portal/unsubscribe") {
-      setLoading(false);
-      return;
-    }
-
-    const initPartnerPortal = async () => {
+    let current = true;
+    async function initPartnerPortal() {
       const token = getAccessToken();
       if (!token) {
         clearAuth();
@@ -93,323 +134,151 @@ export default function PartnerPortalLayout({ children }: { children: React.Reac
 
       try {
         const data = await getPartnerMe();
-        setPartnerData(data);
-      } catch (err: any) {
-        console.error("Partner portal auth check failed:", err);
-        if (err.status === 403 || err.status === 401) {
+        if (current) setPartnerData(data);
+      } catch (error) {
+        if (!current) return;
+        const status = error instanceof Error && "status" in error ? error.status : undefined;
+        if (status === 403 || status === 401) {
           clearAuth();
           router.push("/login?session=unauthorized");
         }
       } finally {
-        setLoading(false);
+        if (current) setLoading(false);
       }
-    };
+    }
 
-    initPartnerPortal();
+    void initPartnerPortal();
+    return () => { current = false; };
   }, [router, pathname]);
 
-  const handleLogout = () => {
+  function toggleCollapsed() {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem("partnerSidebarCollapsed", String(next));
+  }
+
+  function handleLogout() {
     clearAuth();
     router.push("/login");
-  };
-
-  if (pathname === "/partner-portal/unsubscribe") {
-    return <>{children}</>;
   }
+
+  if (pathname === "/partner-portal/unsubscribe") return <>{children}</>;
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center gap-4 font-sans text-slate-600">
-        <svg className="animate-spin w-8 h-8 text-[#000666]" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-        </svg>
-        <p className="text-slate-500 font-medium text-sm">Authenticating Partner Portal...</p>
+      <div role="status" className="grid min-h-dvh place-items-center bg-[#eef4fa] px-4 text-sm font-medium text-[#101f3f]">
+        Loading partner portal…
       </div>
     );
   }
 
   const org = partnerData?.org;
 
-  const NavItem = ({
-    item,
-    isCollapsed = false,
-    onClick,
-  }: {
-    item: typeof NAV_GROUPS[0]["items"][0];
-    isCollapsed?: boolean;
-    onClick?: () => void;
-  }) => {
-    const isActive =
-      item.href === "/partner-portal"
-        ? pathname === "/partner-portal"
-        : pathname.startsWith(item.href);
-    const Icon = item.icon;
-
-    return (
-      <li className="relative group/tip">
-        <Link
-          href={item.href}
-          onClick={onClick}
-          className={`flex items-center gap-3 rounded-xl font-semibold transition-all duration-150
-            ${isCollapsed ? "justify-center p-2.5" : "px-3 py-2.5"}
-            ${
-              isActive
-                ? "bg-white/15 text-white"
-                : "text-white/55 hover:text-white hover:bg-white/10"
-            }`}
-        >
-          <Icon className={`shrink-0 ${isCollapsed ? "w-5 h-5" : "w-[18px] h-[18px]"} ${isActive ? "text-[#38BDF8]" : ""}`} />
-          {!isCollapsed && <span className="text-sm truncate">{item.label}</span>}
-          {!isCollapsed && isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#38BDF8] shrink-0" />}
-        </Link>
-
-        {isCollapsed && (
-          <span className="
-            pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-[60]
-            bg-slate-900 text-white text-xs font-semibold
-            px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-xl
-            opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150
-          ">
-            {item.label}
-            <span className="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-slate-900" />
-          </span>
-        )}
-      </li>
-    );
-  };
-
   return (
-    <div className="min-h-screen bg-[#F4F6FB] font-sans flex">
-      {/* DESKTOP SIDEBAR */}
-      <aside
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        className={`
-          hidden lg:flex flex-col bg-[#000666] shrink-0
-          transition-[width] duration-200 ease-in-out overflow-hidden h-screen sticky top-0 z-40
-          ${isExpanded ? "w-60" : "w-[68px]"}
-        `}
-      >
-        {/* Logo Branding */}
-        <div className={`flex items-center border-b border-white/10 shrink-0 h-[60px]
-          ${!isExpanded ? "justify-center px-3" : "px-5 justify-start"}`}
-        >
-          {!isExpanded ? (
-            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
-              <span className="text-white font-black text-[11px] tracking-tight">IF</span>
-            </div>
-          ) : (
-            <Image
-              src="/images/logos/logo-white-wordmark.png"
-              alt="IFIP Partner Portal Logo"
-              width={110}
-              height={30}
-              priority
-              className="h-7 w-auto object-contain"
-            />
-          )}
+    <div className="flex min-h-dvh bg-[#eef4fa] font-sans">
+      <a href="#partner-main" className="sr-only z-50 rounded-lg bg-white px-4 py-3 text-[#101f3f] focus:not-sr-only focus:fixed focus:start-4 focus:top-3">
+        Skip to main content
+      </a>
+      <aside className={`sticky top-0 hidden h-dvh shrink-0 flex-col bg-[#101f3f] lg:flex ${collapsed ? "w-[68px]" : "w-56 xl:w-60"}`}>
+        <div className={`flex min-h-[88px] items-center border-b border-white/15 ${collapsed ? "justify-center" : "px-5"}`}>
+          <PortalBrand collapsed={collapsed} />
         </div>
+        <PortalNavigation pathname={pathname} collapsed={collapsed} />
+        <div className="space-y-1 border-t border-white/15 px-2.5 py-3">
+          <a href="/" target="_blank" rel="noopener noreferrer" title={collapsed ? "View public site" : undefined}
+            className={`${navItem} text-[#e0ecfa] hover:bg-white/10 ${collapsed ? "justify-center" : ""}`}>
+            <HiOutlineArrowTopRightOnSquare aria-hidden="true" className="size-[18px] shrink-0" />
+            <span className={collapsed ? "sr-only" : ""}>View public site <span className="sr-only">(opens in a new tab)</span></span>
+          </a>
+          <button type="button" onClick={toggleCollapsed} title={collapsed ? "Expand sidebar" : undefined}
+            className={`${navItem} w-full text-[#e0ecfa] hover:bg-white/10 ${collapsed ? "justify-center" : ""}`}>
+            {collapsed ? <HiOutlineChevronRight aria-hidden="true" className="size-4 shrink-0" /> : <HiOutlineChevronLeft aria-hidden="true" className="size-4 shrink-0" />}
+            <span className={collapsed ? "sr-only" : ""}>{collapsed ? "Expand sidebar" : "Collapse sidebar"}</span>
+          </button>
+        </div>
+      </aside>
 
-        {/* Navigation Groups */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-4 px-2 sidebar-scroll">
-          {NAV_GROUPS.map((group) => (
-            <div key={group.label}>
-              {!isExpanded ? (
-                <div className="h-px bg-white/10 mx-1 mb-3" />
-              ) : (
-                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-white/30 px-3 mb-1.5 truncate">
-                  {group.label}
-                </p>
-              )}
-              <ul className="space-y-0.5">
-                {group.items.map((item) => (
-                  <NavItem key={item.href} item={item} isCollapsed={!isExpanded} />
-                ))}
-              </ul>
-            </div>
-          ))}
-        </nav>
+      <dialog id="partner-mobile-navigation" ref={mobileNav} aria-label="Partner navigation"
+        onClick={(event) => {
+          const edge = event.currentTarget.getBoundingClientRect();
+          if (event.target === event.currentTarget && (event.clientX < edge.left || event.clientX > edge.right)) {
+            event.currentTarget.close();
+          }
+        }}
+        className="fixed inset-y-0 start-0 m-0 h-dvh max-h-none w-72 max-w-[calc(100%-2rem)] overflow-hidden bg-[#101f3f] text-white backdrop:bg-[#101f3f]/60 open:flex open:flex-col">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/15 px-4 py-4">
+          <PortalBrand />
+          <button type="button" aria-label="Close navigation" onClick={() => mobileNav.current?.close()}
+            className={`grid size-11 place-items-center rounded-lg hover:bg-white/10 ${onNavy}`}>
+            <HiOutlineXMark aria-hidden="true" className="size-5" />
+          </button>
+        </div>
+        <PortalNavigation pathname={pathname} onNavigate={() => mobileNav.current?.close()} />
+        <div className="shrink-0 border-t border-white/15 px-3 py-3">
+          <button type="button" onClick={handleLogout} className={`${navItem} w-full text-[#e0ecfa] hover:bg-white/10`}>
+            <HiArrowLeftOnRectangle aria-hidden="true" className="size-[18px]" /> Sign out
+          </button>
+        </div>
+      </dialog>
 
-        {/* Footer Actions */}
-        <div className="border-t border-white/10 shrink-0 py-3 px-2 space-y-0.5">
-          <div className="relative group/tip">
-            <a
-              href="/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`flex items-center gap-3 rounded-xl text-sm font-semibold text-white/40 hover:text-white hover:bg-white/10 transition-all
-                ${!isExpanded ? "justify-center p-2.5" : "px-3 py-2.5"}`}
-            >
-              <HiOutlineArrowTopRightOnSquare className="w-[18px] h-[18px] shrink-0" />
-              {isExpanded && <span>View Public Site</span>}
-            </a>
-            {!isExpanded && (
-              <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-[60] bg-slate-900 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-xl opacity-0 group-hover/tip:opacity-100 transition-opacity">
-                View Public Site
-                <span className="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-slate-900" />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-30 flex min-h-16 shrink-0 items-center justify-between gap-2 border-b border-[#cbd8e8] bg-white px-3 text-[#101f3f] sm:px-6">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <button type="button" onClick={() => mobileNav.current?.showModal()} aria-label="Open navigation" aria-haspopup="dialog"
+              aria-controls="partner-mobile-navigation" className={`grid size-11 shrink-0 place-items-center rounded-lg hover:bg-[#eef4fa] lg:hidden ${focus}`}>
+              <HiOutlineBars3 aria-hidden="true" className="size-5" />
+            </button>
+            {org?.logoUrl ? (
+              <span className="relative size-8 shrink-0 overflow-hidden rounded-lg border border-[#cbd8e8] bg-white">
+                <Image src={org.logoUrl} alt="" fill sizes="32px" className="object-contain p-1" />
+              </span>
+            ) : (
+              <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#e1f1fb] text-xs font-bold text-[#12617e]">
+                {org?.name?.charAt(0) || "P"}
               </span>
             )}
+            <span className="min-w-0 truncate text-sm font-semibold">{org?.name || "Partner portal"}</span>
           </div>
 
-          <button
-            onClick={toggleCollapsed}
-            className={`w-full flex items-center gap-3 rounded-xl text-xs font-semibold text-white/35 hover:text-white hover:bg-white/10 transition-all
-              ${!isExpanded ? "justify-center p-2.5" : "px-3 py-2.5"}`}
-            aria-label={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
-          >
-            {!isExpanded ? (
-              <HiOutlineChevronRight className="w-4 h-4 shrink-0" />
-            ) : (
-              <>
-                <HiOutlineChevronLeft className="w-4 h-4 shrink-0" />
-                <span>Collapse sidebar</span>
-              </>
-            )}
-          </button>
-        </div>
-      </aside>
-
-      {/* MOBILE DRAWER OVERLAY */}
-      <div
-        onClick={() => setMobileOpen(false)}
-        className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-xs lg:hidden transition-opacity duration-200
-          ${mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
-      />
-
-      <aside
-        className={`
-          fixed inset-y-0 left-0 z-50 w-72 bg-[#000666] flex flex-col lg:hidden
-          transition-transform duration-200 ease-in-out
-          ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
-        `}
-      >
-        <div className="h-[60px] px-5 flex items-center justify-between border-b border-white/10 shrink-0">
-          <Image
-            src="/images/logos/logo-white-wordmark.png"
-            alt="IFIP Logo"
-            width={110}
-            height={30}
-            priority
-            className="h-7 w-auto object-contain"
-          />
-          <button
-            onClick={() => setMobileOpen(false)}
-            className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            <HiOutlineXMark className="w-5 h-5" />
-          </button>
-        </div>
-
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5 sidebar-scroll">
-          {NAV_GROUPS.map((group) => (
-            <div key={group.label}>
-              <p className="text-[9px] font-black uppercase tracking-[0.15em] text-white/30 px-3 mb-1.5">
-                {group.label}
-              </p>
-              <ul className="space-y-0.5">
-                {group.items.map((item) => (
-                  <NavItem key={item.href} item={item} isCollapsed={false} onClick={() => setMobileOpen(false)} />
-                ))}
-              </ul>
-            </div>
-          ))}
-        </nav>
-
-        <div className="px-3 py-4 border-t border-white/10 shrink-0">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center space-x-2 px-3 py-2.5 rounded-xl text-xs font-semibold text-rose-300 bg-rose-950/40 border border-rose-800/40 hover:bg-rose-900/40 transition-colors"
-          >
-            <HiArrowLeftOnRectangle className="w-4 h-4" />
-            <span>Sign Out</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* MAIN CONTAINER */}
-      <div className="flex-1 flex flex-col min-h-screen min-w-0">
-        {/* STICKY TOP HEADER */}
-        <header className="h-[60px] bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 sm:px-5 flex items-center justify-between sticky top-0 z-30 shadow-xs shrink-0">
-          <div className="flex items-center gap-3">
-            <button
-              className="lg:hidden p-2 -ml-1 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
-              onClick={() => setMobileOpen(true)}
-              aria-label="Open navigation"
-            >
-              <HiOutlineBars3 className="w-5 h-5" />
-            </button>
-
-            {/* Partner Organization Chip */}
-            <div className="flex items-center space-x-2.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
-              {org?.logoUrl ? (
-                <div className="relative w-6 h-6 rounded bg-white overflow-hidden border border-slate-200 shrink-0">
-                  <Image src={org.logoUrl} alt={org.name} fill className="object-contain p-0.5" />
-                </div>
-              ) : (
-                <div className="w-6 h-6 rounded bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                  {org?.name?.charAt(0) || "P"}
-                </div>
-              )}
-              <div className="flex items-center max-w-[160px] sm:max-w-xs truncate">
-                <span className="text-xs font-bold text-slate-800 truncate">{org?.name || "Partner Organization"}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
             <NotificationBell />
-
-            {/* User Profile Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="w-8 h-8 rounded-full border border-slate-200 bg-[#000666]/10 flex items-center justify-center overflow-hidden hover:ring-2 hover:ring-[#000666]/30 transition-all shrink-0 cursor-pointer focus:outline-none"
-                title="Account Options"
-              >
-                <div className="w-full h-full bg-[#000666] text-white font-bold text-xs flex items-center justify-center">
+            <div className="relative" onKeyDown={(event) => {
+              if (event.key === "Escape" && dropdownOpen) {
+                setDropdownOpen(false);
+                accountButton.current?.focus();
+              }
+            }}>
+              <button type="button" ref={accountButton} onClick={() => setDropdownOpen(!dropdownOpen)}
+                aria-label="Account options" aria-expanded={dropdownOpen} aria-controls={dropdownOpen ? "partner-account-options" : undefined}
+                className={`flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg hover:bg-[#eef4fa] sm:px-2 ${focus}`}>
+                <span aria-hidden="true" className="grid size-8 place-items-center rounded-full bg-[#101f3f] text-xs font-bold text-white">
                   {org?.contactPerson?.charAt(0) || org?.name?.charAt(0) || "P"}
-                </div>
+                </span>
+                <HiOutlineChevronDown aria-hidden="true" className="hidden size-3 sm:block" />
               </button>
-
               {dropdownOpen && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-2 divide-y divide-slate-100 text-xs">
-                    <div className="px-4 py-2.5">
-                      <p className="font-bold text-slate-900 truncate">{org?.contactPerson || "Partner Representative"}</p>
-                      <p className="text-slate-500 truncate text-[11px] mt-0.5">{org?.contactEmail}</p>
+                  <div aria-hidden="true" className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
+                  <div id="partner-account-options" className="absolute end-0 z-50 mt-2 w-60 max-w-[calc(100vw-1.5rem)] rounded-xl border border-[#cbd8e8] bg-white p-2 text-sm shadow-lg">
+                    <div className="border-b border-[#dce5ef] px-2 py-2 wrap-anywhere">
+                      <p className="font-semibold">{org?.contactPerson || "Partner representative"}</p>
+                      {org?.contactEmail && <p className="mt-0.5 text-xs text-[#465a74]">{org.contactEmail}</p>}
                     </div>
-
-                    <div className="py-1">
-                      <Link
-                        href="/partner-portal/settings"
-                        onClick={() => setDropdownOpen(false)}
-                        className="flex items-center space-x-2 px-4 py-2 text-slate-700 hover:bg-slate-50 font-medium"
-                      >
-                        <HiOutlineCog6Tooth className="w-4 h-4 text-slate-400" />
-                        <span>Organization Settings</span>
-                      </Link>
-                    </div>
-
-                    <div className="py-1">
-                      <button
-                        onClick={handleLogout}
-                        className="w-full flex items-center space-x-2 px-4 py-2 text-rose-600 hover:bg-rose-50 font-medium text-left"
-                      >
-                        <HiArrowLeftOnRectangle className="w-4 h-4 text-rose-500" />
-                        <span>Sign Out</span>
-                      </button>
-                    </div>
+                    <Link href="/partner-portal/settings" onClick={() => setDropdownOpen(false)}
+                      className={`mt-1 flex min-h-11 items-center gap-2 rounded-lg px-2 hover:bg-[#eef4fa] ${focus}`}>
+                      <HiOutlineCog6Tooth aria-hidden="true" className="size-4 shrink-0" /> Organization settings
+                    </Link>
+                    <button type="button" onClick={handleLogout}
+                      className={`flex min-h-11 w-full items-center gap-2 rounded-lg px-2 text-start hover:bg-[#eef4fa] ${focus}`}>
+                      <HiArrowLeftOnRectangle aria-hidden="true" className="size-4 shrink-0" /> Sign out
+                    </button>
                   </div>
                 </>
               )}
             </div>
           </div>
         </header>
-
-        {/* PAGE CONTENT */}
-        <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl w-full mx-auto">{children}</main>
+        <main id="partner-main" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 scroll-mt-16 p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

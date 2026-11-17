@@ -236,6 +236,19 @@ On 15 November 2026, the user authorized the fix. The authenticated application 
 
 - The public partner form and intake API require an organization description. A local Playwright run with an intercepted API verified empty-field focus, whitespace rejection and submission of a trimmed description. Partner page ESLint, backend no-emit TypeScript and frontend no-emit TypeScript with malformed generated dev route types excluded passed. The shared API service file has existing ESLint errors. The live API was outside the browser check.
 
+### Pathway participant dashboard
+
+- Applied Pathway styling to the participant overview, pre-launch and withdrawn screens, and shared dashboard navigation. The coursework action uses the first module in progress or available to start, with a link to the full module list when there is no next module. Learning progress uses module and assessment records. Session failures are distinct from an empty timetable, and the CV shortcut opens the existing Documents section.
+- Frontend route generation and `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false` passed. Scoped ESLint and `git diff --check` passed.
+- Inline Playwright using intercepted responses covered 320, 375, 768 and 1280 CSS px, module selection and progress, meeting links, session retry and empty state, the CV shortcut, keyboard dismissal and focus return, pending or unassigned cohort, both launch overrides, withdrawn application, admin preview, and the partner and signed-out redirects. Desktop, mobile and pre-launch captures use fallback typography because the local Sora download failed. Live enrollment, screen-reader coverage and the production build remain unverified.
+
+### Pathway partner dashboard
+
+- Applied Pathway styling to the partner overview and shared portal navigation. Placed a shortcut to pending decisions in the organization header, retained the existing recruitment totals, and grouped interviews by decision required and upcoming. Distinguished errors from empty lists. The outcome dialog requires a selection and only shows notes where the existing endpoint saves them.
+- From `ifip-frontend`, `node node_modules/next/dist/bin/next typegen`, `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false`, and `node node_modules/eslint/bin/eslint.js app/partner-portal/page.tsx app/partner-portal/layout.tsx` passed. The scoped `git diff --check` passed.
+- Inline Playwright with intercepted APIs passed at 320, 375, 768, and 1280 CSS px. Covered navigation collapse and mobile keyboard dismissal, focus return, the pending-decision shortcut, failure and retry for loading and saving, both outcome payloads, the empty queue, and redirects for signed-out and denied sessions. Inspected desktop and mobile captures using sample data. The preview used fallback typography after the Sora request failed. Live partner data and production build were outside these checks.
+- Proposed next step is to surface the API's count of job applications awaiting review and link partners to the relevant openings. Add role and stage filters if longer queues make scanning difficult.
+
 ### Custom partner sector
 
 - Selecting Other in `/partners/apply` reveals a required sector-name field. The existing `sectorTags` array carries the trimmed custom name alongside any standard selections. Unchecking Other hides the field and excludes its value from the submission.
