@@ -38,7 +38,7 @@ const curriculum = [
   {
     title: programCertificate.title,
     icon: programCertificate.icon,
-    topics: [programCertificate.detail],
+    topics: programCertificate.topics,
   },
 ];
 
