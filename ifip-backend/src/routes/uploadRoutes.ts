@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { authenticateApplicant } from '../middleware/applicantAuth.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { uploadCvAuth, uploadLogo, uploadBrochure, uploadAvatarAuth, getUploadSignature, saveCvUrlAuth, uploadModuleTaskEvidence, uploadResourceFile, uploadAltCertificate, saveAltCertificateUrl, uploadJobApplicationCv } from '../controllers/uploadController.js';
 
@@ -27,8 +26,7 @@ const handleUpload = (fieldName: string) => {
 
 const router = Router();
 
-// Signature generation for direct Cloudinary upload from browser
-router.get('/signature', authenticateApplicant, getUploadSignature);
+// Signature generation for direct Cloudinary upload from browser (dashboard only)
 router.get('/signature-auth', authenticate, getUploadSignature);
 
 // Save Cloudinary secure URL directly (dashboard only)

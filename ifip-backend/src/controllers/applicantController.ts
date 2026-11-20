@@ -195,7 +195,7 @@ export const updateMyApplicant = async (req: Request, res: Response) => {
     const ALLOWED_FIELDS = [
         'fullName', 'phone', 'dob', 'gender', 'country', 'stateCity',
         'academicInfo', 'programInterest', 'skills', 'motivation',
-        'cvUrl', 'linkedinUrl', 'portfolioUrl', 'leadSource',
+        'linkedinUrl', 'portfolioUrl', 'leadSource',
         'levyAcknowledged', 'declaration', 'currentStep',
     ] as const;
 

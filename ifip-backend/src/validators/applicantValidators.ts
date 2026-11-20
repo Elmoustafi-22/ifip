@@ -32,7 +32,6 @@ export const paymentInitiateSchema = z.object({
         whyApplying: z.string().min(10),
         careerGoals: z.string().min(10),
     }),
-    cvUrl: z.string().url(),
 });
 
 export const paymentReadySchema = z.object({
@@ -54,7 +53,6 @@ export const paymentReadySchema = z.object({
         whyApplying: z.string().min(10),
         careerGoals: z.string().min(10),
     }),
-    cvUrl: z.string().url(),
     levyAcknowledged: z.literal(true),
     declaration: z.object({
         confirmed: z.literal(true),

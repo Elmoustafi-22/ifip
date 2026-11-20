@@ -3,7 +3,6 @@ import fs from 'fs';
 import path from 'path';
 import cloudinary from '../config/cloudinary.js';
 import { env } from '../config/env.js';
-import { Applicant } from '../models/Applicants.js';
 import { CohortConfig } from '../models/CohortConfig.js';
 import { logAction } from '../utils/auditLogger.js';
 import { updateContentVersion } from './contentVersionController.js';
@@ -211,11 +210,7 @@ export const getUploadSignature = async (req: Request, res: Response) => {
             let candidateName = '';
             let candidateId = '';
 
-            if (req.applicant?.id) {
-                const applicant = await Applicant.findById(req.applicant.id).select('fullName');
-                candidateName = applicant?.fullName || '';
-                candidateId = req.applicant.id;
-            } else if (req.user?.id) {
+            if (req.user?.id) {
                 const user = await User.findById(req.user.id).select('fullName');
                 candidateName = user?.fullName || '';
                 if (!candidateName) {
