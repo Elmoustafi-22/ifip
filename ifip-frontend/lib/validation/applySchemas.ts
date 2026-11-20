@@ -43,7 +43,6 @@ export const step4InterestSchema = z.object({
 export const step5SkillsSchema = z.object({
   whyApplying: z.string().min(10, "Motivation explanation must be at least 10 characters"),
   careerGoals: z.string().min(10, "Career goals explanation must be at least 10 characters"),
-  cvUrl: z.string().min(1, "Please upload your CV in PDF format"),
   linkedinUrl: z.string().optional(),
   portfolioUrl: z.string().optional().refine((val) => !val || val.trim() === "" || val.startsWith("http://") || val.startsWith("https://"), {
     message: "Please enter a valid URL starting with http:// or https://",

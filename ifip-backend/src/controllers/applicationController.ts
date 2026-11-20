@@ -65,7 +65,6 @@ export const updateMyApplication = async (req: Request, res: Response) => {
         academicInfo,
         programInterest,
         skills,
-        cvUrl,
         avatarUrl,
         altInstituteCertUrl,
         emailNotificationsEnabled
@@ -110,10 +109,6 @@ export const updateMyApplication = async (req: Request, res: Response) => {
     if (skills !== undefined) {
         application.skills = skills;
         updatedFields.push('skills');
-    }
-    if (cvUrl !== undefined) {
-        application.cvUrl = cvUrl;
-        updatedFields.push('cvUrl');
     }
     if (altInstituteCertUrl !== undefined) {
         (application as any).altInstituteCertUrl = altInstituteCertUrl;

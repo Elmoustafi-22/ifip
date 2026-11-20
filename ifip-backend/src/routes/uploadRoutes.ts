@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { authenticateApplicant } from '../middleware/applicantAuth.js';
 import { authenticate, authorize } from '../middleware/auth.js';
-import { uploadCv, uploadCvAuth, uploadLogo, uploadBrochure, uploadAvatarAuth, getUploadSignature, saveCvUrl, saveCvUrlAuth, uploadModuleTaskEvidence, uploadResourceFile, uploadAltCertificate, saveAltCertificateUrl, uploadJobApplicationCv } from '../controllers/uploadController.js';
+import { uploadCvAuth, uploadLogo, uploadBrochure, uploadAvatarAuth, getUploadSignature, saveCvUrlAuth, uploadModuleTaskEvidence, uploadResourceFile, uploadAltCertificate, saveAltCertificateUrl, uploadJobApplicationCv } from '../controllers/uploadController.js';
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -31,12 +31,10 @@ const router = Router();
 router.get('/signature', authenticateApplicant, getUploadSignature);
 router.get('/signature-auth', authenticate, getUploadSignature);
 
-// Save Cloudinary secure URL directly
-router.post('/save-cv', authenticateApplicant, saveCvUrl);
+// Save Cloudinary secure URL directly (dashboard only)
 router.post('/save-cv-auth', authenticate, saveCvUrlAuth);
 
 // Fallback legacy proxy uploads
-router.post('/cv', authenticateApplicant, handleUpload('cv'), uploadCv);
 router.post('/cv-auth', authenticate, handleUpload('cv'), uploadCvAuth);
 router.post('/job-cv', authenticate, handleUpload('cv'), uploadJobApplicationCv);
 

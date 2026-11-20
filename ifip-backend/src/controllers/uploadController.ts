@@ -19,55 +19,6 @@ export const formatResumePublicId = (name: string, id: string, ext = 'pdf'): str
     return `${safeName}_Resume_${suffix}.${ext}`;
 };
 
-export const uploadCv = async (req: Request, res: Response) => {
-    if (!req.file) {
-        res.status(400).json({ message: 'No file uploaded' });
-        return;
-    }
-    if (req.file.mimetype !== 'application/pdf') {
-        res.status(400).json({ message: 'Only PDF files are accepted' });
-        return;
-    }
-
-    try {
-        const applicant = await Applicant.findById(req.applicant!.id);
-        if (!applicant) {
-            res.status(404).json({ message: 'Session expired — please resume via your email link.' });
-            return;
-        }
-
-        const publicId = formatResumePublicId(applicant.fullName || '', applicant._id.toString(), 'pdf');
-
-        const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
-            const timer = setTimeout(() => {
-                reject(new Error('Cloud storage upload timed out. Please try again.'));
-            }, 45000);
-
-            const stream = cloudinary.uploader.upload_stream(
-                { resource_type: 'raw', folder: 'ifipp/cvs', public_id: publicId, overwrite: true, invalidate: true },
-                (error, result) => {
-                    clearTimeout(timer);
-                    if (error || !result) {
-                        reject(error || new Error('Cloudinary upload returned empty result'));
-                    } else {
-                        resolve(result as { secure_url: string });
-                    }
-                }
-            );
-            stream.end(req.file!.buffer);
-        });
-
-        applicant.cvUrl = uploadResult.secure_url;
-        applicant.refreshExpiry();
-        await applicant.save();
-
-        res.json({ cvUrl: applicant.cvUrl });
-    } catch (err: any) {
-        console.error('CV upload error:', err);
-        res.status(500).json({ message: err.message || 'CV upload failed' });
-    }
-};
-
 import { Application } from '../models/Application.js';
 
 export const uploadCvAuth = async (req: Request, res: Response) => {
@@ -519,31 +470,6 @@ export const saveAltCertificateUrl = async (req: Request, res: Response) => {
     }
 };
 
-
-export const saveCvUrl = async (req: Request, res: Response) => {
-    const { cvUrl } = req.body;
-    if (!cvUrl || typeof cvUrl !== 'string' || !cvUrl.startsWith('http')) {
-        res.status(400).json({ message: 'Valid CV URL is required' });
-        return;
-    }
-
-    try {
-        const applicant = await Applicant.findById(req.applicant!.id);
-        if (!applicant) {
-            res.status(404).json({ message: 'Session expired — please resume via your email link.' });
-            return;
-        }
-
-        applicant.cvUrl = cvUrl;
-        applicant.refreshExpiry();
-        await applicant.save();
-
-        res.json({ cvUrl: applicant.cvUrl });
-    } catch (err: any) {
-        console.error('Save CV URL error:', err);
-        res.status(500).json({ message: err.message || 'Failed to save CV URL' });
-    }
-};
 
 export const saveCvUrlAuth = async (req: Request, res: Response) => {
     const { cvUrl } = req.body;

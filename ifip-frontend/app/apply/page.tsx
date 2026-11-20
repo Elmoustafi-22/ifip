@@ -35,7 +35,6 @@ import {
   getApplicantProfile,
   getApplicantBankTransfer,
   updateApplicantProfile,
-  uploadCv,
   submitApplication,
   resumeApplication,
   initiatePayment,
@@ -100,12 +99,6 @@ type CheckoutState =
   | { status: "idle" | "saving" | "requesting" | "redirecting" }
   | { status: "error"; title: string; message: string; canCheckPayment?: boolean };
 
-type CvUpload =
-  | { status: "idle" }
-  | { status: "uploading"; file: File }
-  | { status: "failed"; message: string; retryFile?: File; sessionExpired?: boolean };
-
-const cvMaxMiB = 5;
 const formHeading = "scroll-mt-28 font-sans text-3xl font-bold tracking-tight leading-tight text-[#101f3f] sm:text-4xl";
 const formSection = "mb-3 font-sans text-xl font-semibold text-[#101f3f]";
 const optionalLabel = "font-normal text-on-surface-variant";
@@ -570,12 +563,6 @@ export default function ApplyPage() {
   const [availability, setAvailability] = useState("Immediately");
   const [whyApplying, setWhyApplying] = useState("");
   const [careerGoals, setCareerGoals] = useState("");
-  const [cvUrl, setCvUrl] = useState("");
-  const [cvUpload, setCvUpload] = useState<CvUpload>({ status: "idle" });
-  const cvUploadRequest = useRef(false);
-  const cvNeedsConfirmation = useRef(false);
-  const cvUploading = cvUpload.status === "uploading";
-  const cvSessionExpired = cvUpload.status === "failed" && cvUpload.sessionExpired;
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [portfolioUrl, setPortfolioUrl] = useState("");
   const [leadSource, setLeadSource] = useState("LinkedIn");
@@ -704,7 +691,6 @@ export default function ApplyPage() {
         dataToValidate = { 
           whyApplying, 
           careerGoals, 
-          cvUrl,
           linkedinUrl, 
           portfolioUrl 
         };
@@ -733,7 +719,7 @@ export default function ApplyPage() {
       if (missingPhone) formattedErrors.phone = "Enter your WhatsApp phone number.";
       if (invalidCalendarDate) formattedErrors.dob = "Enter a valid date of birth.";
       setErrors(formattedErrors);
-      const field = ["fullName", "phone", "dob", "gender", "country", "stateCity", "academicStatus", "institution", "graduationYear", "fieldOfStudy", "qualification", "primaryInterest", "otherPrimaryInterest", "otherSecondaryInterest", "whyApplying", "careerGoals", "cvUrl", "portfolioUrl", "declarationConfirmed", "signature"]
+      const field = ["fullName", "phone", "dob", "gender", "country", "stateCity", "academicStatus", "institution", "graduationYear", "fieldOfStudy", "qualification", "primaryInterest", "otherPrimaryInterest", "otherSecondaryInterest", "whyApplying", "careerGoals", "portfolioUrl", "declarationConfirmed", "signature"]
         .find((key) => formattedErrors[key]);
       const dateField = !dobDay ? "dob-day" : !dobMonth ? "dob-month" : dobYear.length < 4 ? "dob-year" : "dob-day";
       firstInvalidField.current = field === "dob" ? dateField : field ?? "";
@@ -866,8 +852,6 @@ export default function ApplyPage() {
       if (applicant.motivation.careerGoals) setCareerGoals(applicant.motivation.careerGoals);
     }
 
-    setCvUrl(applicant.cvUrl ?? "");
-    cvNeedsConfirmation.current = false;
     if (applicant.linkedinUrl) setLinkedinUrl(applicant.linkedinUrl);
     if (applicant.portfolioUrl) setPortfolioUrl(applicant.portfolioUrl);
     if (applicant.leadSource) setLeadSource(applicant.leadSource);
@@ -1096,7 +1080,7 @@ export default function ApplyPage() {
   }, [formSaveError]);
 
   const goBackToStep = (previousStep: number) => {
-    if (draftSaveRequest.current || cvUploadRequest.current || checkoutRequest.current || couponRequest.current) return;
+    if (draftSaveRequest.current || checkoutRequest.current || couponRequest.current) return;
     setCheckout({ status: "idle" });
     setErrors({});
     setFormSaveError("");
@@ -1136,7 +1120,7 @@ export default function ApplyPage() {
   // Save all progress data
   const saveAllData = async (nextStep: number) => {
     const currentStep = nextStep - 1;
-    if (draftSaveRequest.current || cvUploadRequest.current) return;
+    if (draftSaveRequest.current) return;
     setFormSaveError("");
     setSaveNotice("");
     if (!validateStep(currentStep)) {
@@ -1192,11 +1176,6 @@ export default function ApplyPage() {
       currentStep: nextStep
     };
 
-    // A failed upload may have reached the server. Leave its stored URL alone.
-    if (cvUrl && !cvNeedsConfirmation.current) {
-      payload.cvUrl = cvUrl;
-    }
-
     draftSaveRequest.current = true;
     try {
       // Let the OTP step-index write finish before saving a newer step.
@@ -1215,61 +1194,6 @@ export default function ApplyPage() {
     }
   };
 
-  const uploadSelectedCv = async (file: File) => {
-    if (cvUploadRequest.current || draftSaveRequest.current) return;
-    const sessionMessage = "Your session has expired. Refresh the page and use the resume link in your email.";
-    if (!localStorage.getItem("applicantToken")) {
-      setCvUpload({ status: "failed", message: sessionMessage, sessionExpired: true });
-      return;
-    }
-
-    cvUploadRequest.current = true;
-    setCvUpload({ status: "uploading", file });
-    try {
-      const result = await uploadCv(file);
-      if (!mounted.current) return;
-      setCvUrl(result.cvUrl);
-      cvNeedsConfirmation.current = false;
-      setCvUpload({ status: "idle" });
-    } catch (error) {
-      if (!mounted.current) return;
-      cvNeedsConfirmation.current = true;
-      const status = error instanceof Error && "status" in error ? error.status : undefined;
-      const sessionExpired = status === 401 || status === 403 || status === 404;
-      setCvUpload({
-        status: "failed",
-        message: sessionExpired ? sessionMessage : "We couldn’t confirm the CV upload. Choose a PDF or retry the upload.",
-        retryFile: sessionExpired ? undefined : file,
-        sessionExpired,
-      });
-    } finally {
-      cvUploadRequest.current = false;
-    }
-  };
-
-  const retryCvUpload = () => {
-    if (cvUpload.status === "failed" && cvUpload.retryFile) void uploadSelectedCv(cvUpload.retryFile);
-  };
-
-  const handleCvChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.currentTarget.files?.[0];
-    if (!file || cvUploadRequest.current || draftSaveRequest.current) return;
-    event.currentTarget.value = "";
-    if (file.type !== "application/pdf") {
-      setCvUpload({ status: "failed", message: "Choose a PDF file." });
-      return;
-    }
-    if (file.size > cvMaxMiB * 1024 * 1024) {
-      setCvUpload({ status: "failed", message: "Choose a PDF that is 5 MB or smaller." });
-      return;
-    }
-    setErrors((previous) => {
-      const next = { ...previous };
-      delete next.cvUrl;
-      return next;
-    });
-    void uploadSelectedCv(file);
-  };
 
   const finishCheckout = (setupToken?: string, waiver = false) => {
     setConfirmation({ type: waiver && !setupToken ? "waived" : "submitted", setupToken });
@@ -1441,7 +1365,7 @@ export default function ApplyPage() {
     <div className="space-y-3 border-t border-outline-variant pt-4">
       <div className={previousStep ? stepActionRow : "grid"}>
         {previousStep && (
-          <button type="button" onClick={() => goBackToStep(previousStep)} disabled={loading || cvUploading} className={stepBackAction}>
+          <button type="button" onClick={() => goBackToStep(previousStep)} disabled={loading} className={stepBackAction}>
             <HiOutlineChevronLeft aria-hidden="true" className="size-4" />
             Back
           </button>
@@ -1783,7 +1707,7 @@ export default function ApplyPage() {
                     <li key={num} aria-current={num === step ? "step" : undefined}>
                       {num < step && (num !== 1 || registrationAvailability.status === "open") ? (
                         <button type="button" aria-label={"Back to " + label} onClick={() => goBackToStep(num)}
-                          disabled={loading || cvUploading || checkoutBusy || couponBusy}
+                          disabled={loading || checkoutBusy || couponBusy}
                           className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-start text-sm text-[#e0e6f1] hover:bg-white/10 focus-visible:outline-white disabled:opacity-60">
                           <HiCheckCircle aria-hidden="true" className="size-4 shrink-0 text-[#a9e2fa]" />{label}
                         </button>
@@ -2093,7 +2017,7 @@ export default function ApplyPage() {
 
           {/* STEP 5: SKILLS & MOTIVATION */}
           {step === 5 && (
-            <form noValidate onSubmit={(event) => { event.preventDefault(); if (!cvSessionExpired) void saveAllData(6); }} className="space-y-7">
+            <form noValidate onSubmit={(event) => { event.preventDefault(); void saveAllData(6); }} className="space-y-7">
               <div className="space-y-2">
                 <h1 ref={focusStepHeading} tabIndex={-1} className={formHeading}>Skills and motivation</h1>
                 <p className="text-sm text-on-surface-variant">Tell us about your experience and what you hope to gain from the program.</p>
@@ -2168,29 +2092,7 @@ export default function ApplyPage() {
               </fieldset>
 
               <fieldset disabled={loading} className="min-w-0 space-y-4">
-                <legend className={formSection}>CV and links</legend>
-                <div className="space-y-2 rounded-xl border border-outline-variant bg-surface-container-low p-3 sm:p-4">
-                  <label htmlFor="cvUrl" className={formLabel}>{cvUrl ? "Replace CV" : "Upload your CV (required)"}</label>
-                  <p id="cv-hint" className="text-sm text-on-surface-variant">PDF, up to {cvMaxMiB} MB.</p>
-                  <input type="file" accept=".pdf,application/pdf" aria-disabled={cvUploading}
-                    {...fieldProps("cvUrl", "cvUrl", cvUpload.status === "failed" ? "cv-hint cv-upload-error" : "cv-hint")}
-                    aria-invalid={Boolean(errors.cvUrl) || cvUpload.status === "failed" || undefined}
-                    onClick={(event) => { if (cvUploadRequest.current) event.preventDefault(); }}
-                    onChange={handleCvChange}
-                    className={`${formControl} file:me-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-on-primary`} />
-                  <p role="status" className="break-words text-sm font-semibold text-primary">
-                    {cvUpload.status === "uploading" ? `Uploading ${cvUpload.file.name}…` : cvUrl ? "A CV is saved with your application." : ""}
-                  </p>
-                  {cvUpload.status === "failed" && (
-                    <div className="space-y-2">
-                      <p id="cv-upload-error" role="alert" className="text-sm text-error">
-                        {cvUpload.message}{cvUrl && !cvUpload.sessionExpired && " You can continue using the last confirmed CV."}
-                      </p>
-                      {cvUpload.retryFile && <button type="button" className={formSecondaryAction} onClick={retryCvUpload}>Retry CV upload</button>}
-                    </div>
-                  )}
-                  {fieldError("cvUrl")}
-                </div>
+                <legend className={formSection}>Links</legend>
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="min-w-0 space-y-2">
                     <label htmlFor="linkedinUrl" className={formLabel}>LinkedIn username <span className={optionalLabel}>(optional)</span></label>
@@ -2224,7 +2126,7 @@ export default function ApplyPage() {
                   </select>
                 </div>
               </fieldset>
-              {formActions(4, cvUploading || cvSessionExpired)}
+              {formActions(4, false)}
             </form>
           )}
 
