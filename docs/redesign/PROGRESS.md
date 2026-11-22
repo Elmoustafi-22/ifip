@@ -1,5 +1,14 @@
 # IFIP modernization progress
 
+## Homepage AI workplace curriculum
+
+- The user approved the revised two-column preview on 22 November 2026. Added **AI for Effective Workplace Practice** after Practical execution, with the three approved learning outcomes. Professional Certificate now appears in a tinted panel beneath the four learning cards, retaining the shared certificate name and icon and the existing certificate information. The guide destination and other homepage sections are unchanged.
+- The grid uses one column below 640 CSS px and two above it. Shared grid rows align each pair's heading area and list start without fixed card heights. The breakpoint allows room for the existing site typography. The working tree was clean before this change.
+- From `ifip-frontend`, `node node_modules/eslint/bin/eslint.js app/page.tsx` and `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false` completed without diagnostics (exit 0). `git diff --check` passed. Whole-project lint and a production build were not run for this static section change.
+- Ran inline Playwright Chromium against `IFIP_ISOLATED_DEV=1 NEXT_PUBLIC_API_URL=http://127.0.0.1:59999/api/v1 node node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port 3107`, with API traffic intercepted. At 320, 375, 639, 640, 768 and 1280 CSS px, verified four learning cards in reading order, the existing guide target, no horizontal overflow, equal paired card heights and aligned list starts. RTL at 1280 px had no horizontal overflow. The guide accepted keyboard focus and a fresh load reported no page errors.
+- Reviewed [desktop](homepage/curriculum-ai-1280.png) and [mobile](homepage/curriculum-ai-375.png) captures. Navigation links and the development indicator were hidden only for section captures; the fixed header shell still appears in the desktop capture. Local Google Fonts access failed, so these captures use fallback typography. The dev server also logged the previously recorded reduced-motion hydration warning in the hero entrance. No actionable layout findings in the tested curriculum section. At 200% CSS zoom the section fits; the existing top navigation extends beyond the viewport. Actual browser zoom, screen-reader testing, translated copy and production Sora rendering are not verified. This does not establish whole-page accessibility approval.
+- Next step: review the local result with the production font available. Commit and deployment remain pending explicit authorization.
+
 ## Session expiry investigation
 
 - Source review with `rg -n` traced the admin timer, shared API client, and Express refresh handler. Admin refresh runs two minutes before access expiry and uses the refresh cookie alone. The shared 401 recovery path also sends the stored refresh token. Both client paths redirect to the session-expired page on refresh failure.

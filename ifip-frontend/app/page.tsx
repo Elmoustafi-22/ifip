@@ -3,7 +3,7 @@ import Link from "next/link";
 import {
   TbArrowUpRight, TbArrowsExchange, TbAward, TbBook, TbBrandLinkedin,
   TbBrandWhatsapp, TbBriefcase, TbDownload, TbMail, TbMapPin,
-  TbSchool, TbUser, TbUserCog,
+  TbSchool, TbSparkles, TbUser, TbUserCog,
 } from "react-icons/tb";
 import HomeNav from "@/components/home/HomeNav";
 import HomepageReveal from "@/components/home/HomepageReveal";
@@ -36,9 +36,13 @@ const curriculum = [
     topics: ["Research and analytical thinking in finance", "Project execution and real-world simulations", "Industry tools, digital skills and productivity", "Internship orientation and expectations"],
   },
   {
-    title: programCertificate.title,
-    icon: programCertificate.icon,
-    topics: programCertificate.topics,
+    title: "AI for Effective Workplace Practice",
+    icon: TbSparkles,
+    topics: [
+      "Create and improve professional work deliverables with AI.",
+      "Use AI for research, writing, analysis and other workplace activities.",
+      "Verify AI outputs, protect information and maintain professional judgement.",
+    ],
   },
 ];
 
@@ -90,12 +94,22 @@ export default function Home() {
           <div className="ifip-home-cards ifip-home-curriculum-cards">
             {curriculum.map(({ icon: Icon, title, topics }, index) => (
               <HomepageReveal as="article" className="ifip-home-card" key={title} delay={index * 0.06}>
-                <span className="ifip-home-icon"><Icon aria-hidden="true" /></span>
-                <h3>{title}</h3>
+                <header className="ifip-home-curriculum-heading">
+                  <span className="ifip-home-icon"><Icon aria-hidden="true" /></span>
+                  <h3>{title}</h3>
+                </header>
                 <ul className="ifip-home-curriculum-list">{topics.map((topic) => <li key={topic}>{topic}</li>)}</ul>
               </HomepageReveal>
             ))}
           </div>
+          <HomepageReveal as="article" className="ifip-home-card ifip-home-curriculum-certificate">
+            <span className="ifip-home-icon"><programCertificate.icon aria-hidden="true" /></span>
+            <div>
+              <h3>{programCertificate.title}</h3>
+              <p>{programCertificate.detail}</p>
+              <p className="ifip-home-curriculum-certificate-detail">Awarded after the 4-week training and required before joining the talent pool. Shows partners you are internship ready.</p>
+            </div>
+          </HomepageReveal>
         </div>
       </section>
 

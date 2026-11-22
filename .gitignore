@@ -25,6 +25,7 @@ dist/
 
 # Optional local files
 *.local
+docs/
 
 # Local agent tooling
 /.agents/

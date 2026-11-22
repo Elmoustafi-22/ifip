@@ -34,7 +34,7 @@ See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and 
 
 - **Pathway approved and implemented locally.** See [progress and verification](PROGRESS.md#homepage-pathway-implementation). The [earlier homepage report](homepage/HOMEPAGE_HERO_VERIFICATION.md) is retained as historical evidence.
 - **Professional Certificate added to the homepage pathway.** See [verification](PROGRESS.md#homepage-professional-certificate).
-- **Professional Certificate added to the homepage curriculum.** The approved fourth card uses the shared curriculum styling. See [local verification](PROGRESS.md#homepage-curriculum-certificate-card).
+- **AI workplace practice added to the homepage curriculum.** The approved layout uses four learning cards in two columns with aligned headings and lists, followed by a full-width certificate panel. See [local verification](PROGRESS.md#homepage-ai-workplace-curriculum).
 - **Active openings use published partner jobs.** The homepage uses the same status and deadline rules as participant Job Openings. See [verification](PROGRESS.md#cv-request-email-and-homepage-partner-jobs).
 
 ## Partner application
