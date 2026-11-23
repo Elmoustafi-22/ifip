@@ -35,35 +35,39 @@ export const startApplication = async (req: Request, res: Response) => {
     const rawEmail = req.body.email || '';
     const email = rawEmail.trim().toLowerCase();
 
+    // A saved applicant may regain access by email even after intake closes.
+    // Checkout still validates the current cohort and its remaining capacity.
     try {
-        const cohort = await getActiveRegistrationCohort();
-        if (!cohort) {
-            res.status(403).json({
-                code: 'REGISTRATION_CLOSED',
-                message: 'Registration is currently closed. Join the waitlist for updates.',
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            res.status(400).json({
+                code: 'EMAIL_ALREADY_REGISTERED',
+                message: 'This email is already registered. Please log in to your dashboard.',
             });
             return;
         }
-        const { isFull } = await checkCohortCapacity(cohort._id);
-        if (isFull) {
-            res.status(403).json({
-                code: 'COHORT_FULL',
-                message: cohort.name + ' is now full. Please join the waitlist.',
-            });
-            return;
+        const existingApplicant = await Applicant.findOne({ email });
+        if (!existingApplicant) {
+            const cohort = await getActiveRegistrationCohort();
+            if (!cohort) {
+                res.status(403).json({
+                    code: 'REGISTRATION_CLOSED',
+                    message: 'Registration is currently closed. Join the waitlist for updates.',
+                });
+                return;
+            }
+            const { isFull } = await checkCohortCapacity(cohort._id);
+            if (isFull) {
+                res.status(403).json({
+                    code: 'COHORT_FULL',
+                    message: cohort.name + ' is now full. Please join the waitlist.',
+                });
+                return;
+            }
         }
     } catch {
         res.status(503).json({
             message: 'Unable to start your application right now. Try sending the code again in a moment.',
-        });
-        return;
-    }
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-        res.status(400).json({
-            code: 'EMAIL_ALREADY_REGISTERED',
-            message: 'This email is already registered. Please log in to your dashboard.',
         });
         return;
     }

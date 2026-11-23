@@ -465,6 +465,7 @@ export default function ApplyPage() {
 
   // Waitlist/Cohort status state
   const [registrationAvailability, setRegistrationAvailability] = useState<RegistrationAvailability>({ status: "checking" });
+  const [recoverExistingApplication, setRecoverExistingApplication] = useState(false);
   const registrationStartRequested = useRef(false);
   const [waitlistEmail, setWaitlistEmail] = useState("");
   const [waitlist, setWaitlist] = useState<WaitlistSubmission>({ status: "idle" });
@@ -1003,10 +1004,12 @@ export default function ApplyPage() {
       if (!mounted.current) return;
       if (err instanceof Error && "apiCode" in err && err.apiCode === "COHORT_FULL") {
         setOtpSent(false);
+        setRecoverExistingApplication(false);
         setWaitlistEmail(cleanEmail);
         setRegistrationAvailability({ status: "full", cohortName: "cohortName" in registrationAvailability ? registrationAvailability.cohortName : undefined });
       } else if (err instanceof Error && "apiCode" in err && err.apiCode === "REGISTRATION_CLOSED") {
         setOtpSent(false);
+        setRecoverExistingApplication(false);
         setWaitlistEmail(cleanEmail);
         setRegistrationAvailability({ status: "closed" });
       } else {
@@ -1499,8 +1502,8 @@ export default function ApplyPage() {
             </section>
           </RegistrationEntryFrame>
         ) : editorialEntry ? (
-          <RegistrationEntryFrame open={otpSent || (registrationAvailability.status !== "full" && registrationAvailability.status !== "closed")}>
-            {!otpSent && (registrationAvailability.status === "full" || registrationAvailability.status === "closed") ? (
+          <RegistrationEntryFrame open={otpSent || recoverExistingApplication || (registrationAvailability.status !== "full" && registrationAvailability.status !== "closed")}>
+            {!otpSent && !recoverExistingApplication && (registrationAvailability.status === "full" || registrationAvailability.status === "closed") ? (
               <section aria-labelledby="waitlist-heading">
                 <EntryIntake
                   label={registrationAvailability.status === "full" ? "Cohort at capacity" : "Registration closed"}
@@ -1562,13 +1565,16 @@ export default function ApplyPage() {
                         <span aria-hidden="true" className="text-xl leading-none">→</span>
                       </button>
                     </form>
+                    <button type="button" onClick={() => { setEmail(waitlistEmail); setRecoverExistingApplication(true); }} className={`mt-5 text-sm font-semibold text-secondary underline underline-offset-4 ${entryFocus}`}>
+                      Already started? Verify your email to continue
+                    </button>
                   </>
                 )}
               </section>
             ) : (
               <section aria-labelledby="verify-heading">
                 <EntryIntake
-                  label={registrationAvailability.status === "open" ? "Registration open" : "Start your application"}
+                  label={recoverExistingApplication ? "Continue your application" : registrationAvailability.status === "open" ? "Registration open" : "Start your application"}
                   cohortName={registrationAvailability.status === "open" ? registrationAvailability.cohortName : undefined}
                   tone={registrationAvailability.status === "open" ? "open" : "neutral"}
                 />

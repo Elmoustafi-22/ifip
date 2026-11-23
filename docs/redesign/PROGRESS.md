@@ -1,5 +1,12 @@
 # IFIP modernization progress
 
+## Existing applicant recovery after intake closure
+
+- On 23 November 2026, the user authorized recovery for existing registrations. The applicant start endpoint now checks for an existing account, then a saved applicant draft. A saved draft can receive the existing OTP when registration is closed or full; a new email still receives the current closed/full response. OTP verification still proves ownership before restoring the draft. Checkout continues to enforce the active cohort and capacity.
+- The closed/full waitlist screen offers “Already started? Verify your email to continue.” It carries over an email already typed into the waitlist field. If the address has no saved draft, the start response returns to the waitlist with that email retained.
+- Backend `node --import tsx tests/registration-availability.mjs` passed with fixtures covering saved drafts during closed/full intake and new applicants still blocked. Backend `node node_modules/typescript/bin/tsc --noEmit --incremental false` and frontend `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false` passed. Scoped ESLint retained the same five errors and fifteen warnings as HEAD, with matching rule and message counts. `git diff --check` passed. Inline Playwright Chromium at 375 CSS px, with API responses intercepted, verified the closed-intake recovery action, email carryover, OTP entry, and return to waitlist for an address without a draft. Real MongoDB, Redis and email integration remain open under REG-00 because the local Docker engine was unavailable.
+- Next step: verify real draft recovery and checkout eligibility on isolated staging. Commit/deployment remain pending explicit authorization.
+
 ## Shared registration availability rules
 
 - The user authorized the backend consistency correction on 23 November 2026. Preserved the preceding uncommitted entry UI and tracker changes. Extracted the existing active-registration-window and capacity helpers into `services/registrationAvailability.ts`; payment keeps compatibility exports and its existing capacity behavior. Registration status and applicant start now use the shared helpers. Applicant start no longer counts unrelated cohorts against the legacy global cap.
