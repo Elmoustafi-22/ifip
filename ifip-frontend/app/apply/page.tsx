@@ -482,6 +482,7 @@ export default function ApplyPage() {
   // Waitlist/Cohort status state
   const [registrationAvailability, setRegistrationAvailability] = useState<RegistrationAvailability>({ status: "checking" });
   const [registrationNotice, setRegistrationNotice] = useState<RegistrationNotice | null>(null);
+  const [registrationNoticeLoading, setRegistrationNoticeLoading] = useState(true);
   const [noticeClock, setNoticeClock] = useState(0);
   const [recoverExistingApplication, setRecoverExistingApplication] = useState(false);
   const registrationStartRequested = useRef(false);
@@ -786,7 +787,7 @@ export default function ApplyPage() {
       setRegistrationNotice(notice);
       expiryTimer = setTimeout(() => setRegistrationNotice(null), remaining);
       clockTimer = setInterval(() => setNoticeClock(Date.now()), 15000);
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => { if (active) setRegistrationNoticeLoading(false); });
     return () => {
       active = false;
       if (expiryTimer) clearTimeout(expiryTimer);
@@ -1496,14 +1497,6 @@ export default function ApplyPage() {
       <main className={editorialEntry
         ? `${entryWidth} flex-1 pt-5 min-[681px]:pt-12 [&_input]:scroll-my-6 [&_button]:scroll-my-6`
         : `${entryWidth} flex-1 pt-5 sm:pt-10`}>
-        {registrationNotice && (
-          <div role="status" className="mb-5 rounded-xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm leading-relaxed text-amber-950">
-            <p className="font-semibold">New applications are temporarily paused</p>
-            <p>{registrationNotice.message}</p>
-            <p>Please return in {timeUntil(registrationNotice.expiresAt, noticeClock)} to continue.</p>
-            <p>Already started? Use your resume link or verify your email below.</p>
-          </div>
-        )}
         <p role="status" className="sr-only">{!isResuming && !canContinueApplication ? availabilityAnnouncement : ""}</p>
 
         {paymentRecovery && !isResuming ? (
@@ -1550,8 +1543,20 @@ export default function ApplyPage() {
             </section>
           </RegistrationEntryFrame>
         ) : editorialEntry ? (
-          <RegistrationEntryFrame open={otpSent || recoverExistingApplication || (registrationAvailability.status !== "full" && registrationAvailability.status !== "closed")}>
-            {!otpSent && !recoverExistingApplication && (registrationAvailability.status === "full" || registrationAvailability.status === "closed") ? (
+          <RegistrationEntryFrame open={!registrationNotice && !registrationNoticeLoading && (otpSent || recoverExistingApplication || (registrationAvailability.status !== "full" && registrationAvailability.status !== "closed"))}>
+            {registrationNoticeLoading ? (
+              <section aria-labelledby="registration-opening-heading" role="status">
+                <h1 id="registration-opening-heading" className={entryHeading}>Opening registration</h1>
+              </section>
+            ) : registrationNotice ? (
+              <section aria-labelledby="registration-pause-heading" role="status">
+                <EntryIntake label="Applications paused" tone="waitlist" />
+                <h1 id="registration-pause-heading" className={entryHeading}>Registration is temporarily paused</h1>
+                <p className={`${entryCopy} mt-3`}>{registrationNotice.message}</p>
+                <p className={`${entryCopy} mt-3 font-semibold`}>Please return in {timeUntil(registrationNotice.expiresAt, noticeClock)} to continue.</p>
+                <p className={`${entryCopy} mt-6`}>Already started? Use the resume link in your email to continue your application.</p>
+              </section>
+            ) : !otpSent && !recoverExistingApplication && (registrationAvailability.status === "full" || registrationAvailability.status === "closed") ? (
               <section aria-labelledby="waitlist-heading">
                 <EntryIntake
                   label={registrationAvailability.status === "full" ? "Cohort at capacity" : "Registration closed"}

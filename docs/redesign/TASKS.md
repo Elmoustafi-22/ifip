@@ -6,6 +6,7 @@ Registration and enrollment redesign
 See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and [verification evidence](PROGRESS.md).
 
 ## Current Status
+- **Registration pause now replaces the email form in its panel.** The separate banner was removed; the form stays hidden until the notice expires. [Local browser verification](PROGRESS.md#registration-pause-within-form-panel).
 - **Temporary registration notice implemented locally.** A superadmin can publish a notice in Admin → Overview → System with an expiry time in Lagos time; new applications pause while saved applicants can recover. See [verification and rollout notes](PROGRESS.md#temporary-registration-notice).
 - **Existing applicant recovery implemented locally.** Saved applicants can request a new verification code after intake closes or fills; new applicants still follow the waitlist. [Verification](PROGRESS.md#existing-applicant-recovery-after-intake-closure).
 - **Registration availability consistency implemented locally.** Applicant start and registration status share the cohort/window/capacity helpers; sending a code no longer waits on a separate status request. [Verification and integration gaps](PROGRESS.md#shared-registration-availability-rules).
@@ -36,6 +37,7 @@ See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and 
 
 ## Homepage
 
+- **Classic visual direction reviewed, 23 November 2026.** Home and registration review, image brief, typography proposal and dashboard-only mobile navigation scope are recorded in [progress](PROGRESS.md#home-and-registration-ui-review). Application source is unchanged; visual implementation is the next checkpoint.
 - **Pathway approved and implemented locally.** See [progress and verification](PROGRESS.md#homepage-pathway-implementation). The [earlier homepage report](homepage/HOMEPAGE_HERO_VERIFICATION.md) is retained as historical evidence.
 - **Professional Certificate added to the homepage pathway.** See [verification](PROGRESS.md#homepage-professional-certificate).
 - **AI workplace practice added to the homepage curriculum.** The approved layout uses four learning cards in two columns with aligned headings and lists, followed by a full-width certificate panel. See [local verification](PROGRESS.md#homepage-ai-workplace-curriculum).
