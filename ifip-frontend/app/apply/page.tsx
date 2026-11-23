@@ -1738,7 +1738,7 @@ export default function ApplyPage() {
                 )}
               </section>
             )}
-            <EntryRecovery />
+            {!registrationNotice && !registrationNoticeLoading && <EntryRecovery />}
           </RegistrationEntryFrame>
         ) : (
           <div className={step < 7 ? "grid overflow-hidden rounded-[18px] border border-[#cbd8e8] bg-[#ffffff] lg:grid-cols-[232px_minmax(0,1fr)]" : "rounded-[18px] border border-[#cbd8e8] bg-[#ffffff]"}>

@@ -6,7 +6,7 @@ Registration and enrollment redesign
 See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and [verification evidence](PROGRESS.md).
 
 ## Current Status
-- **Registration pause now replaces the email form in its panel.** The separate banner was removed; the form stays hidden until the notice expires. [Local browser verification](PROGRESS.md#registration-pause-within-form-panel).
+- **Registration pause now replaces the email form in its panel.** The separate banner and duplicate recovery section were removed during the pause; the form returns when the notice expires. [Local verification](PROGRESS.md#registration-pause-within-form-panel).
 - **Temporary registration notice implemented locally.** A superadmin can publish a notice in Admin → Overview → System with an expiry time in Lagos time; new applications pause while saved applicants can recover. See [verification and rollout notes](PROGRESS.md#temporary-registration-notice).
 - **Existing applicant recovery implemented locally.** Saved applicants can request a new verification code after intake closes or fills; new applicants still follow the waitlist. [Verification](PROGRESS.md#existing-applicant-recovery-after-intake-closure).
 - **Registration availability consistency implemented locally.** Applicant start and registration status share the cohort/window/capacity helpers; sending a code no longer waits on a separate status request. [Verification and integration gaps](PROGRESS.md#shared-registration-availability-rules).

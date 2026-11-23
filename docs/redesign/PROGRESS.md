@@ -2,6 +2,8 @@
 
 ## Registration pause within form panel
 
+- Follow-up: hid the shared “Already started an application?” recovery section while the pause notice or its initial lookup is shown. The pause panel's single resume-link sentence remains. The shared section returns with the normal email form after expiry. Frontend build TypeScript and `git diff --check` passed; this conditional copy change was not separately rendered in a browser.
+
 - The user rejected the separate notice banner shown above an active email form. The public `/apply` entry now shows the pause heading, traffic message and remaining time inside the existing registration form panel. While the notice is active, the email field and Send code button are absent. A saved applicant with a valid resume link still follows the existing resume path.
 - The entry waits for the notice lookup before exposing the form, preventing a brief form flash on a paused visit. At expiry the notice clears and the form returns without a reload. Inline Playwright Chromium with intercepted API responses verified delayed notice lookup, no email field before or during pause, no Send code button during pause, countdown text, and form restoration after a three-second expiry at 1280 CSS px. Frontend build TypeScript and `git diff --check` passed. Production API, persistence and real-time midnight behavior remain unverified.
 
