@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { CohortConfig } from '../models/CohortConfig.js';
 import { Cohort } from '../models/Cohort.js';
 import { env } from '../config/env.js';
-import { getActiveRegistrationCohort, checkCohortCapacity } from '../controllers/paymentController.js';
+import { getActiveRegistrationCohort, checkCohortCapacity } from '../services/registrationAvailability.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { logAction } from '../utils/auditLogger.js';

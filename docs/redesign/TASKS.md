@@ -6,6 +6,8 @@ Registration and enrollment redesign
 See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and [verification evidence](PROGRESS.md).
 
 ## Current Status
+- **Registration availability consistency implemented locally.** Applicant start and registration status share the cohort/window/capacity helpers; sending a code no longer waits on a separate status request. [Verification and integration gaps](PROGRESS.md#shared-registration-availability-rules).
+- **Immediate applicant registration entry implemented locally.** The email form renders while availability loads quietly; failed checks retain the form, and confirmed closed/full intakes offer the waitlist. See [checks and the separate backend recommendation](PROGRESS.md#immediate-applicant-registration-entry).
 - Project-wide documentation prepared for review. The [shared design direction](DESIGN.md) is provisional.
 - **REG-00 partially verified.** The [baseline report](registration/REGISTRATION_BASELINE.md) contains the public and tokenless captures, checks, and defects. Isolated integration access and design sign-off remain open.
 - **REG-01 complete locally.** The user approved this slice while REG-00 remains open. [Fixture results and screenshots](registration/REGISTRATION_REG01_VERIFICATION.md) are ready for review. Isolated staging verification remains pending.

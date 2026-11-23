@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { isAxiosError } from 'axios';
 import type { Request, Response } from 'express';
-import mongoose, { Types, type ClientSession } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import { Applicant } from '../models/Applicants.js';
 import { Payment, type BankTransfer, type IPayment } from '../models/Payments.js';
 import { Application } from '../models/Application.js';
@@ -19,52 +19,8 @@ import { getLevyAmounts } from '../models/LevyPricing.js';
 import { executeApplicationSubmission } from './applicantController.js';
 import { logRawAction } from '../utils/auditLogger.js';
 
-export const getActiveRegistrationCohort = async (session: ClientSession | null = null) => {
-    const currentDate = new Date();
-    const cohort = await Cohort.findOne({
-        registrationStartDate: { $lte: currentDate },
-        registrationEndDate: { $gte: currentDate },
-        status: 'upcoming'
-    }).session(session);
-    return cohort;
-};
-
-export const checkCohortCapacity = async (cohortId: Types.ObjectId | string, excludeApplicantId?: string, session: ClientSession | null = null): Promise<{ isFull: boolean; count: number; cap: number }> => {
-    const cohort = await Cohort.findById(cohortId).session(session);
-    if (!cohort) {
-        return { isFull: true, count: 0, cap: 0 };
-    }
-
-    const applicationsCount = await Application.countDocuments({
-        cohortId: new Types.ObjectId(cohortId as string),
-        status: { $in: ['payment_confirmed', 'active', 'completed', 'placement_ready'] }
-    }).session(session);
-
-    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
-    const filter: any = {
-        cohortId: new Types.ObjectId(cohortId as string),
-        $or: [
-            { isPaid: true },
-            { transferHoldUntil: { $gt: new Date() } },
-            { 
-                isPaid: false, 
-                checkoutStartedAt: { $gte: fifteenMinutesAgo } 
-            }
-        ]
-    };
-    if (excludeApplicantId) {
-        filter._id = { $ne: new Types.ObjectId(excludeApplicantId) };
-    }
-
-    const lockedApplicantsCount = await Applicant.countDocuments(filter).session(session);
-    const totalOccupied = applicationsCount + lockedApplicantsCount;
-
-    return {
-        isFull: totalOccupied >= cohort.cohortCap,
-        count: totalOccupied,
-        cap: cohort.cohortCap
-    };
-};
+import { checkCohortCapacity } from '../services/registrationAvailability.js';
+export { getActiveRegistrationCohort, checkCohortCapacity } from '../services/registrationAvailability.js';
 
 class CheckoutRejected extends Error {
     constructor(message: string, public statusCode = 400) {

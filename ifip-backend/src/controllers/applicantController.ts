@@ -14,6 +14,7 @@ import { paymentReadySchema } from '../validators/applicantValidators.js';
 import { env } from '../config/env.js';
 import { CohortConfig } from '../models/CohortConfig.js';
 import { logRawAction } from '../utils/auditLogger.js';
+import { getActiveRegistrationCohort, checkCohortCapacity } from '../services/registrationAvailability.js';
 
 
 export const getCohortStatus = async (req: Request, res: Response) => {
@@ -34,23 +35,26 @@ export const startApplication = async (req: Request, res: Response) => {
     const rawEmail = req.body.email || '';
     const email = rawEmail.trim().toLowerCase();
 
-    const activeApplicationsCount = await Application.countDocuments({ status: { $ne: 'withdrawn' } });
-    let cap = Number(env.COHORT_CAP || 100);
-    const config = await CohortConfig.findOne();
-    if (config && config.cohortCap !== undefined) {
-        cap = config.cohortCap;
-    }
-    if (activeApplicationsCount >= cap) {
-        const currentDate = new Date();
-        const activeCohort = await Cohort.findOne({
-            registrationStartDate: { $lte: currentDate },
-            registrationEndDate: { $gte: currentDate },
-            status: 'upcoming'
-        });
-        const cohortName = activeCohort ? activeCohort.name : 'The cohort';
-        res.status(403).json({
-            code: 'COHORT_FULL',
-            message: `${cohortName} is now full. Please join the waitlist.`,
+    try {
+        const cohort = await getActiveRegistrationCohort();
+        if (!cohort) {
+            res.status(403).json({
+                code: 'REGISTRATION_CLOSED',
+                message: 'Registration is currently closed. Join the waitlist for updates.',
+            });
+            return;
+        }
+        const { isFull } = await checkCohortCapacity(cohort._id);
+        if (isFull) {
+            res.status(403).json({
+                code: 'COHORT_FULL',
+                message: cohort.name + ' is now full. Please join the waitlist.',
+            });
+            return;
+        }
+    } catch {
+        res.status(503).json({
+            message: 'Unable to start your application right now. Try sending the code again in a moment.',
         });
         return;
     }

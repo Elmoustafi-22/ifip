@@ -62,6 +62,20 @@ type RegistrationAvailability =
   | { status: "checking" | "closed" | "failed" }
   | { status: "open" | "full"; cohortName?: string };
 
+// A failed lookup is unknown, never evidence that registration is closed.
+async function loadRegistrationAvailability(): Promise<RegistrationAvailability> {
+  try {
+    const data = await getRegistrationStatus();
+    if (data?.hasActiveCohort === false) return { status: "closed" };
+    if (data?.hasActiveCohort === true && typeof data.isFull === "boolean") {
+      return { status: data.isFull ? "full" : "open", cohortName: data.cohortName };
+    }
+  } catch {
+    // Keep entry usable; the start endpoint validates availability on submission.
+  }
+  return { status: "failed" };
+}
+
 type WaitlistSubmission =
   | { status: "idle" | "submitting" | "joined" | "already_joined" | "failed" }
   | { status: "invalid"; message: string };
@@ -451,7 +465,7 @@ export default function ApplyPage() {
 
   // Waitlist/Cohort status state
   const [registrationAvailability, setRegistrationAvailability] = useState<RegistrationAvailability>({ status: "checking" });
-  const [availabilityAttempt, setAvailabilityAttempt] = useState(0);
+  const registrationStartRequested = useRef(false);
   const [waitlistEmail, setWaitlistEmail] = useState("");
   const [waitlist, setWaitlist] = useState<WaitlistSubmission>({ status: "idle" });
   const waitlistRequest = useRef(false);
@@ -731,43 +745,27 @@ export default function ApplyPage() {
 
 
 
-  // Each lookup owns its response until a retry or unmount supersedes it.
+  // Start quietly while the applicant reads and enters their email.
   useEffect(() => {
     let ignore = false;
-
-    getRegistrationStatus().then((data) => {
-      if (ignore) return;
-      if (data?.hasActiveCohort === false) {
-        setRegistrationAvailability({ status: "closed" });
-      } else if (data?.hasActiveCohort === true && typeof data.isFull === "boolean") {
-        setRegistrationAvailability({ status: data.isFull ? "full" : "open", cohortName: data.cohortName });
-      } else {
-        setRegistrationAvailability({ status: "failed" });
-      }
-    }).catch(() => {
-      if (!ignore) setRegistrationAvailability({ status: "failed" });
+    const request = loadRegistrationAvailability();
+    void request.then((result) => {
+      if (!ignore && !registrationStartRequested.current) setRegistrationAvailability(result);
     });
-
     return () => { ignore = true; };
-  }, [availabilityAttempt]);
+  }, []);
 
   useEffect(() => {
-    if (availabilityAttempt > 0 && document.activeElement === document.body) {
-      availabilityHeading.current?.focus();
+    if (registrationAvailability.status === "full" || registrationAvailability.status === "closed") {
+      if (!otpSent && !token) availabilityHeading.current?.focus();
     }
-  }, [registrationAvailability.status, availabilityAttempt]);
+  }, [registrationAvailability.status, otpSent, token]);
 
   useEffect(() => {
     if (waitlist.status === "joined" || waitlist.status === "already_joined") {
       waitlistResultHeading.current?.focus();
     }
   }, [waitlist.status]);
-
-  const retryAvailability = () => {
-    if (registrationAvailability.status !== "failed") return;
-    setRegistrationAvailability({ status: "checking" });
-    setAvailabilityAttempt((attempt) => attempt + 1);
-  };
 
   // Geolocation supplies defaults only. A saved or manually chosen value wins.
   useEffect(() => {
@@ -989,9 +987,11 @@ export default function ApplyPage() {
       entryEmailInput.current?.focus();
       return;
     }
+    registrationStartRequested.current = true;
     activeVerification.current = true;
     setVerificationRequest(otpSent ? "resending" : "sending");
     try {
+      // The start endpoint validates the current intake before issuing a code.
       await startApplication(cleanEmail);
       if (!mounted.current) return;
       setEmail(cleanEmail);
@@ -1002,7 +1002,13 @@ export default function ApplyPage() {
     } catch (err) {
       if (!mounted.current) return;
       if (err instanceof Error && "apiCode" in err && err.apiCode === "COHORT_FULL") {
+        setOtpSent(false);
+        setWaitlistEmail(cleanEmail);
         setRegistrationAvailability({ status: "full", cohortName: "cohortName" in registrationAvailability ? registrationAvailability.cohortName : undefined });
+      } else if (err instanceof Error && "apiCode" in err && err.apiCode === "REGISTRATION_CLOSED") {
+        setOtpSent(false);
+        setWaitlistEmail(cleanEmail);
+        setRegistrationAvailability({ status: "closed" });
       } else {
         setRegisteredEmail(err instanceof Error && "apiCode" in err && err.apiCode === "EMAIL_ALREADY_REGISTERED");
         setErrorMsg(err instanceof Error ? err.message : "Failed to send verification code.");
@@ -1102,7 +1108,7 @@ export default function ApplyPage() {
     if (resumeStatus === "retry" || resumeStatus === "invalid_link" || resumeStatus === "stale_session") {
       resumeHeading.current?.focus();
     }
-    if (resumeStatus === "idle" && focusEntryEmail.current && registrationAvailability.status !== "checking") {
+    if (resumeStatus === "idle" && focusEntryEmail.current) {
       (entryEmailInput.current ?? availabilityHeading.current)?.focus();
       focusEntryEmail.current = false;
     }
@@ -1389,11 +1395,11 @@ export default function ApplyPage() {
   const isResuming = resumeStatus !== "idle";
   const editorialEntry = isResuming || paymentRecovery || step === 1 || (!canContinueApplication && registrationAvailability.status !== "open");
   const availabilityAnnouncement = {
-    checking: "Checking registration availability.",
+    checking: "",
     open: "Registration is open.",
     full: "This cohort is full. You can join the waitlist.",
     closed: "Registration is closed. You can join the waitlist.",
-    failed: "We couldn’t check registration availability. Try again.",
+    failed: "",
   }[registrationAvailability.status];
 
   return (
@@ -1493,32 +1499,8 @@ export default function ApplyPage() {
             </section>
           </RegistrationEntryFrame>
         ) : editorialEntry ? (
-          <RegistrationEntryFrame open={registrationAvailability.status === "open"}>
-            {registrationAvailability.status === "checking" || registrationAvailability.status === "failed" ? (
-              <section aria-labelledby="availability-heading">
-                <EntryIntake
-                  label={registrationAvailability.status === "checking" ? "Checking availability" : "Availability unavailable"}
-                  tone={registrationAvailability.status === "failed" ? "error" : "neutral"}
-                />
-                <h1 id="availability-heading" className={entryHeading}>
-                  {registrationAvailability.status === "checking" ? "Checking registration availability" : "We couldn’t check registration availability"}
-                </h1>
-                <p className={`${entryCopy} mt-3`}>
-                  {registrationAvailability.status === "checking" ? "Checking whether applications are open." : "Check your connection and try again."}
-                </p>
-                {(availabilityAttempt > 0 || registrationAvailability.status === "failed") && (
-                  <button
-                    type="button"
-                    onClick={retryAvailability}
-                    aria-disabled={registrationAvailability.status === "checking"}
-                    className={`${entryAction} mt-6`}
-                  >
-                    {registrationAvailability.status === "checking" ? "Checking…" : "Check again"}
-                    <span aria-hidden="true" className="text-xl leading-none">→</span>
-                  </button>
-                )}
-              </section>
-            ) : registrationAvailability.status === "full" || registrationAvailability.status === "closed" ? (
+          <RegistrationEntryFrame open={otpSent || (registrationAvailability.status !== "full" && registrationAvailability.status !== "closed")}>
+            {!otpSent && (registrationAvailability.status === "full" || registrationAvailability.status === "closed") ? (
               <section aria-labelledby="waitlist-heading">
                 <EntryIntake
                   label={registrationAvailability.status === "full" ? "Cohort at capacity" : "Registration closed"}
@@ -1586,9 +1568,9 @@ export default function ApplyPage() {
             ) : (
               <section aria-labelledby="verify-heading">
                 <EntryIntake
-                  label="Registration open"
+                  label={registrationAvailability.status === "open" ? "Registration open" : "Start your application"}
                   cohortName={registrationAvailability.status === "open" ? registrationAvailability.cohortName : undefined}
-                  tone="open"
+                  tone={registrationAvailability.status === "open" ? "open" : "neutral"}
                 />
                 <div aria-current="step" className="mb-4 space-y-2 text-[13px] font-semibold text-[#43536e] min-[681px]:mb-6">
                   <p>Step 1 of {stepsList.length} · Verify email</p>
@@ -1624,7 +1606,10 @@ export default function ApplyPage() {
                         readOnly={verificationRequest !== "idle"}
                         placeholder="name@example.com"
                         value={email}
-                        onChange={(event) => handleInputChange("email", event.target.value, setEmail)}
+                        onChange={(event) => {
+                          handleInputChange("email", event.target.value, setEmail);
+                          setWaitlistEmail(event.target.value);
+                        }}
                         aria-invalid={!!errors.email || undefined}
                         aria-describedby={errors.email ? "apply-email-error" : undefined}
                         className={`${entryInput} ${errors.email ? "border-error" : "border-[#7185a0]"}`}
