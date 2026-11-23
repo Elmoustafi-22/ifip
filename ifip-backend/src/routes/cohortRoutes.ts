@@ -8,10 +8,56 @@ import { notificationEmitter } from '../services/notificationBroadcast.js';
 import { logAction } from '../utils/auditLogger.js';
 import { updateContentVersion } from '../controllers/contentVersionController.js';
 import { getLevyPricing } from '../controllers/levyPricingController.js';
+import { RegistrationNotice } from '../models/RegistrationNotice.js';
 
 const router = Router();
 
 router.get('/levy-pricing', getLevyPricing);
+
+router.get('/registration-notice', async (_req, res) => {
+    try {
+        res.set('Cache-Control', 'no-store');
+        const notice = await RegistrationNotice.findOne({ key: 'registration' });
+        res.json(notice && notice.expiresAt.getTime() > Date.now()
+            ? { message: notice.message, expiresAt: notice.expiresAt.toISOString() }
+            : null);
+    } catch {
+        res.status(503).json({ message: 'Unable to load the registration notice.' });
+    }
+});
+
+router.put('/registration-notice', authenticate, authorize('superadmin'), async (req, res) => {
+    const { message, expiresAt } = req.body ?? {};
+    if (typeof message !== 'string' || !message.trim() || message.trim().length > 280 ||
+        typeof expiresAt !== 'string' || !/Z$|[+-]\d{2}:\d{2}$/.test(expiresAt)) {
+        res.status(400).json({ message: 'Enter a message and an expiry time with a timezone.' });
+        return;
+    }
+    const expiry = new Date(expiresAt);
+    if (!Number.isFinite(expiry.getTime()) || expiry.getTime() <= Date.now()) {
+        res.status(400).json({ message: 'Choose a future expiry time.' });
+        return;
+    }
+    try {
+        const notice = await RegistrationNotice.findOneAndUpdate(
+            { key: 'registration' },
+            { $set: { message: message.trim(), expiresAt: expiry } },
+            { upsert: true, new: true, runValidators: true },
+        );
+        res.json({ message: notice.message, expiresAt: notice.expiresAt.toISOString() });
+    } catch {
+        res.status(503).json({ message: 'Unable to save the registration notice.' });
+    }
+});
+
+router.delete('/registration-notice', authenticate, authorize('superadmin'), async (_req, res) => {
+    try {
+        await RegistrationNotice.deleteOne({ key: 'registration' });
+        res.status(204).end();
+    } catch {
+        res.status(503).json({ message: 'Unable to remove the registration notice.' });
+    }
+});
 
 router.get('/registration-status', async (req, res) => {
     try {

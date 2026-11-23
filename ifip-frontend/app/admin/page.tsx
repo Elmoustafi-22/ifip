@@ -23,6 +23,7 @@ import {
 import { useContext } from "react";
 import { AdminCohortContext } from "./layout";
 import LevyPricingForm from "@/components/admin/LevyPricingForm";
+import RegistrationNoticeForm from "@/components/admin/RegistrationNoticeForm";
 import ExportApplicantsModal from "@/components/admin/ExportApplicantsModal";
 import CohortWaitlistControls from "@/components/admin/CohortWaitlistControls";
 import { 
@@ -589,6 +590,7 @@ export default function AdminDashboardPage() {
             </form>
           </div>
           {adminRole === "superadmin" && <LevyPricingForm />}
+          {adminRole === "superadmin" && <RegistrationNoticeForm />}
         </div>
 
         {/* 2. Acquisition Desk (Col-span 1 on Desktop, controlled by activeTab on mobile) */}

@@ -15,6 +15,7 @@ import { env } from '../config/env.js';
 import { CohortConfig } from '../models/CohortConfig.js';
 import { logRawAction } from '../utils/auditLogger.js';
 import { getActiveRegistrationCohort, checkCohortCapacity } from '../services/registrationAvailability.js';
+import { RegistrationNotice } from '../models/RegistrationNotice.js';
 
 
 export const getCohortStatus = async (req: Request, res: Response) => {
@@ -48,6 +49,11 @@ export const startApplication = async (req: Request, res: Response) => {
         }
         const existingApplicant = await Applicant.findOne({ email });
         if (!existingApplicant) {
+            const notice = await RegistrationNotice.findOne({ key: 'registration', expiresAt: { $gt: new Date() } });
+            if (notice) {
+                res.status(403).json({ code: 'REGISTRATION_PAUSED', message: notice.message });
+                return;
+            }
             const cohort = await getActiveRegistrationCohort();
             if (!cohort) {
                 res.status(403).json({

@@ -40,11 +40,13 @@ import {
   initiatePayment,
   getCohortStatus,
   getRegistrationStatus,
+  getRegistrationNotice,
   joinWaitlist,
   validateCoupon,
 } from "@/lib/api/services";
 import { getAccessToken } from "@/lib/api/auth";
 import type { Applicant } from "@/lib/api/types";
+import type { RegistrationNotice } from "@/lib/api/services";
 import {
   step1EmailSchema,
   step1OtpSchema,
@@ -61,6 +63,20 @@ import { formatLevyAmount, useLevyPricing } from "@/lib/hooks/useLevyPricing";
 type RegistrationAvailability =
   | { status: "checking" | "closed" | "failed" }
   | { status: "open" | "full"; cohortName?: string };
+
+function timeUntil(expiry: string, now: number) {
+  const minutes = Math.ceil((Date.parse(expiry) - now) / 60000);
+  if (minutes <= 1) return "less than a minute";
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const remainingMinutes = minutes % 60;
+  const parts = [
+    days && `${days} ${days === 1 ? "day" : "days"}`,
+    hours && `${hours} ${hours === 1 ? "hour" : "hours"}`,
+    remainingMinutes && `${remainingMinutes} ${remainingMinutes === 1 ? "minute" : "minutes"}`,
+  ].filter(Boolean);
+  return parts.slice(0, 2).join(" ");
+}
 
 // A failed lookup is unknown, never evidence that registration is closed.
 async function loadRegistrationAvailability(): Promise<RegistrationAvailability> {
@@ -465,6 +481,8 @@ export default function ApplyPage() {
 
   // Waitlist/Cohort status state
   const [registrationAvailability, setRegistrationAvailability] = useState<RegistrationAvailability>({ status: "checking" });
+  const [registrationNotice, setRegistrationNotice] = useState<RegistrationNotice | null>(null);
+  const [noticeClock, setNoticeClock] = useState(0);
   const [recoverExistingApplication, setRecoverExistingApplication] = useState(false);
   const registrationStartRequested = useRef(false);
   const [waitlistEmail, setWaitlistEmail] = useState("");
@@ -757,6 +775,26 @@ export default function ApplyPage() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    let expiryTimer: ReturnType<typeof setTimeout> | undefined;
+    let clockTimer: ReturnType<typeof setInterval> | undefined;
+    void getRegistrationNotice().then((notice) => {
+      if (!active || !notice) return;
+      const remaining = Date.parse(notice.expiresAt) - Date.now();
+      if (remaining <= 0) return;
+      setNoticeClock(Date.now());
+      setRegistrationNotice(notice);
+      expiryTimer = setTimeout(() => setRegistrationNotice(null), remaining);
+      clockTimer = setInterval(() => setNoticeClock(Date.now()), 15000);
+    }).catch(() => {});
+    return () => {
+      active = false;
+      if (expiryTimer) clearTimeout(expiryTimer);
+      if (clockTimer) clearInterval(clockTimer);
+    };
+  }, []);
+
+  useEffect(() => {
     if (registrationAvailability.status === "full" || registrationAvailability.status === "closed") {
       if (!otpSent && !token) availabilityHeading.current?.focus();
     }
@@ -1012,6 +1050,8 @@ export default function ApplyPage() {
         setRecoverExistingApplication(false);
         setWaitlistEmail(cleanEmail);
         setRegistrationAvailability({ status: "closed" });
+      } else if (err instanceof Error && "apiCode" in err && err.apiCode === "REGISTRATION_PAUSED") {
+        setErrorMsg(err.message);
       } else {
         setRegisteredEmail(err instanceof Error && "apiCode" in err && err.apiCode === "EMAIL_ALREADY_REGISTERED");
         setErrorMsg(err instanceof Error ? err.message : "Failed to send verification code.");
@@ -1456,6 +1496,14 @@ export default function ApplyPage() {
       <main className={editorialEntry
         ? `${entryWidth} flex-1 pt-5 min-[681px]:pt-12 [&_input]:scroll-my-6 [&_button]:scroll-my-6`
         : `${entryWidth} flex-1 pt-5 sm:pt-10`}>
+        {registrationNotice && (
+          <div role="status" className="mb-5 rounded-xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm leading-relaxed text-amber-950">
+            <p className="font-semibold">New applications are temporarily paused</p>
+            <p>{registrationNotice.message}</p>
+            <p>Please return in {timeUntil(registrationNotice.expiresAt, noticeClock)} to continue.</p>
+            <p>Already started? Use your resume link or verify your email below.</p>
+          </div>
+        )}
         <p role="status" className="sr-only">{!isResuming && !canContinueApplication ? availabilityAnnouncement : ""}</p>
 
         {paymentRecovery && !isResuming ? (

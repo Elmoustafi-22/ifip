@@ -1,5 +1,14 @@
 import axios from "axios";
 import apiClient, { authClient } from "./client";
+
+export interface RegistrationNotice { message: string; expiresAt: string }
+export const getRegistrationNotice = async (): Promise<RegistrationNotice | null> =>
+  (await apiClient.get<RegistrationNotice | null>("/cohort/registration-notice")).data;
+export const saveRegistrationNotice = async (payload: RegistrationNotice): Promise<RegistrationNotice> =>
+  (await authClient.put<RegistrationNotice>("/cohort/registration-notice", payload)).data;
+export const removeRegistrationNotice = async (): Promise<void> => {
+  await authClient.delete("/cohort/registration-notice");
+};
 import {
   Applicant,
   StartApplicationResponse,
