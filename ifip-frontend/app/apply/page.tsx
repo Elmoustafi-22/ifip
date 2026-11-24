@@ -115,8 +115,8 @@ function saveInterest(choice: string, detail: string) {
 const registrationButton = "min-h-11 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary hover:bg-primary-container focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:bg-surface-container-high disabled:text-on-surface-variant";
 
 const entryWidth = "mx-auto w-full max-w-[1264px] px-4 min-[360px]:px-5 sm:px-[5vw] lg:px-14";
-const entryFocus = "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#12617e]";
-const entryHeading = "break-words font-sans text-[32px] leading-[1.045] font-bold tracking-[-0.045em] text-balance text-[#101f3f] min-[360px]:text-[36px] min-[681px]:text-[clamp(36px,4vw,51px)]";
+const entryFocus = "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-secondary";
+const entryHeading = "break-words font-display text-[32px] leading-[1.12] font-normal tracking-[-0.02em] text-balance text-primary min-[360px]:text-[36px] min-[681px]:text-[clamp(36px,4vw,51px)]";
 const entryCopy = "text-base leading-[1.55] text-[#43536e]";
 const entryInput = `min-h-[54px] w-full min-w-0 rounded-[10px] border bg-[#fbfcff] px-3.5 py-2.5 text-base text-[#101f3f] placeholder:text-[#616b81] ${entryFocus}`;
 const formControl = "min-h-12 w-full min-w-0 scroll-mt-28 rounded-lg border border-outline bg-surface-container-lowest px-2.5 py-2 text-base text-on-surface aria-invalid:border-error sm:px-3 " + entryFocus;
@@ -129,7 +129,7 @@ type CheckoutState =
   | { status: "idle" | "saving" | "requesting" | "redirecting" }
   | { status: "error"; title: string; message: string; canCheckPayment?: boolean };
 
-const formHeading = "scroll-mt-28 font-sans text-3xl font-bold tracking-tight leading-tight text-[#101f3f] sm:text-4xl";
+const formHeading = "scroll-mt-28 font-display text-3xl font-normal tracking-tight leading-tight text-primary sm:text-4xl";
 const formSection = "mb-3 font-sans text-xl font-semibold text-[#101f3f]";
 const optionalLabel = "font-normal text-on-surface-variant";
 const formLabel = "text-sm font-semibold text-on-surface";
@@ -147,18 +147,17 @@ const qualifications = [
   { value: "Master's Degree", label: "Master's Degree (M.Sc, MBA, etc.)" },
   { value: "Doctorate", label: "PhD / Doctorate" },
 ];
-const entryAction = `flex min-h-[54px] w-full items-center justify-between gap-3 rounded-[10px] bg-[#101f3f] px-4 py-3 text-start text-base font-semibold text-white hover:bg-[#24395f] motion-safe:transition-colors disabled:cursor-not-allowed disabled:bg-surface-container-high disabled:text-on-surface-variant aria-disabled:cursor-wait aria-disabled:bg-surface-container-high aria-disabled:text-on-surface-variant ${entryFocus}`;
+const entryAction = `flex min-h-[54px] w-full items-center justify-between gap-3 rounded-[10px] bg-primary px-4 py-3 text-start text-base font-semibold text-white hover:bg-primary-container motion-safe:transition-colors disabled:cursor-not-allowed disabled:bg-surface-container-high disabled:text-on-surface-variant aria-disabled:cursor-wait aria-disabled:bg-surface-container-high aria-disabled:text-on-surface-variant ${entryFocus}`;
 
 function RegistrationEntryFrame({ children, open = false }: { children: ReactNode; open?: boolean }) {
   return (
     <div className="grid overflow-hidden rounded-[14px] border border-[#cbd8e8] bg-white shadow-[0_18px_52px_#1824430c] min-[681px]:min-h-[530px] min-[681px]:grid-cols-2 min-[681px]:rounded-[22px] lg:min-h-[584px]">
-      <aside aria-label="About IFIP" className="relative isolate flex flex-col justify-between gap-8 overflow-hidden bg-[#101f3f] px-5 py-5 text-[#f4f8fe] min-[681px]:p-[clamp(30px,4vw,56px)]">
-        <div aria-hidden="true" className="pointer-events-none absolute -end-24 -bottom-20 -z-10 h-36 w-60 -rotate-[34deg] border-y-[16px] border-[#a9e2fa]/22 bg-[#a9e2fa]/16 bg-clip-content py-3" />
+      <aside aria-label="About IFIP" className="relative isolate flex flex-col justify-between gap-8 overflow-hidden bg-primary px-5 py-5 text-white min-[681px]:p-[clamp(30px,4vw,56px)]">
         <div>
           <p className="max-w-[38ch] text-xs font-semibold leading-normal text-[#a9e2fa] min-[681px]:mb-6 min-[681px]:text-sm lg:mb-[38px]">
-            Islamic Finance Internship Preparatory &amp; Placement Program
+            Islamic Finance Internship Program
           </p>
-          <p className="hidden max-w-[15ch] min-[681px]:block font-sans font-bold text-[clamp(32px,8vw,44px)] leading-none tracking-[-0.051em] text-balance min-[681px]:mt-0 min-[681px]:max-w-[13ch] min-[681px]:text-[clamp(39px,6vw,54px)] lg:text-[clamp(48px,4.5vw,62px)]">
+          <p className="hidden max-w-[15ch] min-[681px]:block font-display font-normal text-[clamp(32px,8vw,44px)] leading-[1.1] tracking-[-0.02em] text-balance min-[681px]:mt-0 min-[681px]:max-w-[13ch] min-[681px]:text-[clamp(39px,6vw,54px)] lg:text-[clamp(48px,4.5vw,62px)]">
             Build your future in <em className="not-italic text-[#a9e2fa]">Islamic finance.</em>
           </p>
           <p className="mt-5 hidden max-w-[37ch] text-base leading-[1.55] text-[#d1dff2] min-[681px]:block">
@@ -1447,7 +1446,7 @@ export default function ApplyPage() {
   }[registrationAvailability.status];
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#eef4fa] font-sans">
+    <div className="flex min-h-screen flex-col bg-academic-cream font-sans">
         <header className="border-b border-[#cbd8e8] bg-[#ffffff]">
           <div className={`${entryWidth} flex min-h-16 items-center justify-between gap-2 sm:min-h-[76px]`}>
             <Link href="/" className={`min-w-0 shrink ${entryFocus}`}>

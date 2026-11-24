@@ -37,10 +37,12 @@ See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and 
 
 ## Email provider
 
-**OutboxStack transport migrated locally.** Backend email templates and call sites use the shared OutboxStack adapter; staging sender-domain, API-key, delivery and rollback verification remain pending. See [migration evidence](PROGRESS.md#outboxstack-email-provider).
+**OutboxStack transport migrated locally.** Backend email templates and call sites use the shared OutboxStack adapter. Assessment announcement emails now fire only on the first transition to published, not draft creation or repeated publish requests. Staging sender-domain, API-key, delivery and rollback verification remain pending. See [migration evidence](PROGRESS.md#assessment-publish-email-trigger).
 
 ## Homepage
 
+- **Full-page Framer Motion entrances implemented locally, 24 November 2026.** The header and hero slide in on load. Section copy, cards, card contents, buttons, listings, partner marks, pricing, FAQ rows, and footer reveal in short staggered steps as they enter view. Reduced-motion and focus overrides remain in place. See [verification](PROGRESS.md#homepage-full-page-motion).
+- **Classic visual direction refined locally after full-page feedback.** The supplied `career.webp`, `curriculum.webp` and `application.webp` are used in the hero, curriculum and process. On mobile, `career.webp` fills the hero behind readable copy; the desktop hero stays split. The hero's extra status and placement text was removed while its cohort-aware action remains. The curriculum has four distinct, quiet card colors, numbered modules, Standard Assessment content and a certificate outcome panel. The eligibility-to-partner sequence has distinct surfaces and more deliberate motion; the public mobile bottom bar is removed. See [progress](PROGRESS.md#classic-home-and-registration-implementation).
 - **Classic visual direction reviewed, 23 November 2026.** Home and registration review, image brief, typography proposal and dashboard-only mobile navigation scope are recorded in [progress](PROGRESS.md#home-and-registration-ui-review). Application source is unchanged; visual implementation is the next checkpoint.
 - **Pathway approved and implemented locally.** See [progress and verification](PROGRESS.md#homepage-pathway-implementation). The [earlier homepage report](homepage/HOMEPAGE_HERO_VERIFICATION.md) is retained as historical evidence.
 - **Professional Certificate added to the homepage pathway.** See [verification](PROGRESS.md#homepage-professional-certificate).
@@ -48,6 +50,8 @@ See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and 
 - **Active openings use published partner jobs.** The homepage uses the same status and deadline rules as participant Job Openings. See [verification](PROGRESS.md#cv-request-email-and-homepage-partner-jobs).
 
 ## Partner application
+
+- **Admin partner organization edits:** Contact email is optional when editing an existing organization so website and other organization details can be saved without changing its portal invite contact. New organization registration still requires an email. Preserve the existing update API behavior and contact record when omitted. See [progress](PROGRESS.md#optional-contact-email-when-editing-a-partner).
 
 - **Pathway implemented locally.** The public intake form and confirmation use the registration styling. See [local verification](PROGRESS.md#pathway-partner-application).
 - **Custom partner sector implemented locally.** Selecting Other reveals a text field and submits its value with the selected sectors. See [verification](PROGRESS.md#custom-partner-sector).

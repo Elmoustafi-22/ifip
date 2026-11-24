@@ -1,5 +1,6 @@
 import { TbPlus } from "react-icons/tb";
 import HomepageReveal from "./HomepageReveal";
+import HomepageMotionItem from "./HomepageMotionItem";
 const faqs = [
   {
     q: "Is the program open to international participants?",
@@ -42,14 +43,16 @@ const faqs = [
 export default function FaqSection() {
   return (
     <section id="faq" className="ifip-home-section ifip-home-white" aria-labelledby="faq-title">
-      <HomepageReveal className="ifip-home-wrap ifip-home-section-grid">
-        <h2 id="faq-title">Frequently asked questions</h2>
+      <HomepageReveal className="ifip-home-wrap ifip-home-section-grid" direction="left">
+        <HomepageMotionItem as="h2" id="faq-title" delay={0.1} blur>Frequently asked questions</HomepageMotionItem>
         <div className="ifip-home-faq">
-          {faqs.map(({ q, a }) => (
-            <details key={q} name="homepage-faq">
+          {faqs.map(({ q, a }, index) => (
+            <HomepageReveal as="div" key={q} delay={Math.min(index, 5) * 0.05} direction="right">
+            <details name="homepage-faq">
               <summary>{q}<TbPlus aria-hidden="true" /></summary>
               <p>{a}</p>
             </details>
+            </HomepageReveal>
           ))}
         </div>
       </HomepageReveal>

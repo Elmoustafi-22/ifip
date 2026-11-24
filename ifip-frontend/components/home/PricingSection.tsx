@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { TbMapPin } from "react-icons/tb";
 import HomepageReveal from "./HomepageReveal";
+import HomepageMotionItem from "./HomepageMotionItem";
 import { formatLevyAmount, useLevyPricing } from "@/lib/hooks/useLevyPricing";
 
 export default function PricingSection() {
@@ -27,18 +28,18 @@ export default function PricingSection() {
   }, []);
 
   return (
-    <section id="levy" className="ifip-home-section ifip-home-tint" aria-labelledby="levy-title">
-      <HomepageReveal className="ifip-home-wrap ifip-home-section-grid">
+    <section id="levy" className="ifip-home-section ifip-home-pricing-section" aria-labelledby="levy-title">
+      <HomepageReveal className="ifip-home-wrap ifip-home-section-grid" direction="left">
         <div className="ifip-home-section-intro">
-          <h2 id="levy-title">Program commitment levy</h2>
-          <p>The levy covers the preparatory program, including learning modules, practical simulations and the final assessment.</p>
+          <HomepageMotionItem as="h2" id="levy-title" delay={0.1} blur>Program commitment levy</HomepageMotionItem>
+          <HomepageMotionItem as="p" delay={0.2}>The levy covers the preparatory program, including learning modules, practical simulations and the final assessment.</HomepageMotionItem>
         </div>
         <div className="ifip-home-card ifip-home-levy" role="status" aria-atomic="true">
-          <div className="ifip-home-meta">
+          <HomepageMotionItem className="ifip-home-meta" delay={0.16} direction="right">
             <TbMapPin aria-hidden="true" />
             {country === null ? "Checking location…" : country === "NG" ? "Nigeria" : "Outside Nigeria"}
-          </div>
-          {country && pricing && <p className="ifip-home-amount">{formatLevyAmount(pricing[currency], currency)}</p>}
+          </HomepageMotionItem>
+          {country && pricing && <HomepageMotionItem as="p" className="ifip-home-amount" delay={0.28} direction="right">{formatLevyAmount(pricing[currency], currency)}</HomepageMotionItem>}
           {country && !pricing && <p>{failed ? "Levy temporarily unavailable." : "Loading levy…"}</p>}
         </div>
       </HomepageReveal>

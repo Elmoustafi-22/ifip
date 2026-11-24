@@ -337,7 +337,7 @@ function PartnersDesk() {
       alert("Organization name is required.");
       return;
     }
-    if (!contactEmail.trim()) {
+    if (!editingPartner && !contactEmail.trim()) {
       alert("Contact email is required.");
       return;
     }
@@ -926,8 +926,8 @@ function PartnersDesk() {
                     placeholder="John Smith" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-bold text-slate-700 text-xs">Contact Email <span className="text-emerald-600">*</span></label>
-                  <input type="email" required value={contactEmail} onChange={(e) => setContactEmail(e.target.value)}
+                  <label className="font-bold text-slate-700 text-xs">Contact Email {editingPartner ? <span className="font-normal text-slate-400">(optional)</span> : <span className="text-emerald-600">*</span>}</label>
+                  <input type="email" required={!editingPartner} value={contactEmail} onChange={(e) => setContactEmail(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-[slate-200/70] rounded-xl focus:outline-none focus:border-emerald-500 text-sm"
                     placeholder="partner@company.com" />
                 </div>

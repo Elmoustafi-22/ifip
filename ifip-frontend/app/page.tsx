@@ -3,16 +3,16 @@ import Link from "next/link";
 import {
   TbArrowUpRight, TbArrowsExchange, TbAward, TbBook, TbBrandLinkedin,
   TbBrandWhatsapp, TbBriefcase, TbDownload, TbMail, TbMapPin,
-  TbSchool, TbSparkles, TbUser, TbUserCog,
+  TbClipboardCheck, TbSchool, TbSparkles, TbUserCog,
 } from "react-icons/tb";
 import HomeNav from "@/components/home/HomeNav";
 import HomepageReveal from "@/components/home/HomepageReveal";
+import HomepageMotionItem from "@/components/home/HomepageMotionItem";
 import HeroSection from "@/components/home/HeroSection";
 import PlacementsSection from "@/components/home/PlacementsSection";
 import PricingSection from "@/components/home/PricingSection";
 import PartnersSection from "@/components/home/PartnersSection";
 import FaqSection from "@/components/home/FaqSection";
-import MobileBottomNav from "@/components/home/MobileBottomNav";
 import { programCertificate } from "@/components/home/program-certificate";
 import "@/components/home/homepage.css";
 
@@ -46,17 +46,17 @@ const curriculum = [
   },
 ];
 
+const assessmentIncludes = [
+  "Testing participants on key concepts and practical knowledge covered during the programme.",
+  "A secure and standardised assessment delivered through a third-party platform.",
+  "Successful completion as a requirement for certification and entry into the programme’s talent pool.",
+];
+
 const applicants = [
   { title: "Students", icon: TbSchool, detail: "Undergraduates and postgraduates enrolled in recognized institutions and preparing for a career." },
   { title: "Graduates", icon: TbAward, detail: "Graduates of recognized institutions building knowledge and skills for the ethical economy." },
   { title: "Professionals", icon: TbBriefcase, detail: "Working professionals deepening their Shariah finance expertise and expanding their career opportunities." },
   { title: "Career changers", icon: TbArrowsExchange, detail: "People bringing skills from fields such as technology, law or administration into ethical finance." },
-];
-
-const mission = [
-  { title: "Talent", icon: TbUser, detail: "Identify and prepare aspiring professionals for a career in Islamic finance." },
-  { title: "Development", icon: TbBook, detail: "Build knowledge and workplace skills through structured learning and practical simulations." },
-  { title: "Placement", icon: TbBriefcase, detail: "Connect qualified participants with opportunities through partner organizations." },
 ];
 
 const journey = [
@@ -83,50 +83,73 @@ export default function Home() {
       <HomeNav />
       <HeroSection />
 
-      <section id="curriculum" className="ifip-home-section ifip-home-white" aria-labelledby="curriculum-title">
+      <section id="curriculum" className="ifip-home-section ifip-home-white ifip-home-curriculum-section" aria-labelledby="curriculum-title">
         <div className="ifip-home-wrap">
-          <HomepageReveal className="ifip-home-section-intro">
-            <p className="ifip-home-eyebrow">Curriculum</p>
-            <h2 id="curriculum-title">What you’ll learn</h2>
-            <p>The core training combines Islamic finance, professional development and workplace practice.</p>
-            <ProgramGuide />
-          </HomepageReveal>
+          <div className="ifip-home-curriculum-lead">
+            <HomepageReveal className="ifip-home-section-intro" direction="left">
+              <HomepageMotionItem as="p" className="ifip-home-eyebrow" delay={0.08}>Curriculum</HomepageMotionItem>
+              <HomepageMotionItem as="h2" id="curriculum-title" delay={0.16} blur>What you’ll learn</HomepageMotionItem>
+              <HomepageMotionItem as="p" delay={0.24}>The core training combines Islamic finance, professional development and workplace practice.</HomepageMotionItem>
+              <HomepageMotionItem className="ifip-home-action-item" delay={0.32}><ProgramGuide /></HomepageMotionItem>
+            </HomepageReveal>
+            <HomepageReveal className="ifip-home-editorial-image" variant="media" delay={0.1}>
+              <Image src="/images/homepage/curriculum.webp" alt="Study notes and a calendar used to plan a learning programme" width={960} height={640} />
+            </HomepageReveal>
+          </div>
           <div className="ifip-home-cards ifip-home-curriculum-cards">
             {curriculum.map(({ icon: Icon, title, topics }, index) => (
-              <HomepageReveal as="article" className="ifip-home-card" key={title} delay={index * 0.06}>
+              <HomepageReveal as="article" className="ifip-home-card" key={title} delay={index * 0.05} direction={index % 2 === 0 ? "left" : "right"}>
                 <header className="ifip-home-curriculum-heading">
-                  <span className="ifip-home-icon"><Icon aria-hidden="true" /></span>
-                  <h3>{title}</h3>
+                  <HomepageMotionItem as="span" className="ifip-home-module-index" delay={0.12}>{String(index + 1).padStart(2, "0")}</HomepageMotionItem>
+                  <HomepageMotionItem as="span" className="ifip-home-icon" delay={0.18} direction="right"><Icon aria-hidden="true" /></HomepageMotionItem>
+                  <HomepageMotionItem as="h3" delay={0.24} blur>{title}</HomepageMotionItem>
                 </header>
-                <ul className="ifip-home-curriculum-list">{topics.map((topic) => <li key={topic}>{topic}</li>)}</ul>
+                <ul className="ifip-home-curriculum-list">{topics.map((topic, topicIndex) => <HomepageMotionItem as="li" key={topic} delay={0.32 + topicIndex * 0.06}>{topic}</HomepageMotionItem>)}</ul>
               </HomepageReveal>
             ))}
           </div>
-          <HomepageReveal as="article" className="ifip-home-card ifip-home-curriculum-certificate">
-            <span className="ifip-home-icon"><programCertificate.icon aria-hidden="true" /></span>
-            <div>
-              <h3>{programCertificate.title}</h3>
-              <p>{programCertificate.detail}</p>
-              <p className="ifip-home-curriculum-certificate-detail">Awarded after the 4-week training and required before joining the talent pool. Shows partners you are internship ready.</p>
-            </div>
-          </HomepageReveal>
+          <div className="ifip-home-curriculum-outcomes">
+            <HomepageReveal as="article" className="ifip-home-assessment" direction="left">
+              <div className="ifip-home-assessment-heading">
+                <HomepageMotionItem as="span" className="ifip-home-icon" delay={0.1}><TbClipboardCheck aria-hidden="true" /></HomepageMotionItem>
+                <div>
+                  <HomepageMotionItem as="p" className="ifip-home-eyebrow" delay={0.16}>Final stage</HomepageMotionItem>
+                  <HomepageMotionItem as="h3" id="assessment-title" delay={0.22} blur>Standard Assessment</HomepageMotionItem>
+                </div>
+              </div>
+              <HomepageMotionItem as="p" className="ifip-home-assessment-copy" delay={0.28}>At the end of the programme, participants will complete a structured assessment covering the knowledge and skills gained throughout the sessions. The assessment is designed to measure their understanding, readiness and commitment before a certificate is issued.</HomepageMotionItem>
+              <HomepageMotionItem as="p" className="ifip-home-assessment-label" delay={0.34}>Assessment includes:</HomepageMotionItem>
+              <ul className="ifip-home-assessment-list">
+                {assessmentIncludes.map((item, index) => <HomepageMotionItem as="li" key={item} delay={0.4 + index * 0.06}>{item}</HomepageMotionItem>)}
+              </ul>
+            </HomepageReveal>
+            <HomepageReveal as="article" className="ifip-home-certificate-panel" direction="right">
+              <HomepageMotionItem as="span" className="ifip-home-icon" delay={0.12}><programCertificate.icon aria-hidden="true" /></HomepageMotionItem>
+              <HomepageMotionItem as="p" className="ifip-home-eyebrow" delay={0.2}>On completion</HomepageMotionItem>
+              <HomepageMotionItem as="h3" delay={0.28} blur>{programCertificate.title}</HomepageMotionItem>
+              <HomepageMotionItem as="p" delay={0.36}>{programCertificate.detail}</HomepageMotionItem>
+            </HomepageReveal>
+          </div>
         </div>
       </section>
 
       <PlacementsSection />
 
-      <section className="ifip-home-section" aria-labelledby="eligibility-title">
+      <section className="ifip-home-section ifip-home-eligibility-section" aria-labelledby="eligibility-title">
         <div className="ifip-home-wrap ifip-home-section-grid">
-          <HomepageReveal className="ifip-home-section-intro">
-            <h2 id="eligibility-title">Who can apply?</h2>
-            <p>IFIP welcomes applicants from anywhere in the world. Prior industry experience is optional.</p>
-            <Link className="ifip-home-text-link" href="/about">Learn about IFIP <TbArrowUpRight aria-hidden="true" /></Link>
+          <HomepageReveal className="ifip-home-section-intro" direction="left">
+            <HomepageMotionItem as="h2" id="eligibility-title" delay={0.1} blur>Who can apply?</HomepageMotionItem>
+            <HomepageMotionItem as="p" delay={0.18}>IFIP welcomes applicants from anywhere in the world. Prior industry experience is optional.</HomepageMotionItem>
+            <HomepageMotionItem className="ifip-home-action-item" delay={0.26}><Link className="ifip-home-text-link" href="/about">Learn about IFIP <TbArrowUpRight aria-hidden="true" /></Link></HomepageMotionItem>
           </HomepageReveal>
           <div className="ifip-home-eligibility">
             {applicants.map(({ icon: Icon, title, detail }, index) => (
-              <HomepageReveal as="article" className="ifip-home-card" key={title} delay={(index % 2) * 0.06}>
-                <span className="ifip-home-icon"><Icon aria-hidden="true" /></span>
-                <div><h3>{title}</h3><p>{detail}</p></div>
+              <HomepageReveal as="article" className="ifip-home-card" key={title} delay={(index % 2) * 0.07} direction={index % 2 === 0 ? "left" : "right"}>
+                <HomepageMotionItem as="span" className="ifip-home-icon" delay={0.12}><Icon aria-hidden="true" /></HomepageMotionItem>
+                <div>
+                  <HomepageMotionItem as="h3" delay={0.2} blur>{title}</HomepageMotionItem>
+                  <HomepageMotionItem as="p" delay={0.28}>{detail}</HomepageMotionItem>
+                </div>
               </HomepageReveal>
             ))}
           </div>
@@ -135,34 +158,22 @@ export default function Home() {
 
       <PricingSection />
 
-      <section className="ifip-home-section ifip-home-dark" aria-labelledby="mission-title">
-        <div className="ifip-home-wrap">
-          <HomepageReveal className="ifip-home-section-intro">
-            <h2 id="mission-title">Bridge the gap</h2>
-            <p>IFIP connects academic preparation with workplace experience in Islamic finance.</p>
-          </HomepageReveal>
-          <div className="ifip-home-cards">
-            {mission.map(({ icon: Icon, title, detail }, index) => (
-              <HomepageReveal as="article" className="ifip-home-card" key={title} delay={index * 0.06}>
-                <span className="ifip-home-icon"><Icon aria-hidden="true" /></span>
-                <h3>{title}</h3>
-                <p>{detail}</p>
-              </HomepageReveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="process" className="ifip-home-section ifip-home-tint" aria-labelledby="process-title">
+      <section id="process" className="ifip-home-section ifip-home-process-section" aria-labelledby="process-title">
         <div className="ifip-home-wrap ifip-home-section-grid">
-          <HomepageReveal className="ifip-home-section-intro">
-            <p className="ifip-home-eyebrow">Process</p>
-            <h2 id="process-title">Application &amp; placement journey</h2>
-            <p>Placement depends on readiness and openings with partner organizations.</p>
+          <HomepageReveal className="ifip-home-section-intro ifip-home-process-intro" direction="left">
+            <HomepageMotionItem as="p" className="ifip-home-eyebrow" delay={0.08}>Process</HomepageMotionItem>
+            <HomepageMotionItem as="h2" id="process-title" delay={0.16} blur>Application &amp; placement journey</HomepageMotionItem>
+            <HomepageMotionItem as="p" delay={0.24}>Placement depends on readiness and openings with partner organizations.</HomepageMotionItem>
+            <HomepageReveal className="ifip-home-process-media" variant="media" delay={0.14}>
+              <Image src="/images/homepage/application.webp" alt="A learner reviewing a CV on a laptop" width={960} height={640} />
+            </HomepageReveal>
           </HomepageReveal>
           <ol className="ifip-home-journey" role="list">
-            {journey.map(({ title, detail }) => (
-              <HomepageReveal as="li" key={title}><h3>{title}</h3><p>{detail}</p></HomepageReveal>
+            {journey.map(({ title, detail }, index) => (
+              <HomepageReveal as="li" key={title} delay={index * 0.05} direction="right">
+                <HomepageMotionItem as="h3" delay={0.16} blur>{title}</HomepageMotionItem>
+                <HomepageMotionItem as="p" delay={0.24}>{detail}</HomepageMotionItem>
+              </HomepageReveal>
             ))}
           </ol>
         </div>
@@ -170,14 +181,14 @@ export default function Home() {
 
       <PartnersSection />
 
-      <section className="ifip-home-section ifip-home-tint" aria-labelledby="partner-cta-title">
-        <HomepageReveal className="ifip-home-wrap ifip-home-section-grid">
-          <h2 id="partner-cta-title">Help develop Islamic finance talent</h2>
+      <section className="ifip-home-section ifip-home-partner-callout" aria-labelledby="partner-cta-title">
+        <HomepageReveal className="ifip-home-wrap ifip-home-section-grid" direction="left">
+          <HomepageMotionItem as="h2" id="partner-cta-title" delay={0.1} blur>Help develop Islamic finance talent</HomepageMotionItem>
           <div className="ifip-home-section-intro">
-            <p>Partner organizations can connect with candidates prepared through training, workplace simulations and assessment. The placement team supports matching, briefing and onboarding.</p>
+            <HomepageMotionItem as="p" delay={0.2}>Partner organizations can connect with candidates prepared through training, workplace simulations and assessment. The placement team supports matching, briefing and onboarding.</HomepageMotionItem>
             <div className="ifip-home-actions">
-              <Link className="ifip-home-button" href="/partners/apply">Become a partner <TbArrowUpRight aria-hidden="true" /></Link>
-              <a className="ifip-home-text-link" href={`mailto:${email}`}><TbMail aria-hidden="true" /> Get in touch</a>
+              <HomepageMotionItem as="span" className="ifip-home-action-item" delay={0.3}><Link className="ifip-home-button" href="/partners/apply">Become a partner <TbArrowUpRight aria-hidden="true" /></Link></HomepageMotionItem>
+              <HomepageMotionItem as="span" className="ifip-home-action-item" delay={0.4}><a className="ifip-home-text-link" href={`mailto:${email}`}><TbMail aria-hidden="true" /> Get in touch</a></HomepageMotionItem>
             </div>
           </div>
         </HomepageReveal>
@@ -186,13 +197,13 @@ export default function Home() {
       <FaqSection />
 
       <section className="ifip-home-section ifip-home-dark" aria-labelledby="final-cta-title">
-        <HomepageReveal className="ifip-home-wrap ifip-home-section-grid">
-          <h2 id="final-cta-title">Begin your journey</h2>
+        <HomepageReveal className="ifip-home-wrap ifip-home-section-grid" direction="left">
+          <HomepageMotionItem as="h2" id="final-cta-title" delay={0.1} blur>Begin your journey</HomepageMotionItem>
           <div className="ifip-home-section-intro">
-            <p>Take the next step towards a career in Islamic finance.</p>
+            <HomepageMotionItem as="p" delay={0.2}>Take the next step towards a career in Islamic finance.</HomepageMotionItem>
             <div className="ifip-home-actions">
-              <Link className="ifip-home-button" href="/apply">Apply to IFIP <TbArrowUpRight aria-hidden="true" /></Link>
-              <ProgramGuide />
+              <HomepageMotionItem as="span" className="ifip-home-action-item" delay={0.3}><Link className="ifip-home-button" href="/apply">Apply to IFIP <TbArrowUpRight aria-hidden="true" /></Link></HomepageMotionItem>
+              <HomepageMotionItem as="span" className="ifip-home-action-item" delay={0.4}><ProgramGuide /></HomepageMotionItem>
             </div>
           </div>
         </HomepageReveal>
@@ -201,38 +212,37 @@ export default function Home() {
       <footer id="contact" className="ifip-home-footer">
         <div className="ifip-home-wrap">
           <div className="ifip-home-footer-grid">
-            <div>
+            <HomepageReveal direction="left">
               <Image className="ifip-home-logo" src="/images/logos/logo-full-color.png" alt="Islamic Finance Internship Program" width={160} height={44} />
-              <p>Professional training, practical simulations and structured internship placement in Islamic finance.</p>
-            </div>
-            <nav aria-label="Program links">
-              <h2>Program</h2>
+              <HomepageMotionItem as="p" delay={0.16}>Professional training, practical simulations and structured internship placement in Islamic finance.</HomepageMotionItem>
+            </HomepageReveal>
+            <HomepageReveal direction="up"><nav aria-label="Program links">
+              <HomepageMotionItem as="h2" delay={0.1}>Program</HomepageMotionItem>
               <ul>
-                <li><a href="#curriculum">Curriculum</a></li>
-                <li><a href="#partners">Placement partners</a></li>
-                <li><a href="#faq">Program FAQs</a></li>
-                <li><Link href="/partners/apply">Become a partner</Link></li>
+                <HomepageMotionItem as="li" delay={0.16}><a href="#curriculum">Curriculum</a></HomepageMotionItem>
+                <HomepageMotionItem as="li" delay={0.22}><a href="#partners">Placement partners</a></HomepageMotionItem>
+                <HomepageMotionItem as="li" delay={0.28}><a href="#faq">Program FAQs</a></HomepageMotionItem>
+                <HomepageMotionItem as="li" delay={0.34}><Link href="/partners/apply">Become a partner</Link></HomepageMotionItem>
               </ul>
-            </nav>
-            <div className="ifip-home-footer-contacts">
-              <h2>Contact</h2>
+            </nav></HomepageReveal>
+            <HomepageReveal className="ifip-home-footer-contacts" direction="right">
+              <HomepageMotionItem as="h2" delay={0.1}>Contact</HomepageMotionItem>
               <ul>
-                {contacts.map(({ label, icon: Icon, href, external }) => (
-                  <li key={href}>
+                {contacts.map(({ label, icon: Icon, href, external }, index) => (
+                  <HomepageMotionItem as="li" key={href} delay={0.16 + index * 0.06}>
                     <a href={href} target={external ? "_blank" : undefined} rel={external ? "noopener noreferrer" : undefined}>
                       <span className="ifip-home-icon"><Icon aria-hidden="true" /></span>{label}
                     </a>
-                  </li>
+                  </HomepageMotionItem>
                 ))}
-                <li className="ifip-home-address"><span className="ifip-home-icon"><TbMapPin aria-hidden="true" /></span>Financial District, Abuja</li>
+                <HomepageMotionItem as="li" className="ifip-home-address" delay={0.38}><span className="ifip-home-icon"><TbMapPin aria-hidden="true" /></span>Financial District, Abuja</HomepageMotionItem>
               </ul>
-            </div>
+            </HomepageReveal>
           </div>
-          <p className="ifip-home-footer-bottom">© {new Date().getFullYear()} IFIP. All rights reserved. Ethical Finance Education.</p>
+          <HomepageMotionItem as="p" className="ifip-home-footer-bottom">© {new Date().getFullYear()} IFIP. All rights reserved.</HomepageMotionItem>
         </div>
       </footer>
 
-      <MobileBottomNav />
     </div>
   );
 }

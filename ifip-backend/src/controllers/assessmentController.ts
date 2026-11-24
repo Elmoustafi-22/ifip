@@ -138,14 +138,6 @@ export const createAssessment = async (req: Request, res: Response) => {
         linkedModule.assessmentId = newAssessment._id as any;
         await linkedModule.save();
 
-        notificationEmitter.emit('assessment.published', {
-            assessmentTitle: newAssessment.title,
-            moduleId: newAssessment.moduleId,
-            passMark: newAssessment.passMark,
-            timeLimitMinutes: newAssessment.timeLimitMinutes,
-            maxAttempts: newAssessment.maxAttempts,
-        });
-
         res.status(201).json({ message: 'Assessment created successfully.', assessment: newAssessment });
     } catch (e: any) {
         console.error('Error creating assessment:', e);
@@ -202,21 +194,31 @@ export const publishAssessment = async (req: Request, res: Response) => {
             return;
         }
 
+        let shouldNotifyParticipants = false;
+        if (assessment.status !== 'published') {
+            const publishResult = await Assessment.updateOne(
+                { _id: assessment._id, status: { $ne: 'published' } },
+                { $set: { status: 'published' } },
+                { runValidators: true },
+            );
+            shouldNotifyParticipants = publishResult.modifiedCount > 0;
+        }
         assessment.status = 'published';
-        await assessment.save();
 
         // Ensure the connected Module has its assessmentId linked
         if (assessment.moduleId) {
             await Module.findByIdAndUpdate(assessment.moduleId, { assessmentId: assessment._id });
         }
 
-        notificationEmitter.emit('assessment.published', {
-            assessmentTitle: assessment.title,
-            moduleId: assessment.moduleId,
-            passMark: assessment.passMark,
-            timeLimitMinutes: assessment.timeLimitMinutes,
-            maxAttempts: assessment.maxAttempts,
-        });
+        if (shouldNotifyParticipants) {
+            notificationEmitter.emit('assessment.published', {
+                assessmentTitle: assessment.title,
+                moduleId: assessment.moduleId,
+                passMark: assessment.passMark,
+                timeLimitMinutes: assessment.timeLimitMinutes,
+                maxAttempts: assessment.maxAttempts,
+            });
+        }
 
         res.json({ message: 'Assessment published successfully.', status: assessment.status });
     } catch (e: any) {

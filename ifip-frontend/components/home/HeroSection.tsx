@@ -2,28 +2,17 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
-import { TbArrowUpRight, TbBook, TbBriefcase, TbClipboardCheck } from "react-icons/tb";
+import Image from "next/image";
+import { motion } from "framer-motion";
+import { TbArrowUpRight } from "react-icons/tb";
 import apiClient from "@/lib/api/client";
 import type { RegistrationStatus } from "@/lib/api/services";
-import { programCertificate } from "./program-certificate";
-
-const stages = [
-  { icon: TbBook, title: "Prepare", detail: "Four weeks of virtual training." },
-  { icon: TbBriefcase, title: "Practice", detail: "Workplace skills and simulations." },
-  programCertificate,
-  { icon: TbClipboardCheck, title: "Demonstrate readiness", detail: "Assessment and placement consideration." },
-];
 
 const entranceEase = [0.2, 0, 0, 1] as const;
 
 export default function HeroSection() {
   const [cohort, setCohort] = useState<RegistrationStatus | null>(null);
-  const [statusUnavailable, setStatusUnavailable] = useState(false);
-  const reducedMotion = useReducedMotion();
-  const initialCopy = reducedMotion ? false : { y: 14 };
-  const initialPanel = reducedMotion ? false : { "--pathway-offset": 20 };
-  const entrance = { duration: reducedMotion ? 0 : 0.42, ease: entranceEase };
+  const entrance = { duration: 0.5, ease: entranceEase };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -33,13 +22,9 @@ export default function HeroSection() {
       fetching = true;
       try {
         const { data } = await apiClient.get<RegistrationStatus>("/cohort/registration-status", { signal: controller.signal });
-        if (!controller.signal.aborted) {
-          setCohort(data);
-          setStatusUnavailable(false);
-        }
+        if (!controller.signal.aborted) setCohort(data);
       } catch {
         // Keep the last known cohort available during a temporary failure.
-        if (!controller.signal.aborted) setStatusUnavailable(true);
       } finally {
         fetching = false;
       }
@@ -54,59 +39,37 @@ export default function HeroSection() {
     };
   }, []);
 
-  let status = "Checking application availability…";
-  if (cohort) {
-    status = !cohort.hasActiveCohort
-      ? "Applications are currently closed"
-      : cohort.isFull
-        ? "Current cohort is full"
-        : "Applications open";
-    if (cohort.hasActiveCohort && cohort.cohortName) status += " · " + cohort.cohortName;
-  } else if (statusUnavailable) {
-    status = "Check availability on the application page";
-  }
   const waitingList = cohort && (!cohort.hasActiveCohort || cohort.isFull);
 
   return (
     <section className="ifip-home-hero" aria-labelledby="homepage-title">
       <div className="ifip-home-hero-grid">
         <div>
-          <p className="ifip-home-eyebrow">Islamic Finance Internship Program</p>
-          <motion.h1 id="homepage-title" data-home-entrance initial={initialCopy} animate={{ y: 0 }} transition={entrance}>
-            Your pathway into <em>Islamic finance.</em>
+          <motion.p className="ifip-home-eyebrow" data-home-entrance initial={{ x: -18, opacity: 0.45 }} animate={{ x: 0, opacity: 1 }} transition={{ ...entrance, delay: 0.04 }}>Islamic Finance Internship Program</motion.p>
+          <motion.h1 id="homepage-title" data-home-entrance initial={{ x: -32, opacity: 0.45, filter: "blur(4px)" }} animate={{ x: 0, opacity: 1, filter: "blur(0px)" }} transition={{ ...entrance, delay: 0.14 }}>
+            Prepare for a career in <em>Islamic finance.</em>
           </motion.h1>
-          <motion.p className="ifip-home-lead" data-home-entrance initial={initialCopy} animate={{ y: 0 }} transition={{ ...entrance, delay: reducedMotion ? 0 : 0.075 }}>
-            Four weeks of virtual training, practical simulations and assessment, followed by consideration for internship placement with partner organizations.
+          <motion.p className="ifip-home-lead" data-home-entrance initial={{ x: -24, opacity: 0.45 }} animate={{ x: 0, opacity: 1 }} transition={{ ...entrance, delay: 0.26 }}>
+            Four weeks of online training and practical assessment.
           </motion.p>
-          <motion.div className="ifip-home-actions" data-home-entrance initial={initialCopy} animate={{ y: 0 }} transition={{ ...entrance, delay: reducedMotion ? 0 : 0.15 }}>
-            <Link className="ifip-home-button" href="/apply">
-              {waitingList ? "Join the waitlist" : "Apply to IFIP"}
-              <TbArrowUpRight aria-hidden="true" />
-            </Link>
-            <Link className="ifip-home-text-link" href="/partners/apply">
-              Apply to host interns <TbArrowUpRight aria-hidden="true" />
-            </Link>
-          </motion.div>
-          <p className="ifip-home-cohort" role="status">{status}</p>
+          <div className="ifip-home-actions">
+            <motion.span className="ifip-home-action-item" data-home-entrance initial={{ y: 18, opacity: 0.45 }} animate={{ y: 0, opacity: 1 }} transition={{ ...entrance, delay: 0.4 }}>
+              <Link className="ifip-home-button" href="/apply">
+                {waitingList ? "Join the waitlist" : "Apply to IFIP"}
+                <TbArrowUpRight aria-hidden="true" />
+              </Link>
+            </motion.span>
+            <motion.span className="ifip-home-action-item" data-home-entrance initial={{ y: 18, opacity: 0.45 }} animate={{ y: 0, opacity: 1 }} transition={{ ...entrance, delay: 0.5 }}>
+              <Link className="ifip-home-text-link" href="/partners/apply">
+                Apply to host interns <TbArrowUpRight aria-hidden="true" />
+              </Link>
+            </motion.span>
+          </div>
         </div>
-        <motion.aside
-          className="ifip-home-pathway"
-          aria-labelledby="pathway-heading"
-          data-home-entrance
-          initial={initialPanel}
-          animate={{ "--pathway-offset": 0 }}
-          transition={{ ...entrance, delay: reducedMotion ? 0 : 0.105 }}
-        >
-          <p className="ifip-home-eyebrow" id="pathway-heading">The program pathway</p>
-          <ol>
-            {stages.map(({ icon: Icon, title, detail }) => (
-              <li key={title}>
-                <span className="ifip-home-icon"><Icon aria-hidden="true" /></span>
-                <div><strong>{title}</strong><p>{detail}</p></div>
-              </li>
-            ))}
-          </ol>
-        </motion.aside>
+        <motion.figure className="ifip-home-hero-visual" data-home-entrance initial={{ x: 34, opacity: 0.55 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.72, delay: 0.2, ease: entranceEase }}>
+          <Image src="/images/homepage/career.webp" alt="Notebook and career planning materials" width={960} height={640} priority />
+          <figcaption>Prepare · Practise · Progress</figcaption>
+        </motion.figure>
       </div>
     </section>
   );

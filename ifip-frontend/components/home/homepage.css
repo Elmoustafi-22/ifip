@@ -1,21 +1,22 @@
 .ifip-home {
-  --ink: #101f3f;
-  --muted: #43536e;
-  --paper: #eef4fa;
+  --ink: #000666;
+  --muted: #454652;
+  --paper: #fdf7ed;
   --white: #fff;
-  --line: #cbd8e8;
-  --accent: #12617e;
-  --ice: #a9e2fa;
+  --line: #c6c5d4;
+  --accent: #006591;
+  --ice: #80d8ff;
   background: var(--paper);
   color: var(--ink);
   min-width: 0;
-  padding-bottom: 72px;
+  padding-bottom: 0;
   font-family: var(--font-sans);
 }
 
 .ifip-home [id] { scroll-margin-top: 76px; }
-.ifip-home :is(h1, h2, h3) { font-family: inherit; text-wrap: balance; }
-.ifip-home h2 { font-size: clamp(1.85rem, 3.5vw, 3rem); line-height: 1.1; font-weight: 650; letter-spacing: -.045em; }
+.ifip-home :is(h1, h2, h3) { text-wrap: balance; }
+.ifip-home :is(h1, h2) { font-family: var(--font-display); font-weight: 400; }
+.ifip-home h2 { font-size: clamp(1.85rem, 3.5vw, 3rem); line-height: 1.15; letter-spacing: -.02em; }
 .ifip-home h3 { font-size: 1.2rem; line-height: 1.28; font-weight: 650; letter-spacing: -.025em; }
 .ifip-home p, .ifip-home li { line-height: 1.65; }
 .ifip-home :is(a, button, summary):focus-visible { outline: 2px solid var(--focus-color, var(--ink)); outline-offset: 4px; }
@@ -25,11 +26,8 @@
   margin-inline: auto;
 }
 
-.ifip-home-hero, .ifip-home-dark {
-  background: var(--ink);
-  color: #f4f8fe;
-  --focus-color: var(--ice);
-}
+.ifip-home-hero { background: var(--paper); color: var(--ink); }
+.ifip-home-dark { background: var(--ink); color: #fff; --focus-color: var(--ice); }
 
 .ifip-home-hero { border-bottom: 2px solid #80d8ff; }
 .ifip-home-hero-grid {
@@ -39,20 +37,20 @@
   gap: clamp(27px, 6vw, 86px);
   padding-block: clamp(38px, 6vw, 88px);
 }
-.ifip-home-hero h1 { font-size: clamp(2.35rem, 5.1vw, 4.75rem); line-height: 1.06; letter-spacing: -.046em; font-weight: 700; text-wrap: wrap; }
-.ifip-home-hero h1 em { display: block; font-style: normal; color: var(--ice); }
+.ifip-home-hero h1 { font-size: clamp(2.35rem, 5.1vw, 4.75rem); line-height: 1.08; letter-spacing: -.025em; font-weight: 400; text-wrap: balance; }
+.ifip-home-hero h1 em { display: block; font-style: italic; color: #006591; }
 .ifip-home-eyebrow { font-size: .72rem; letter-spacing: .105em; text-transform: uppercase; font-weight: 650; }
-.ifip-home-hero .ifip-home-eyebrow { color: var(--ice); margin-bottom: 16px; }
+.ifip-home-hero .ifip-home-eyebrow { color: var(--accent); margin-bottom: 16px; }
 .ifip-home-lead { max-width: 49ch; font-size: clamp(.95rem, 1.4vw, 1.1rem); margin-top: 20px; }
-.ifip-home-hero .ifip-home-lead, .ifip-home-hero .ifip-home-cohort, .ifip-home-dark p { color: #d1dff2; }
-.ifip-home-cohort { min-height: 1.6em; margin-top: 12px; font-size: .81rem; overflow-wrap: anywhere; }
+.ifip-home-hero .ifip-home-lead { color: var(--muted); }
+.ifip-home-dark p { color: #d1dff2; }
 
 .ifip-home-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; margin-top: 20px; }
 .ifip-home-button, .ifip-home-text-link { display: inline-flex; align-items: center; gap: 9px; min-height: 44px; font-size: .85rem; font-weight: 650; }
 .ifip-home-button { min-height: 48px; padding: 9px 17px; border-radius: 5px; background: var(--ink); color: var(--white); }
 .ifip-home-button:hover { background: #24395f; }
-:is(.ifip-home-hero,.ifip-home-dark) .ifip-home-button { background: var(--ice); color: var(--ink); }
-:is(.ifip-home-hero,.ifip-home-dark) .ifip-home-button:hover { background: #d5effc; }
+.ifip-home-dark .ifip-home-button { background: var(--ice); color: var(--ink); }
+.ifip-home-dark .ifip-home-button:hover { background: #d5effc; }
 .ifip-home-text-link { text-decoration: underline; text-underline-offset: 4px; }
 .ifip-home-text-link:hover { text-decoration-thickness: 2px; }
 .ifip-home-text-link svg, .ifip-home-button svg { width: 17px; height: 17px; flex: none; }
@@ -66,8 +64,8 @@
 .ifip-home-pathway .ifip-home-icon, .ifip-home-dark .ifip-home-icon { background: #284972; color: var(--ice); }
 
 .ifip-home-section { padding-block: clamp(39px, 5.3vw, 72px); border-bottom: 1px solid var(--line); }
-.ifip-home-white { background: #f8fbfe; }
-.ifip-home-tint { background: #dfedfa; }
+.ifip-home-white { background: #fff; }
+.ifip-home-tint { background: #f9f3e9; }
 .ifip-home-section-grid { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); align-items: start; gap: clamp(20px, 6vw, 86px); }
 .ifip-home-section-intro p { max-width: 44ch; margin-top: 12px; color: var(--muted); }
 .ifip-home-dark .ifip-home-section-intro p { color: #d1dff2; }
@@ -132,7 +130,7 @@
 .ifip-home-partner-logo img { max-width: 100%; max-height: 64px; width: auto; height: auto; object-fit: contain; }
 
 .ifip-home-faq details { border-top: 1px solid var(--line); }
-.ifip-home-faq details:last-child { border-bottom: 1px solid var(--line); }
+.ifip-home-faq > :last-child details { border-bottom: 1px solid var(--line); }
 .ifip-home-faq summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 12px 3px; font-weight: 550; cursor: pointer; list-style: none; }
 .ifip-home-faq summary::-webkit-details-marker { display: none; }
 .ifip-home-faq summary svg { width: 18px; height: 18px; flex: none; }
@@ -163,8 +161,8 @@
   .ifip-home-partners-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 850px) {
-  .ifip-home-menu { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 10px; border: 1px solid #7185a0; border-radius: 5px; font-size: .85rem; cursor: pointer; }
-  .ifip-home-menu svg { width: 18px; height: 18px; }
+  .ifip-home-menu { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 6px; border: 1px solid #7185a0; border-radius: 5px; cursor: pointer; }
+  .ifip-home-menu svg { width: 22px; height: 22px; }
   .ifip-home-nav { display: none; }
   .ifip-home-nav[data-open="true"] { display: grid; gap: 0; position: absolute; inset: 100% 0 auto auto; max-height: calc(100dvh - 128px); overflow: auto; width: min(100%, 290px); background: var(--white); border: 1px solid var(--line); border-radius: 0 0 8px 8px; padding: 8px 14px; }
   .ifip-home-nav > * + * { border-top: 1px solid var(--line); }
@@ -201,50 +199,86 @@
   html:has(.ifip-home) { scroll-behavior: auto; }
 }
 
-.ifip-home-bottom-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  gap: 3px;
-  position: fixed;
-  inset: auto 0 0;
-  z-index: 35;
-  min-height: 58px;
-  padding: 4px 8px max(4px, env(safe-area-inset-bottom));
-  background: var(--white);
-  border-top: 1px solid var(--line);
-}
-.ifip-home-bottom-nav > a {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  min-height: 44px;
-  min-width: 53px;
-  font-size: .72rem;
-  font-weight: 650;
-}
-.ifip-home-bottom-nav > a svg { width: 20px; height: 20px; }
-.ifip-home-bottom-nav > a[aria-current="page"] { color: var(--accent); }
-.ifip-home :is(.ifip-home-nav, .ifip-home-bottom-nav) button { min-height: 44px; }
-@media (min-width: 768px) { .ifip-home-bottom-nav { display: none; } }
+.ifip-home-nav button { min-height: 44px; }
 @media (max-width: 850px) {
   .ifip-home-nav > div > div { position: static; width: 100%; }
 }
-@media (max-width: 767px) {
-  .ifip-home { padding-bottom: calc(66px + env(safe-area-inset-bottom)); }
-  html:has(.ifip-home) { scroll-padding-bottom: calc(62px + env(safe-area-inset-bottom)); }
+.ifip-home-hero-visual { position: relative; min-width: 0; margin: 0; }
+.ifip-home-hero-visual img { display: block; width: 100%; height: clamp(340px, 39vw, 510px); object-fit: cover; object-position: 40% center; border-radius: 72px 12px 12px 12px; }
+.ifip-home-hero-visual figcaption { position: absolute; inset: auto 18px 18px auto; padding: 14px 20px; border: 1px solid #ffffff80; border-radius: 8px; background: #000666c9; backdrop-filter: blur(16px); color: white; font-family: var(--font-display); font-size: 1.2rem; }
+.ifip-home-editorial-image { display: block; margin-block: 24px 32px; overflow: hidden; border-radius: 10px; }
+.ifip-home-editorial-image img, img.ifip-home-editorial-image { display: block; width: 100%; height: clamp(210px, 30vw, 360px); object-fit: cover; object-position: center; }
+.ifip-home-curriculum-cards > .ifip-home-card { border: 0; border-top: 1px solid var(--line); border-radius: 0; padding-inline: 0; }
+.ifip-home-eligibility .ifip-home-card { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; }
+.ifip-home-header { background: #fffefdde; backdrop-filter: blur(18px); }
+.ifip-home-action-item { display: inline-flex; }
+@media (max-width: 750px) { .ifip-home-hero-visual img { height: 330px; } .ifip-home-hero-visual figcaption { font-size: 1rem; } }
+
+/* Public editorial composition */
+.ifip-home { --paper: #f8f4ed; --line: #d9d5cb; }
+.ifip-home-hero { border-bottom: 0; background: #f8f4ed; }
+.ifip-home-hero-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); gap: clamp(38px, 6vw, 100px); padding-block: clamp(72px, 8vw, 132px); }
+.ifip-home-hero h1 { max-width: 11ch; font-size: clamp(3.4rem, 6.1vw, 6.3rem); line-height: .98; letter-spacing: -.045em; }
+.ifip-home-hero h1 em { color: var(--accent); }
+.ifip-home-lead { max-width: 32ch; font-size: clamp(1.1rem, 1.65vw, 1.35rem); line-height: 1.55; margin-top: 32px; }
+.ifip-home-hero .ifip-home-actions { margin-top: 32px; }
+.ifip-home-hero-visual { padding: 12px; background: #fffdf8; border: 1px solid #cbc7bd; border-radius: 210px 210px 8px 8px; box-shadow: 0 25px 60px #0006661c; }
+.ifip-home-hero-visual img { height: clamp(440px, 44vw, 630px); border-radius: 200px 200px 3px 3px; object-position: 33% center; }
+.ifip-home-hero-visual figcaption { inset: auto 25px 25px auto; background: #000666d9; backdrop-filter: blur(12px); border: 1px solid #ffffff55; border-radius: 3px; padding: 15px 22px; font-size: 1rem; letter-spacing: .025em; }
+.ifip-home-section { padding-block: clamp(76px, 8vw, 120px); border-bottom: 0; }
+.ifip-home-section + .ifip-home-section { border-top: 1px solid var(--line); }
+.ifip-home h2 { font-size: clamp(2.6rem, 4.4vw, 4.5rem); line-height: 1.02; letter-spacing: -.035em; }
+.ifip-home-section-intro > p:not(.ifip-home-eyebrow) { font-size: 1.06rem; line-height: 1.55; }
+.ifip-home-eyebrow { letter-spacing: .16em; }
+.ifip-home-curriculum-lead { display: grid; grid-template-columns: minmax(0, .78fr) minmax(0, 1.22fr); align-items: center; gap: clamp(32px, 6vw, 96px); margin-bottom: 56px; }
+.ifip-home-curriculum-lead .ifip-home-section-intro { max-width: 420px; }
+.ifip-home-curriculum-lead .ifip-home-editorial-image { margin: 0; border-radius: 4px; border: 8px solid #f7f3ec; box-shadow: 0 20px 50px #0006661a; }
+.ifip-home-curriculum-lead .ifip-home-editorial-image img { height: clamp(300px, 32vw, 440px); object-position: 45% center; }
+.ifip-home-curriculum-cards { gap: 36px 54px !important; }
+.ifip-home-curriculum-cards > .ifip-home-card { padding-block: 25px 15px; }
+.ifip-home-curriculum-heading { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.ifip-home-curriculum-heading .ifip-home-icon { background: transparent; width: 28px; height: 28px; }
+.ifip-home-curriculum-heading h3 { font-family: var(--font-display); font-size: 1.65rem; font-weight: 400; letter-spacing: -.02em; }
+.ifip-home-curriculum-list { columns: 1; }
+.ifip-home-curriculum-certificate { grid-template-columns: 56px minmax(0, 1fr); align-items: center; padding: 30px 36px; background: #eaf4f8; border: 0; border-inline-start: 4px solid var(--accent); border-radius: 0; }
+.ifip-home-curriculum-certificate h3 { font-family: var(--font-display); font-size: 1.8rem; font-weight: 400; }
+.ifip-home-eligibility .ifip-home-card { padding: 22px 0; }
+.ifip-home-eligibility .ifip-home-card .ifip-home-icon { background: transparent; }
+.ifip-home-levy { border: 1px solid #3b457c; background: #000666; color: white; min-height: 250px; padding: 40px; border-radius: 6px; box-shadow: 0 20px 45px #00066624; }
+.ifip-home-levy .ifip-home-amount, .ifip-home-levy .ifip-home-meta, .ifip-home-levy .ifip-home-meta svg { color: white; }
+.ifip-home-levy .ifip-home-amount { font-family: var(--font-display); font-weight: 400; font-size: clamp(3.3rem, 5vw, 5rem); }
+.ifip-home-journey li { padding-block: 22px; }
+.ifip-home-journey h3 { font-family: var(--font-display); font-size: 1.4rem; font-weight: 400; }
+.ifip-home-section-intro > img.ifip-home-editorial-image { margin-top: 36px; border-radius: 4px; border: 8px solid #fff; box-shadow: 0 18px 45px #00066620; }
+.ifip-home-partners-grid .ifip-home-card { border-radius: 0; }
+.ifip-home-faq details { border-color: var(--line); }
+.ifip-home-faq summary { font-size: 1rem; padding-block: 17px; }
+.ifip-home-header { background: #fffdf9e8; }
+@media (max-width: 750px) {
+  .ifip-home-hero-grid, .ifip-home-curriculum-lead { grid-template-columns: minmax(0, 1fr); }
+  .ifip-home-hero-grid { padding-block: 50px 65px; gap: 42px; }
+  .ifip-home-hero h1 { font-size: clamp(2.9rem, 11vw, 4.5rem); }
+  .ifip-home-hero-visual { padding: 8px; box-shadow: 0 18px 40px #0006661c; }
+  .ifip-home-hero-visual img { height: 390px; }
+  .ifip-home-section { padding-block: 65px; }
+  .ifip-home h2 { font-size: clamp(2.4rem, 9vw, 3.2rem); }
+  .ifip-home-curriculum-lead { gap: 28px; margin-bottom: 42px; }
+  .ifip-home-curriculum-lead .ifip-home-editorial-image { border-width: 6px; box-shadow: 0 16px 34px #0006661a; }
+  .ifip-home-curriculum-lead .ifip-home-editorial-image img { height: 260px; }
+  .ifip-home-levy { box-shadow: 0 16px 34px #00066624; }
 }
 .ifip-home-pathway {
   transform: translateX(calc(var(--pathway-offset, 0) * 1px));
 }
-.ifip-home-actions[data-home-entrance]:focus-within {
+.ifip-home [data-home-entrance]:focus-within {
   transform: none !important;
+  opacity: 1 !important;
+  filter: none !important;
 }
-.ifip-home [data-home-reveal]:focus-within {
+.ifip-home :is([data-home-reveal], [data-home-item]):focus-within {
   opacity: 1 !important;
   transform: none !important;
+  filter: none !important;
 }
 @media (max-width: 750px) {
   .ifip-home-pathway {
@@ -252,8 +286,181 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ifip-home :is([data-home-entrance], [data-home-reveal]) {
+  .ifip-home :is([data-home-entrance], [data-home-reveal], [data-home-item]) {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}
+
+/* Distinct surfaces and pacing through the middle of the page. */
+.ifip-home-section + .ifip-home-section { border-top: 0; }
+.ifip-home-eligibility-section { background: #f7f5ef; }
+.ifip-home-eligibility-section .ifip-home-section-grid { grid-template-columns: minmax(0, .72fr) minmax(0, 1.28fr); align-items: center; }
+.ifip-home-eligibility { gap: 16px; }
+.ifip-home-eligibility .ifip-home-card {
+  min-height: 176px;
+  padding: 24px;
+  border: 1px solid #dededb;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 12px 32px #0006660a;
+}
+.ifip-home-eligibility .ifip-home-card .ifip-home-icon { background: #eaf4f8; border-radius: 50%; }
+.ifip-home-eligibility h3 { font-family: var(--font-display); font-size: 1.45rem; font-weight: 400; }
+.ifip-home-eligibility p { font-size: .93rem; line-height: 1.55; }
+
+.ifip-home-pricing-section {
+  color: #fff;
+  background: radial-gradient(circle at 83% 45%, #09618b 0, transparent 36%), linear-gradient(120deg, #000666, #111e5b);
+}
+.ifip-home-pricing-section .ifip-home-section-grid { align-items: center; }
+.ifip-home-pricing-section .ifip-home-section-intro p { color: #d9e6f2; }
+.ifip-home-pricing-section .ifip-home-levy {
+  min-height: 270px;
+  background: #ffffff19;
+  border: 1px solid #ffffff6b;
+  border-radius: 8px;
+  box-shadow: 0 24px 60px #00033355;
+  backdrop-filter: blur(18px);
+}
+.ifip-home-pricing-section .ifip-home-levy .ifip-home-meta { color: #e2f2fa; }
+
+.ifip-home-process-section { background: #eaf2f5; }
+.ifip-home-process-section .ifip-home-section-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(38px, 7vw, 110px); }
+.ifip-home-process-media { margin-top: 36px; overflow: hidden; border: 8px solid #fff; border-radius: 4px; box-shadow: 0 18px 45px #00066620; }
+.ifip-home-process-media img { display: block; width: 100%; height: clamp(340px, 34vw, 470px); object-fit: cover; object-position: center; outline: 1px solid #0000001a; outline-offset: -2px; }
+.ifip-home-process-section .ifip-home-journey { margin-block: 4px 0; padding-inline-start: 28px; border-inline-start: 1px solid #afcbd7; }
+.ifip-home-process-section .ifip-home-journey li { position: relative; border-top: 0; border-bottom: 1px solid #c5d7df; padding-block: 22px; }
+.ifip-home-process-section .ifip-home-journey li:last-child { border-bottom: 0; }
+.ifip-home-process-section .ifip-home-journey li::after { content: ""; position: absolute; inset-inline-start: -34px; top: 30px; width: 11px; height: 11px; border-radius: 50%; background: #006591; box-shadow: 0 0 0 5px #eaf2f5; }
+.ifip-home-process-section .ifip-home-journey h3 { font-size: 1.55rem; }
+
+.ifip-home-partners-section { background: #fff; }
+.ifip-home-partners-section .ifip-home-partners-grid { gap: 16px; margin-top: 42px; }
+.ifip-home-partners-section .ifip-home-partners-grid .ifip-home-card { min-height: 178px; padding: 26px 22px; background: #faf9f6; border: 1px solid #e5e2dc; border-radius: 5px; }
+.ifip-home-partners-section .ifip-home-partner-logo { height: 76px; margin-bottom: 17px; }
+.ifip-home-partners-section .ifip-home-partner-logo img { max-height: 76px; }
+
+.ifip-home-partner-callout { background: #f4eee4; }
+.ifip-home-partner-callout .ifip-home-section-grid { align-items: center; }
+.ifip-home-partner-callout h2 { max-width: 14ch; }
+.ifip-home-partner-callout .ifip-home-section-intro { padding-inline-start: 32px; border-inline-start: 3px solid var(--accent); }
+
+@media (min-width: 960px) {
+  .ifip-home-process-intro { position: sticky; top: 104px; }
+}
+@media (max-width: 750px) {
+  .ifip-home-eligibility-section .ifip-home-section-grid,
+  .ifip-home-process-section .ifip-home-section-grid { grid-template-columns: minmax(0, 1fr); }
+  .ifip-home-eligibility .ifip-home-card { min-height: 0; padding: 20px; }
+  .ifip-home-pricing-section .ifip-home-levy { min-height: 190px; padding: 28px; }
+  .ifip-home-process-media img { height: 300px; }
+  .ifip-home-process-section .ifip-home-journey { padding-inline-start: 20px; }
+  .ifip-home-process-section .ifip-home-journey li::after { inset-inline-start: -26px; }
+  .ifip-home-partner-callout .ifip-home-section-intro { padding-inline-start: 0; padding-block-start: 24px; border-inline-start: 0; border-top: 3px solid var(--accent); }
+}
+@media (prefers-reduced-motion: no-preference) and (hover: hover) {
+  .ifip-home-eligibility .ifip-home-card,
+  .ifip-home-partners-grid .ifip-home-card { transition: transform 300ms cubic-bezier(0.2, 0, 0, 1), box-shadow 300ms cubic-bezier(0.2, 0, 0, 1); }
+  .ifip-home-eligibility .ifip-home-card:hover,
+  .ifip-home-partners-grid .ifip-home-card:hover { transform: translateY(-5px); box-shadow: 0 20px 38px #00066618; }
+  .ifip-home-journey h3 { transition: color 150ms ease; }
+  .ifip-home-journey li:hover h3 { color: var(--accent); }
+}
+
+/* Curriculum modules, final assessment and certificate. */
+.ifip-home-curriculum-section { background: #fff; }
+.ifip-home-curriculum-lead .ifip-home-editorial-image img { transform: scale(1.55); transform-origin: center bottom; }
+.ifip-home-curriculum-cards { gap: 18px !important; }
+.ifip-home-curriculum-cards > .ifip-home-card {
+  display: block;
+  grid-row: auto;
+  min-height: 310px;
+  padding: 30px;
+  border: 1px solid var(--module-outline);
+  border-radius: 5px;
+  background: var(--module-surface);
+}
+.ifip-home-curriculum-cards > .ifip-home-card:nth-child(1) { --module-surface: #f7f1e7; --module-outline: #e6dccc; --module-icon: #efe2cf; }
+.ifip-home-curriculum-cards > .ifip-home-card:nth-child(2) { --module-surface: #e9f3fa; --module-outline: #d5e6f1; --module-icon: #d7eaf6; }
+.ifip-home-curriculum-cards > .ifip-home-card:nth-child(3) { --module-surface: #eaf2eb; --module-outline: #d7e5d9; --module-icon: #d8e9db; }
+.ifip-home-curriculum-cards > .ifip-home-card:nth-child(4) { --module-surface: #f0edf8; --module-outline: #dfdaf0; --module-icon: #e2ddf3; }
+.ifip-home-curriculum-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 20px 12px; }
+.ifip-home-module-index { color: var(--accent); font-size: .79rem; font-weight: 700; letter-spacing: .15em; font-variant-numeric: tabular-nums; }
+.ifip-home-curriculum-heading .ifip-home-icon { width: 38px; height: 38px; border-radius: 50%; background: var(--module-icon); }
+.ifip-home-curriculum-heading h3 { grid-column: 1 / -1; max-width: 22ch; font-size: clamp(1.5rem, 2.1vw, 2rem); line-height: 1.18; }
+.ifip-home-curriculum-cards .ifip-home-curriculum-list { margin-top: 23px; padding: 17px 0 0; border-top: 1px solid var(--module-outline); list-style: none; }
+.ifip-home-curriculum-list li { position: relative; padding-inline-start: 18px; font-size: .94rem; line-height: 1.55; }
+.ifip-home-curriculum-list li::before { content: ""; position: absolute; inset-inline-start: 0; top: .64em; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+.ifip-home-curriculum-list li + li { margin-top: 10px; }
+
+.ifip-home-curriculum-outcomes { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(270px, .8fr); gap: 18px; margin-top: 26px; }
+.ifip-home-assessment, .ifip-home-certificate-panel { min-width: 0; padding: clamp(28px, 3.3vw, 44px); border-radius: 5px; }
+.ifip-home-assessment { background: #eaf3f6; border: 1px solid #d6e5eb; }
+.ifip-home-assessment-heading { display: flex; align-items: center; gap: 16px; }
+.ifip-home-assessment-heading .ifip-home-icon, .ifip-home-certificate-panel .ifip-home-icon { width: 50px; height: 50px; border-radius: 50%; }
+.ifip-home-assessment-heading .ifip-home-icon svg, .ifip-home-certificate-panel .ifip-home-icon svg { width: 25px; height: 25px; }
+.ifip-home-assessment .ifip-home-eyebrow { color: var(--accent); }
+.ifip-home-assessment h3, .ifip-home-certificate-panel h3 { font-family: var(--font-display); font-size: clamp(1.9rem, 2.8vw, 2.65rem); font-weight: 400; line-height: 1.14; letter-spacing: -.02em; }
+.ifip-home-assessment-copy { max-width: 72ch; margin-top: 24px; color: #25334b; font-size: 1rem; line-height: 1.6; text-wrap: pretty; }
+.ifip-home-assessment-label { margin-top: 28px; font-size: .9rem; font-weight: 700; }
+.ifip-home-assessment-list { counter-reset: assessment; margin-top: 10px; padding: 0; list-style: none; }
+.ifip-home-assessment-list li { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; counter-increment: assessment; padding-block: 14px; border-top: 1px solid #c9dce3; color: #25334b; font-size: .94rem; line-height: 1.55; }
+.ifip-home-assessment-list li::before { content: counter(assessment, decimal-leading-zero); color: var(--accent); font-size: .8rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ifip-home-certificate-panel { display: flex; flex-direction: column; justify-content: flex-end; background: #000666; color: #fff; }
+.ifip-home-certificate-panel .ifip-home-icon { margin-bottom: auto; background: #ffffff1f; color: #80d8ff; }
+.ifip-home-certificate-panel .ifip-home-eyebrow { margin-top: 34px; margin-bottom: 12px; color: #80d8ff; }
+.ifip-home-certificate-panel > p:last-child { max-width: 25ch; margin-top: 16px; color: #dbe8f6; font-size: .98rem; line-height: 1.55; }
+
+@media (max-width: 900px) {
+  .ifip-home-curriculum-outcomes { grid-template-columns: minmax(0, 1fr); }
+  .ifip-home-certificate-panel { min-height: 230px; }
+}
+@media (max-width: 750px) {
+  .ifip-home-curriculum-cards > .ifip-home-card { min-height: 0; padding: 25px; }
+  .ifip-home-curriculum-outcomes { margin-top: 18px; }
+  .ifip-home-assessment, .ifip-home-certificate-panel { padding: 27px 24px; }
+  .ifip-home-assessment-heading { align-items: flex-start; }
+  .ifip-home-assessment-heading .ifip-home-icon { flex: none; }
+}
+@media (prefers-reduced-motion: no-preference) and (hover: hover) {
+  .ifip-home-curriculum-cards > .ifip-home-card { transition: translate 300ms cubic-bezier(0.2, 0, 0, 1), box-shadow 300ms cubic-bezier(0.2, 0, 0, 1); }
+  .ifip-home-curriculum-cards > .ifip-home-card:hover { translate: 0 -4px; box-shadow: 0 20px 42px #00066612; }
+}
+
+/* On small screens the hero photograph becomes the full-bleed backdrop. */
+@media (max-width: 750px) {
+  .ifip-home-hero { position: relative; overflow: hidden; background: #000666; color: #fff; }
+  .ifip-home-hero-grid {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    align-items: center;
+    min-height: min(720px, calc(100svh - 66px));
+    padding-block: 72px;
+  }
+  .ifip-home-hero-grid > div:first-child { position: relative; z-index: 2; max-width: 440px; }
+  .ifip-home-hero-visual {
+    position: absolute;
+    z-index: 0;
+    inset-block: 0;
+    inset-inline-start: 50%;
+    width: 100vw;
+    margin: 0;
+    padding: 0;
+    translate: -50% 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
     opacity: 1 !important;
     transform: none !important;
   }
+  .ifip-home-hero-visual img { width: 100%; height: 100%; border-radius: 0; object-fit: cover; object-position: 34% center; }
+  .ifip-home-hero-visual::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, #000666ec, #000666bd); }
+  .ifip-home-hero-visual figcaption { display: none; }
+  .ifip-home-hero .ifip-home-eyebrow, .ifip-home-hero h1 em { color: #80d8ff; }
+  .ifip-home-hero .ifip-home-lead { color: #f0f5fb; }
+  .ifip-home-hero .ifip-home-button { background: #80d8ff; color: #000666; }
+  .ifip-home-hero .ifip-home-text-link { color: #fff; }
 }
