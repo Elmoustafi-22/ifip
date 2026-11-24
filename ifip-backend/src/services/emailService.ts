@@ -1,17 +1,9 @@
-import axios from 'axios';
+import { Outbox } from '@getoutbox/sdk';
 import { env } from '../config/env.js';
 import { Cohort, type ICohort } from '../models/Cohort.js';
 import type { IPartnerOrganization } from '../models/PartnerOrganization.js';
 
-const brevoApi = axios.create({
-    baseURL: 'https://api.brevo.com/v3',
-    headers: {
-        'accept': 'application/json',
-        'api-key': env.BREVO_API_KEY,
-        'content-type': 'application/json',
-    },
-    timeout: 10000,
-});
+const outbox = new Outbox({ apiKey: env.OUTBOX_API_KEY });
 
 export const EMAIL_SENDERS = {
     DEFAULT: 'Islamic Finance Internship Program',
@@ -37,25 +29,28 @@ const send = async (to: string, subject: string, html: string, senderName: strin
     const htmlWithFooter = html + unsubscribeBlock;
 
     try {
-        await brevoApi.post('/smtp/email', {
-            sender: {
-                name: senderName,
-                email: env.EMAIL_FROM,
-            },
-            replyTo: {
-                email: env.EMAIL_REPLY_TO,
-                name: 'IFIP Support',
-            },
-            to: [{ email: to }],
+        await outbox.send({
+            from: env.EMAIL_FROM,
+            fromName: senderName,
+            replyTo: env.EMAIL_REPLY_TO,
+            to,
             subject,
-            htmlContent: htmlWithFooter,
+            html: htmlWithFooter,
         });
-        if (!reportFailure) console.log(`[EmailService] Sent email "${subject}" to ${to} (${senderName})`);
-    } catch (err: any) {
+        if (!reportFailure) console.log(`[EmailService] Queued email "${subject}" to ${to} (${senderName})`);
+    } catch (err: unknown) {
         if (reportFailure) throw err;
-        console.error(`[EmailService] Failed to send email "${subject}" to ${to}:`, err?.response?.data ?? err.message);
+        console.error(`[EmailService] Failed to queue email "${subject}" to ${to}:`, err instanceof Error ? err.message : err);
     }
 };
+
+export const sendTestEmail = (to: string) => send(
+    to,
+    'IFIP email delivery test',
+    '<h1>Email test</h1><p>This message confirms that IFIP queued an email through OutboxStack.</p>',
+    EMAIL_SENDERS.ADMIN,
+    true,
+);
 
 const LOGO_HEADER_URL = "https://res.cloudinary.com/dwryrfa1u/image/upload/v1783863950/logo-full-color_ngtq5n.png";
 

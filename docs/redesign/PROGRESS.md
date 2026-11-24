@@ -1,5 +1,11 @@
 # IFIP modernization progress
 
+## OutboxStack email provider
+
+- Replaced Brevo's Axios transport with `@getoutbox/sdk` 0.5.0 in the existing shared email service. Existing sender display names, reply-to address, HTML templates, preference footer, and default log-and-swallow versus critical throw behavior are preserved. Successful requests are logged as queued because provider acceptance does not establish delivery. Backend configuration now requires `OUTBOX_API_KEY`; `EMAIL_FROM` must use an OutboxStack-verified sender domain. README and architecture references were updated, and existing provider fixtures now intercept the OutboxStack API. No webhook, batching, template migration, or caller behavior changes were added. The SDK retries transient failures up to two times by default, so a synchronous email operation may take longer than with the previous single 10-second Brevo request.
+- Added `ifip-backend/src/scripts/sendTestEmail.ts` and the `email:test` package command. It defaults to `mustophaqadir@gmail.com`, calls the shared email service, and reports queue acceptance separately from delivery. The script was not run and no email was sent.
+- `ifip-backend`: `npm run build` passed (TypeScript compile). `git diff --check` passed. A source/docs search found no remaining active Brevo references. Email provider integration tests, staging/test-key delivery, sender-domain verification, bounce handling, and production secret configuration were not run or verified. Configure `OUTBOX_API_KEY`, ensure `EMAIL_FROM` is on a verified domain, then perform isolated staging delivery before retiring the Brevo credential. No production send or deployment was performed.
+
 ## Registration pause within form panel
 
 - Follow-up: hid the shared “Already started an application?” recovery section while the pause notice or its initial lookup is shown. The pause panel's single resume-link sentence remains. The shared section returns with the normal email form after expiry. Frontend build TypeScript and `git diff --check` passed; this conditional copy change was not separately rendered in a browser.

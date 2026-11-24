@@ -1,13 +1,12 @@
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
-import axios from 'axios';
 import mongoose from 'mongoose';
 
 // Use only a disposable local replica set. All provider requests are intercepted.
 const uri = `mongodb://127.0.0.1:37117/ifip_partner_test_${process.pid}?directConnection=true&replicaSet=ifiptest`;
 Object.assign(process.env, {
     NODE_ENV: 'test', MONGO_URI: uri, REDIS_URL: 'redis://127.0.0.1:1',
-    CLIENT_URL: 'http://127.0.0.1:3217', BREVO_API_KEY: 'fixture', EMAIL_FROM: 'fixture@example.invalid',
+    CLIENT_URL: 'http://127.0.0.1:3217', OUTBOX_API_KEY: 'fixture', EMAIL_FROM: 'fixture@example.invalid',
     JWT_ACCESS_SECRET: 'x'.repeat(32), JWT_REFRESH_SECRET: 'y'.repeat(32),
     APPLICANT_SESSION_SECRET: 'a'.repeat(32), SET_PASSWORD_TOKEN_SECRET: 's'.repeat(32),
     RESET_PASSWORD_TOKEN_SECRET: 'r'.repeat(32),
@@ -19,15 +18,14 @@ Object.assign(process.env, {
 
 const mail = [];
 let rejectCvEmail = false;
-axios.defaults.adapter = async config => {
-    assert.equal(config.baseURL, 'https://api.brevo.com/v3');
-    assert.equal(config.url, '/smtp/email');
-    const message = JSON.parse(config.data);
+globalThis.fetch = async (input, init) => {
+    assert.equal(String(input), 'https://outboxstack.app/v1/messages');
+    const message = JSON.parse(init.body);
     if (rejectCvEmail && message.subject === 'A partner requested your CV — IFIP') {
-        throw new Error('Simulated CV email provider failure');
+        return new Response(JSON.stringify({ code: 'invalid_request', message: 'Simulated CV email provider failure' }), { status: 400 });
     }
     mail.push(message);
-    return { data: { messageId: 'fixture' }, status: 201, headers: {}, config };
+    return new Response(JSON.stringify({ id: 'fixture' }), { status: 202, headers: { 'content-type': 'application/json' } });
 };
 
 const { submitPartnerApplication, reviewPartnerApplication } = await import('../src/controllers/partnerController.ts');

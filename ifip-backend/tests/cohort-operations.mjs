@@ -1,27 +1,27 @@
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
 import mongoose from 'mongoose';
-import axios from 'axios';
 
 // This harness only uses the disposable replica set documented in REGISTRATION_UNIFIED_VERIFICATION.md.
 const database = 'ifip_cohort_test_' + process.pid;
 const port = Number(process.env.IFIP_COHORT_TEST_MONGO_PORT ?? 37117);
 assert.ok(Number.isInteger(port) && port > 0 && port <= 65535);
 const uri = `mongodb://127.0.0.1:${port}/${database}?directConnection=true&replicaSet=ifiptest`;
-Object.assign(process.env,{NODE_ENV:'test',MONGO_URI:uri,JWT_ACCESS_SECRET:'x'.repeat(32),JWT_REFRESH_SECRET:'y'.repeat(32),APPLICANT_SESSION_SECRET:'a'.repeat(32),SET_PASSWORD_TOKEN_SECRET:'s'.repeat(32),RESET_PASSWORD_TOKEN_SECRET:'r'.repeat(32),CLOUDINARY_CLOUD_NAME:'fixture',CLOUDINARY_API_KEY:'fixture',CLOUDINARY_API_SECRET:'fixture',CLIENT_URL:'http://127.0.0.1:3217',REDIS_URL:'redis://127.0.0.1:1',BREVO_API_KEY:'fixture',EMAIL_FROM:'fixture@example.invalid',FLUTTERWAVE_SECRET_KEY:'fixture',FLUTTERWAVE_CALLBACK_URL:'http://127.0.0.1:3217/verify-payment',FLUTTERWAVE_WEBHOOK_HASH:'fixture-hash',PAYSTACK_SECRET_KEY:'fixture',PAYSTACK_CALLBACK_URL:'http://127.0.0.1:3217/verify-payment',LEVY_AMOUNT_NGN:'20000',LEVY_AMOUNT_USD:'30'});
+Object.assign(process.env,{NODE_ENV:'test',MONGO_URI:uri,JWT_ACCESS_SECRET:'x'.repeat(32),JWT_REFRESH_SECRET:'y'.repeat(32),APPLICANT_SESSION_SECRET:'a'.repeat(32),SET_PASSWORD_TOKEN_SECRET:'s'.repeat(32),RESET_PASSWORD_TOKEN_SECRET:'r'.repeat(32),CLOUDINARY_CLOUD_NAME:'fixture',CLOUDINARY_API_KEY:'fixture',CLOUDINARY_API_SECRET:'fixture',CLIENT_URL:'http://127.0.0.1:3217',REDIS_URL:'redis://127.0.0.1:1',OUTBOX_API_KEY:'fixture',EMAIL_FROM:'fixture@example.invalid',FLUTTERWAVE_SECRET_KEY:'fixture',FLUTTERWAVE_CALLBACK_URL:'http://127.0.0.1:3217/verify-payment',FLUTTERWAVE_WEBHOOK_HASH:'fixture-hash',PAYSTACK_SECRET_KEY:'fixture',PAYSTACK_CALLBACK_URL:'http://127.0.0.1:3217/verify-payment',LEVY_AMOUNT_NGN:'20000',LEVY_AMOUNT_USD:'30'});
 
 const sent = [];
 const adminEmails = [];
 let fail = true;
-axios.defaults.adapter = async config => {
-  assert.equal(config.baseURL, 'https://api.brevo.com/v3');
-  assert.equal(config.url, '/smtp/email');
-  const payload = JSON.parse(config.data);
-  const email = payload.to[0].email;
+globalThis.fetch = async (input, init) => {
+  assert.equal(String(input), 'https://outboxstack.app/v1/messages');
+  const payload = JSON.parse(init.body);
+  const email = payload.to;
   if (payload.subject.startsWith('New cohort created: ')) adminEmails.push({email, payload});
   else sent.push({email, payload});
-  if (email === 'retry@example.invalid' && fail) throw new Error('Simulated provider failure');
-  return {data:{messageId:'fixture'},status:201,statusText:'Created',headers:{},config};
+  if (email === 'retry@example.invalid' && fail) {
+    return new Response(JSON.stringify({code:'invalid_request',message:'Simulated provider failure'}),{status:400});
+  }
+  return new Response(JSON.stringify({id:'fixture'}),{status:202,headers:{'content-type':'application/json'}});
 };
 const {createCohort,updateCohort,getDashboardStats,getCohortWaitlistStatus,retryCohortWaitlistDelivery,
  resendCohortWaitlistAnnouncement,clearConfirmedCohortWaitlist,getWaitlist,getPendingApplicants,exportApplicantsCSV,

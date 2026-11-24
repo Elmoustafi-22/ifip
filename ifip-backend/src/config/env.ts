@@ -26,7 +26,7 @@ const envSchema = z.object({
     PAYSTACK_WEBHOOK_SECRET: z.string().transform((val) => val?.trim() || undefined).optional(),
     BANK_TRANSFER_ACCOUNT_NUMBER: z.string().regex(/^\d{4,17}$/).optional(),
     BANK_TRANSFER_HOLD_DAYS: z.coerce.number().int().min(1).max(30).default(5),
-    BREVO_API_KEY: z.string().min(1),
+    OUTBOX_API_KEY: z.string().min(1),
     EMAIL_FROM: z.string().min(1),
     EMAIL_REPLY_TO: z.string().email().default('ifip.program@gmail.com'),
     SUPPORT_PHONE: z.string().default('+2349060356610'),

@@ -45,7 +45,7 @@ Key design principles:
 
 ## Tech stack
 
-- Backend: Node.js, Express, TypeScript, MongoDB, Mongoose, JWT, Cloudinary, Paystack, Brevo
+- Backend: Node.js, Express, TypeScript, MongoDB, Mongoose, JWT, Cloudinary, Paystack, OutboxStack
 - Frontend: Next.js, React, TypeScript, Tailwind CSS, React Hook Form, React Query
 
 ## Repo layout
@@ -68,7 +68,7 @@ Key design principles:
 - Partner management and placement tracking
 - Payment integration with Paystack
 - File upload support via Cloudinary
-- Notification workflows using Brevo email
+- Notification workflows using OutboxStack email
 - Admin dashboard and cohort management
 - Public partner intake and partner organization management
 
@@ -106,8 +106,10 @@ npm run dev
 - `CLIENT_URL`
 - `PAYSTACK_SECRET_KEY`
 - `PAYSTACK_CALLBACK_URL`
-- `BREVO_API_KEY`
+- `OUTBOX_API_KEY`
 - `EMAIL_FROM`
+
+`EMAIL_FROM` must use an OutboxStack-verified sender domain. `EMAIL_REPLY_TO` is optional and defaults to `ifip.program@gmail.com`.
 
 ### Frontend environment variables
 

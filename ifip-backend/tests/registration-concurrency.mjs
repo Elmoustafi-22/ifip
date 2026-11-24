@@ -6,7 +6,7 @@ import axios from 'axios';
 // This harness only uses the disposable replica set documented in REGISTRATION_UNIFIED_VERIFICATION.md.
 const database = 'ifip_registration_test_' + process.pid;
 const uri = 'mongodb://127.0.0.1:37117/' + database + '?directConnection=true&replicaSet=ifiptest';
-Object.assign(process.env,{NODE_ENV:'test',MONGO_URI:uri,JWT_ACCESS_SECRET:'x'.repeat(32),JWT_REFRESH_SECRET:'y'.repeat(32),APPLICANT_SESSION_SECRET:'a'.repeat(32),SET_PASSWORD_TOKEN_SECRET:'s'.repeat(32),RESET_PASSWORD_TOKEN_SECRET:'r'.repeat(32),CLOUDINARY_CLOUD_NAME:'fixture',CLOUDINARY_API_KEY:'fixture',CLOUDINARY_API_SECRET:'fixture',CLIENT_URL:'http://127.0.0.1:3217',REDIS_URL:'redis://127.0.0.1:1',BREVO_API_KEY:'fixture',EMAIL_FROM:'fixture@example.invalid',FLUTTERWAVE_SECRET_KEY:'fixture',FLUTTERWAVE_CALLBACK_URL:'http://127.0.0.1:3217/verify-payment',FLUTTERWAVE_WEBHOOK_HASH:'fixture-hash',PAYSTACK_SECRET_KEY:'fixture',PAYSTACK_CALLBACK_URL:'http://127.0.0.1:3217/verify-payment'});
+Object.assign(process.env,{NODE_ENV:'test',MONGO_URI:uri,JWT_ACCESS_SECRET:'x'.repeat(32),JWT_REFRESH_SECRET:'y'.repeat(32),APPLICANT_SESSION_SECRET:'a'.repeat(32),SET_PASSWORD_TOKEN_SECRET:'s'.repeat(32),RESET_PASSWORD_TOKEN_SECRET:'r'.repeat(32),CLOUDINARY_CLOUD_NAME:'fixture',CLOUDINARY_API_KEY:'fixture',CLOUDINARY_API_SECRET:'fixture',CLIENT_URL:'http://127.0.0.1:3217',REDIS_URL:'redis://127.0.0.1:1',OUTBOX_API_KEY:'fixture',EMAIL_FROM:'fixture@example.invalid',FLUTTERWAVE_SECRET_KEY:'fixture',FLUTTERWAVE_CALLBACK_URL:'http://127.0.0.1:3217/verify-payment',FLUTTERWAVE_WEBHOOK_HASH:'fixture-hash',PAYSTACK_SECRET_KEY:'fixture',PAYSTACK_CALLBACK_URL:'http://127.0.0.1:3217/verify-payment'});
 
 process.env.PAYMENT_PRIMARY_PROVIDER = 'flutterwave';
 process.env.PAYMENT_FLUTTERWAVE_FALLBACK = 'true';
@@ -15,6 +15,11 @@ delete process.env.PAYSTACK_WEBHOOK_SECRET;
 let initializeCalls=0, initializationHook, verificationHook, paystackInitialize, paystackRequests=[];
 const transactions=new Map();
 const paystackTransactions=new Map();
+globalThis.fetch=async(input,init)=>{
+ if(String(input)!=='https://outboxstack.app/v1/messages')throw Error('Unexpected email request');
+ JSON.parse(init.body);
+ return new Response(JSON.stringify({id:'fixture'}),{status:202,headers:{'content-type':'application/json'}});
+};
 axios.defaults.adapter=async config=>{
  const url=config.url || '';
  const reply=(data)=>({data,status:200,statusText:'OK',headers:{},config});

@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
-import axios from 'axios';
 import bcrypt from 'bcryptjs';
 import express from 'express';
 import jwt from 'jsonwebtoken';
@@ -26,16 +25,15 @@ Object.assign(process.env, {
     REDIS_URL: 'redis://127.0.0.1:1',
     PAYSTACK_SECRET_KEY: 'fixture',
     PAYSTACK_CALLBACK_URL: 'http://localhost:3217/verify-payment',
-    BREVO_API_KEY: 'fixture',
+    OUTBOX_API_KEY: 'fixture',
     EMAIL_FROM: 'fixture@example.invalid',
 });
 
 const sentEmails = [];
-axios.defaults.adapter = async config => {
-    assert.equal(config.baseURL, 'https://api.brevo.com/v3');
-    assert.equal(config.url, '/smtp/email');
-    sentEmails.push(JSON.parse(config.data));
-    return { data: {}, status: 201, statusText: 'Created', headers: {}, config };
+globalThis.fetch = async (input, init) => {
+    assert.equal(String(input), 'https://outboxstack.app/v1/messages');
+    sentEmails.push(JSON.parse(init.body));
+    return new Response(JSON.stringify({ id: 'fixture' }), { status: 202, headers: { 'content-type': 'application/json' } });
 };
 
 const { User } = await import('../src/models/User.ts');

@@ -35,6 +35,10 @@ See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and 
 
 **Commitment levy pricing updated locally.** New checkouts default to NGN 25,000 for Nigeria and USD 35 for other countries of residence. Superadmins can change both prices under **Admin → Overview → System**. See [verification](PROGRESS.md#commitment-levy-pricing).
 
+## Email provider
+
+**OutboxStack transport migrated locally.** Backend email templates and call sites use the shared OutboxStack adapter; staging sender-domain, API-key, delivery and rollback verification remain pending. See [migration evidence](PROGRESS.md#outboxstack-email-provider).
+
 ## Homepage
 
 - **Classic visual direction reviewed, 23 November 2026.** Home and registration review, image brief, typography proposal and dashboard-only mobile navigation scope are recorded in [progress](PROGRESS.md#home-and-registration-ui-review). Application source is unchanged; visual implementation is the next checkpoint.
