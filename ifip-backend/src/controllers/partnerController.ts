@@ -440,6 +440,9 @@ export const updatePartnerOrg = async (req: Request, res: Response) => {
             return;
         }
 
+        let contactEmailChanged = false;
+        let contactPersonChanged = false;
+
         if (name          !== undefined) org.name          = name;
         if (logoUrl       !== undefined) org.logoUrl       = logoUrl;
         if (description   !== undefined) org.description   = description;
@@ -453,6 +456,7 @@ export const updatePartnerOrg = async (req: Request, res: Response) => {
                 return;
             }
             const normalizedEmail = contactEmail.trim().toLowerCase();
+            contactEmailChanged = normalizedEmail !== org.contactEmail;
             if (normalizedEmail !== org.contactEmail) {
                 const existingUser = await User.findOne({ email: normalizedEmail });
                 if (existingUser && String(existingUser.orgId) !== String(org._id)) {
@@ -462,7 +466,10 @@ export const updatePartnerOrg = async (req: Request, res: Response) => {
             }
             org.contactEmail = normalizedEmail;
         }
-        if (contactPerson !== undefined) org.contactPerson = contactPerson;
+        if (contactPerson !== undefined) {
+            contactPersonChanged = contactPerson !== org.contactPerson;
+            org.contactPerson = contactPerson;
+        }
         if (contactPhone  !== undefined) org.contactPhone  = contactPhone;
         if (status        !== undefined) org.status        = status;
         if (hasOpenings   !== undefined) org.hasOpenings   = !!hasOpenings;
@@ -474,11 +481,11 @@ export const updatePartnerOrg = async (req: Request, res: Response) => {
         const user = await User.findOne({ orgId: org._id, role: 'partner' });
         if (user) {
             let userChanged = false;
-            if (org.contactEmail !== user.email) {
+            if (contactEmailChanged && org.contactEmail !== user.email) {
                 user.email = org.contactEmail;
                 userChanged = true;
             }
-            if (org.contactPerson && org.contactPerson !== user.fullName) {
+            if (contactPersonChanged && org.contactPerson && org.contactPerson !== user.fullName) {
                 user.fullName = org.contactPerson;
                 userChanged = true;
             }

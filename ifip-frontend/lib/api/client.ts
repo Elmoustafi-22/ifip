@@ -1,4 +1,5 @@
 import axios from "axios";
+import { requestFailure } from "./request-error";
 import { expiredSessionLoginPath } from "../cv-request-link";
 import type { AuthResponse } from "./types";
 
@@ -71,13 +72,14 @@ apiClient.interceptors.response.use(
       }
     } else if (error.request) {
       isNetworkError = true;
-      errorMessage = "Network error. Please check your internet connection and try again.";
+      errorMessage = requestFailure(error.code, typeof navigator !== "undefined" && !navigator.onLine).message;
     } else {
       errorMessage = error.message;
     }
 
     const customError = new Error(errorMessage);
     (customError as any).isNetworkError = isNetworkError;
+    Object.assign(customError, { isTimeout: isNetworkError && requestFailure(error.code).isTimeout, requestId: error.response?.headers?.["x-request-id"] });
     (customError as any).status = error.response?.status;
     (customError as any).code = error.code;
     (customError as any).apiCode = error.response?.data?.code;
@@ -271,13 +273,14 @@ authClient.interceptors.response.use(
       }
     } else if (error.request) {
       isNetworkError = true;
-      errorMessage = "Network error. Please check your internet connection and try again.";
+      errorMessage = requestFailure(error.code, typeof navigator !== "undefined" && !navigator.onLine).message;
     } else {
       errorMessage = error.message;
     }
 
     const customError = new Error(errorMessage);
     (customError as any).isNetworkError = isNetworkError;
+    Object.assign(customError, { isTimeout: isNetworkError && requestFailure(error.code).isTimeout, requestId: error.response?.headers?.["x-request-id"] });
     (customError as any).status = error.response?.status;
     (customError as any).code = error.code;
     (customError as any).apiCode = error.response?.data?.code;

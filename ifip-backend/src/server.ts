@@ -1,3 +1,5 @@
+import { startReminderWorker } from './services/reminderJobs.js';
+import { deliverPendingReminderBatch } from './controllers/adminController.js';
 import app from './app.js';
 import { connectDB } from './config/db.js';
 import { env } from './config/env.js';
@@ -26,6 +28,7 @@ Promise.all([connectDB(), connectRedis()]).then(async () => {
     // Initialize interview reminder cron (runs every 5 minutes, checks only scheduled interviews)
     startInterviewReminderCron();
     startCohortWaitlistCron();
+    startReminderWorker(deliverPendingReminderBatch);
 
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 });

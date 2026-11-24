@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import PendingDialog from "./PendingDialog";
+import ReminderProgress from "./ReminderProgress";
+import { useReminderJob } from "./useReminderJob";
 import {
   HiOutlineMagnifyingGlass,
   HiOutlineFunnel,
@@ -29,13 +31,10 @@ import ExportApplicantsModal from "@/components/admin/ExportApplicantsModal";
 import { useLevyPricing } from "@/lib/hooks/useLevyPricing";
 import {
   getPendingApplicants,
-  sendPendingApplicantReminder,
-  sendBulkPendingApplicantReminders,
   uploadPendingApplicantCv,
   recordManualPayment,
   downloadApplicantsCSV,
   type PendingApplicantWork,
-  type PendingReminderResult,
   PendingApplicant,
   PendingApplicantsSummary,
   GetPendingApplicantsParams,
@@ -64,6 +63,7 @@ function pendingPayment(applicant: PendingApplicant) {
 }
 
 export default function PendingApplications() {
+  const reminderJob = useReminderJob();
   const { selectedCohortId, cohorts } = useContext(AdminCohortContext);
   const { pricing } = useLevyPricing();
   const [applicants, setApplicants] = useState<PendingApplicant[]>([]);
@@ -109,7 +109,6 @@ export default function PendingApplications() {
   const [emailBody, setEmailBody] = useState("");
   const [includeResumeLink, setIncludeResumeLink] = useState(true);
   const [sendingEmail, setSendingEmail] = useState(false);
-  const [reminderResult, setReminderResult] = useState<PendingReminderResult | null>(null);
   const [composeError, setComposeError] = useState("");
 
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
@@ -379,7 +378,6 @@ export default function PendingApplications() {
   };
 
   const openEmailModal = (applicant: PendingApplicant) => {
-    setReminderResult(null);
     setComposeError("");
     setEmailModalApplicant(applicant);
     setIsBulkEmailModalOpen(false);
@@ -391,18 +389,16 @@ export default function PendingApplications() {
       showToast("Please select at least one applicant.", "error");
       return;
     }
-    setReminderResult(null);
     setComposeError("");
     setEmailModalApplicant(null);
     setIsBulkEmailModalOpen(true);
     loadEmailTemplate("expiration_reminder");
   };
 
-  const retryIds = reminderResult?.results.filter(result => result.status === "failed").map(result => result.applicantId);
-  const composerRecipientCount = retryIds?.length ?? (isBulkEmailModalOpen ? selectedApplicantIds.length : 1);
+  const composerRecipientCount = (isBulkEmailModalOpen ? selectedApplicantIds.length : 1);
 
   const handleSendEmail = async () => {
-    if (sendingEmail || composerRecipientCount === 0) return;
+    if (sendingEmail || composerRecipientCount === 0 || reminderJob.blocked) return;
     if (!emailSubject.trim() || !emailBody.trim()) {
       setComposeError("Enter an email subject and message.");
       return;
@@ -411,18 +407,12 @@ export default function PendingApplications() {
     setComposeError("");
     setSendingEmail(true);
     try {
-      const payload = { cohortId: selectedCohortId || undefined, subject: emailSubject, message: emailBody, includeResumeLink };
-      const result = emailModalApplicant
-        ? await sendPendingApplicantReminder(emailModalApplicant._id, payload)
-        : await sendBulkPendingApplicantReminders({ ...payload, applicantIds: retryIds ?? selectedApplicantIds });
-      setReminderResult(result);
-      if (!result.failCount && !result.skippedCount) {
-        setEmailModalApplicant(null);
-        setIsBulkEmailModalOpen(false);
-        setSelectedApplicantIds([]);
-        showToast(result.message);
-      }
-      void fetchApplicants();
+      await reminderJob.start({ cohortId: selectedCohortId || undefined, subject: emailSubject, message: emailBody, includeResumeLink,
+        applicantIds: emailModalApplicant ? [emailModalApplicant._id] : selectedApplicantIds });
+      setEmailModalApplicant(null);
+      setIsBulkEmailModalOpen(false);
+      setSelectedApplicantIds([]);
+      showToast("Sending started. Follow progress on this page.");
     } catch (error) {
       setComposeError(error instanceof Error ? error.message : "Could not send the email. Try again.");
     } finally {
@@ -484,6 +474,9 @@ export default function PendingApplications() {
 
   return (
     <div className="space-y-5">
+      {reminderJob.jobId && <ReminderProgress job={reminderJob.job} error={reminderJob.error} onRetry={reminderJob.canRetry ? () => void reminderJob.retry() : undefined} retrying={reminderJob.retrying} canDismissMissing={reminderJob.canDismissMissing} onDismiss={() => {
+        reminderJob.dismiss(); void fetchApplicants();
+      }} />}
       {/* Toast Notification */}
       {toastMessage && (
         <div
@@ -987,18 +980,8 @@ export default function PendingApplications() {
             {/* Modal Body */}
             <div className="p-4 sm:p-6 space-y-4 text-xs">
               <p className="text-sm text-slate-700">Recipient scope: {cohortScope}. The email is about each recipient’s saved IFIP application.</p>
-              {composeError && <p role="alert" className="text-red-700">{composeError}</p>}
-              {reminderResult && (
-                <div role="status" className="space-y-2 rounded-lg border border-slate-300 p-3 text-sm">
-                  <p className="font-semibold">{reminderResult.message}</p>
-                  <ul className="space-y-1">
-                    {reminderResult.results.filter(result => result.status !== "accepted").map(result => {
-                      const applicant = applicants.find(item => item._id === result.applicantId) ?? (emailModalApplicant?._id === result.applicantId ? emailModalApplicant : null);
-                      return <li key={result.applicantId}>{applicant?.fullName || applicant?.email || "Applicant no longer on this page"}: {result.reason}</li>;
-                    })}
-                  </ul>
-                </div>
-              )}
+              {!reminderJob.job && composeError && <p role="alert" className="text-red-700">{composeError}</p>}
+              {reminderJob.job && <p role="status" className="text-sky-800">The send request is saved. Close this composer to follow its progress on the applicant page.</p>}
               {/* Cooldown Warning for Bulk Dispatch */}
               {isBulkEmailModalOpen &&
                 applicants.filter((a) => selectedApplicantIds.includes(a._id) && a.cooldownActive).length > 0 && (
@@ -1098,7 +1081,7 @@ export default function PendingApplications() {
               </button>
               <button
                 onClick={handleSendEmail}
-                disabled={sendingEmail || composerRecipientCount === 0}
+                disabled={sendingEmail || composerRecipientCount === 0 || reminderJob.blocked}
                 className="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-semibold transition shadow-sm flex items-center gap-2 text-xs"
               >
                 {sendingEmail ? (
@@ -1107,7 +1090,7 @@ export default function PendingApplications() {
                   </>
                 ) : (
                   <>
-                    <HiOutlinePaperAirplane className="w-4 h-4" /> {retryIds ? `Retry failed (${retryIds.length})` : `Send reminder (${composerRecipientCount})`}
+                    <HiOutlinePaperAirplane className="w-4 h-4" /> {`Send reminder (${composerRecipientCount})`}
                   </>
                 )}
               </button>

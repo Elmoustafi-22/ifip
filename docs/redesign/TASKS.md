@@ -6,6 +6,7 @@ Registration and enrollment redesign
 See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and [verification evidence](PROGRESS.md).
 
 ## Current Status
+- **Request recovery and background reminders implemented locally, 24 November 2026.** Request timeouts have distinct feedback; applicants can enter a code after an uncertain response. Admin reminders use persisted jobs with progress and duplicate-submission protection. [Evidence and staging gaps](PROGRESS.md#request-recovery-and-background-reminders). Real MongoDB/worker restart and provider verification remain pending before rollout.
 - **Registration pause now replaces the email form in its panel.** The separate banner and duplicate recovery section were removed during the pause; the form returns when the notice expires. [Local verification](PROGRESS.md#registration-pause-within-form-panel).
 - **Temporary registration notice implemented locally.** A superadmin can publish a notice in Admin → Overview → System with an expiry time in Lagos time; new applications pause while saved applicants can recover. See [verification and rollout notes](PROGRESS.md#temporary-registration-notice).
 - **Existing applicant recovery implemented locally.** Saved applicants can request a new verification code after intake closes or fills; new applicants still follow the waitlist. [Verification](PROGRESS.md#existing-applicant-recovery-after-intake-closure).
@@ -52,7 +53,7 @@ See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and 
 
 ## Partner application
 
-- **Admin partner organization edits:** Contact email is optional when editing an existing organization so website and other organization details can be saved without changing its portal invite contact. New organization registration still requires an email. Preserve the existing update API behavior and contact record when omitted. See [progress](PROGRESS.md#optional-contact-email-when-editing-a-partner).
+- **Admin partner organization edits:** Contact email is optional when editing an existing organization so website and other organization details can be saved without changing its portal invite contact. New organization registration still requires an email. Partner user contact fields now sync only when explicitly changed; the admin form surfaces API error details on failure. Backend and frontend type checks passed; live API verification remains pending. See [progress](PROGRESS.md#optional-contact-email-when-editing-a-partner).
 
 - **Pathway implemented locally.** The public intake form and confirmation use the registration styling. See [local verification](PROGRESS.md#pathway-partner-application).
 - **Custom partner sector implemented locally.** Selecting Other reveals a text field and submits its value with the selected sectors. See [verification](PROGRESS.md#custom-partner-sector).

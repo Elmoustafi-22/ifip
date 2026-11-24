@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -36,6 +37,18 @@ const app = express();
 app.set('trust proxy', 1);
 
 app.use(helmet());
+app.use((req, res, next) => {
+    if (req.path === '/api/v1/applicants/start' || req.path.startsWith('/api/v1/admin/pending-applicants/reminder-jobs')) {
+        const requestId = randomUUID();
+        const started = Date.now();
+        res.setHeader('X-Request-Id', requestId);
+        res.once('close', () => console.info(JSON.stringify({
+            event: 'request_result', requestId, route: req.path, method: req.method,
+            status: res.statusCode, completed: res.writableFinished, durationMs: Date.now() - started,
+        })));
+    }
+    next();
+});
 
 const normalizeOrigin = (value: string) => {
     const trimmed = value.trim().replace(/\/+$/, '');
@@ -117,6 +130,7 @@ app.use(
             return callback(new Error('Not allowed by CORS'));
         },
         credentials: true,
+        exposedHeaders: ['X-Request-Id'],
     })
 );
 

@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, useContext } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
+import { isAxiosError } from "axios";
 import {
   HiOutlineArrowsRightLeft,
   HiOutlinePlus,
@@ -406,7 +407,13 @@ function PartnersDesk() {
       fetchPartners();
     } catch (err) {
       console.error("Failed to save partner details:", err);
-      showToast("error", "Failed to save partner organization details.");
+      const apiError = isAxiosError<{ error?: string; message?: string }>(err)
+        ? err.response?.data?.error || err.response?.data?.message
+        : undefined;
+      showToast(
+        "error",
+        apiError || "Unable to save partner organization. Try again."
+      );
     } finally {
       setSubmitting(false);
     }

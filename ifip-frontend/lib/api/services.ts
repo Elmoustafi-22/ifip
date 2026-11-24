@@ -2246,3 +2246,13 @@ export const uploadJobCv = async (file: File): Promise<{ cvUrl: string; fileName
 
 
 
+
+export interface ReminderJobResult extends PendingReminderResult {
+  jobId: string;
+  status: "queued" | "processing" | "completed" | "interrupted";
+  total: number;
+}
+export const createReminderJob = async (payload: PendingReminderInput & { applicantIds: string[]; requestId: string }): Promise<ReminderJobResult> =>
+  (await authClient.post<ReminderJobResult>("/admin/pending-applicants/reminder-jobs", payload)).data;
+export const getReminderJob = async (jobId: string): Promise<ReminderJobResult> =>
+  (await authClient.get<ReminderJobResult>(`/admin/pending-applicants/reminder-jobs/${encodeURIComponent(jobId)}`)).data;

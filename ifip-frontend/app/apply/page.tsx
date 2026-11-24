@@ -472,6 +472,7 @@ export default function ApplyPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
+  const [codeDeliveryUncertain, setCodeDeliveryUncertain] = useState(false);
   const [token, setToken] = useState("");
   const [confirmation, setConfirmation] = useState<{ type: "submitted" | "waived"; setupToken?: string } | null>(null);
   const paymentReturn = useRef(false);
@@ -1036,6 +1037,7 @@ export default function ApplyPage() {
       setEmail(cleanEmail);
       setOtp("");
       setOtpSent(true);
+      setCodeDeliveryUncertain(false);
       setResendCooldown(60);
       setVerificationNotice(otpSent ? "New code sent. Use the latest email." : "Verification code sent.");
     } catch (err) {
@@ -1053,6 +1055,15 @@ export default function ApplyPage() {
       } else if (err instanceof Error && "apiCode" in err && err.apiCode === "REGISTRATION_PAUSED") {
         setErrorMsg(err.message);
       } else {
+        if (err instanceof Error && "isNetworkError" in err && err.isNetworkError) {
+          setEmail(cleanEmail);
+          setOtpSent(true);
+          setCodeDeliveryUncertain(true);
+          setResendCooldown(60);
+          setVerificationNotice("If a verification code arrives, enter it below.");
+          setErrorMsg("Unable to confirm whether your code was sent. If it arrives, enter it below. If it does not arrive, request a new code when the resend timer ends.");
+          return;
+        }
         setRegisteredEmail(err instanceof Error && "apiCode" in err && err.apiCode === "EMAIL_ALREADY_REGISTERED");
         setErrorMsg(err instanceof Error ? err.message : "Failed to send verification code.");
       }
@@ -1640,7 +1651,7 @@ export default function ApplyPage() {
                 </div>
                 <h1 id="verify-heading" ref={availabilityHeading} tabIndex={-1} className={entryHeading}>Verify your email</h1>
                 <p className={`${entryCopy} mt-3 mb-5 min-[681px]:mb-6`}>
-                  {otpSent ? "Enter the six-digit code sent to:" : "We’ll email you a six-digit code."}
+                  {otpSent ? (codeDeliveryUncertain ? "If a code arrives, enter it for:" : "Enter the six-digit code sent to:") : "We’ll email you a six-digit code."}
                 </p>
                 {errorMsg && (
                   <div role="alert" className="mb-4 rounded-lg border border-error bg-error-container px-4 py-3 text-sm text-on-error-container">
@@ -1715,6 +1726,7 @@ export default function ApplyPage() {
                         onClick={() => {
                           if (activeVerification.current) return;
                           setOtpSent(false);
+                          setCodeDeliveryUncertain(false);
                           setOtp("");
                           setErrorMsg("");
                           setErrors({});

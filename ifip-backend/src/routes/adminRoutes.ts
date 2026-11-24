@@ -1,3 +1,4 @@
+import { createReminderJob, getReminderJob } from '../controllers/reminderJobController.js';
 import { Router } from 'express';
 import { approveBankTransfer, attachEmailedTransferProof, downloadTransferReceipt, resendTransferSetup, reviewBankTransfer, uploadTransferReceipt } from '../controllers/bankTransferController.js';
 import { recordHiringOutcome } from '../controllers/hiringOutcomeController.js';
@@ -172,6 +173,8 @@ const handleUpload = (fieldName: string) => {
 
 router.get('/registration-funnel/applicants', getRegistrationApplicants);
 router.get('/pending-applicants', getPendingApplicants);
+router.post('/pending-applicants/reminder-jobs', createReminderJob);
+router.get('/pending-applicants/reminder-jobs/:jobId', getReminderJob);
 router.post('/pending-applicants/bulk-remind-email', sendBulkPendingApplicantReminders);
 router.post('/pending-applicants/:applicantId/remind-email', sendPendingApplicantReminder);
 router.post('/pending-applicants/:applicantId/upload-cv', handleUpload('cv'), uploadPendingApplicantCv);

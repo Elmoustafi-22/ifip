@@ -1,3 +1,4 @@
+import type { ReminderPayload } from '../models/ReminderJob.js';
 import crypto from 'node:crypto';
 import { Request, Response } from 'express';
 import { Types, type PipelineStage } from 'mongoose';
@@ -1429,6 +1430,11 @@ async function sendOnePendingReminder(
         $unset: { reminderClaimUntil: 1 },
     }, { timestamps: false });
     return { applicantId, status: 'accepted' };
+}
+
+export async function deliverPendingReminderBatch(payload: ReminderPayload, sentBy: string): Promise<ReminderOutcome[]> {
+    const scope = pendingCohortFilter(payload.cohortId, payload.cohortId ? await loadIntakeWindows() : []);
+    return Promise.all(payload.applicantIds.map(id => sendOnePendingReminder(id, scope, payload, sentBy)));
 }
 
 async function sendApplicantReminders(req: Request, res: Response, ids: unknown) {
