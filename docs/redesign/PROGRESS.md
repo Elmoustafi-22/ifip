@@ -493,3 +493,8 @@ The later [pending applicant work queue](#pending-applicant-work-queues) builds 
 - Added Framer Motion first-load slides to the header and hero, with shorter staggered reveals for each homepage section, card content, buttons, process step, live listing, partner mark, price and FAQ row. Entrances run once as later sections enter view. The existing API calls, links, menu and FAQ behavior remain intact.
 - From `ifip-frontend`, `npx eslint app/page.tsx components/home` and `npx tsc --project tsconfig.build.json --noEmit --incremental false` passed. `git diff --check` passed for the homepage files and trackers.
 - Local Chromium at 390 and 1280 CSS px loaded the rendered route without page errors or horizontal overflow; it found 100 staged child items, 38 section/card reveals, and all nine FAQ rows. At 390 CSS px the curriculum heading was measured mid-entrance at 0.62 opacity and 12 px offset. The FAQ opened and the Active openings switch selected by click at both widths. Reduced motion kept the heading fully opaque with no transform. Full-page captures are in the chat visualization workspace. Live data and staging remain unverified.
+
+### Homepage partner logo alignment
+
+- Centered partner names beneath a fixed 104 px logo area. The white logo field and aspect-ratio-preserving image bounds give wide and square assets a consistent visual frame without cropping or changing partner data or links.
+- Local Chromium used the bundled partner logo files as layout fixtures at 320, 390 and 1280 CSS px. The logo area and name centers matched within 1 px, first-line name tops aligned per row, visible images loaded, and no horizontal overflow occurred. The live partner API and staging remain unverified.
