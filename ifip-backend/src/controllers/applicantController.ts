@@ -41,11 +41,49 @@ export const startApplication = async (req: Request, res: Response) => {
     try {
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            res.status(400).json({
-                code: 'EMAIL_ALREADY_REGISTERED',
-                message: 'This email is already registered. Please log in to your dashboard.',
+            if (existingUser.role !== 'participant') {
+                res.status(400).json({
+                    code: 'EMAIL_ALREADY_REGISTERED',
+                    message: 'This email is already registered. Please log in to your account.',
+                });
+                return;
+            }
+
+            const notice = await RegistrationNotice.findOne({ key: 'registration', expiresAt: { $gt: new Date() } });
+            if (notice) {
+                res.status(403).json({ code: 'REGISTRATION_PAUSED', message: notice.message });
+                return;
+            }
+
+            const cohort = await getActiveRegistrationCohort();
+            if (!cohort) {
+                res.status(403).json({ code: 'REGISTRATION_CLOSED', message: 'Registration is currently closed. Join the waitlist for updates.' });
+                return;
+            }
+            const { isFull } = await checkCohortCapacity(cohort._id);
+            if (isFull) {
+                res.status(403).json({ code: 'COHORT_FULL', message: cohort.name + ' is now full. Please join the waitlist.' });
+                return;
+            }
+
+            const priorEnrollment = await Application.exists({
+                userId: existingUser._id,
+                cohortId: { $exists: true, $ne: cohort._id },
+                status: { $ne: 'withdrawn' },
             });
-            return;
+            if (!priorEnrollment) {
+                res.status(400).json({ code: 'EMAIL_ALREADY_REGISTERED', message: 'This email is already registered. Please log in to your dashboard.' });
+                return;
+            }
+            const currentEnrollment = await Application.exists({
+                userId: existingUser._id,
+                cohortId: cohort._id,
+                status: { $ne: 'withdrawn' },
+            });
+            if (currentEnrollment) {
+                res.status(409).json({ code: 'APPLICATION_ALREADY_EXISTS', message: 'You already have an application for this cohort. Sign in to check its status.' });
+                return;
+            }
         }
         const existingApplicant = await Applicant.findOne({ email });
         if (!existingApplicant) {
@@ -130,10 +168,56 @@ export const verifyApplicantOtp = async (req: Request, res: Response) => {
         return;
     }
 
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+        if (existingUser.role !== 'participant') {
+            res.status(400).json({ code: 'EMAIL_ALREADY_REGISTERED', message: 'This email is already registered. Please log in to your account.' });
+            return;
+        }
+        const notice = await RegistrationNotice.findOne({ key: 'registration', expiresAt: { $gt: new Date() } });
+        if (notice) {
+            res.status(403).json({ code: 'REGISTRATION_PAUSED', message: notice.message });
+            return;
+        }
+        const cohort = await getActiveRegistrationCohort();
+        if (!cohort) {
+            res.status(403).json({ code: 'REGISTRATION_CLOSED', message: 'Registration is currently closed. Join the waitlist for updates.' });
+            return;
+        }
+        const [priorEnrollment, currentEnrollment, capacity] = await Promise.all([
+            Application.exists({ userId: existingUser._id, cohortId: { $exists: true, $ne: cohort._id }, status: { $ne: 'withdrawn' } }),
+            Application.exists({ userId: existingUser._id, cohortId: cohort._id, status: { $ne: 'withdrawn' } }),
+            checkCohortCapacity(cohort._id),
+        ]);
+        if (!priorEnrollment) {
+            res.status(400).json({ code: 'EMAIL_ALREADY_REGISTERED', message: 'This email is already registered. Please log in to your dashboard.' });
+            return;
+        }
+        if (currentEnrollment) {
+            res.status(409).json({ code: 'APPLICATION_ALREADY_EXISTS', message: 'You already have an application for this cohort. Sign in to check its status.' });
+            return;
+        }
+        if (capacity.isFull) {
+            res.status(403).json({ code: 'COHORT_FULL', message: cohort.name + ' is now full. Please join the waitlist.' });
+            return;
+        }
+    }
+
     // Create or update Applicant document in MongoDB upon verification
     let applicant = await Applicant.findOne({ email });
     if (!applicant) {
-        applicant = new Applicant({ email, emailVerified: true });
+        applicant = new Applicant({
+            email,
+            emailVerified: true,
+            ...(existingUser ? {
+                fullName: existingUser.fullName,
+                phone: existingUser.phone,
+                dob: existingUser.dob,
+                gender: existingUser.gender,
+                country: existingUser.country,
+                stateCity: existingUser.stateCity,
+            } : {}),
+        });
     } else {
         applicant.emailVerified = true;
     }
@@ -302,9 +386,11 @@ export const executeApplicationSubmission = async (
     });
 
     const { application, user, applicant } = result;
-    const setPasswordToken = applicant || !user.passwordHash ? signSetPasswordToken(user.id, user.email) : undefined;
-    if (applicant) {
+    const setPasswordToken = !user.passwordHash ? signSetPasswordToken(user.id, user.email) : undefined;
+    if (applicant && setPasswordToken) {
         notificationEmitter.emit('application.submitted', { email: applicant.email, setPasswordToken, country: applicant.country });
+    }
+    if (applicant) {
         if (applicant.cohortId) {
             void Cohort.findById(applicant.cohortId).then((cohort) => {
                 if (cohort) notificationEmitter.emit('cohort.assigned', { user, cohort, skipEmail: true });
@@ -326,7 +412,7 @@ export const submitApplication = async (req: Request, res: Response) => {
         });
         if (payment) {
             const { application, setPasswordToken } = await executeApplicationSubmission(applicantId, payment._id);
-            res.json({ message: 'Application submitted successfully. Please check your email to set your password.', application, setPasswordToken });
+            res.json({ message: setPasswordToken ? 'Application submitted successfully. Please check your email to set your password.' : 'Application submitted successfully. Sign in to your account to continue.', application, setPasswordToken });
             return;
         }
         res.status(404).json({ message: 'Session expired — please resume via your email link.' });
@@ -372,7 +458,7 @@ export const submitApplication = async (req: Request, res: Response) => {
         });
 
         res.json({
-            message: 'Application submitted successfully. Please check your email to set your password.',
+            message: setPasswordToken ? 'Application submitted successfully. Please check your email to set your password.' : 'Application submitted successfully. Sign in to your account to continue.',
             application,
             setPasswordToken
         });

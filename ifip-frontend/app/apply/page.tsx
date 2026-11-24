@@ -1064,7 +1064,7 @@ export default function ApplyPage() {
           setErrorMsg("Unable to confirm whether your code was sent. If it arrives, enter it below. If it does not arrive, request a new code when the resend timer ends.");
           return;
         }
-        setRegisteredEmail(err instanceof Error && "apiCode" in err && err.apiCode === "EMAIL_ALREADY_REGISTERED");
+        setRegisteredEmail(err instanceof Error && "apiCode" in err && (err.apiCode === "EMAIL_ALREADY_REGISTERED" || err.apiCode === "APPLICATION_ALREADY_EXISTS"));
         setErrorMsg(err instanceof Error ? err.message : "Failed to send verification code.");
       }
     } finally {
@@ -1105,6 +1105,11 @@ export default function ApplyPage() {
     } catch (err) {
       if (!mounted.current) return;
       const message = err instanceof Error ? err.message : "We couldn’t verify the code. Try again.";
+      if (err instanceof Error && "apiCode" in err && (err.apiCode === "EMAIL_ALREADY_REGISTERED" || err.apiCode === "APPLICATION_ALREADY_EXISTS")) {
+        setRegisteredEmail(true);
+        setErrorMsg(message);
+        return;
+      }
       if (err instanceof Error && "status" in err && err.status === 400) {
         setErrors({ otp: message });
         otpInput.current?.focus();
@@ -2338,14 +2343,14 @@ export default function ApplyPage() {
                 <HiShieldCheck aria-hidden="true" className="size-6" />
               </div>
               <h1 id="confirmation-heading" ref={focusStepHeading} tabIndex={-1} className={formHeading}>
-                {confirmation.type === "waived" ? "Commitment levy waived" : "Application submitted"}
+                {confirmation.type === "waived" && confirmation.setupToken ? "Commitment levy waived" : "Application submitted"}
               </h1>
               <p className="text-sm leading-relaxed text-on-surface-variant">
-                {confirmation.type === "waived"
+                {confirmation.type === "waived" && confirmation.setupToken
                   ? "Your waiver was applied. Check your email for instructions to finish your application or set up your account."
                   : confirmation.setupToken
                     ? "Set a password to access your participant account."
-                    : "Check your inbox and spam folder for instructions to set up your account."}
+                    : "Your current cohort application is submitted. Sign in to your existing account to continue."}
               </p>
               <div className="flex flex-wrap gap-3">
                 {confirmation.setupToken && (
@@ -2354,7 +2359,7 @@ export default function ApplyPage() {
                 <Link href="/" className={formSecondaryAction}>Return home</Link>
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold text-secondary">
-                {!confirmation.setupToken && confirmation.type === "submitted" && (
+                {!confirmation.setupToken && (
                   <Link href="/login" className={`inline-flex min-h-11 items-center underline underline-offset-4 ${entryFocus}`}>Sign in</Link>
                 )}
                 <a href="mailto:ifip.program@gmail.com" className={`inline-flex min-h-11 items-center underline underline-offset-4 ${entryFocus}`}>Email IFIP support</a>

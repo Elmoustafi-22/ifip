@@ -1,5 +1,12 @@
 # IFIP modernization progress
 
+## Returning participant enrollment in a new cohort
+
+- Existing participant accounts with an application in another cohort can now request an OTP for a currently open cohort. Entry checks ensure the current intake is open, not paused or full, and that the participant does not already have a non-withdrawn application in that cohort. OTP verification repeats the eligibility checks and pre-fills available account profile fields. Partner/admin accounts and accounts without a prior cohort application retain the sign-in response.
+- Checkout checks again for an existing application in the active cohort. The existing payment flow assigns the new payment and application to that cohort; the previous cohort payment is not reused. Participants with an existing password receive no password-setup token, and the confirmation directs them to sign in.
+- REG-00 baseline review confirms staging access and test credentials remain unavailable. Backend `node node_modules/typescript/bin/tsc --noEmit --incremental false` passed from `ifip-backend`; frontend `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false` passed from `ifip-frontend`; `git diff --check` passed. Route-level OTP, MongoDB transaction, payment provider, email, and authenticated dashboard integration were not run. REG-00 remains open for those isolated staging checks; no production data or services were used.
+- Next: verify prior-cohort participant OTP, current-cohort payment/enrollment, duplicate-current-cohort handling, and preservation of existing account login on isolated staging before release.
+
 ## Mongoose deprecated update option
 
 - Replaced the remaining backend `new: true` options on `findOneAndUpdate()` calls with `returnDocument: 'after'` in the reminder worker, notification read action, content version helper, registration notice route, module task reward action, and form option seed script. The returned-document behavior is preserved; no business logic or dependency changed.

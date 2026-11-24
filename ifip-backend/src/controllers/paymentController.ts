@@ -111,6 +111,17 @@ export const initiatePayment = async (req: Request, res: Response) => {
             status: 'upcoming',
         }, { $inc: { checkoutRevision: 1 } }, { session });
         if (!cohort) throw new CheckoutRejected('There is no active cohort registration window open at this time. Please join our waitlist.');
+        const account = await User.findOne({ email: applicant.email }).session(session);
+        if (account?.role === 'participant') {
+            const existingApplication = await Application.exists({
+                userId: account._id,
+                cohortId: cohort._id,
+                status: { $ne: 'withdrawn' },
+            }).session(session);
+            if (existingApplication) {
+                throw new CheckoutRejected('You already have an application for this cohort. Sign in to check its status.', 409);
+            }
+        }
         const { isFull } = await checkCohortCapacity(cohort.id, applicantId, session);
         if (isFull) throw new CheckoutRejected('This cohort has reached its registration capacity limit. Please join the waitlist for the next intake.');
 
