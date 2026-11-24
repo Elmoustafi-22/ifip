@@ -42,9 +42,13 @@ export default function HeroSection() {
   const waitingList = cohort && (!cohort.hasActiveCohort || cohort.isFull);
 
   return (
-    <section className="ifip-home-hero" aria-label="Program introduction">
+    <section className="ifip-home-hero" aria-labelledby="homepage-title">
       <div className="ifip-home-hero-grid">
         <div>
+          <motion.p className="ifip-home-eyebrow" data-home-entrance initial={{ x: -18, opacity: 0.45 }} animate={{ x: 0, opacity: 1 }} transition={{ ...entrance, delay: 0.04 }}>Islamic Finance Internship Program</motion.p>
+          <motion.h1 id="homepage-title" data-home-entrance initial={{ x: -32, opacity: 0.45, filter: "blur(4px)" }} animate={{ x: 0, opacity: 1, filter: "blur(0px)" }} transition={{ ...entrance, delay: 0.14 }}>
+            Prepare for a career in <em>Islamic finance.</em>
+          </motion.h1>
           <motion.p className="ifip-home-lead" data-home-entrance initial={{ x: -24, opacity: 0.45 }} animate={{ x: 0, opacity: 1 }} transition={{ ...entrance, delay: 0.26 }}>
             Industry readiness training, a professional Workplace Readiness Certificate and internship placement, preparing young talents for careers in Islamic finance, Fintech and Halal industries.
           </motion.p>
