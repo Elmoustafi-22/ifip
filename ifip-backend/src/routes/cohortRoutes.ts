@@ -42,7 +42,7 @@ router.put('/registration-notice', authenticate, authorize('superadmin'), async 
         const notice = await RegistrationNotice.findOneAndUpdate(
             { key: 'registration' },
             { $set: { message: message.trim(), expiresAt: expiry } },
-            { upsert: true, new: true, runValidators: true },
+            { upsert: true, returnDocument: 'after', runValidators: true },
         );
         res.json({ message: notice.message, expiresAt: notice.expiresAt.toISOString() });
     } catch {

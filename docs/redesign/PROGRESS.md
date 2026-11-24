@@ -1,5 +1,10 @@
 # IFIP modernization progress
 
+## Mongoose deprecated update option
+
+- Replaced the remaining backend `new: true` options on `findOneAndUpdate()` calls with `returnDocument: 'after'` in the reminder worker, notification read action, content version helper, registration notice route, module task reward action, and form option seed script. The returned-document behavior is preserved; no business logic or dependency changed.
+- Verification: backend `node node_modules/typescript/bin/tsc --noEmit --incremental false` passed; source search confirms no remaining `{ new: true }` in `ifip-backend`; `git diff --check` passed. Runtime verification was not run for this targeted compatibility change.
+
 ## Request recovery and background reminders
 
 - Authorized by the user's “proceed” after the proposal to distinguish timeout errors, recover registration code entry, and move bulk reminders to background processing. This is a separately approved backend reliability slice; REG-00 staging coverage remains open. No deployment, production email, commit or production write was performed. Concurrent partner-page/controller changes and their tracker notes were preserved.
@@ -15,8 +20,9 @@
 
 ## Optional contact email when editing a partner
 
-- On the admin partner organization form, contact email is optional only while editing an existing organization. The frontend still requires email when registering a new organization. An empty edit value is omitted from the update payload; the existing API leaves the stored contact email unchanged, so portal invitation details are preserved. No backend, model, or route changes were needed.
+- On the admin partner organization form, contact email is optional when editing an existing organization and when directly creating one. An empty edit value is omitted from the update payload; the existing API leaves the stored contact email unchanged. A direct-admin record created without an email has portal access disabled until an invite contact is added. Public partner applications still require email.
 - The user reported that saving an existing partner on the live admin page still returns HTTP 500. The admin update handler previously resaved the linked partner user even when the contact email and name had not changed, which could fail on a stale or conflicting user record after the organization itself had already been saved. It now syncs those user fields only when the corresponding value changes. The form also displays the backend's returned `error` or `message` if a save still fails.
+- Direct admin partner creation stores a blank invite email as absent and does not send an invitation. The admin form labels the email optional and disables the invite action when it is missing. Adding an email in Edit makes the invite action available; successful invitation re-enables portal access.
 - Backend `npm run build` and frontend `npx tsc --project tsconfig.build.json --noEmit --incremental false` passed. `npx eslint app/admin/partners/page.tsx` reports six existing errors and two warnings in this page; no diagnostic is on the changed lines. Browser behavior, create-flow regression, and live API integration remain unverified; no production write or deployment was made.
 
 ## Classic home and registration implementation

@@ -338,10 +338,6 @@ function PartnersDesk() {
       alert("Organization name is required.");
       return;
     }
-    if (!editingPartner && !contactEmail.trim()) {
-      alert("Contact email is required.");
-      return;
-    }
     if (submitting) return;
 
     if (hasOpenings) {
@@ -723,13 +719,13 @@ function PartnersDesk() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleSendInvite(partner)}
-                          disabled={invitingId === partner._id}
+                          disabled={invitingId === partner._id || !partner.contactEmail}
                           className={`px-3 py-1.5 border rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
                             partner.portalEnabled
                               ? "border-slate-200 text-slate-600 hover:bg-slate-50"
                               : "border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                          } disabled:opacity-60`}
-                          title={partner.portalEnabled ? "Resend Portal Invite" : "Send Portal Invite"}
+                          } disabled:opacity-60 disabled:cursor-not-allowed`}
+                          title={!partner.contactEmail ? "Add a contact email before sending a portal invite" : partner.portalEnabled ? "Resend Portal Invite" : "Send Portal Invite"}
                         >
                           {invitingId === partner._id ? (
                             <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
@@ -933,8 +929,8 @@ function PartnersDesk() {
                     placeholder="John Smith" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-bold text-slate-700 text-xs">Contact Email {editingPartner ? <span className="font-normal text-slate-400">(optional)</span> : <span className="text-emerald-600">*</span>}</label>
-                  <input type="email" required={!editingPartner} value={contactEmail} onChange={(e) => setContactEmail(e.target.value)}
+                  <label className="font-bold text-slate-700 text-xs">Contact Email <span className="font-normal text-slate-400">(optional; needed to send a portal invite)</span></label>
+                  <input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-[slate-200/70] rounded-xl focus:outline-none focus:border-emerald-500 text-sm"
                     placeholder="partner@company.com" />
                 </div>

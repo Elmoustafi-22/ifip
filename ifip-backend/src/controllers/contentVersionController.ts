@@ -28,7 +28,7 @@ export const updateContentVersion = async (key: string): Promise<void> => {
         await ContentVersion.findOneAndUpdate(
             { key },
             { lastUpdated: new Date() },
-            { upsert: true, new: true }
+            { upsert: true, returnDocument: 'after' }
         );
     } catch (err) {
         console.error(`Failed to update content version for key "${key}":`, err);

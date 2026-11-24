@@ -8,7 +8,7 @@ export async function processNextReminderJob(deliver: DeliverBatch) {
     const stale = new Date(Date.now() - 5 * 60_000);
     await ReminderJob.updateMany({ status: 'processing', heartbeatAt: { $lt: stale } }, { $set: { status: 'interrupted' } });
     await ReminderJob.updateMany({ status: 'queued', createdAt: { $lt: new Date(Date.now() - 60 * 60_000) } }, { $set: { status: 'interrupted' } });
-    const job = await ReminderJob.findOneAndUpdate({ status: 'queued' }, { $set: { status: 'processing', heartbeatAt: new Date() } }, { new: true, sort: { createdAt: 1 } });
+    const job = await ReminderJob.findOneAndUpdate({ status: 'queued' }, { $set: { status: 'processing', heartbeatAt: new Date() } }, { returnDocument: 'after', sort: { createdAt: 1 } });
     if (!job) return false;
     const claim = { _id: job._id, status: 'processing' as const };
     const heartbeat = setInterval(() => {

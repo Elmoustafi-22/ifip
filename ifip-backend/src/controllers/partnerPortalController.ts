@@ -1018,7 +1018,7 @@ export const updatePartnerSettings = async (req: Request, res: Response) => {
         const user = await User.findOne({ orgId: org._id, role: 'partner' });
         if (user) {
             let userChanged = false;
-            if (org.contactEmail !== user.email) {
+            if (org.contactEmail && org.contactEmail !== user.email) {
                 user.email = org.contactEmail;
                 userChanged = true;
             }

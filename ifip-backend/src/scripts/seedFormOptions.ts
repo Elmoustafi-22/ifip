@@ -85,7 +85,7 @@ async function seed() {
             await FormOption.findOneAndUpdate(
                 { group, value },
                 { $setOnInsert: { group, label, value, order: i, isActive: true } },
-                { upsert: true, new: true }
+                { upsert: true, returnDocument: 'after' }
             );
             console.log(`   [${i + 1}] ${label}`);
         }

@@ -416,7 +416,7 @@ export const reviewModuleTaskSubmission = async (req: Request, res: Response) =>
                     awardedBy: new Types.ObjectId(adminId),
                     reason: adminFeedback || 'Task approved by admin.',
                 },
-                { upsert: true, new: true }
+                { upsert: true, returnDocument: 'after' }
             );
         }
 

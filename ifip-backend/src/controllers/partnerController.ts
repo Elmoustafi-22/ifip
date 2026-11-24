@@ -399,10 +399,13 @@ export const getAdminPartners = async (_req: Request, res: Response) => {
 export const createPartnerOrg = async (req: Request, res: Response) => {
     try {
         const { name, logoUrl, description, sectorTags, activeSlots, website, cohorts, contactEmail, contactPerson, contactPhone, status, hasOpenings, openings } = req.body;
-        if (!name || !contactEmail || !contactEmail.trim()) {
-            res.status(400).json({ message: 'name and contactEmail are required.' });
+        if (!name || (contactEmail !== undefined && typeof contactEmail !== 'string')) {
+            res.status(400).json({ message: 'Organization name is required and contact email must be text when supplied.' });
             return;
         }
+        const normalizedContactEmail = typeof contactEmail === 'string'
+            ? contactEmail.trim().toLowerCase() || undefined
+            : undefined;
         const org = await PartnerOrganization.create({
             name,
             logoUrl:       logoUrl || undefined,
@@ -411,10 +414,11 @@ export const createPartnerOrg = async (req: Request, res: Response) => {
             activeSlots:   activeSlots !== undefined ? Number(activeSlots) : 5,
             website:       website || undefined,
             cohorts:       Array.isArray(cohorts) ? cohorts : [],
-            contactEmail:  contactEmail.trim().toLowerCase(),
+            contactEmail:  normalizedContactEmail,
             contactPerson: contactPerson || undefined,
             contactPhone:  contactPhone || undefined,
             status:        status || 'active',
+            portalEnabled: Boolean(normalizedContactEmail),
             hasOpenings:   !!hasOpenings,
             openings:      Array.isArray(openings) ? openings : [],
         });
@@ -481,7 +485,7 @@ export const updatePartnerOrg = async (req: Request, res: Response) => {
         const user = await User.findOne({ orgId: org._id, role: 'partner' });
         if (user) {
             let userChanged = false;
-            if (contactEmailChanged && org.contactEmail !== user.email) {
+            if (contactEmailChanged && org.contactEmail && org.contactEmail !== user.email) {
                 user.email = org.contactEmail;
                 userChanged = true;
             }
