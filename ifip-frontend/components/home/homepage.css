@@ -464,4 +464,9 @@
   .ifip-home-hero .ifip-home-lead { color: #f0f5fb; }
   .ifip-home-hero .ifip-home-button { background: #80d8ff; color: #000666; }
   .ifip-home-hero .ifip-home-text-link { color: #fff; }
+  .ifip-home-hero .ifip-home-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 8px; }
+  .ifip-home-hero .ifip-home-action-item { min-width: 0; }
+  .ifip-home-hero .ifip-home-button, .ifip-home-hero .ifip-home-text-link { justify-content: center; min-width: 0; text-align: center; }
+  .ifip-home-hero .ifip-home-button { padding-inline: 8px; font-size: .78rem; }
+  .ifip-home-hero .ifip-home-text-link { gap: 4px; font-size: .76rem; }
 }
