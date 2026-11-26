@@ -42,6 +42,7 @@ import {
     recordManualPaymentForApplicant,
     getAdminPayments,
     getAdminPaymentById,
+    verifyAdminPaystackPayment,
     resolvePayment,
     getWaitlist,
     deleteWaitlistEntry,
@@ -184,6 +185,7 @@ router.post('/pending-applicants/:applicantId/record-manual-payment', requireAdm
 router.get('/payments', getAdminPayments);
 router.patch('/levy-pricing', authorize('superadmin'), requireAdminConfirmation, updateLevyPricing);
 router.get('/payments/:id', getAdminPaymentById);
+router.post('/payments/:id/verify-paystack', requireAdminConfirmation, verifyAdminPaystackPayment);
 router.patch('/payments/:id/resolve', requireAdminConfirmation, resolvePayment);
 router.get('/payments/:id/bank-transfer/receipt', downloadTransferReceipt);
 router.post('/payments/:id/bank-transfer/proof', requireAdminConfirmation, uploadTransferReceipt, attachEmailedTransferProof);

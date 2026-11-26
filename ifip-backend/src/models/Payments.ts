@@ -33,6 +33,7 @@ export interface IPayment extends Document {
     manualPaymentNotes?: string;
     recordedByAdminId?: Types.ObjectId;
     paystackVerification?: Record<string, unknown>;
+    setupEmail?: { status: 'pending' | 'queued' | 'failed'; attemptedAt: Date };
     flutterwaveVerification?: Record<string, unknown>;
     couponId?: Types.ObjectId;
     discountPercent?: number;
@@ -63,6 +64,10 @@ const paymentSchema = new Schema<IPayment>(
         manualPaymentNotes: { type: String },
         recordedByAdminId: { type: Schema.Types.ObjectId, ref: 'User' },
         paystackVerification: Schema.Types.Mixed,
+        setupEmail: {
+            status: { type: String, enum: ['pending', 'queued', 'failed'] },
+            attemptedAt: Date,
+        },
         flutterwaveVerification: Schema.Types.Mixed,
         couponId: { type: Schema.Types.ObjectId, ref: 'Coupon' },
         discountPercent: { type: Number },

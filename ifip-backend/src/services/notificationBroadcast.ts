@@ -4,6 +4,7 @@ import { Notification } from '../models/Notification.js';
 import { User } from '../models/User.js';
 import { Application } from '../models/Application.js';
 import { Applicant } from '../models/Applicants.js';
+import { Payment } from '../models/Payments.js';
 import { Module } from '../models/Module.js';
 import type { ICohort } from '../models/Cohort.js';
 import { JobApplication } from '../models/JobApplication.js';
@@ -137,12 +138,16 @@ notificationEmitter.on('payment.success', async ({ email, resumeToken, country }
     }
 });
 
-notificationEmitter.on('application.submitted', async ({ email, setPasswordToken, country }) => {
+notificationEmitter.on('application.submitted', async ({ email, setPasswordToken, country, paymentId }) => {
+    let status: 'queued' | 'failed' = 'queued';
     try {
-        await sendSetPasswordEmail(email, setPasswordToken, country);
+        await sendSetPasswordEmail(email, setPasswordToken, country, true);
     } catch (err) {
+        status = 'failed';
         console.error('[Event:application.submitted] Error:', err);
     }
+    if (paymentId) await Payment.updateOne({ _id: paymentId }, { $set: { setupEmail: { status, attemptedAt: new Date() } } })
+        .catch(error => console.error('[Event:application.submitted] Could not record email acceptance', error instanceof Error ? error.name : 'unknown error'));
 });
 
 notificationEmitter.on('application.enrolled', async ({ user, application }) => {

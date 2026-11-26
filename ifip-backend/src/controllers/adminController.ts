@@ -28,7 +28,7 @@ import { generateResumeToken } from '../services/tokenService.js';
 import { sendAdminInvitationEmail, sendSetPasswordEmail, sendPendingReminderEmail } from '../services/emailService.js';
 import { logAction, logRawAction } from '../utils/auditLogger.js';
 import { executeApplicationSubmission } from './applicantController.js';
-import { getActiveRegistrationCohort } from './paymentController.js';
+import { getActiveRegistrationCohort, verifyPaystackPaymentForAdmin } from './paymentController.js';
 import { validateWeekForCohort, countContentBeyondWeek, MAX_TOTAL_WEEKS } from '../utils/cohortWeeks.js';
 import { CohortWaitlistDelivery } from '../models/CohortWaitlistDelivery.js';
 import { beforeCohortRegistration, queueCohortWaitlistResend, retryCohortWaitlist } from '../services/cohortWaitlist.js';
@@ -1602,9 +1602,46 @@ export const getAdminPaymentById = async (req: Request, res: Response) => {
             payment.bankTransfer ? Applicant.findById(payment.applicantId).select('fullName email').lean() : null,
             payment.bankTransfer ? Cohort.findById(payment.bankTransfer.cohortId).select('name').lean() : null,
         ]);
-        res.json({ ...payment, paymentCohortId, transferApplicant, transferCohort: transferCohort?.name });
+        const application = payment.status === 'success'
+            ? await Application.findOne({ paymentId: payment._id }).select('userId').lean()
+            : null;
+        const account = application ? await User.findById(application.userId).select('passwordHash').lean() : null;
+        res.json({ ...payment, paymentCohortId, transferApplicant, transferCohort: transferCohort?.name,
+            handoff: {
+                enrolled: Boolean(application),
+                account: account ? (account.passwordHash ? 'ready' : 'setup_required') : 'unknown',
+                setupEmail: payment.setupEmail?.status ?? 'unknown',
+            },
+        });
     } catch (e: any) {
         res.status(500).json({ message: 'Error retrieving payment.', error: e.message });
+    }
+};
+
+export const verifyAdminPaystackPayment = async (req: Request, res: Response) => {
+    const payment = await Payment.findById(req.params.id);
+    if (!payment) {
+        res.status(404).json({ message: 'Payment not found.' });
+        return;
+    }
+    if (payment.provider !== 'paystack' || payment.bankTransfer || payment.status === 'failed') {
+        res.status(409).json({ message: 'Only pending or successful Paystack payments can be checked here.' });
+        return;
+    }
+    const expectedCohortId = req.body?.expectedCohortId;
+    if (expectedCohortId !== ((await getPaymentCohortId(payment._id))?.toString() ?? 'unassigned')) {
+        res.status(409).json({ message: 'The payment cohort changed. Reopen the payment before checking it.' });
+        return;
+    }
+    try {
+        const current = await verifyPaystackPaymentForAdmin(payment);
+        await logAction(req, 'PAYMENT_PROVIDER_CHECKED',
+            `Paystack verification checked a payment; result ${current.status}${current.reconciliationReason ? `, review ${current.reconciliationReason}` : ''}.`,
+            { targetId: String(payment._id), targetType: 'Payment' });
+        res.json({ status: current.status, reconciliationReason: current.reconciliationReason });
+    } catch (error) {
+        console.error('[AdminPayment] Paystack verification unavailable', error instanceof Error ? error.name : 'unknown error');
+        res.status(502).json({ message: 'Paystack verification is unavailable. The payment was not manually resolved; try again later.' });
     }
 };
 
@@ -1630,6 +1667,11 @@ export const resolvePayment = async (req: Request, res: Response) => {
         const previousStatus = payment.status;
         if (payment.bankTransfer) {
             res.status(409).json({ message: 'Use bank transfer review to confirm the settled credit.' });
+            return;
+        }
+        if (payment.provider === 'paystack' && status === 'success' && payment.status !== 'success' &&
+            (typeof note !== 'string' || note.trim().length < 10)) {
+            res.status(400).json({ message: 'Explain the Paystack evidence before manually marking this payment successful (at least 10 characters).' });
             return;
         }
         if (expectedCohortId !== undefined &&

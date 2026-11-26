@@ -30,6 +30,8 @@ See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and 
 
 ## Payments
 
+**Admin Paystack recovery implemented locally.** Pending Paystack records can be checked against the provider from Admin → Payments; the detail drawer distinguishes provider confirmation, enrollment, account setup, and tracked setup-email provider acceptance. Manual success override requires an evidence note. See [local verification and remaining staging checks](PROGRESS.md#admin-paystack-recovery-and-participant-handoff). Deployment remains pending explicit authorization.
+
 **Cohort payment records and resolution implemented locally.** The shared selector scopes the payment list, counts and currency totals. Payment details and resolution carry the record's cohort. See [cohort payment verification](PROGRESS.md#cohort-payment-records-and-resolution).
 
 **Paystack-first checkout implemented locally.** See the [implementation plan and staging configuration](registration/PAYSTACK_IMPLEMENTATION_PLAN.md). Hosted provider checks and live routing remain pending.

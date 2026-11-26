@@ -360,6 +360,22 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
     res.json({ status: current.status !== 'success' && current.reconciliationReason ? 'pending' : current.status, setPasswordToken });
 };
 
+// Admin recovery uses the same provider checks and idempotent finalization as polling.
+export async function verifyPaystackPaymentForAdmin(payment: IPayment) {
+    if (payment.provider !== 'paystack' || payment.bankTransfer) throw new Error('Only Paystack payments can be verified here.');
+    if (payment.status === 'pending') {
+        const verified = await paystackService.verifyTransaction(payment.providerRef);
+        if (verified.status === 'success') {
+            await recordProviderSuccess(payment, { ...verified }, false);
+        } else if (verified.reference === payment.providerRef && verified.status === 'failed') {
+            await recordProviderFailure(payment);
+        }
+    }
+    const current = await Payment.findById(payment._id).orFail();
+    await completePaidRegistration(current);
+    return Payment.findById(payment._id).orFail();
+}
+
 export const handlePaystackWebhook = async (req: Request, res: Response) => {
     if (!env.PAYSTACK_SECRET_KEY) {
         res.status(200).end();

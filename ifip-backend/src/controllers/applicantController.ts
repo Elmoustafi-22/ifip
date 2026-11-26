@@ -379,6 +379,7 @@ export const executeApplicationSubmission = async (
         await user.save({ session });
 
         payment.applicationId = application._id as any;
+        if (!user.passwordHash) payment.setupEmail = { status: 'pending', attemptedAt: new Date() };
         await payment.save({ session });
 
         await Applicant.deleteOne({ _id: applicant._id }).session(session);
@@ -388,7 +389,7 @@ export const executeApplicationSubmission = async (
     const { application, user, applicant } = result;
     const setPasswordToken = !user.passwordHash ? signSetPasswordToken(user.id, user.email) : undefined;
     if (applicant && setPasswordToken) {
-        notificationEmitter.emit('application.submitted', { email: applicant.email, setPasswordToken, country: applicant.country });
+        notificationEmitter.emit('application.submitted', { email: applicant.email, setPasswordToken, country: applicant.country, paymentId: application.paymentId });
     }
     if (applicant) {
         if (applicant.cohortId) {

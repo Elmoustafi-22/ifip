@@ -1755,6 +1755,8 @@ export interface AdminPayment {
   status: 'pending' | 'success' | 'failed';
   type: string;
   webhookVerified: boolean;
+  setupEmail?: { status: 'pending' | 'queued' | 'failed'; attemptedAt: string };
+  handoff?: { enrolled: boolean; account: 'ready' | 'setup_required' | 'unknown'; setupEmail: 'pending' | 'queued' | 'failed' | 'unknown' };
   receiptUrl?: string;
   paymentMethod?: string;
   manualPaymentNotes?: string;
@@ -1797,6 +1799,13 @@ export const getAdminPayments = async (params?: {
 
 export const getAdminPaymentById = async (id: string): Promise<AdminPayment> => {
   const { data } = await authClient.get<AdminPayment>(`/admin/payments/${id}`);
+  return data;
+};
+
+export const verifyAdminPaystackPayment = async (id: string, expectedCohortId: string) => {
+  const { data } = await authClient.post<{ status: AdminPayment['status']; reconciliationReason?: AdminPayment['reconciliationReason'] }>(
+    `/admin/payments/${id}/verify-paystack`, { expectedCohortId }
+  );
   return data;
 };
 

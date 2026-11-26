@@ -10,6 +10,7 @@ import { AdminCohortContext } from "../layout";
 import {
   getAdminPayments,
   getAdminPaymentById,
+  verifyAdminPaystackPayment,
   resolveAdminPayment,
   AdminPayment,
   AdminPaymentsResponse,
@@ -113,6 +114,8 @@ function PaymentRecords({ cohortId, linkedPayment, linkFailed }: {
   const [drawerPayment, setDrawerPayment] = useState<AdminPayment | null>(linkedPayment ?? null);
   const [drawerLoading, setDrawerLoading] = useState(false);
   const [drawerError, setDrawerError] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyFeedback, setVerifyFeedback] = useState("");
   const drawerRequest = useRef(0);
 
   // Resolve modal state
@@ -168,6 +171,7 @@ function PaymentRecords({ cohortId, linkedPayment, linkFailed }: {
     setDrawerOpen(true);
     setDrawerLoading(true);
     setDrawerError(false);
+    setVerifyFeedback("");
     setDrawerPayment(payment);
     try {
       const full = await getAdminPaymentById(payment._id);
@@ -186,13 +190,38 @@ function PaymentRecords({ cohortId, linkedPayment, linkFailed }: {
   };
 
   const closeDrawer = () => {
-    if (resolving) return;
+    if (resolving || verifying) return;
     drawerRequest.current++;
     setDrawerOpen(false);
     setDrawerPayment(null);
     setResolveModalOpen(false);
     setResolveNote("");
     setResolveError("");
+    setVerifyFeedback("");
+  };
+
+  const handleVerifyPaystack = async () => {
+    if (!drawerPayment || verifying) return;
+    const id = drawerPayment._id;
+    setVerifying(true);
+    setVerifyFeedback("");
+    try {
+      const result = await verifyAdminPaystackPayment(id, drawerPayment.paymentCohortId ?? "unassigned");
+      const full = await getAdminPaymentById(id).catch(() => null);
+      if (full) setDrawerPayment(current => current?._id === id ? full : current);
+      setVerifyFeedback(!full ? "The provider check completed, but payment details could not refresh. Reopen this payment to see the latest result."
+        : result.reconciliationReason
+        ? "Paystack responded, but the transaction needs reconciliation. Review the provider details below."
+        : result.status === "success"
+          ? full.handoff?.enrolled ? "Payment confirmed and application linked." : "Payment confirmed. Enrollment still needs review."
+          : result.status === "failed" ? "Paystack confirmed this attempt failed." : "Paystack has not confirmed a final result. Check the same reference again later.");
+      refreshPayments();
+    } catch (err) {
+      setVerifyFeedback((isAxiosError<{ message?: string }>(err) && err.response?.data?.message)
+        || "Could not check Paystack. The payment was not manually resolved. Try again.");
+    } finally {
+      setVerifying(false);
+    }
   };
 
   // ── Copy reference ──────────────────────────────────────────────────────────
@@ -208,12 +237,16 @@ function PaymentRecords({ cohortId, linkedPayment, linkFailed }: {
     setResolving(true);
     setResolveError("");
     try {
-      const result = await resolveAdminPayment(drawerPayment._id, {
+      const id = drawerPayment._id;
+      const result = await resolveAdminPayment(id, {
         status: resolveStatus,
         note: resolveNote || undefined,
         expectedCohortId: drawerPayment.paymentCohortId ?? "unassigned",
       });
-      setDrawerPayment(current => current && { ...current, status: result.payment.status, updatedAt: result.payment.updatedAt });
+      const full = await getAdminPaymentById(id).catch(() => null);
+      setDrawerPayment(current => current?._id === id
+        ? full ?? { ...current, status: result.payment.status, updatedAt: result.payment.updatedAt }
+        : current);
       setResolveModalOpen(false);
       setResolveNote("");
       refreshPayments();
@@ -453,8 +486,8 @@ function PaymentRecords({ cohortId, linkedPayment, linkFailed }: {
                         {/* Webhook verified */}
                         <td className="px-4 py-3.5">
                           {payment.webhookVerified
-                            ? <Hi2.HiOutlineCheckBadge className="w-4 h-4 text-emerald-500" title="Webhook verified" />
-                            : <Hi2.HiOutlineXMark className="w-4 h-4 text-slate-300" title="Not webhook-verified" />
+                             ? <Hi2.HiOutlineCheckBadge className="w-4 h-4 text-emerald-500" title="Webhook received" aria-label="Webhook received" />
+                             : <Hi2.HiOutlineMinus className="w-4 h-4 text-slate-400" title="No webhook recorded; payment may be verified by another method" aria-label="No webhook recorded" />
                           }
                         </td>
                         {/* Date */}
@@ -601,7 +634,11 @@ function PaymentRecords({ cohortId, linkedPayment, linkFailed }: {
                         {drawerPayment.status} Payment
                       </p>
                       <p className="text-[11px] text-slate-500">
-                        {drawerPayment.webhookVerified ? "✓ Webhook verified" : "⚠ Not webhook-verified"}
+                        {drawerPayment.webhookVerified ? "✓ Webhook received"
+                          : drawerPayment.status === "success" && drawerPayment.paystackVerification ? "✓ Verified with Paystack"
+                            : drawerPayment.status === "success" && drawerPayment.flutterwaveVerification ? "✓ Verified with Flutterwave"
+                              : drawerPayment.status === "success" && drawerPayment.provider === "manual" ? "Manual payment recorded"
+                                : drawerPayment.status === "success" ? "Provider evidence not recorded" : "Awaiting confirmation"}
                       </p>
                     </div>
                     <div className="ml-auto">
@@ -687,6 +724,18 @@ function PaymentRecords({ cohortId, linkedPayment, linkFailed }: {
                       </div>
                     </div>
                   )}
+                  {drawerPayment.status === "success" && (
+                    <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2 text-xs text-slate-700" aria-label="Participant handoff">
+                      <p className="font-semibold text-sm text-slate-800">Participant handoff</p>
+                      <p>Application: {drawerPayment.handoff?.enrolled ? "Linked" : "Not linked — review required"}</p>
+                      <p>Account: {drawerPayment.handoff?.account === "ready" ? "Password set" : drawerPayment.handoff?.account === "setup_required" ? "Password setup required" : "Not confirmed"}</p>
+                      <p>Setup email: {drawerPayment.handoff?.account === "ready" ? "No setup needed or already completed"
+                        : drawerPayment.handoff?.setupEmail === "queued" ? "Accepted by email provider; delivery not confirmed"
+                          : drawerPayment.handoff?.setupEmail === "pending" ? "Provider request in progress"
+                          : drawerPayment.handoff?.setupEmail === "failed" ? "Provider request failed"
+                            : "No tracked provider acceptance"}</p>
+                    </div>
+                  )}
 
                   {/* Receipt Preview (if manual or uploaded) */}
                   {!drawerPayment.bankTransfer && (drawerPayment.receiptUrl || drawerPayment.provider === "manual") && (
@@ -739,14 +788,29 @@ function PaymentRecords({ cohortId, linkedPayment, linkFailed }: {
                     setDrawerPayment(current => current?._id === updated._id ? updated : current);
                     refreshPayments();
                   }} />
-                </div> : <div className="px-6 pb-6">
+                </div> : <div className="px-6 pb-6 space-y-4">
+                  {drawerPayment.provider === "paystack" && (drawerPayment.status === "pending" || (drawerPayment.status === "success" && !drawerPayment.handoff?.enrolled)) && (
+                    <div className="rounded-2xl border border-sky-200 bg-sky-50 p-5 space-y-3">
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">Check with Paystack</p>
+                        <p className="mt-1 text-xs text-slate-600">{drawerPayment.status === "success"
+                          ? "Retry enrollment for this already confirmed payment. This does not create another charge."
+                          : "Verify this saved reference with Paystack and complete any pending enrollment. This does not create another charge."}</p>
+                      </div>
+                      <button type="button" onClick={() => void handleVerifyPaystack()} disabled={verifying}
+                        className="min-h-11 w-full rounded-xl bg-[#000666] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#000666]/90 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#000666]">
+                        {verifying ? "Checking payment…" : drawerPayment.status === "success" ? "Retry enrollment" : "Verify with Paystack"}
+                      </button>
+                    </div>
+                  )}
+                  {verifyFeedback && <p role="status" className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700">{verifyFeedback}</p>}
                   <div className="border border-dashed border-slate-300 rounded-2xl p-5 bg-slate-50/50">
                     <div className="flex items-center gap-2 mb-3">
                       <Hi2.HiOutlineWrenchScrewdriver className="w-4 h-4 text-[#FF9800]" />
                       <p className="text-sm font-bold text-slate-700">Admin Resolution</p>
                     </div>
                     <p className="text-xs text-slate-500 mb-4">
-                      Override the payment status if there is a discrepancy between the provider and our system records. All resolutions are logged in the audit trail.
+                      Use this only after checking the provider and reviewing any mismatch. An override bypasses provider verification and is logged in the audit trail.
                     </p>
 
                     {!resolveModalOpen ? (
@@ -759,9 +823,9 @@ function PaymentRecords({ cohortId, linkedPayment, linkFailed }: {
                     ) : (
                       <div className="space-y-3">
                         <div>
-                          <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1.5">
+                          <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1.5">
                             Set Status To
-                          </label>
+                          </span>
                           <div className="flex gap-2">
                             {(["success", "failed"] as const).map((s) => (
                               <button
@@ -782,16 +846,19 @@ function PaymentRecords({ cohortId, linkedPayment, linkFailed }: {
                         </div>
 
                         <div>
-                          <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1.5">
+                          <label htmlFor="payment-resolution-note" className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1.5">
                             Reason / Note
                           </label>
                           <textarea
+                            id="payment-resolution-note"
                             rows={2}
                             value={resolveNote}
                             onChange={(e) => setResolveNote(e.target.value)}
                             placeholder=""
                             className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-[#00B0FF] resize-none bg-white placeholder-slate-400"
                           />
+                          {drawerPayment.provider === "paystack" && resolveStatus === "success" && drawerPayment.status !== "success" &&
+                            <p className="mt-1 text-xs text-slate-600">Describe the Paystack evidence (at least 10 characters). Check the provider result above first.</p>}
                         </div>
 
                         {resolveError && (
@@ -807,7 +874,7 @@ function PaymentRecords({ cohortId, linkedPayment, linkFailed }: {
                           </button>
                           <button
                             onClick={handleResolve}
-                            disabled={resolving}
+                            disabled={resolving || (drawerPayment.provider === "paystack" && resolveStatus === "success" && drawerPayment.status !== "success" && resolveNote.trim().length < 10)}
                             className="flex-1 py-2.5 text-xs font-bold bg-[#FF9800] hover:bg-[#FF9800]/90 text-white rounded-xl transition-all shadow-sm disabled:opacity-60"
                           >
                             {resolving ? "Resolving..." : "Confirm Resolution"}

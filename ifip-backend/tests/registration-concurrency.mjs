@@ -53,7 +53,7 @@ const {notificationEmitter}=await import('../src/services/notificationBroadcast.
 notificationEmitter.removeAllListeners();
 let submittedEvents=0;
 notificationEmitter.on('application.submitted',()=>submittedEvents++);
-const {initiatePayment,getPaymentStatus,handleFlutterwaveWebhook,handlePaystackWebhook}=await import('../src/controllers/paymentController.ts');
+const {initiatePayment,getPaymentStatus,handleFlutterwaveWebhook,handlePaystackWebhook,verifyPaystackPaymentForAdmin}=await import('../src/controllers/paymentController.ts');
 const {env}=await import('../src/config/env.ts');
 const {getMyBankTransfer,submitApplicantTransferProof,attachEmailedTransferProof,approveBankTransfer,reviewBankTransfer,downloadTransferReceipt}=await import('../src/controllers/bankTransferController.ts');
 const {submitApplication}=await import('../src/controllers/applicantController.ts');
@@ -207,6 +207,21 @@ try{
   assert.equal((await Coupon.findById(promo._id)).usedCount,1);
   assert.equal((await Payment.findOne({providerRef:ref})).webhookVerified,true);
   assert.equal((await Payment.findOne({providerRef:ref})).reconciliationReason,undefined);
+ });
+ await test('admin Paystack check rejects mismatches and completes one enrollment on retry',async()=>{
+  await seed();const a=await applicant(),promo=await coupon(25);
+  const ref=(await begin(a,promo.code)).body.reference;
+  paystackTransactions.set(ref,{reference:ref,status:'success',amount:1875001,currency:'NGN'});
+  await verifyPaystackPaymentForAdmin(await Payment.findOne({providerRef:ref}));
+  assert.equal((await Payment.findOne({providerRef:ref})).status,'pending');
+  assert.equal((await Payment.findOne({providerRef:ref})).reconciliationReason,'verification_mismatch');
+  assert.equal(await Application.countDocuments(),0);
+  paystackTransactions.set(ref,{reference:ref,status:'success',amount:1875000,currency:'NGN'});
+  await Promise.all([verifyPaystackPaymentForAdmin(await Payment.findOne({providerRef:ref})),verifyPaystackPaymentForAdmin(await Payment.findOne({providerRef:ref}))]);
+  assert.equal((await Payment.findOne({providerRef:ref})).status,'success');
+  assert.equal((await Payment.findOne({providerRef:ref})).webhookVerified,false);
+  assert.equal(await Application.countDocuments(),1);
+  assert.equal((await Coupon.findById(promo._id)).usedCount,1);
  });
  await test('confirmed Paystack rejection creates one Flutterwave replacement and isolates any late charge',async()=>{
   await seed();const a=await applicant(),promo=await coupon(25,1);
