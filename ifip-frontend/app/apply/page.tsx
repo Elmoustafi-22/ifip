@@ -1469,7 +1469,7 @@ export default function ApplyPage() {
     <div className="flex min-h-screen flex-col bg-academic-cream font-sans">
         <header className="border-b border-[#cbd8e8] bg-[#ffffff]">
           <div className={`${entryWidth} flex min-h-16 items-center justify-between gap-2 sm:min-h-[76px]`}>
-            <Link href="/" className={`min-w-0 shrink ${entryFocus}`}>
+            <Link href="/" className={`min-w-0 shrink-0 ${entryFocus}`}>
               <Image
                 src="/images/logos/logo-full-color.png"
                 alt="Islamic Finance Internship Program home"
@@ -1479,9 +1479,24 @@ export default function ApplyPage() {
                 className="h-auto w-[136px] min-[360px]:w-[146px] sm:w-[170px] lg:w-[190px]"
               />
             </Link>
-            <div className="flex shrink-0 items-center gap-2 text-sm text-[#101f3f] sm:gap-4">
+            <div className="flex shrink-0 items-center gap-2 text-sm text-[#101f3f] lg:gap-5">
+              <nav aria-label="Program" className="hidden items-center gap-4 lg:flex">
+                <Link className={`inline-flex min-h-11 items-center font-medium hover:text-secondary ${entryFocus}`} href="/#curriculum">Curriculum</Link>
+                <Link className={`inline-flex min-h-11 items-center font-medium hover:text-secondary ${entryFocus}`} href="/#process">Process</Link>
+                <Link className={`inline-flex min-h-11 items-center font-medium hover:text-secondary ${entryFocus}`} href="/#partners">Partners</Link>
+                <Link className={`inline-flex min-h-11 items-center font-medium hover:text-secondary ${entryFocus}`} href="/#faq">FAQ</Link>
+                {isLoggedIn && (
+                  <>
+                    <Link className={`inline-flex min-h-11 items-center font-medium hover:text-secondary ${entryFocus}`} href="/dashboard/modules">Modules</Link>
+                    <Link className={`inline-flex min-h-11 items-center font-medium hover:text-secondary ${entryFocus}`} href="/dashboard/settings">Profile</Link>
+                  </>
+                )}
+              </nav>
+              <Link href={isLoggedIn ? "/dashboard" : "/login"} className={`inline-flex min-h-11 items-center rounded-lg border border-[#7185a0] px-2.5 font-semibold whitespace-nowrap hover:bg-[#e1f1fb] sm:px-3.5 ${entryFocus}`}>
+                {isLoggedIn ? "Dashboard" : "Sign in"}
+              </Link>
               <details
-                className="relative"
+                className="relative lg:hidden"
                 onKeyDown={(event) => {
                   if (event.key === "Escape" && event.currentTarget.open) {
                     event.currentTarget.open = false;
@@ -1489,7 +1504,7 @@ export default function ApplyPage() {
                   }
                 }}
               >
-                <summary aria-label="Program navigation" className={`flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center rounded-lg hover:bg-[#e1f1fb] [&::-webkit-details-marker]:hidden ${entryFocus}`}>
+                <summary aria-label="Program navigation" className={`flex size-11 cursor-pointer list-none items-center justify-center rounded-lg hover:bg-[#e1f1fb] [&::-webkit-details-marker]:hidden ${entryFocus}`}>
                   <HiBars3 aria-hidden="true" className="size-5" />
                 </summary>
                 <nav aria-label="Program" className="absolute end-0 top-full z-20 mt-2 w-48 max-w-[calc(100vw-2rem)] rounded-xl border border-[#cbd8e8] bg-white p-2 shadow-lg">
@@ -1505,10 +1520,6 @@ export default function ApplyPage() {
                   )}
                 </nav>
               </details>
-              {!isLoggedIn && <span className="hidden text-[#43536e] sm:inline">Already registered?</span>}
-              <Link href={isLoggedIn ? "/dashboard" : "/login"} className={`inline-flex min-h-11 items-center rounded-lg border border-[#7185a0] px-2.5 font-semibold whitespace-nowrap hover:bg-[#e1f1fb] sm:px-3.5 ${entryFocus}`}>
-                {isLoggedIn ? "Dashboard" : "Sign in"}
-              </Link>
             </div>
           </div>
         </header>

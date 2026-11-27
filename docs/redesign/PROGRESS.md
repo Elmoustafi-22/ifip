@@ -1,5 +1,10 @@
 # IFIP modernization progress
 
+## Registration header alignment
+
+- The user approved the proposed registration header layout on 27 November 2026. `/apply` now shows the logo on the left, Sign in or Dashboard and the menu icon on the right at narrow widths. At `lg` widths it shows Curriculum, Process, Partners and FAQ directly, plus Modules and Profile for signed-in users, with the account action at the far right. Removed the redundant “Already registered?” text. The menu retains the same destinations, Escape handling and focus styles.
+- Verification: the working tree was clean before editing. Read the local Next CSS and Link guides. From `ifip-frontend`, `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false` passed. Targeted ESLint on `app/apply/page.tsx` reported the same five existing errors and fifteen warnings outside the header edit. `git diff --check` passed. An isolated Next frontend at port 3111 used `NEXT_PUBLIC_API_URL=http://127.0.0.1:59999/api/v1`; Chromium fulfilled those API requests with 503 and waited for the settled entry heading. At 320, 375, 768, 1024 and 1280 CSS px, document width matched viewport width. The 44 px account link and 44 px menu aligned vertically on small screens; the menu opened and Escape closed it with focus returned to the trigger. The desktop links appeared at 1024 and 1280 px, with the menu hidden. Mobile and desktop screenshots were visually reviewed. Signed-in header content, 200% zoom, screen reader behavior and live API integration were not exercised. No commit or deployment.
+
 ## Registration and sign-in refresh proposal
 
 - On 27 November 2026, the user requested a proposal before implementation for a more classic registration and sign-in presentation, shorter copy, and icon-only links where the destination remains clear. Scope proposed: `/apply` entry, progress/forms and outcome, `/login` including MFA and in-page recovery, plus `/forgot-password`, `/reset-password`, and `/set-password`. Existing API contracts, validation, saved steps, role routing and payment behavior stay in place. Application source has not changed for this proposal.
