@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { TbArrowUpRight } from "react-icons/tb";
 import apiClient from "@/lib/api/client";
 import type { RegistrationStatus } from "@/lib/api/services";
+import { formatRegistrationDeadline } from "@/lib/utils/registrationDeadline";
 
 const entranceEase = [0.2, 0, 0, 1] as const;
 
@@ -40,6 +41,9 @@ export default function HeroSection() {
   }, []);
 
   const waitingList = cohort && (!cohort.hasActiveCohort || cohort.isFull);
+  const registrationDeadline = cohort?.hasActiveCohort && !cohort.isFull
+    ? formatRegistrationDeadline(cohort.registrationEndDate)
+    : null;
 
   return (
     <section className="ifip-home-hero" aria-labelledby="homepage-title">
@@ -52,6 +56,11 @@ export default function HeroSection() {
           <motion.p className="ifip-home-lead" data-home-entrance initial={{ x: -24, opacity: 0.45 }} animate={{ x: 0, opacity: 1 }} transition={{ ...entrance, delay: 0.26 }}>
             Industry readiness training, a professional Workplace Readiness Certificate and internship placement, preparing young talents for careers in Islamic finance, Fintech and Halal industries.
           </motion.p>
+          {registrationDeadline && (
+            <p className="ifip-home-registration-deadline">
+              <strong>Registration deadline:</strong> {registrationDeadline}
+            </p>
+          )}
           <div className="ifip-home-actions">
             <motion.span className="ifip-home-action-item" data-home-entrance initial={{ y: 18, opacity: 0.45 }} animate={{ y: 0, opacity: 1 }} transition={{ ...entrance, delay: 0.4 }}>
               <Link className="ifip-home-button" href="/apply">

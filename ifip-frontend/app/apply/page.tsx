@@ -59,10 +59,11 @@ import {
 
 import { useFormOptions } from "@/lib/hooks/useFormOptions";
 import { formatLevyAmount, useLevyPricing } from "@/lib/hooks/useLevyPricing";
+import { formatRegistrationDeadline } from "@/lib/utils/registrationDeadline";
 
 type RegistrationAvailability =
   | { status: "checking" | "closed" | "failed" }
-  | { status: "open" | "full"; cohortName?: string };
+  | { status: "open" | "full"; cohortName?: string; registrationEndDate?: string };
 
 function timeUntil(expiry: string, now: number) {
   const minutes = Math.ceil((Date.parse(expiry) - now) / 60000);
@@ -84,7 +85,7 @@ async function loadRegistrationAvailability(): Promise<RegistrationAvailability>
     const data = await getRegistrationStatus();
     if (data?.hasActiveCohort === false) return { status: "closed" };
     if (data?.hasActiveCohort === true && typeof data.isFull === "boolean") {
-      return { status: data.isFull ? "full" : "open", cohortName: data.cohortName };
+      return { status: data.isFull ? "full" : "open", cohortName: data.cohortName, registrationEndDate: data.registrationEndDate };
     }
   } catch {
     // Keep entry usable; the start endpoint validates availability on submission.
@@ -1460,6 +1461,9 @@ export default function ApplyPage() {
     closed: "Registration is closed. You can join the waitlist.",
     failed: "",
   }[registrationAvailability.status];
+  const registrationDeadline = registrationAvailability.status === "open"
+    ? formatRegistrationDeadline(registrationAvailability.registrationEndDate)
+    : null;
 
   return (
     <div className="flex min-h-screen flex-col bg-academic-cream font-sans">
@@ -1646,6 +1650,11 @@ export default function ApplyPage() {
                   cohortName={registrationAvailability.status === "open" ? registrationAvailability.cohortName : undefined}
                   tone={registrationAvailability.status === "open" ? "open" : "neutral"}
                 />
+                {registrationDeadline && !recoverExistingApplication && !otpSent && (
+                  <p className="mb-4 text-sm font-medium text-[#43536e] min-[681px]:mb-6">
+                    <strong className="text-[#101f3f]">Registration deadline:</strong> {registrationDeadline}
+                  </p>
+                )}
                 <div aria-current="step" className="mb-4 space-y-2 text-[13px] font-semibold text-[#43536e] min-[681px]:mb-6">
                   <p>Step 1 of {stepsList.length} · Verify email</p>
                   <div className="grid grid-cols-6 gap-[5px]" aria-hidden="true">

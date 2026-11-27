@@ -1,5 +1,11 @@
 # IFIP modernization progress
 
+## Public registration deadline
+
+- Authorized by the user's 27 November 2026 request. The homepage hero and open `/apply` email entry now label the active cohort's `registrationEndDate` from the existing public registration-status response as **Registration deadline**. The shared formatter uses the Africa/Lagos calendar date and ignores missing or invalid values. Full, closed and unavailable states do not show a deadline. API contracts, intake rules and registration routes are unchanged.
+- Verification: `git status --short` was clean before editing. From `ifip-frontend`, `node node_modules/typescript/bin/tsc --project tsconfig.build.json --noEmit --incremental false` passed and `node node_modules/eslint/bin/eslint.js components/home/HeroSection.tsx lib/utils/registrationDeadline.ts` passed. A Node strip-types check confirmed Lagos date conversion across midnight and invalid-date suppression. `git diff --check` passed. Targeted ESLint including `app/apply/page.tsx` exited 1 on five existing errors at lines 527, 682, 696 and 1209 plus unused-import warnings outside the edited lines; no diagnostic was reported for the new deadline code. Source review confirmed the endpoint supplies `registrationEndDate` only for an active cohort.
+- Browser layout, live cohort data, and open/full/closed transitions were not exercised in this pass. Next step: review `/` and `/apply` with an isolated registration-status fixture at 320, 375, 768 and 1280 CSS px, then verify the configured date against an authorized staging cohort before release. No commit or deployment was made.
+
 ## Admin Paystack recovery and participant handoff
 
 - Authorized implementation on 26 November 2026. Added authenticated, recently confirmed admin `POST /api/v1/admin/payments/:id/verify-paystack`, scoped to the payment's displayed cohort. It reuses Paystack server verification, existing reference/amount/currency checks, idempotent payment transition, and enrollment retry. It records an admin audit result. It does not initialize a new charge or call Paystack's event-resend API. The drawer refreshes provider and enrollment state after the action and announces the outcome.

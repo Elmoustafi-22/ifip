@@ -221,6 +221,8 @@
 .ifip-home-hero h1 { max-width: 11ch; font-size: clamp(3.4rem, 6.1vw, 6.3rem); line-height: .98; letter-spacing: -.045em; }
 .ifip-home-hero h1 em { color: var(--accent); }
 .ifip-home-lead { max-width: 32ch; font-size: clamp(1.1rem, 1.65vw, 1.35rem); line-height: 1.55; margin-top: 32px; }
+.ifip-home-registration-deadline { margin-top: 20px; font-size: .95rem; line-height: 1.5; color: var(--ink); }
+.ifip-home-registration-deadline strong { font-weight: 700; }
 .ifip-home-hero .ifip-home-actions { margin-top: 32px; }
 .ifip-home-hero-visual { padding: 12px; background: #fffdf8; border: 1px solid #cbc7bd; border-radius: 210px 210px 8px 8px; box-shadow: 0 25px 60px #0006661c; }
 .ifip-home-hero-visual img { height: clamp(440px, 44vw, 630px); border-radius: 200px 200px 3px 3px; object-position: 33% center; }
@@ -462,6 +464,7 @@
   .ifip-home-hero-visual figcaption { display: none; }
   .ifip-home-hero .ifip-home-eyebrow, .ifip-home-hero h1 em { color: #80d8ff; }
   .ifip-home-hero .ifip-home-lead { color: #f0f5fb; }
+  .ifip-home-hero .ifip-home-registration-deadline { color: #fff; }
   .ifip-home-hero .ifip-home-button { background: #80d8ff; color: #000666; }
   .ifip-home-hero .ifip-home-text-link { color: #fff; }
   .ifip-home-hero .ifip-home-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 8px; }
