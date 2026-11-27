@@ -6,6 +6,7 @@ Registration and enrollment redesign
 See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and [verification evidence](PROGRESS.md).
 
 ## Current Status
+- **Registration and sign-in visual refresh implemented locally, 27 November 2026.** The user approved the shorter classic presentation, selective icon controls and removal of routine underlines. See [progress and verification](PROGRESS.md#registration-and-sign-in-refresh-proposal). Full state and staging verification remain open.
 - **Mongoose deprecation warning fix implemented locally, 24 November 2026.** Remaining backend `findOneAndUpdate()` calls using `{ new: true }` now use `returnDocument: 'after'`; see [verification](PROGRESS.md#mongoose-deprecated-update-option).
 - **Request recovery and background reminders implemented locally, 24 November 2026.** Request timeouts have distinct feedback; applicants can enter a code after an uncertain response. Admin reminders use persisted jobs with progress and duplicate-submission protection. [Evidence and staging gaps](PROGRESS.md#request-recovery-and-background-reminders). Real MongoDB/worker restart and provider verification remain pending before rollout.
 - **Registration pause now replaces the email form in its panel.** The separate banner and duplicate recovery section were removed during the pause; the form returns when the notice expires. [Local verification](PROGRESS.md#registration-pause-within-form-panel).

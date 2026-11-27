@@ -57,7 +57,7 @@ export default function BankTransferPage() {
   return (
     <main className="min-h-dvh bg-surface-container-low px-4 py-8 sm:py-12">
       <section aria-labelledby="transfer-heading" className="mx-auto max-w-xl space-y-5 rounded-2xl border border-outline-variant bg-surface p-5 sm:p-8">
-        <Link href={transfer && transfer.review !== "closed" ? "/" : "/apply"} className="text-sm font-semibold text-primary underline">
+        <Link href={transfer && transfer.review !== "closed" ? "/" : "/apply"} className="inline-flex min-h-11 items-center text-sm font-semibold text-secondary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary">
           {transfer && transfer.review !== "closed" ? "IFIP home" : "Back to application"}
         </Link>
         <h1 id="transfer-heading" className="text-2xl font-semibold text-primary" aria-live="polite">
@@ -87,7 +87,7 @@ export default function BankTransferPage() {
               <label className="block text-sm">Receipt (PDF, PNG or JPEG, up to 5 MB)<input className={field} name="receipt" type="file" accept="application/pdf,image/png,image/jpeg" required /></label>
               <button type="submit" disabled={busy} className={action}>{busy ? "Uploading…" : "Submit proof"}</button>
             </form>
-            <a href={email || "mailto:ifip.program@gmail.com"} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline">Email payment proof</a>
+            <a href={email || "mailto:ifip.program@gmail.com"} className="inline-flex min-h-11 items-center text-sm font-semibold text-secondary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary">Email payment proof</a>
           </>}
           {transfer.review === "approved" && (transfer.setPasswordToken
             ? <Link href={`/set-password?${new URLSearchParams({ token: transfer.setPasswordToken })}`} className={action}>Set your password</Link>

@@ -39,7 +39,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#eef4fa] font-sans text-on-surface flex flex-col">
+    <div className="min-h-screen bg-[#f8f5ef] font-sans text-on-surface flex flex-col">
 
       {/* Minimal header — logo only (secure flow) */}
       <header className="py-3 px-5 flex items-center justify-center border-b border-outline-variant/20 bg-white">
@@ -59,19 +59,19 @@ export default function ForgotPasswordPage() {
 
         {submitted ? (
           /* ── Success state ── */
-          <div className="w-full max-w-[440px] bg-[#ffffff] rounded-[18px] border border-[#cbd8e8] p-5 sm:p-8 flex flex-col items-center gap-5 text-center">
+          <div className="w-full max-w-[440px] bg-white rounded-[18px] border border-[#cbd8e8] p-5 sm:p-8 flex flex-col items-center gap-5 text-center shadow-[0_20px_50px_-42px_#131b4880]">
             <div className="w-20 h-20 rounded-full bg-green-50 border border-green-200 flex items-center justify-center">
               <HiCheckCircle className="w-10 h-10 text-green-500" />
             </div>
-            <h1 className="text-2xl leading-tight tracking-tight text-[#101f3f] sm:text-3xl font-semibold font-sans">Check your email</h1>
+            <h1 className="font-display text-3xl leading-tight tracking-tight text-[#101f3f] sm:text-4xl">Check your email</h1>
             <p className="text-sm text-on-surface-variant leading-relaxed">
               If an account with <strong>{email}</strong> exists, we&apos;ve sent a password reset link. It expires in <strong>1 hour</strong>.
             </p>
             <div className="w-full bg-primary/5 border border-primary/10 rounded-xl p-4 flex items-start gap-3 text-left">
               <HiInformationCircle className="w-5 h-5 text-vibrant-blue shrink-0 mt-0.5" />
               <p className="text-xs text-on-surface-variant leading-relaxed">
-                If you do not receive an email within 5 minutes, please check your spam folder or contact{" "}
-                <a href="mailto:ifip.program@gmail.com" className="text-vibrant-blue hover:underline font-semibold">ifip.program@gmail.com</a>.
+                No email after 5 minutes? Check spam or contact{" "}
+                <a href="mailto:ifip.program@gmail.com" className="text-vibrant-blue hover:text-primary font-semibold">email support</a>.
               </p>
             </div>
             <Link
@@ -79,12 +79,12 @@ export default function ForgotPasswordPage() {
               className="mt-2 flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary/80 transition-colors"
             >
               <HiArrowLeft className="w-4 h-4" />
-              Back to Login
+              Sign in
             </Link>
           </div>
         ) : (
           /* ── Form state ── */
-          <div className="w-full max-w-[440px] bg-[#ffffff] rounded-[18px] border border-[#cbd8e8] p-5 sm:p-8">
+          <div className="w-full max-w-[440px] bg-white rounded-[18px] border border-[#cbd8e8] p-5 sm:p-8 shadow-[0_20px_50px_-42px_#131b4880]">
 
             {/* Logo + heading */}
             <div className="flex flex-col items-center mb-8">
@@ -97,9 +97,9 @@ export default function ForgotPasswordPage() {
                   className="w-14 h-14 object-contain"
                 />
               </div>
-              <h1 className="text-2xl leading-tight tracking-tight text-[#101f3f] sm:text-3xl text-center font-semibold font-sans">Forgot your password?</h1>
+              <h1 className="font-display text-3xl leading-tight tracking-tight text-[#101f3f] sm:text-4xl text-center">Reset your password</h1>
               <p className="text-sm text-on-surface-variant text-center mt-2 leading-relaxed">
-                Enter the email address associated with your IFIP account and we&apos;ll send you a link to reset your password.
+                Enter your account email for a reset link.
               </p>
             </div>
 
@@ -112,8 +112,8 @@ export default function ForgotPasswordPage() {
 
             <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
               <div>
-                <label htmlFor="forgot-email" className="block text-xs font-bold uppercase text-primary mb-2 tracking-wide">
-                  Email Address
+                <label htmlFor="forgot-email" className="block text-sm font-semibold text-primary mb-2">
+                  Email address
                 </label>
                 <div className="relative">
                   <HiEnvelope className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/60 pointer-events-none" />
@@ -124,7 +124,7 @@ export default function ForgotPasswordPage() {
                     placeholder="name@institution.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-outline-variant/40 rounded-[6px] text-sm bg-slate-50/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
+                    className="w-full min-h-[50px] pl-10 pr-4 py-3 border border-[#7185a0] rounded-[9px] text-base bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#12617e]"
                   />
                 </div>
               </div>
@@ -145,7 +145,7 @@ export default function ForgotPasswordPage() {
                   </>
                 ) : (
                   <>
-                    Send Reset Link
+                    Send reset link
                     <HiArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -156,7 +156,7 @@ export default function ForgotPasswordPage() {
                 className="flex items-center justify-center gap-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors font-medium"
               >
                 <HiArrowLeft className="w-4 h-4" />
-                Back to Login
+                Sign in
               </Link>
             </form>
           </div>

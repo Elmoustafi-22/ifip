@@ -97,7 +97,7 @@ function ResetPasswordInner() {
         <div className="w-16 h-16 rounded-full bg-green-50 border border-green-200 flex items-center justify-center">
           <HiCheckCircle className="w-9 h-9 text-green-500" />
         </div>
-        <h1 className="text-2xl leading-tight tracking-tight text-[#101f3f] sm:text-3xl font-semibold font-sans">Your password was reset</h1>
+        <h1 className="font-display text-3xl leading-tight tracking-tight text-[#101f3f] sm:text-4xl">Your password was reset</h1>
         <Link href={signInRequired ? "/login" : "/dashboard"} className="inline-flex min-h-[50px] w-full items-center justify-center rounded-[9px] bg-[#101f3f] px-5 text-sm font-semibold text-white hover:bg-[#24395f]">{signInRequired ? "Continue to sign in" : "Continue"}</Link>
       </div>
     );
@@ -110,14 +110,14 @@ function ResetPasswordInner() {
         <div className="w-16 h-16 rounded-full bg-red-50 border border-red-200 flex items-center justify-center">
           <HiLockClosed className="w-8 h-8 text-red-400" />
         </div>
-        <h1 className="text-2xl leading-tight tracking-tight text-[#101f3f] sm:text-3xl font-semibold font-sans">This link is unavailable</h1>
+        <h1 className="font-display text-3xl leading-tight tracking-tight text-[#101f3f] sm:text-4xl">This link is unavailable</h1>
         <p className="text-sm text-on-surface-variant max-w-sm">{tokenError}</p>
-        <Link href="/forgot-password" className="mt-2 text-sm font-semibold text-vibrant-blue hover:underline">
+        <Link href="/forgot-password" className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-vibrant-blue hover:text-primary">
           Request a new reset link →
         </Link>
         <Link href="/login" className="text-sm text-on-surface-variant hover:text-primary transition-colors flex items-center gap-1.5">
           <HiArrowLeft className="w-4 h-4" />
-          Back to Login
+          Sign in
         </Link>
       </div>
     );
@@ -136,9 +136,9 @@ function ResetPasswordInner() {
             height={80}
             className="w-16 h-16 object-contain mb-4"
           />
-          <h1 className="text-2xl leading-tight tracking-tight text-[#101f3f] sm:text-3xl text-center font-semibold font-sans">Choose a new password</h1>
+          <h1 className="font-display text-3xl leading-tight tracking-tight text-[#101f3f] sm:text-4xl text-center">Choose a new password</h1>
           <p className="text-sm text-on-surface-variant text-center mt-1">
-            No worries! Set a new strong password for your Batch 2026 participant account.
+            Create a password for your account.
           </p>
         </div>
 
@@ -163,7 +163,7 @@ function ResetPasswordInner() {
 
               {/* New Password */}
               <div>
-                <label htmlFor="rp-password" className="block text-xs font-bold uppercase text-primary mb-2 tracking-wide">
+                <label htmlFor="rp-password" className="block text-sm font-semibold text-primary mb-2">
                   Create Password
                 </label>
                 <div className="relative">
@@ -174,7 +174,7 @@ function ResetPasswordInner() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="new-password"
-                    className="w-full pr-12 pl-4 py-3 border border-outline-variant/40 rounded-[6px] text-sm bg-slate-50/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
+                    className="w-full min-h-[50px] pr-12 pl-4 py-3 border border-[#7185a0] rounded-[9px] text-base bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#12617e]"
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant/60 hover:text-primary transition-colors" aria-label="Toggle password visibility">
                     {showPassword ? <HiEyeSlash className="w-5 h-5" /> : <HiEye className="w-5 h-5" />}
@@ -184,7 +184,7 @@ function ResetPasswordInner() {
 
               {/* Confirm Password */}
               <div>
-                <label htmlFor="rp-confirm" className="block text-xs font-bold uppercase text-primary mb-2 tracking-wide">
+                <label htmlFor="rp-confirm" className="block text-sm font-semibold text-primary mb-2">
                   Confirm Password
                 </label>
                 <div className="relative">
@@ -195,7 +195,7 @@ function ResetPasswordInner() {
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
                     autoComplete="new-password"
-                    className={`w-full pr-12 pl-4 py-3 border rounded-[6px] text-sm bg-slate-50/50 focus:outline-none transition-colors ${
+                    className={`w-full min-h-[50px] pr-12 pl-4 py-3 border rounded-[9px] text-base bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#12617e] ${
                       confirm.length > 0
                         ? passwordsMatch
                           ? "border-green-400 focus:border-green-500"
@@ -251,7 +251,7 @@ function ResetPasswordInner() {
                 className="flex items-center justify-center gap-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors font-medium"
               >
                 <HiArrowLeft className="w-4 h-4" />
-                Back to Login
+                Sign in
               </Link>
             </form>
           </>
@@ -264,7 +264,7 @@ function ResetPasswordInner() {
 // ── Page export ───────────────────────────────────────────────────────
 export default function ResetPasswordPage() {
   return (
-    <div className="min-h-screen bg-[#eef4fa] font-sans text-on-surface flex flex-col">
+    <div className="min-h-screen bg-[#f8f5ef] font-sans text-on-surface flex flex-col">
       {/* Minimal header */}
       <header className="py-3 px-5 flex items-center justify-center border-b border-outline-variant/20 bg-white">
         <Link href="/">

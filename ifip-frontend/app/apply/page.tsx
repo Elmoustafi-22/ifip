@@ -1556,7 +1556,7 @@ export default function ApplyPage() {
                   ) : (
                     <button type="button" className={entryAction} onClick={continueFromResumeError}>Continue to application</button>
                   )}
-                  <Link href="/login" className={`inline-block text-sm text-secondary underline underline-offset-4 ${entryFocus}`}>Already have an account? Sign in</Link>
+                  <Link href="/login" className={`inline-flex min-h-11 items-center text-sm font-semibold text-secondary hover:text-primary ${entryFocus}`}>Sign in</Link>
                 </>
               )}
             </section>
@@ -1637,8 +1637,8 @@ export default function ApplyPage() {
                         <span aria-hidden="true" className="text-xl leading-none">→</span>
                       </button>
                     </form>
-                    <button type="button" onClick={() => { setEmail(waitlistEmail); setRecoverExistingApplication(true); }} className={`mt-5 text-sm font-semibold text-secondary underline underline-offset-4 ${entryFocus}`}>
-                      Already started? Verify your email to continue
+                    <button type="button" onClick={() => { setEmail(waitlistEmail); setRecoverExistingApplication(true); }} className={`mt-5 inline-flex min-h-11 items-center text-sm font-semibold text-secondary hover:text-primary ${entryFocus}`}>
+                      Continue an application
                     </button>
                   </>
                 )}
@@ -1670,7 +1670,7 @@ export default function ApplyPage() {
                 {errorMsg && (
                   <div role="alert" className="mb-4 rounded-lg border border-error bg-error-container px-4 py-3 text-sm text-on-error-container">
                     <p>{errorMsg}</p>
-                    {registeredEmail && <Link href="/login" className={`mt-2 inline-block font-semibold underline ${entryFocus}`}>Sign in</Link>}
+                    {registeredEmail && <Link href="/login" className={`mt-2 inline-flex min-h-11 items-center font-semibold text-secondary hover:text-primary ${entryFocus}`}>Sign in</Link>}
                   </div>
                 )}
                 <p role="status" className="sr-only">{verificationNotice}</p>
@@ -1736,7 +1736,7 @@ export default function ApplyPage() {
                       <button
                         type="button"
                         aria-disabled={verificationRequest !== "idle"}
-                        className={`min-h-11 rounded-lg px-2 text-sm font-semibold text-secondary underline underline-offset-4 hover:bg-surface-container-low aria-disabled:cursor-wait ${entryFocus}`}
+                        className={`min-h-11 rounded-lg border border-outline-variant px-2 text-sm font-semibold text-secondary hover:bg-surface-container-low aria-disabled:cursor-wait ${entryFocus}`}
                         onClick={() => {
                           if (activeVerification.current) return;
                           setOtpSent(false);
@@ -1754,7 +1754,7 @@ export default function ApplyPage() {
                         type="button"
                         onClick={() => void handleSendCode()}
                         aria-disabled={verificationRequest !== "idle" || resendCooldown > 0}
-                        className={`min-h-11 rounded-lg px-2 text-sm font-semibold text-secondary underline underline-offset-4 hover:bg-surface-container-low aria-disabled:cursor-not-allowed aria-disabled:text-[#43536e] ${entryFocus}`}
+                        className={`min-h-11 rounded-lg border border-outline-variant px-2 text-sm font-semibold text-secondary hover:bg-surface-container-low aria-disabled:cursor-not-allowed aria-disabled:text-[#43536e] ${entryFocus}`}
                       >
                         {verificationRequest === "resending" ? "Resending…" : resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend code"}
                       </button>
@@ -2317,8 +2317,8 @@ export default function ApplyPage() {
                       <p className="font-semibold">{checkout.title}</p>
                       <p>{checkout.message}</p>
                       <div className="flex flex-wrap gap-x-4 gap-y-2">
-                        {checkout.canCheckPayment && <Link href="/verify-payment" className={`underline underline-offset-4 ${entryFocus}`}>Check previous payment</Link>}
-                        <a href="mailto:ifip.program@gmail.com" className={`underline underline-offset-4 ${entryFocus}`}>Email IFIP support</a>
+                        {checkout.canCheckPayment && <Link href="/verify-payment" className={`font-semibold text-secondary hover:text-primary ${entryFocus}`}>Check previous payment</Link>}
+                        <a href="mailto:ifip.program@gmail.com" className={`font-semibold text-secondary hover:text-primary ${entryFocus}`}>Email IFIP support</a>
                       </div>
                     </div>
                   )}
@@ -2369,9 +2369,9 @@ export default function ApplyPage() {
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold text-secondary">
                 {!confirmation.setupToken && (
-                  <Link href="/login" className={`inline-flex min-h-11 items-center underline underline-offset-4 ${entryFocus}`}>Sign in</Link>
+                  <Link href="/login" className={`inline-flex min-h-11 items-center hover:text-primary ${entryFocus}`}>Sign in</Link>
                 )}
-                <a href="mailto:ifip.program@gmail.com" className={`inline-flex min-h-11 items-center underline underline-offset-4 ${entryFocus}`}>Email IFIP support</a>
+                <a href="mailto:ifip.program@gmail.com" className={`inline-flex min-h-11 items-center hover:text-primary ${entryFocus}`}>Email IFIP support</a>
               </div>
             </section>
           )}
@@ -2386,9 +2386,9 @@ export default function ApplyPage() {
         <footer className={`${entryWidth} flex flex-wrap items-center justify-between gap-x-5 gap-y-1 py-4 text-sm leading-relaxed text-[#43536e] min-[681px]:py-6`}>
           <p>Islamic Finance Internship Program</p>
           <nav aria-label="Registration help" className="flex flex-wrap gap-x-4">
-            <Link href="/#faq" className={`inline-flex min-h-11 items-center gap-2 underline underline-offset-4 ${entryFocus}`}>Program FAQs</Link>
-            <a href="mailto:ifip.program@gmail.com" className={`inline-flex min-h-11 items-center gap-2 underline underline-offset-4 ${entryFocus}`}><TbMail aria-hidden="true" className="size-4 text-[#12617e]" />Email support</a>
-            <a href="https://wa.me/2349060356610" target="_blank" rel="noopener noreferrer" className={`inline-flex min-h-11 items-center gap-2 underline underline-offset-4 ${entryFocus}`}><TbBrandWhatsapp aria-hidden="true" className="size-4 text-[#12617e]" />WhatsApp support</a>
+            <Link href="/#faq" className={`inline-flex min-h-11 items-center gap-2 font-semibold text-secondary hover:text-primary ${entryFocus}`}>Program FAQs</Link>
+            <a href="mailto:ifip.program@gmail.com" className={`inline-flex min-h-11 items-center gap-2 font-semibold text-secondary hover:text-primary ${entryFocus}`}><TbMail aria-hidden="true" className="size-4" />Email support</a>
+            <a href="https://wa.me/2349060356610" target="_blank" rel="noopener noreferrer" className={`inline-flex min-h-11 items-center gap-2 font-semibold text-secondary hover:text-primary ${entryFocus}`}><TbBrandWhatsapp aria-hidden="true" className="size-4" />WhatsApp support</a>
           </nav>
         </footer>
 

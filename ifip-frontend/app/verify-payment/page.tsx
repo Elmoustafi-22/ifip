@@ -17,7 +17,7 @@ const pollInterval = 2000;
 const checkWindow = 40000;
 const supportHref = "mailto:ifip.program@gmail.com";
 const primaryAction = "inline-flex min-h-11 items-center justify-center rounded-[7px] bg-[#101f3f] px-5 py-2.5 text-center text-sm font-semibold text-on-primary hover:bg-[#24395f] motion-safe:transition-colors focus-visible:outline-primary";
-const secondaryAction = "inline-flex min-h-11 items-center text-sm font-semibold text-secondary underline underline-offset-4";
+const secondaryAction = "inline-flex min-h-11 items-center text-sm font-semibold text-secondary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary";
 
 const statusCopy: Record<Verification["status"], { title: string; message: string }> = {
   checking: { title: "Checking your payment", message: "We’re checking the result with the payment provider." },
@@ -50,7 +50,7 @@ function VerificationPanel({ result, onRetry, onContinue }: {
   }, [status]);
 
   return (
-    <div className="min-h-dvh bg-[#eef4fa] px-4 py-6 sm:px-6 sm:py-10">
+    <div className="min-h-dvh bg-[#f8f5ef] px-4 py-6 sm:px-6 sm:py-10">
       <div className="mx-auto flex max-w-xl flex-col gap-8">
         <Link href="/" className="w-fit rounded-sm" aria-label="IFIP home">
           <Image src="/images/logos/logo-full-color.png" width={160} height={44} alt="" priority className="h-auto w-36" />
@@ -62,7 +62,7 @@ function VerificationPanel({ result, onRetry, onContinue }: {
                 : <HiInformationCircle aria-hidden="true" className="size-6" />}
           </div>
           <div className="space-y-2">
-            <h1 id="payment-heading" ref={heading} tabIndex={-1} className="font-sans text-3xl leading-tight tracking-tight text-[#101f3f] sm:text-4xl font-semibold">{title}</h1>
+            <h1 id="payment-heading" ref={heading} tabIndex={-1} className="font-display text-3xl leading-tight tracking-tight text-[#101f3f] sm:text-4xl">{title}</h1>
             <p className="text-sm leading-relaxed text-on-surface-variant sm:text-base">{message}</p>
           </div>
           <p role="status" className="sr-only">{busy ? title : ""}</p>

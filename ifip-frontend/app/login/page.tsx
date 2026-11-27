@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { isAxiosError } from "axios";
-import { TbArrowRight, TbBrandWhatsapp, TbLock, TbMail } from "react-icons/tb";
+import { TbArrowLeft, TbArrowRight, TbBrandWhatsapp, TbEye, TbEyeOff, TbLock, TbMail } from "react-icons/tb";
 import { login as loginApi, getAccessToken, loginMfaVerify, verifyAdminMfaEmail, forgotPassword as forgotPasswordApi } from "@/lib/api/auth";
 import { isCvRequestPath } from "@/lib/cv-request-link";
 import styles from "./login.module.css";
@@ -202,23 +202,20 @@ export default function LoginPage() {
           <Link href="/" aria-label="IFIP homepage">
             <Image src="/images/logos/logo-full-color.png" alt="" width={160} height={44} priority className={styles.logo} />
           </Link>
-          <Link href="/">Back to homepage</Link>
+          <Link href="/" className={styles.backLink} aria-label="Back to homepage" title="Back to homepage"><TbArrowLeft aria-hidden="true" /></Link>
         </div>
       </header>
 
       <div className={styles.shell}>
         <aside className={styles.brand}>
-          <span className={styles.brandIcon}><TbLock aria-hidden="true" /></span>
           <p className={styles.eyebrow}>Islamic Finance Internship Program</p>
-          <p className={styles.welcome}>Welcome back to IFIP.</p>
-          <p className={styles.brandDetail}>Sign in with your IFIP account to continue.</p>
+          <p className={styles.welcome}>Your IFIP journey continues here.</p>
         </aside>
 
         <section className={styles.formArea} aria-labelledby="login-title">
           <div key={view} className={styles.panel} data-view={view}>
             <h1 id="login-title" ref={heading} tabIndex={-1}>{headings[view]}</h1>
-            {view === "signin" && <p className={styles.intro}>Use the email address linked to your account.</p>}
-            {view === "recovery" && <p className={styles.intro}>Enter the email you use for IFIP.</p>}
+            {view === "recovery" && <p className={styles.intro}>We’ll send a reset link to your account email.</p>}
             {view === "code" && <p className={styles.intro}>Enter the six-digit verification code from your authenticator app.</p>}
             {view === "email-code" && <p className={styles.intro}>Enter the eight-digit setup code sent to your admin email.</p>}
             {view === "setup" && <p className={styles.intro}>Scan the QR code in your authenticator app or enter the setup key, then enter the six-digit code it generates.</p>}
@@ -248,7 +245,7 @@ export default function LoginPage() {
                       <TbLock aria-hidden="true" />
                       <input id="login-password" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} {...errorAttributes} />
                       <button type="button" className={styles.textButton} aria-controls="login-password" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword(!showPassword)}>
-                        {showPassword ? "Hide" : "Show"}
+                        {showPassword ? <TbEyeOff aria-hidden="true" /> : <TbEye aria-hidden="true" />}
                       </button>
                     </div>
                   </div>
@@ -260,7 +257,7 @@ export default function LoginPage() {
                     {loading ? "Signing in…" : <>Sign in <TbArrowRight aria-hidden="true" /></>}
                   </button>
                 </form>
-                <p className={styles.secondary}>Haven’t applied yet? <Link href="/apply">Apply to IFIP</Link></p>
+                <p className={styles.secondary}>New to IFIP? <Link href="/apply">Apply to IFIP <TbArrowRight aria-hidden="true" /></Link></p>
               </>
             )}
 
@@ -280,7 +277,7 @@ export default function LoginPage() {
                   </div>
                 </div>
                 <button id="mfa-submit" className={styles.primary} type="submit" disabled={loading}>{loading ? "Verifying…" : view === "email-code" ? "Verify email code" : "Verify and sign in"}</button>
-                <button type="button" className={styles.textButton} disabled={loading} onClick={backToSignIn}>Back to sign in</button>
+                <button type="button" className={styles.backAction} disabled={loading} onClick={backToSignIn}><TbArrowLeft aria-hidden="true" /> Sign in</button>
               </form>
             )}
 
@@ -294,7 +291,7 @@ export default function LoginPage() {
                   </div>
                 </div>
                 <button id="forgot-password-submit" className={styles.primary} type="submit" disabled={loading}>{loading ? "Sending link…" : "Send reset link"}</button>
-                <button type="button" className={styles.textButton} disabled={loading} onClick={backToSignIn}>Back to sign in</button>
+                <button type="button" className={styles.backAction} disabled={loading} onClick={backToSignIn}><TbArrowLeft aria-hidden="true" /> Sign in</button>
               </form>
             )}
 
@@ -302,7 +299,7 @@ export default function LoginPage() {
               <>
                 <p className={styles.intro}>If an account matches that email address, you’ll receive a password reset link. The link expires in one hour.</p>
                 <p className={styles.secondary}>If it doesn’t arrive, check your spam folder or contact <a href={supportEmail}>email support</a>.</p>
-                <button type="button" className={styles.primary} onClick={backToSignIn}>Back to sign in</button>
+                <button type="button" className={styles.primary} onClick={backToSignIn}>Sign in <TbArrowRight aria-hidden="true" /></button>
               </>
             )}
           </div>

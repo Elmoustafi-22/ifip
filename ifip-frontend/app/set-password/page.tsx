@@ -132,7 +132,7 @@ function SetPasswordInner() {
         <div className="w-16 h-16 rounded-full bg-green-50 border border-green-200 flex items-center justify-center">
           <HiCheckCircle className="w-9 h-9 text-green-500" />
         </div>
-        <h1 className="text-2xl leading-tight tracking-tight text-[#101f3f] sm:text-3xl font-semibold font-sans">Your password is set</h1>
+        <h1 className="font-display text-3xl leading-tight tracking-tight text-[#101f3f] sm:text-4xl">Your password is set</h1>
         <Link href={signInRequired ? "/login" : isPartner ? "/partner-portal" : "/dashboard"} className="inline-flex min-h-[50px] w-full items-center justify-center rounded-[9px] bg-[#101f3f] px-5 text-sm font-semibold text-white hover:bg-[#24395f]">{signInRequired ? "Continue to sign in" : "Continue"}</Link>
       </div>
     );
@@ -145,13 +145,13 @@ function SetPasswordInner() {
         <div className="w-16 h-16 rounded-full bg-red-50 border border-red-200 flex items-center justify-center">
           <HiLockClosed className="w-8 h-8 text-red-400" />
         </div>
-        <h1 className="text-2xl leading-tight tracking-tight text-[#101f3f] sm:text-3xl font-semibold font-sans">This link is unavailable</h1>
+        <h1 className="font-display text-3xl leading-tight tracking-tight text-[#101f3f] sm:text-4xl">This link is unavailable</h1>
         <p className="text-sm text-on-surface-variant max-w-sm">{tokenError}</p>
-        <Link href="/forgot-password" className="mt-2 text-sm font-semibold text-vibrant-blue hover:underline">
+        <Link href="/forgot-password" className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-vibrant-blue hover:text-primary">
           Request a new password link →
         </Link>
         <Link href="/login" className="text-sm text-on-surface-variant hover:text-primary transition-colors">
-          ← Back to Login
+          ← Sign in
         </Link>
       </div>
     );
@@ -170,13 +170,13 @@ function SetPasswordInner() {
             height={80}
             className="w-16 h-16 object-contain mb-4"
           />
-          <h1 className="text-2xl leading-tight tracking-tight text-[#101f3f] sm:text-3xl text-center font-semibold font-sans">
-            {isPartner ? "Partner Portal Setup" : "Set your password"}
+          <h1 className="font-display text-3xl leading-tight tracking-tight text-[#101f3f] sm:text-4xl text-center">
+            {isPartner ? "Set up partner access" : "Set your password"}
           </h1>
           <p className="text-sm text-on-surface-variant text-center mt-1">
             {isPartner
-              ? "Welcome to the IFIP Partner Network. Set a strong password to access your partner portal dashboard."
-              : "Welcome to IFIP Batch 2026. Set a strong password to access your participant dashboard."}
+              ? "Create a password for your partner account."
+              : "Create a password for your participant account."}
           </p>
         </div>
 
@@ -201,7 +201,7 @@ function SetPasswordInner() {
 
               {/* Email (read-only display) */}
               <div>
-                <label className="block text-xs font-bold uppercase text-primary mb-2 tracking-wide">
+                <label className="block text-sm font-semibold text-primary mb-2">
                   {isPartner ? "Partner Email" : "Participant Email"}
                 </label>
                 <div className="relative">
@@ -211,14 +211,14 @@ function SetPasswordInner() {
                     value={email}
                     readOnly
                     placeholder="Loading email…"
-                    className="w-full pl-10 pr-4 py-3 border border-outline-variant/30 rounded-[6px] text-sm bg-slate-100/80 text-on-surface-variant cursor-default focus:outline-none"
+                    className="w-full min-h-[50px] pl-10 pr-4 py-3 border border-outline-variant rounded-[9px] text-base bg-slate-100/80 text-on-surface-variant cursor-default"
                   />
                 </div>
               </div>
 
               {/* New Password */}
               <div>
-                <label htmlFor="sp-password" className="block text-xs font-bold uppercase text-primary mb-2 tracking-wide">
+                <label htmlFor="sp-password" className="block text-sm font-semibold text-primary mb-2">
                   New Password
                 </label>
                 <div className="relative">
@@ -229,7 +229,7 @@ function SetPasswordInner() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="new-password"
-                    className="w-full pr-12 pl-4 py-3 border border-outline-variant/40 rounded-[6px] text-sm bg-slate-50/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
+                    className="w-full min-h-[50px] pr-12 pl-4 py-3 border border-[#7185a0] rounded-[9px] text-base bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#12617e]"
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant/60 hover:text-primary transition-colors" aria-label="Toggle password visibility">
                     {showPassword ? <HiEyeSlash className="w-5 h-5" /> : <HiEye className="w-5 h-5" />}
@@ -239,7 +239,7 @@ function SetPasswordInner() {
 
               {/* Confirm Password */}
               <div>
-                <label htmlFor="sp-confirm" className="block text-xs font-bold uppercase text-primary mb-2 tracking-wide">
+                <label htmlFor="sp-confirm" className="block text-sm font-semibold text-primary mb-2">
                   Confirm Password
                 </label>
                 <div className="relative">
@@ -250,7 +250,7 @@ function SetPasswordInner() {
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
                     autoComplete="new-password"
-                    className={`w-full pr-12 pl-4 py-3 border rounded-[6px] text-sm bg-slate-50/50 focus:outline-none transition-colors ${
+                    className={`w-full min-h-[50px] pr-12 pl-4 py-3 border rounded-[9px] text-base bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#12617e] ${
                       confirm.length > 0
                         ? passwordsMatch
                           ? "border-green-400 focus:border-green-500"
@@ -337,7 +337,7 @@ function SetPasswordInner() {
 
             <p className="text-center text-xs text-on-surface-variant/60 mt-5">
               By setting a password, you agree to our{" "}
-              <a href="#" className="text-vibrant-blue hover:underline">Security Policy</a>.
+              <a href="#" className="text-vibrant-blue hover:text-primary">Security Policy</a>.
             </p>
           </>
         )}
@@ -349,7 +349,7 @@ function SetPasswordInner() {
 // ── Page export (Suspense boundary required for useSearchParams) ───────
 export default function SetPasswordPage() {
   return (
-    <div className="min-h-screen bg-[#eef4fa] font-sans text-on-surface flex flex-col">
+    <div className="min-h-screen bg-[#f8f5ef] font-sans text-on-surface flex flex-col">
       {/* Minimal top header — logo only (no full nav, this is a secure link) */}
       <header className="py-3 px-5 flex items-center justify-center border-b border-outline-variant/20 bg-white">
         <Link href="/">
