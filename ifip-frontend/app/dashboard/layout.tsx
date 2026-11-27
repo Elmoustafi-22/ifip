@@ -22,6 +22,7 @@ import { getAccessToken, clearAuth } from "@/lib/api/auth";
 import { getMyApplication } from "@/lib/api/services";
 import { expiredSessionLoginPath } from "@/lib/cv-request-link";
 import NotificationBell from "@/components/NotificationBell";
+import MarketingConsentPrompt from "@/components/MarketingConsentPrompt";
 import { DashboardContext, type DashboardProfile } from "./dashboard-context";
 
 const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#12617e]";
@@ -264,6 +265,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             isLaunched,
             cohortStartLabel,
           }}>
+            {userData.role === "participant" && <MarketingConsentPrompt />}
             {children}
           </DashboardContext.Provider>
         </main>

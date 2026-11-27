@@ -1,4 +1,6 @@
 import { createReminderJob, getReminderJob } from '../controllers/reminderJobController.js';
+import { importMarketingContacts, previewMarketingContacts } from '../controllers/marketingImportController.js';
+import { createMarketingCampaign, getMarketingCampaign, listMarketingCampaigns, queueMarketingCampaignBatch, resumeMarketingCampaign } from '../controllers/marketingCampaignController.js';
 import { Router } from 'express';
 import { approveBankTransfer, attachEmailedTransferProof, downloadTransferReceipt, resendTransferSetup, reviewBankTransfer, uploadTransferReceipt } from '../controllers/bankTransferController.js';
 import { recordHiringOutcome } from '../controllers/hiringOutcomeController.js';
@@ -142,6 +144,11 @@ router.post('/users/invite', authorize('superadmin'), inviteAdmin);
 router.post('/users/:id/resend-invite', authorize('superadmin'), resendSetPasswordLink);
 router.delete('/users/:id', authorize('superadmin'), deleteAdminUser);
 router.get('/audit-logs', authorize('superadmin'), getAuditLogs);
+router.get('/marketing-campaigns', listMarketingCampaigns);
+router.post('/marketing-campaigns', createMarketingCampaign);
+router.get('/marketing-campaigns/:id', getMarketingCampaign);
+router.post('/marketing-campaigns/:id/send-batch', queueMarketingCampaignBatch);
+router.post('/marketing-campaigns/:id/resume', resumeMarketingCampaign);
 router.get('/applications', getAdminApplications);
 router.get('/applicants/export-csv', exportApplicantsCSV);
 router.patch('/applications/:id/cohort', assignApplicationCohort);
@@ -172,7 +179,18 @@ const handleUpload = (fieldName: string) => {
     };
 };
 
+const marketingCsvUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 1 } });
+const handleMarketingCsvUpload = (req: any, res: any, next: any) => {
+    marketingCsvUpload.single('file')(req, res, (err: any) => {
+        if (err instanceof multer.MulterError) return res.status(400).json({ message: err.code === 'LIMIT_FILE_SIZE' ? 'CSV files must be 5 MB or smaller.' : `CSV upload error: ${err.message}` });
+        if (err) return res.status(400).json({ message: err.message || 'CSV upload failed.' });
+        next();
+    });
+};
+
 router.get('/registration-funnel/applicants', getRegistrationApplicants);
+router.post('/marketing-subscribers/import-preview', handleMarketingCsvUpload, previewMarketingContacts);
+router.post('/marketing-subscribers/import', handleMarketingCsvUpload, importMarketingContacts);
 router.get('/pending-applicants', getPendingApplicants);
 router.post('/pending-applicants/reminder-jobs', createReminderJob);
 router.get('/pending-applicants/reminder-jobs/:jobId', getReminderJob);

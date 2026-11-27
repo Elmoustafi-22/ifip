@@ -25,6 +25,7 @@ import {
 } from "@/lib/api/services";
 import { changePassword, mfaSetup, mfaEnable, mfaDisable, updateNotificationPreferences } from "@/lib/api/auth";
 import { useDashboard } from "../dashboard-context";
+import MarketingPreferenceSettings from "@/components/MarketingPreferenceSettings";
 
 // Common country list for dial codes & location matching
 const POPULAR_COUNTRIES = [
@@ -1100,6 +1101,7 @@ export default function SettingsPage() {
               Receive email alerts for coursework reviews, assessment grading, interview invitations, and placement offers. In-app notifications are always active regardless of this setting.
             </p>
           </div>
+          <MarketingPreferenceSettings />
         </div>
 
         {/* SECTION 4: ACCOUNT SECURITY */}

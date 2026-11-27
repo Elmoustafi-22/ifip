@@ -5,7 +5,10 @@ Registration and enrollment redesign
 
 See the [REG-00 through REG-08 backlog](registration/REGISTRATION_TASKS.md) and [verification evidence](PROGRESS.md).
 
+An additional, separately authorized email marketing slice is tracked as [MKT-01](marketing/EMAIL_MARKETING_TASK.md); it does not change the registration task sequence.
+
 ## Current Status
+- **Email marketing consent and campaign batches implemented locally, 27 November 2026.** Registration consent is optional and captured after OTP verification; existing participants receive an in-app choice; Admin → Email campaigns snapshots opted-in recipients and queues explicit batches; marketing unsubscribe is separate from transactional mail. TypeScript checks pass. Rendered, isolated database and OutboxStack test-mode verification remain open. See [MKT-01](marketing/EMAIL_MARKETING_TASK.md) and [verification notes](PROGRESS.md#email-marketing-consent-and-campaigns).
 - **Registration header alignment refined locally, 27 November 2026.** The approved layout removes the redundant “Already registered?” prompt, places Sign in before the mobile menu, and exposes program links on wide screens. See [verification](PROGRESS.md#registration-header-alignment).
 - **Registration and sign-in visual refresh implemented locally, 27 November 2026.** The user approved the shorter classic presentation, selective icon controls and removal of routine underlines. See [progress and verification](PROGRESS.md#registration-and-sign-in-refresh-proposal). Full state and staging verification remain open.
 - **Mongoose deprecation warning fix implemented locally, 24 November 2026.** Remaining backend `findOneAndUpdate()` calls using `{ new: true }` now use `returnDocument: 'after'`; see [verification](PROGRESS.md#mongoose-deprecated-update-option).

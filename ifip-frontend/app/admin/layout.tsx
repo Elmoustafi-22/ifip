@@ -59,6 +59,7 @@ const NAV_GROUPS = [
       { href: "/admin",       label: "Overview",      icon: HiOutlineSquares2X2 },
       { href: "/admin/users", label: "Platform Users", icon: HiOutlineUsers },
       { href: "/admin/announcements", label: "Announcements", icon: HiOutlineBell },
+      { href: "/admin/marketing", label: "Email campaigns", icon: HiOutlineMegaphone },
     ],
   },
   {

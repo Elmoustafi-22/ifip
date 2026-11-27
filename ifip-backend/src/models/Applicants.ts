@@ -3,6 +3,8 @@ import { Schema, model, Document, Types } from 'mongoose';
 export interface IApplicant extends Document {
     email: string;
     emailVerified: boolean;
+    marketingConsent?: boolean;
+    marketingConsentAt?: Date;
     resumeTokenHash?: string;
     fullName?: string;
     phone?: string;
@@ -57,6 +59,8 @@ const applicantSchema = new Schema<IApplicant>(
     {
         email: { type: String, required: true, lowercase: true, trim: true, index: true },
         emailVerified: { type: Boolean, default: false },
+        marketingConsent: { type: Boolean, default: undefined },
+        marketingConsentAt: Date,
         resumeTokenHash: String,
         fullName: String,
         phone: String,

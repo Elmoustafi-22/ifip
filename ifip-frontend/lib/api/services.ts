@@ -9,6 +9,51 @@ export const saveRegistrationNotice = async (payload: RegistrationNotice): Promi
 export const removeRegistrationNotice = async (): Promise<void> => {
   await authClient.delete("/cohort/registration-notice");
 };
+
+export type MarketingConsentStatus = "unknown" | "subscribed" | "declined" | "unsubscribed";
+export const getMarketingPreference = async (): Promise<{ status: MarketingConsentStatus }> =>
+  (await authClient.get<{ status: MarketingConsentStatus }>("/marketing/preference")).data;
+export const setMarketingPreference = async (subscribed: boolean): Promise<{ status: MarketingConsentStatus }> =>
+  (await authClient.put<{ status: MarketingConsentStatus }>("/marketing/preference", { subscribed })).data;
+export const unsubscribeMarketing = async (token: string): Promise<void> => {
+  await apiClient.post("/marketing/unsubscribe", { token });
+};
+
+export interface MarketingCampaign {
+  id: string; name: string; subject: string; message: string; batchSize: number;
+  status: "draft" | "queued" | "processing" | "ready" | "interrupted" | "completed";
+  total: number; accepted: number; failed: number; skipped: number; remaining: number; unknown: number;
+  sending: number;
+  createdAt: string; updatedAt: string;
+}
+export const listMarketingCampaigns = async (): Promise<MarketingCampaign[]> =>
+  (await authClient.get<{ campaigns: MarketingCampaign[] }>("/admin/marketing-campaigns")).data.campaigns;
+export const createMarketingCampaign = async (payload: { name: string; subject: string; message: string; batchSize: number }): Promise<MarketingCampaign> =>
+  (await authClient.post<{ campaign: MarketingCampaign }>("/admin/marketing-campaigns", payload)).data.campaign;
+export const sendMarketingCampaignBatch = async (id: string): Promise<MarketingCampaign> =>
+  (await authClient.post<{ campaign: MarketingCampaign }>(`/admin/marketing-campaigns/${id}/send-batch`)).data.campaign;
+export const resumeMarketingCampaign = async (id: string): Promise<MarketingCampaign> =>
+  (await authClient.post<{ campaign: MarketingCampaign }>(`/admin/marketing-campaigns/${id}/resume`)).data.campaign;
+export interface MarketingImportResult {
+  imported: number; alreadySubscribed: number; suppressed: number; invalid: number; duplicates: number; eligible: number;
+  invalidRows: { row: number; reason: string }[]; consentDate: null; message: string;
+}
+export interface MarketingImportPreview {
+  valid: number; importable: number; alreadySubscribed: number; suppressed: number; invalid: number; duplicates: number;
+  invalidRows: { row: number; reason: string }[];
+}
+export const previewMarketingContacts = async (file: File): Promise<MarketingImportPreview> => {
+  const form = new FormData();
+  form.append("file", file);
+  return (await authClient.post<MarketingImportPreview>("/admin/marketing-subscribers/import-preview", form)).data;
+};
+export const importMarketingContacts = async (file: File, evidence: string): Promise<MarketingImportResult> => {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("attested", "true");
+  form.append("evidence", evidence);
+  return (await authClient.post<MarketingImportResult>("/admin/marketing-subscribers/import", form)).data;
+};
 import {
   Applicant,
   StartApplicationResponse,
@@ -23,9 +68,9 @@ export const startApplication = async (email: string): Promise<StartApplicationR
   return data;
 };
 
-export const verifyOtp = async (email: string, otp: string): Promise<VerifyOtpResponse> => {
+export const verifyOtp = async (email: string, otp: string, marketingConsent = false): Promise<VerifyOtpResponse> => {
   const cleanEmail = email.trim().toLowerCase();
-  const { data } = await apiClient.post<VerifyOtpResponse>("/applicants/verify-otp", { email: cleanEmail, otp });
+  const { data } = await apiClient.post<VerifyOtpResponse>("/applicants/verify-otp", { email: cleanEmail, otp, marketingConsent });
   return data;
 };
 

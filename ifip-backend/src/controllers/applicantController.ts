@@ -16,6 +16,7 @@ import { CohortConfig } from '../models/CohortConfig.js';
 import { logRawAction } from '../utils/auditLogger.js';
 import { getActiveRegistrationCohort, checkCohortCapacity } from '../services/registrationAvailability.js';
 import { RegistrationNotice } from '../models/RegistrationNotice.js';
+import { MarketingSubscriber } from '../models/MarketingSubscriber.js';
 
 
 export const getCohortStatus = async (req: Request, res: Response) => {
@@ -153,7 +154,7 @@ export const startApplication = async (req: Request, res: Response) => {
 export const verifyApplicantOtp = async (req: Request, res: Response) => {
     const rawEmail = req.body.email || '';
     const email = rawEmail.trim().toLowerCase();
-    const { otp } = req.body;
+    const { otp, marketingConsent = false } = req.body;
 
     const otpKey = `pending_otp:${email}`;
     const cachedHash = await redisClient.get(otpKey);
@@ -220,6 +221,15 @@ export const verifyApplicantOtp = async (req: Request, res: Response) => {
         });
     } else {
         applicant.emailVerified = true;
+    }
+    // Save the optional choice only after email ownership has been verified.
+    const priorMarketingPreference = await MarketingSubscriber.findOne({ email }).select('status changedAt');
+    applicant.marketingConsent = marketingConsent === true || priorMarketingPreference?.status === 'subscribed';
+    applicant.marketingConsentAt = marketingConsent === true ? new Date() : priorMarketingPreference?.changedAt ?? new Date();
+    if (marketingConsent || !priorMarketingPreference || priorMarketingPreference.status === 'unknown') {
+        await MarketingSubscriber.findOneAndUpdate({ email }, {
+            $set: { status: marketingConsent ? 'subscribed' : 'declined', source: 'registration', ...(marketingConsent ? { consentSource: 'registration', consentDate: applicant.marketingConsentAt } : {}), changedAt: applicant.marketingConsentAt },
+        }, { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true });
     }
 
     const { raw: resumeTokenRaw, hash: resumeTokenHash } = generateResumeToken();
@@ -305,6 +315,12 @@ export const updateMyApplicant = async (req: Request, res: Response) => {
 
     applicant.refreshExpiry();
     await applicant.save();
+    if (applicant.fullName) {
+        await MarketingSubscriber.updateOne(
+            { email: applicant.email, status: 'subscribed', $or: [{ name: { $exists: false } }, { name: '' }] },
+            { $set: { name: applicant.fullName } },
+        );
+    }
 
     res.json(applicant);
 };

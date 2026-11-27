@@ -519,6 +519,7 @@ export default function ApplyPage() {
 
   // Step 1 State
   const [email, setEmail] = useState("");
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [otp, setOtp] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -1094,7 +1095,7 @@ export default function ApplyPage() {
     activeVerification.current = true;
     setVerificationRequest("verifying");
     try {
-      const data = await verifyOtp(cleanEmail, validation.data.otp);
+      const data = await verifyOtp(cleanEmail, validation.data.otp, marketingConsent);
       if (!mounted.current) return;
       const sessionToken = data.sessionToken;
       localStorage.setItem("applicantToken", sessionToken);
@@ -1701,6 +1702,7 @@ export default function ApplyPage() {
                         placeholder="name@example.com"
                         value={email}
                         onChange={(event) => {
+                          if (event.target.value !== email) setMarketingConsent(false);
                           handleInputChange("email", event.target.value, setEmail);
                           setWaitlistEmail(event.target.value);
                         }}
@@ -1710,6 +1712,10 @@ export default function ApplyPage() {
                       />
                       {errors.email && <p id="apply-email-error" role="alert" className="text-sm text-error">{errors.email}</p>}
                     </div>
+                    <label htmlFor="marketing-consent" className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#d8e0e8] bg-white px-3 py-3 text-sm leading-5 text-[#43536e]">
+                      <input id="marketing-consent" name="marketingConsent" type="checkbox" checked={marketingConsent} onChange={(event) => setMarketingConsent(event.target.checked)} className="mt-0.5 size-4 shrink-0 accent-[#101f3f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#12617e]" />
+                      <span>Yes, I’d like occasional IFIP emails about future cohorts, registration reminders, and related programme opportunities. I can unsubscribe at any time. This is optional and does not affect my application.</span>
+                    </label>
                     <button type="submit" aria-disabled={verificationRequest !== "idle" || resendCooldown > 0} className={entryAction}>
                       {verificationRequest === "sending" ? "Sending…" : resendCooldown > 0 ? `Send code in ${resendCooldown}s` : "Send code"}
                       <span aria-hidden="true" className="text-xl leading-none">→</span>

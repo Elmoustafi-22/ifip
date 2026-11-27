@@ -7,6 +7,7 @@ export const startApplicationSchema = z.object({
 export const verifyOtpSchema = z.object({
     email: z.string().email(),
     otp: z.string().length(6),
+    marketingConsent: z.boolean().optional().default(false),
 });
 
 export const resumeSchema = z.object({

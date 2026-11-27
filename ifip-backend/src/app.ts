@@ -9,6 +9,7 @@ import path from 'path';
 
 import { env } from './config/env.js';
 import applicantRoutes from './routes/applicantRoutes.js';
+import marketingRoutes from './routes/marketingRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import authRoutes from './routes/authRoutes.js';
@@ -154,6 +155,7 @@ const paymentLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
 
 app.use('/api/v1/applicants/start', otpIpLimiter, otpEmailLimiter);
 app.use('/api/v1/applicants', applicantRoutes);
+app.use('/api/v1/marketing', marketingRoutes);
 app.use('/api/v1/uploads', uploadRoutes);
 app.use('/api/v1/payments/initiate', paymentLimiter);
 app.use('/api/v1/payments', paymentRoutes);

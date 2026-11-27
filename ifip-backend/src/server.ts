@@ -7,6 +7,7 @@ import { connectRedis } from './services/redisService.js';
 import { PartnerOrganization } from './models/PartnerOrganization.js';
 import { startInterviewReminderCron } from './services/interviewReminderCron.js';
 import { startCohortWaitlistCron } from './services/cohortWaitlist.js';
+import { startMarketingCampaignWorker } from './services/marketingCampaigns.js';
 
 const PORT = Number(env.PORT);
 
@@ -29,6 +30,7 @@ Promise.all([connectDB(), connectRedis()]).then(async () => {
     startInterviewReminderCron();
     startCohortWaitlistCron();
     startReminderWorker(deliverPendingReminderBatch);
+    startMarketingCampaignWorker();
 
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 });

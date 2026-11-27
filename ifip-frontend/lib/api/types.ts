@@ -37,6 +37,8 @@ export interface Applicant {
   _id: string;
   email: string;
   emailVerified: boolean;
+  marketingConsent?: boolean;
+  marketingConsentAt?: string;
   fullName?: string;
   phone?: string;
   dob?: string | Date;

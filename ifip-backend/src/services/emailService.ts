@@ -15,16 +15,19 @@ export const EMAIL_SENDERS = {
     ADMIN: 'IFIP Administration',
 } as const;
 
+export async function sendMarketingEmail(to: string, subject: string, html: string, oneClickUnsubscribeUrl: string, idempotencyKey: string) {
+    return outbox.send({
+        from: env.EMAIL_FROM, fromName: EMAIL_SENDERS.ADMISSIONS, replyTo: env.EMAIL_REPLY_TO, to, subject, html,
+        headers: { 'List-Unsubscribe': `<${oneClickUnsubscribeUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
+    }, { idempotencyKey });
+}
+
 const send = async (to: string, subject: string, html: string, senderName: string = EMAIL_SENDERS.DEFAULT, reportFailure = false) => {
-    // Append a universal email-preference / unsubscribe footer to every outgoing email.
-    // This satisfies CAN-SPAM / GDPR requirements and reduces spam reports from recipients.
+    // Transactional emails are separate from campaign preferences. Marketing messages
+    // carry their own authenticated unsubscribe links and List-Unsubscribe headers.
     const unsubscribeBlock = `
     <div style="text-align:center; padding: 12px 16px 8px 16px; font-size: 10px; color: #9ca3af; font-family: 'Segoe UI', Arial, sans-serif; border-top: 1px solid #f0f0f0; margin-top: 8px;">
         You are receiving this email because you have an account or application with IFIP.
-        &nbsp;&middot;&nbsp;
-        <a href="${env.CLIENT_URL}/settings/notifications" style="color: #9ca3af; text-decoration: underline;">Manage email preferences</a>
-        &nbsp;&middot;&nbsp;
-        <a href="${env.CLIENT_URL}/unsubscribe?email=${encodeURIComponent(to)}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe</a>
     </div>`;
     const htmlWithFooter = html + unsubscribeBlock;
 
@@ -52,7 +55,7 @@ export const sendTestEmail = (to: string) => send(
     true,
 );
 
-const LOGO_HEADER_URL = "https://res.cloudinary.com/dwryrfa1u/image/upload/v1783863950/logo-full-color_ngtq5n.png";
+export const LOGO_HEADER_URL = "https://res.cloudinary.com/dwryrfa1u/image/upload/v1783863950/logo-full-color_ngtq5n.png";
 
 export const sendAdminMfaSetupCode = (to: string, code: string) => send(
     to,
